@@ -1,6 +1,29 @@
+===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
+===============================================================================
+v0.16 : dml/2016
 -------------------------------------------------------------------------------
-dml/2016
+
+
+         .__________________________________________________.
+         ||////////////////////////////////////////////////||
+         ||////////////////////////////////////////////////||
+         ||////////////////////////////////////////////////||
+         ||////////////////////////////////////////////////||    ___.
+         ||////////////////////////////////////////////////||   /    \
+         !__________________________________________________!  |      |
+         |   __ __ __ __ __ __ __ __ __ __  /|\ ATARI 1040ST|  |      |
+         |__/_//_//_//_//_//_//_//_//_//_/____________--____|  |  .---|---.
+         | ______________________________________________   |  |  |   |   |
+         | [][][][][][][][][][][][][][][__] [_][_] [][][][] |  |  |---'---|
+         | [_][][][][][][][][][][][][]| |[] [][][] [][][][] |  |  |       |
+         | [__][][][][][][][][][][][][__|[] [][][] [][][][] |  |  |       |
+         | [_][][][][][][][][][][][][_]            [][][]|| |  |  |  /|\  |
+         |    [_][________________][_]             [__][]LI |  |   \_____/
+         |__________________________________________________|  ;
+                                                          \___/
+
+
 
 This tool is intended to make the conversion of scrolling game maps and sprite
 assets as easy and painless as possible for Atari ST game prototyping. It is
@@ -14,8 +37,9 @@ when it takes such a decision. If what you got is not what you expected, check
 the output from the tool, then check the details of the file types involved.
 
 
+===============================================================================
 Examples: [maps & tile libraries]
--------------------------------------------------------------------------------
+===============================================================================
 
 Maps are emitted as '.ccm' files (format described towards end)
 Tile libraries are emitted as '.cct' files (format described towards end)
@@ -46,8 +70,9 @@ a specified tolerance.
 
 
 
+===============================================================================
 Examples: [spritesheets]
--------------------------------------------------------------------------------
+===============================================================================
 
 Spritesheets are emitted as '.sps' files (format described towards end)
 
@@ -102,7 +127,9 @@ The -prv option will provide feedback on colour indices and transparency/mask
 
 
 The -key option will allow the transparent colour to be changed when generating
-precalculated masks.
+precalculated masks, and to allow a chosen colour to be remapped to 0, in the
+case where no explicit mask data is to be generated.
+
 
  agtcut -cm sprites -s sprites_16cols.png -prv -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9 
 
@@ -129,15 +156,34 @@ precalculated masks.
  created sprite frame 0 from offset [0, 0] size [23 x 16]
 
 
+The -gm option will force the tool to generate explicit mask data. The -ml
+option will specify how this mask data is laid out in the file format.
+
+'-gm -ml interleaved' will emit 1 mask word before each group of colour plane
+words.
+
+ agtcut -cm sprites -s sprites_16cols.png -gm -ml interleaved -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9 
+
+'-gm -ml planar' will emit the entire mask bitplane before any of the colour
+plane words. The colour planes however remain interleaved (ST screen format).
+
+ agtcut -cm sprites -s sprites_16cols.png -gm -ml planar -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9 
+
+
 
 Note: For STF sprite rendering in the AGT playfield engine, colour 0 is always
-assumed to be the key colour regardless of what -key is specified. 
-For STE/blitter sprites, alternate key colours can be used, allowing
-background colour 0 can be used as solid colour.
+assumed to be the key colour regardless of what -key is specified. The -key
+option will remap the chosen colour to use colour 0 so it is better to prepare
+the assets beforehand.
+ 
+For sprites generated with explicit masks, the -key option allows masks to
+be generated for the specified key colour. It also remaps the key colour to
+0 in the colour data channel to allow mask logic to work properly at drawtime.
 
 
+===============================================================================
 File Formats: 
--------------------------------------------------------------------------------
+===============================================================================
 
 All fields are Motorola/BigEndian format, ready for reading on Atari.
 
@@ -146,8 +192,9 @@ some changes to the map/tile library formats (i.e. new format). The spritesheet
 format should cope with preshifting already.
 
 
+===============================================================================
 File Formats: Maps [.ccm]
--------------------------------------------------------------------------------
+===============================================================================
 
 Map format is very simple, since you may want to convert it to some other form.
 
@@ -160,39 +207,41 @@ tilelib_indices:	4 bytes * (width_in_tiles * height_in_tiles)
 
 
 
+===============================================================================
 File Formats: Tile Libraries [.cct]
--------------------------------------------------------------------------------
+===============================================================================
 
 This is the same format emitted by the CryptoChrome tool (PCS v6.2x - except
 the other tool emits 2 sets of tiles for interlacing with).
 
-palette:		32 bytes (16 words) in STE HW format
-flags:			1 byte
-num_bitplanes:		1 byte	(if zero, also interpret as 4 planes!)
+palette:		32 bytes (16 palette words in STE HW format)
+flags:			1 byte	(0, reserved for now)
+num_bitplanes:		1 byte	(if==0, must interpret as 4 planes!)
 num_tiles:		2 bytes
 tilelib_data:		(num_bitplanes * 2 bytes * 16 lines) * num_tiles
 
 
-
+===============================================================================
 File Formats: Sprite Sheets [.sps]
--------------------------------------------------------------------------------
+===============================================================================
 
-The sprite sheet format is a bit more complicated.
+The sprite sheet format is a bit more complicated, mainly to accommodate some
+data layout and pixel preshifting options.
 
 
-bytes_remaining:	4 bytes (excluded! so filesize = bytes_remaining+4)
-version_info:		2 bytes
+[databytes]:		4 bytes (excluded! so true filesize = databytes+4)
+version_info:		2 bytes	(file format version: 0x0100 for version 1.0)
 frame_count:		2 bytes
 num_bitplanes:		2 bytes
-flags:			2 bytes	(0, reserved for now)
+flags:			2 bytes	(see section on flags for info)
 preshift_range:		1 byte	(0, reserved for now)
 preshift_step:		1 byte	(0, reserved for now)
 source_width:		2 bytes (i.e. sprite size before optimization)
 source_height:		2 bytes
-frame_index:		4 bytes * frame_count
+[frame_index]:		4 bytes * frame_count
 
 
-The [frame_index] is a table of offsets to frames, from the [frame_index] 
+The [frame_index] is a table of 4byte offsets to frames, from the [frame_index] 
 table start. 
 
 So to calculate the file position of the third frame...
@@ -211,6 +260,7 @@ So to calculate the file position of the third frame...
 	add.l		(a1,d0.w),a1		; access sprite frame data
 
 
+
 Immediately following the frame index, are the frames themselves, one after
 the other in sequence until the file completes:
 
@@ -218,7 +268,23 @@ framewidth:		2 bytes	(optimized width of stored frame)
 frameheight:		2 bytes	(optimized height of stored frame)
 xoffset:		2 bytes	(compensate for optimized size vs src size)
 yoffset:		2 bytes	(compensate for optimized size vs src size)
-framedata:		(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight
+[framedata]:		...
+
+
+Three layouts currently possible for the frame data. This is based on 
+the contents of the 'flags' field and mainly involves mask options. More
+layouts will likely be added in future e.g. plane-by-plane colour data.
+
+1) no explicit mask (default)
+	colour data: 	(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight
+
+2) interleaved mask			
+	combined data: 	((1+num_bitplanes) * 2 bytes) * ((framewidth + 15) >> 4) * frameheight
+
+3) planar mask
+	mask data: 	2 bytes * ((framewidth + 15) >> 4) * frameheight
+	colour data: 	(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight
+
 
 The sprite frame should be drawn at xpos+frame.xoffset, ypos+frame.yoffset to
 reproduce the original assets, if cutting optimization has been used.
@@ -227,12 +293,35 @@ Note: Currently no precalculated mask data is stored. This will be added soon
 for blitter based sprites. Software based sprites can be drawn more efficiently
 using keycolour=0, without a pre-calculated mask.
 
- 
 
-Quick Help info
+Sprite Sheets flags
 -------------------------------------------------------------------------------
 
-Atari GameTools: map, tile & sprite cutter v0.15 / dml
+The 16bit .sps flags field is formatted as follows.
+
+      1                             
+      5             8   7             0
+      ---------------------------------
+bits: 0 0 0 0 0 0 0 0 : 0 0 0 0 0 L L M
+ 
+ 
+        M:  1 = explicit mask data present (-gm was specified)
+
+       LL: 00 = mask layout is interleaved. 1 mask word emitted before each
+	        group of N plane words.
+           01 = mask layout is planar (-mg planar was specified). The whole
+                mask plane comes before any colour data. 
+
+
+The other flags are reserved for now...
+
+
+
+===============================================================================
+Quick Help info
+===============================================================================
+
+Atari GameTools: map, tile & sprite cutter v0.16 / dml
 built on Apr  7 2016
 usage:
  atgcut [opts] [infile]
@@ -240,7 +329,7 @@ usage:
  -?, -h, --help       > show help/usage
  -v, --verbose        > more output
  -q, --quiet          > less output
- -k, --wait-key       > wait key on exit
+ -wk, --wait-key      > wait key on exit
 
 general:
  -s, --src            > source image containing tiles/sprites:
@@ -249,6 +338,7 @@ general:
  -cm, --cutmode       > cutting mode: tiles,sprites
  -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png
  -bp, --bitplanes     > #bitplanes to generate: 1-8
+ -key, --key-colour   > colour index assumed to be transarent: 0-255
 
 sprite cutting mode:
  -sxp, --sprxpos      > first frame xpos: 0+
@@ -260,9 +350,12 @@ sprite cutting mode:
  -sxc, --sprxcount    > frames per row: 1+
  -syc, --sprycount    > frames per column: 1+
  -sc, --sprcount      > total frames to cut, if stopping early: 0+, where 0=ignore
- -sopt, --sproptimize > optimize away unused pixels: on/off (compensated w/offsets)
+ -gm, --gen-mask      > generate 1bpl mask data along with colour data
+ -ml, --mask-layout   > mask layout strategy: interleaved,planar
+ -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)
+ -prv, --preview      > show ASCII preview of extracted colours + masking
 
 map & tile cutting mode:
  -t, --tol            > tile matching tolerance: 0.0+
  -om, --outmode       > tile library output mode: direct,degas
- 
+

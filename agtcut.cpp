@@ -2,6 +2,7 @@
 //	platform stuff - todo: OSX/Linux porting!
 // --------------------------------------------------------------------
 
+#define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
 #include "stdio.h"
 #include <iostream>
@@ -398,7 +399,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_TOLERANCE)
 			{
 				std::string s_arg = args.OptionArg();
-				float farg = atof(s_arg.c_str());
+				float farg = (float)atof(s_arg.c_str());
 				if (farg < 0.0f || farg > 1e4f)
 				{
 					printf("error - invalid arg for tile matching tolerance: %s\n", s_arg.c_str());
@@ -941,7 +942,7 @@ static inline void extract_tile24(RGB *_pdsttile, RGB *_psrctile, ulong_t _sourc
 // compare two 24bit tiles for similarity
 static inline float compare_tile24(RGB *_pdsttile, RGB *_psrctile, ulong_t _sourcew)
 {
-	static const float c_n = 1.0 / 255.0;
+	static const float c_n = 1.0f / 255.0f;
 
 	float errsum = 0.0f;
 
@@ -981,7 +982,7 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 	// configure nearest match to worst case before search
 	tile24dictionary_t::iterator best_it24 = s_tile24dictionary.end();
 	tile8dictionary_t::iterator best_it8 = s_tile8dictionary.end();
-	float best_error = g_allargs.tolerance+(1e-7);
+	float best_error = g_allargs.tolerance+(1e-7f);
 	int best_index = -1;
 	bool match = false;
 
@@ -1168,7 +1169,7 @@ int s_num_colours_matched = 0;
 
 static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 {
-	static const float c_n = 1.0 / 255.0;
+	static const float c_n = 1.0f / 255.0f;
 
 	float fr = float(rgb.red);
 	float fg = float(rgb.green);
@@ -1245,9 +1246,9 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_pdstcol, ulong_t _sourcew
 
 		RGB *psrc = _psourcergb;
 		ubyte_t *pdst = _pdstcol;
-		for (int py = 0; py < _sourceh; py++)
+		for (int py = 0; py < (int)_sourceh; py++)
 		{
-			for (int px = 0; px < _sourcew; px++)
+			for (int px = 0; px < (int)_sourcew; px++)
 			{
 				*pdst++ = match_colour(*psrc++, r_ppal, r_numcolours);
 			}
@@ -1775,7 +1776,7 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y)
 	uword_t *colrdata = new uword_t[spriteplane_wordsize * g_allargs.planes];
 
 	// copy mask data - just need one plane of the 8 we converted!
-	for (int v = 0; v < spriteplane_wordsize; v++)
+	for (size_t v = 0; v < spriteplane_wordsize; v++)
 	{
 		maskdata[v] = g_maskbufferbpl[v << 3];
 	}
@@ -1784,7 +1785,7 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y)
 	{
 		int s = 0;
 		int d = 0;
-		for (int v = 0; v < spriteplane_wordsize; v++, s += 8, d += g_allargs.planes)
+		for (size_t v = 0; v < spriteplane_wordsize; v++, s += 8, d += g_allargs.planes)
 		{
 			for (int p = 0; p < g_allargs.planes; p++)
 				colrdata[d + p] = g_colrbufferbpl[s + p];
@@ -1831,9 +1832,9 @@ bool emit_spritesequence()
 		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 		// 2: flags
-		// 0 0 0 0 0 0 0 0 0 0 0 0 0 0 m M
-		// M = 1bpl mask data present before colour data
-		// L = mask layout mode (0=interleaved, 1=planar)
+		// 0 0 0 0 0 0 0 0 0 0 0 0 0 L L M
+		// M	mask present (1bpl mask data before colour data)
+		// LL	mask layout mode (00=interleaved, 01=planar)
 		wv = 0;
 		wv |= (g_allargs.genmask) ? 1 : 0;
 		wv |= (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PLANAR)) ? 2 : 0;
@@ -1962,7 +1963,7 @@ bool do_spritesheet()
 			{
 				int maxcolidx = 1 << g_allargs.planes;
 				// check that indexed colours are in range for bitplanes specified
-				for (int p = 0; p < sourcew*sourceh; p++)
+				for (size_t p = 0; p < sourcew*sourceh; p++)
 				{
 					if (m_psourcecol[p] >= maxcolidx)
 					{
