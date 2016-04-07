@@ -30,7 +30,7 @@
 * For building tool code you'll need VS2005, VS2013, GCC or XCode/Clang
 * For building Atari code you'll need m68k-atari-mint GCC 4.6.3 & VASM assembler
   [http://vincent.riviere.free.fr/soft/m68k-atari-mint/](Link URL)
-* An emulator will help (Hatari, STEEM, SainT) but nothing beats the real thing!
+* An emulator will help (Hatari, STEEM, SainT) but nothing beats real HW
   Hatari - Windows nightly builds: [http://antarctica.no/~hatari/](Link URL)
   STEEM Engine: [http://steem.atari.st/](Link URL)
   STEEM SSE: [http://ataristeven.exxoshost.co.uk/Steem.htm](Link URL)
