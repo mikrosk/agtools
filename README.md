@@ -27,7 +27,7 @@
 
 ### How do I get set up? ###
 
-* For building tool code you'll need VS2005...VS2013, GCC or XCode/Clang. Currently only VS projects re provided but others will be added.
+* For building tool code you'll need VS2005...VS2013, GCC or XCode/Clang. Currently only VS projects are provided but other environments will be added.
 * For building Atari code you'll need m68k-atari-mint GCC 4.6.3 & VASM assembler
   [http://vincent.riviere.free.fr/soft/m68k-atari-mint/](Link URL)
 * An emulator will help (Hatari, STEEM, SainT) but nothing beats real HW! 
