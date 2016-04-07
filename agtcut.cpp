@@ -35,6 +35,15 @@ typedef unsigned int ulong_t;
 typedef unsigned short uword_t;
 typedef unsigned char ubyte_t;
 
+// alternates, for working with engine types
+typedef int s32;
+typedef short s16;
+typedef signed char s8;
+
+typedef unsigned int u32;
+typedef unsigned short u16;
+typedef unsigned char u8;
+
 // meh: this arrived with BMP and lingers on...
 typedef struct RGB
 {
@@ -48,7 +57,7 @@ typedef struct RGB
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.16";
+static const char* const g_version_string = "v0.17";
 
 // SPS file format version
 static const int SPS_VERSION = 0x100;
@@ -103,6 +112,13 @@ static inline int xmax(int _x, int _y)
 }
 
 // --------------------------------------------------------------------
+//	interface to engine tileset reader, for access to palettes
+// --------------------------------------------------------------------
+
+// todo: move reader/writer out of tool generally!
+//#include "tileset.h"
+
+// --------------------------------------------------------------------
 //	commandline handling
 // --------------------------------------------------------------------
 
@@ -116,6 +132,8 @@ enum
 	// general
 	OPT_BITPLANES,
 	OPT_KEYCOL,
+	OPT_KEYGUARD,
+	OPT_KEYTOL,
 	OPT_SOURCE,
 	OPT_PALETTE,
 	OPT_CUTMODE,
@@ -166,6 +184,12 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_KEYCOL,		_T("-key"),	 			SO_REQ_SEP	},
 	{ OPT_KEYCOL,		_T("--key-colour"),		SO_REQ_SEP	},
+	//
+	{ OPT_KEYGUARD,		_T("-kg"),	 			SO_NONE		},
+	{ OPT_KEYGUARD,		_T("--key-guard"),		SO_NONE		},
+	//
+	{ OPT_KEYGUARD,		_T("-kt"),	 			SO_REQ_SEP	},
+	{ OPT_KEYGUARD,		_T("--key-tol"),		SO_REQ_SEP	},
 	//
 	{ OPT_SOURCE,		_T("-s"),	 			SO_REQ_SEP	},
 	{ OPT_SOURCE,		_T("--src"), 			SO_REQ_SEP	},
@@ -246,6 +270,8 @@ static void usage(int level)
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
 	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
 	std::cout << " -key, --key-colour   > colour index assumed to be transarent: 0-255" << std::endl;
+	std::cout << " -kg, --key-guard     > guard against reducing colours to key colour" << std::endl;
+	std::cout << " -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
 	std::cout << std::endl;
 	std::cout << "sprite cutting mode:" << std::endl;
 	std::cout << " -sxp, --sprxpos      > first frame xpos: 0+" << std::endl;
@@ -306,7 +332,9 @@ public:
 		  spriteoptimize(true),
 		  preview(false),
 		  genmask(false),
-		  tolerance(0.0),
+		  keyguard(false),
+		  tolerance(0.0f),
+		  keytol(0.01f),
 		  sourcefile("source.bmp"),
 		  palettefile("palette.pi1"),
 		  spriteguidefile("sprites.sgd"),
@@ -333,6 +361,7 @@ public:
 	bool spriteoptimize;
 	bool preview;
 	bool genmask;
+	bool keyguard;
 
 	ubyte_t keycol;
 	int cut_xpos;
@@ -346,6 +375,7 @@ public:
 	int cut_count;
 
 	float tolerance;
+	float keytol;
 	std::string sourcefile;
 	std::string spriteguidefile;
 	Cutmode cutmode;
@@ -391,6 +421,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			{
 				_args.genmask = true;
 			}	
+			else if (args.OptionId() == OPT_KEYGUARD) 
+			{
+				_args.keyguard = true;
+			}	
 			//
 			else if (args.OptionId() == OPT_SOURCE)
 			{
@@ -406,6 +440,17 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					exit(1);
 				}
 				_args.tolerance = farg;	
+			}
+			else if (args.OptionId() == OPT_KEYTOL)
+			{
+				std::string s_arg = args.OptionArg();
+				float farg = (float)atof(s_arg.c_str());
+				if (farg < 0.0f || farg > 1e4f)
+				{
+					printf("error - invalid arg for key guard tolerance: %s\n", s_arg.c_str());
+					exit(1);
+				}
+				_args.keytol = farg;	
 			}
 			else if (args.OptionId() == OPT_CUTMODE)
 			{
@@ -729,6 +774,71 @@ static bool read_pal24(const char* _fname, RGB *&r_ppal, unsigned short& r_numco
 
 	// not recognized/not found
 	std::cerr << "error: can't open this palette file: " << _fname << std::endl;
+	return false;
+}
+
+// --------------------------------------------------------------------
+//	palette reading: 12bit .cct tileset files
+// --------------------------------------------------------------------
+
+static bool read_pal_cct(const char* _fname, RGB *&r_ppal, unsigned short& r_numcolours, unsigned short& r_numuniquecolours)
+{
+	FILE *hpal = fopen(_fname, "rb");
+	if (hpal)
+	{
+		std::cout << "reading fixed palette source [" << _fname << "]" << std::endl;
+
+		r_numcolours = 16;
+
+		// read in the colors
+		uword_t palette[16];
+		//fread(palette, 1, 2, hpal);
+		fread(palette, 1, 32, hpal);
+		fclose(hpal);
+
+		// convert whatever colours we were able to read into local format
+		r_ppal = new RGB[16];
+
+		for (int i = 0; i < 16; i++)
+		{
+			// reformat from bigendian for motorola->intel
+			uword_t ste_col = endianswap16(palette[i]);
+
+			word_t ste_r = (ste_col >> 8) & 0xF;
+			word_t ste_g = (ste_col >> 4) & 0xF;
+			word_t ste_b = (ste_col >> 0) & 0xF;
+
+			// reformat STE swizzled 4:4:4 format into 24bit 8:8:8
+			word_t r = ((ste_r & 0x7) << 1) | ((ste_r >> 3) & 1);
+			word_t g = ((ste_g & 0x7) << 1) | ((ste_g >> 3) & 1);
+			word_t b = ((ste_b & 0x7) << 1) | ((ste_b >> 3) & 1);
+
+			r_ppal[i].red   = r << 4;
+			r_ppal[i].green = g << 4;
+			r_ppal[i].blue  = b << 4;
+		}
+
+		// count distinct colours (in case of duplicates)
+		int u = r_numcolours;
+		for (int o = 0; o < r_numcolours; o++)
+		{
+			for (int i = o + 1; i < r_numcolours; i++)
+			{
+				if ((r_ppal[o].red == r_ppal[i].red) &&
+					(r_ppal[o].green == r_ppal[i].green) &&
+					(r_ppal[o].blue == r_ppal[i].blue))
+					{
+						u--; break;
+					}
+			}
+		}
+		r_numuniquecolours = u;
+
+		return true;
+	}
+
+	// not recognized/not found
+	std::cerr << "error: can't open this image: " << _fname << std::endl;
 	return false;
 }
 
@@ -1167,6 +1277,8 @@ static void emit_pi1(uword_t *buffer4plane, RGB *_ppal24, int pi1_index)
 static ubyte_t s_colours_matched[256];
 int s_num_colours_matched = 0;
 
+static bool s_reducer_keycol_exact = true;
+
 static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 {
 	static const float c_n = 1.0f / 255.0f;
@@ -1181,9 +1293,9 @@ static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 	{
 		const RGB &pal = _ppal[i];
 
-		float pr = float(pal.red + 8);
-		float pg = float(pal.green + 8);
-		float pb = float(pal.blue + 8);
+		float pr = float(pal.red /*+ 8*/);
+		float pg = float(pal.green /*+ 8*/);
+		float pb = float(pal.blue /*+ 8*/);
 
 		// YUV error - meh
 		//float dr = (fr - pr) * c_n * 0.299;
@@ -1196,10 +1308,16 @@ static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 
 		float err = (dr * dr) + (dg * dg) + (db * db);
 
-		if (err < best_err)
+		// in exact mode, don't remap anything to keycol index unless its an exact colour match
+		if (!g_allargs.keyguard ||
+			(i != g_allargs.keycol) ||
+			(err < g_allargs.keytol))
 		{
-			best_err = err;
-			best_hit = i;
+			if (err < best_err)
+			{
+				best_err = err;
+				best_hit = i;
+			}
 		}
 	}
 
@@ -1216,7 +1334,7 @@ static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 //	reduce TC image to indexed colour using fixed palette
 // --------------------------------------------------------------------
 
-static void reduce_image24(RGB *_psourcergb, ubyte_t *_pdstcol, ulong_t _sourcew, ulong_t _sourceh, RGB *&r_ppal)
+static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstcol, ulong_t _sourcew, ulong_t _sourceh, RGB *&r_ppal)
 {
 	unsigned short r_numcolours = 0;
 	unsigned short r_numuniquecolours = 0;
@@ -1227,6 +1345,9 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_pdstcol, ulong_t _sourcew
 	else
 	if (g_allargs.palettefile.find(".pal") != std::string::npos)
 		success = read_pal24(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+	else
+	if (g_allargs.palettefile.find(".cct") != std::string::npos)
+		success = read_pal_cct(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
 	else
 	{
 		std::cerr << " unrecognized palette format [" << g_allargs.palettefile.c_str() << "] so trying image handlers..." << std::endl;
@@ -1244,13 +1365,15 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_pdstcol, ulong_t _sourcew
 
 		memset(s_colours_matched, 0, 256);
 
-		RGB *psrc = _psourcergb;
-		ubyte_t *pdst = _pdstcol;
-		for (int py = 0; py < (int)_sourceh; py++)
 		{
-			for (int px = 0; px < (int)_sourcew; px++)
+			RGB *psrc = _psourcergb;
+			ubyte_t *pdst = _pdstcol;
+			for (int py = 0; py < (int)_sourceh; py++)
 			{
-				*pdst++ = match_colour(*psrc++, r_ppal, r_numcolours);
+				for (int px = 0; px < (int)_sourcew; px++)
+				{
+					*pdst++ = match_colour(*psrc++, r_ppal, r_numcolours);
+				}
 			}
 		}
 
@@ -1485,7 +1608,7 @@ bool do_tiles()
 				std::cout << "reducing 24bit image to external fixed palette..." << std::endl;
 				m_psourcecol = new ubyte_t[sourcew * sourceh]; // (ubyte_t*)malloc(sourcew * sourceh);
 				// reduce source image to indexed colour with fixed palette
-				reduce_image24(m_psourcergb, m_psourcecol, sourcew, sourceh, m_ppalettergb);
+				reduce_image24(m_psourcergb, 0, m_psourcecol, sourcew, sourceh, m_ppalettergb);
 			}
 
 			std::cout << "extracting unique tiles..." << std::endl;
@@ -1952,6 +2075,7 @@ bool do_spritesheet()
 	RGB *m_psourcergb = 0;
 	RGB *m_ppalettergb = 0;
 	ubyte_t *m_psourcecol = 0;
+	ubyte_t *m_poriginalsrccol = 0;
 
 	std::cout << "spritesheet cutting mode..." << std::endl;
 	{
@@ -1969,6 +2093,7 @@ bool do_spritesheet()
 					{
 						std::cout << "warning: source image is indexed, but values exceed target bitplane count: remapping..." << std::endl;
 						// ignore colourmap
+						m_poriginalsrccol = m_psourcecol;
 						m_psourcecol = 0;
 						break;
 					}
@@ -1982,7 +2107,7 @@ bool do_spritesheet()
 				std::cout << "reducing 24bit image to external fixed palette..." << std::endl;
 				m_psourcecol = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
 				// reduce source image to indexed colour with fixed palette
-				reduce_image24(m_psourcergb, m_psourcecol, sourcew, sourceh, m_ppalettergb);
+				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol, sourcew, sourceh, m_ppalettergb);
 			}
 
 			// sprite cutting loop

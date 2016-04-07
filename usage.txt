@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.16 : dml/2016
+v0.17 : dml : 07/04/2016
 -------------------------------------------------------------------------------
 
 
@@ -36,6 +36,17 @@ take the most obvious course of action (e.g. reducing colours) but will warn
 when it takes such a decision. If what you got is not what you expected, check
 the output from the tool, then check the details of the file types involved.
 
+
+===============================================================================
+changenotes:
+===============================================================================
+
+v0.17	07/04/2016
+---------------------------------------
+* added support for reading palettes direct from .cct tile libraries, to help
+  map sprites directly to backgrounds 
+* added '-kg/--key-guard' and '-kt/--key-tol' options to control colours
+  being accidentally remapped to the transparent key colour
 
 ===============================================================================
 Examples: [maps & tile libraries]
@@ -80,28 +91,39 @@ Spritesheets are emitted as '.sps' files (format described towards end)
 This command will cut 9 sprite frames from the source image, arranged in a
 vertical column starting from coordinate 46x2 and stepping 18 pixels vertically
 downwards for each frame to be cut. It will directly use the indexed colours 
-already assigned in the 16-colour PNG or BMP without any remapping.
+already assigned in the 16-colour PNG or BMP without any remapping. It will
+by default attempt to optimize unused pixels out of the frames so each frame
+could end up with a different size in memory.
 
  agtcut -cm sprites -s sprites_16cols.png -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9
 
-
-This will do the same, but the highest colour index found in the source image
-is >16 so it will reduce the image to a specified palette encoded in a Degas PI1
-(see help for other formats).
-
- agtcut -cm sprites -s sprites_256cols.png -p mypal.pi1 -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9
-
-
 This will do the same as the first example, but cutting a regular 4x4 grid of
 16x16 sprites without optimizing away the transparent pixels/lines. All frames
-will be exactly the same size in memory.
+will be exactly the same size in memory ('-sopt off').
 
  agtcut -cm sprites -s sprites_16cols.png -sopt off -sxp 0 -syp 0 -sxs 16 -sys 16 -sxi 16 -syi 16 -sxc 4 -syc 4
 
 
+
+This will cut a single sprite frame, but the highest colour index found in the
+source image is greater than the 16 available colours for 4-plane tiles, so it
+will reduce  the image to a specified palette encoded in a Degas PI1 (see help
+for more  formats).
+
+ agtcut -cm sprites -s sprites_256cols.png -p mypal.pi1 -sxp 46 -syp 2 -sxs 23 -sys 16 
+
+
+This time we use an existing background tile library (.cct) as the source of 
+our palette for remapping sprites. This ensures sprites match the background!
+(see help for more formats).
+
+ agtcut -cm sprites -s sprites_256cols.png -p tiles_f0.cct -sxp 46 -syp 2 -sxs 23 -sys 16 
+ 
+
+
 The -prv option will provide feedback on colour indices and transparency/mask
 
- agtcut -cm sprites -s sprites_16cols.png -prv -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9 
+ agtcut -cm sprites -s sprites_16cols.png -prv -sxp 46 -syp 2 -sxs 23 -sys 16 
 
  sprite dimensions [23, 16]
  cutting sprite frame 0 from position [46, 2]
@@ -131,7 +153,7 @@ precalculated masks, and to allow a chosen colour to be remapped to 0, in the
 case where no explicit mask data is to be generated.
 
 
- agtcut -cm sprites -s sprites_16cols.png -prv -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9 
+ agtcut -cm sprites -s sprites_16cols.png -prv -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 
 
  sprite dimensions [23, 16]
  cutting sprite frame 0 from position [46, 2]
@@ -162,14 +184,63 @@ option will specify how this mask data is laid out in the file format.
 '-gm -ml interleaved' will emit 1 mask word before each group of colour plane
 words.
 
- agtcut -cm sprites -s sprites_16cols.png -gm -ml interleaved -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9 
+ agtcut -cm sprites -s sprites_16cols.png -gm -ml interleaved -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 
 
 '-gm -ml planar' will emit the entire mask bitplane before any of the colour
 plane words. The colour planes however remain interleaved (ST screen format).
 
- agtcut -cm sprites -s sprites_16cols.png -gm -ml planar -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 -sxi 0 -syi 18 -sxc 1 -syc 9 
+ agtcut -cm sprites -s sprites_16cols.png -gm -ml planar -key 2 -sxp 46 -syp 2 -sxs 23 -sys 16 
 
 
+The '-kg' and '-kt' options can be used together to protect the transparent
+key colour from being used by other similar colours during colour reduction.
+This effectively makes the key colour 'harder to match' than other colours.
+
+
+Here's the sprite reduced without the key-guard option:
+
+ agtcut -cm sprites -s sprites_16cols.png -prv -sxp 46 -syp 2 -sxs 23 -sys 16 
+
+                       09 09 02
+                 09 02 09 0a 0a 02 09 0e
+                    01 02 02 02 02 02
+                 01 07 02 02 09 0a 0a 09 02 06
+                 01 04          02 02 09 09 06 09 02
+                    01    09 09 02 02 02 02 02 02 09 0a 09 02 02
+        01 04 02 02    02    09 09 09 09 09 02 02 02 02 02 09 09 0a 0a 0a 09
+           02 02    02 02 04                02       02 02 09 02
+           09          02 04    02 02 02 02    04 04    02 09 02
+           02 02    02 02 04                02       02 02 02 09 0a 0a 09 02
+                 02 02 02    09 09 09 09 09 02 02 02 02 02 02 02
+                    02    09 09 02 02 02 02 02 02 02
+                 01 04          02 02 02 02 06
+                 02 02    02 02 02 02 02
+                       02 02 02 02
+                       02 02 02
+
+...and recut with key-guard enabled and a key matching tolerance of 0.01
+
+ agtcut -cm sprites -s sprites_16cols.png -prv -kg -kt 0.01 -sxp 46 -syp 2 -sxs 23 -sys 16 
+ 
+                      05 05 0d
+                05 0d 05 04 04 0d 05 07
+                   09 09 09 0d 09 09
+                09 0b 09 0d 05 04 04 05 0d 0b
+                09 06 09 03 09 0d 0d 05 05 0b 05 0d
+                   09 09 05 05 0d 0d 0d 0d 0d 0d 05 04 05 0d 09
+       09 06 0d 0d 03 0d 03 05 05 05 05 05 0d 0d 0d 0d 0d 05 05 04 04 04 05
+       03 09 09 09 0d 09 06 09 03 03 03 09 0d 03 03 0d 0d 05 09
+       03 05 03 09 03 09 06 09 0d 0d 0d 0d 03 06 06 09 0d 05 09
+       03 0d 09 09 09 09 06 09 03 09 03 09 0d 09 03 0d 0d 0d 05 04 04 05 0d
+                0d 09 0d 03 05 05 05 05 05 0d 0d 0d 0d 0d 09 09
+                   09 03 05 05 0d 0d 0d 0d 0d 09 09
+                09 06 09 03 09 0d 0d 0d 09 0b
+                0d 09 09 0d 0d 0d 0d 09
+                      09 0d 0d 09
+                      09 09 09
+                      
+Some darker colours were originally mistaken for key colour 0 (black) but
+the key-guard flag protects all but very close matches to the key colour.
 
 Note: For STF sprite rendering in the AGT playfield engine, colour 0 is always
 assumed to be the key colour regardless of what -key is specified. The -key
