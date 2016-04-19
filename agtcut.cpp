@@ -69,6 +69,15 @@ static const int SPS_VERSION = 0x100;
 static int s_progress = 0;
 static int g_maxplanes = 4;
 
+static ubyte_t *g_colrbuffer8 = 0;
+static uword_t *g_colrbufferbpl = 0;
+
+static ubyte_t *g_maskbuffer8 = 0;
+static uword_t *g_maskbufferbpl = 0;
+
+static ubyte_t *g_workbuffer8 = 0;
+static uword_t *g_workbufferbpl = 0;
+
 // --------------------------------------------------------------------
 // SimpleOpt... because life is too short
 // --------------------------------------------------------------------
@@ -152,6 +161,7 @@ enum
 	OPT_SPRXC,
 	OPT_SPRYC,
 	OPT_SPRCOUNT,
+//	OPT_SLAB,
 	// tiles
 	OPT_TOLERANCE, 
 	OPT_OUTMODE
@@ -231,6 +241,9 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_SPRCOUNT,		_T("-sc"),	 			SO_REQ_SEP	},
 	{ OPT_SPRCOUNT,		_T("--sprcount"),		SO_REQ_SEP	},
 	//
+	//{ OPT_SLAB,			_T("-sl"),	 			SO_NONE		},
+	//{ OPT_SLAB,			_T("--slab"),			SO_NONE		},
+	//
 	{ OPT_TOLERANCE,	_T("-t"),	 			SO_REQ_SEP	},
 	{ OPT_TOLERANCE,	_T("--tol"), 			SO_REQ_SEP	},
 	//
@@ -286,6 +299,7 @@ static void usage(int level)
 	std::cout << " -gm, --gen-mask      > generate 1bpl mask data along with colour data" << std::endl;
 	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar" << std::endl;
 	std::cout << " -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
+//	std::cout << " -sl, --slab          > generate 'slab' sprites: on/off" << std::endl;
 	std::cout << " -prv, --preview      > show ASCII preview of extracted colours + masking" << std::endl;
 //	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;	// todo: maybe - only if its useful
 	std::cout << std::endl;
@@ -312,7 +326,8 @@ enum Outmode
 enum Cutmode
 {
 	Cutmode_TILES,
-	Cutmode_SPRITES
+	Cutmode_SPRITES,
+	Cutmode_SLABS
 };
 
 enum Masklayout
@@ -464,6 +479,11 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				if (s_arg.find("sprites") != std::string::npos)
 				{
 					_args.cutmode = Cutmode_SPRITES;
+				}
+				else
+				if (s_arg.find("slabs") != std::string::npos)
+				{
+					_args.cutmode = Cutmode_SLABS;
 				}
 				else
 				{
@@ -1686,12 +1706,6 @@ bool do_tiles()
 
 // todo: tidy this up!
 
-static ubyte_t *g_colrbuffer8 = 0;
-static uword_t *g_colrbufferbpl = 0;
-
-static ubyte_t *g_maskbuffer8 = 0;
-static uword_t *g_maskbufferbpl = 0;
-
 static int g_sprite_bpwidth = 0;
 static int g_sprite_width = 0;
 static int g_sprite_height = 0;
@@ -1923,7 +1937,7 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y)
 //	emit .sps spritesheet sequence file
 // --------------------------------------------------------------------
 
-bool emit_spritesequence()
+bool emit_sprite_sequence()
 {
 	std::string fname("sprites");
 	fname.append(".sps");
@@ -2064,10 +2078,542 @@ bool emit_spritesequence()
 }
 
 // --------------------------------------------------------------------
-//	spritesheet mode
+//	slab mode
 // --------------------------------------------------------------------
 
-bool do_spritesheet()
+class slabspan_t
+{
+public:
+
+	word_t xo_;
+	word_t xs_;
+	word_t dxw_;
+	word_t y_;
+	word_t dy_;
+	word_t ys_;
+	uword_t *pspan_;
+
+	slabspan_t(int _xo, int _xs, int _dxw, int _y, int _dy, int _ys, uword_t *_pspan)
+		: xo_(_xo),
+		  xs_(_xs),
+		  dxw_(_dxw),
+		  y_(_y),
+		  dy_(_dy),
+		  ys_(_ys),
+		  pspan_(_pspan)
+	{
+	}
+};
+
+class slabframe_t
+{
+public:
+
+	word_t w_, h_;
+	word_t xo_, yo_;
+	uword_t *colr_;
+
+	slabframe_t(int _w, int _h, int _xo, int _yo, uword_t *_colr)
+		: w_(_w),
+		  h_(_h),
+		  xo_(_xo),
+		  yo_(_yo),
+		  colr_(_colr)
+	{
+	}
+
+	~slabframe_t()
+	{
+		// do not delete here - no refcounting on allocations happening within STL container
+	}
+
+	void release()
+	{
+		delete[] colr_; colr_ = 0;
+	}
+
+	std::list<slabspan_t> spans_;
+};
+
+typedef std::list<slabframe_t> slablist_t;
+
+// todo: tidy this up!
+
+slablist_t g_slabframes;
+
+// --------------------------------------------------------------------
+//	slab mode
+// --------------------------------------------------------------------
+
+void init_slab_sequence(int _xs, int _ys, int _sw, int _sh)
+{
+	for (slablist_t::iterator it = g_slabframes.begin(); it != g_slabframes.end(); it++)
+		it->release();
+
+	g_slabframes.clear();
+
+	g_spritesource_w = _sw;
+	g_spritesource_h = _sh;
+
+	// worst-case width in bitplane words
+	g_sprite_bpwidth = (_xs + (16-1)) & -16;
+	g_sprite_width = _xs;
+	g_sprite_height = _ys;
+
+
+	// allocate sprite buffer for chunky processing (default to keycol)
+	delete[] g_colrbuffer8;
+	g_colrbuffer8 = new ubyte_t[g_sprite_bpwidth * g_sprite_height];
+	memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+
+	// allocate sprite buffer for bitplane processing
+	delete[] g_colrbufferbpl;
+	g_colrbufferbpl = new uword_t[(g_sprite_bpwidth * g_sprite_height) >> 1];
+	memset(g_colrbufferbpl, 0, g_sprite_bpwidth * g_sprite_height);
+
+	// allocate sprite buffer for chunky processing (default to keycol)
+	delete[] g_workbuffer8;
+	g_workbuffer8 = new ubyte_t[g_sprite_bpwidth * g_sprite_height];
+	memset(g_workbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+
+	// allocate sprite buffer for bitplane processing
+	delete[] g_workbufferbpl;
+	g_workbufferbpl = new uword_t[(g_sprite_bpwidth * g_sprite_height) >> 1];
+	memset(g_workbufferbpl, 0, g_sprite_bpwidth * g_sprite_height);
+}
+
+void extract_spanblock(slabframe_t &slab, int _spanblock_firstx, int _spanblock_lastx, int _spanblock_firsty, int _spanblock_lasty, int _spanblock_gapy, int cxmax)
+{
+	int spanblock_lines = _spanblock_lasty - _spanblock_firsty;
+
+	assert(spanblock_lines > 0);
+
+	// left-justify span to remove leading keycolour pixels
+	for (int ey = _spanblock_firsty; ey < _spanblock_lasty; ey++)
+	{
+		int dstx = 0;
+		for (int px = _spanblock_firstx; px <= _spanblock_lastx; px++, dstx++)
+		{
+			// extract pixel
+			ubyte_t c = g_colrbuffer8[(ey * g_sprite_framebpwidth) + px];
+			// erase pixel with keycol
+			g_colrbuffer8[(ey * g_sprite_framebpwidth) + px] = g_allargs.keycol;
+			// transfer to workbuffer, left-justified
+			g_workbuffer8[(ey * g_sprite_framebpwidth) + dstx] = c;
+		}
+
+		// fill remainder of workbuffer spanblock with 0
+		for (; dstx < cxmax; dstx++)
+		{
+			g_workbuffer8[(ey * g_sprite_framebpwidth) + dstx] = 0;
+		}
+	}
+
+	// chunky -> planar
+	c2p
+	(
+		/*src=*/&g_workbuffer8[_spanblock_firsty * g_sprite_framebpwidth], /*dst*/&g_workbufferbpl[(_spanblock_firsty * g_sprite_framebpwidth) >> 1],
+		/*w=*/g_sprite_framebpwidth, /*h=*/spanblock_lines,
+		/*bytes_per_src_line=*/g_sprite_framebpwidth, /*words_per_dst_line=*/g_sprite_framebpwidth >> 1,
+		/*planes=*/8
+	);
+
+
+	int spanlength = (_spanblock_lastx - _spanblock_firstx) + 1;
+	int spanlength16 = (spanlength + (16 - 1)) & -16;
+	int spanlengthwords = spanlength16 >> 4;
+
+	// space for spanblock lines @ 8bpl
+	uword_t *spanwords = new uword_t[(spanlengthwords * 8) * spanblock_lines];
+
+	// copy 8-plane span lines into slab span container
+	for (int ey = _spanblock_firsty, dsty = 0; ey < _spanblock_lasty; ey++, dsty++)
+	{
+		memcpy(&spanwords[(spanlengthwords * 8) * dsty], &g_workbufferbpl[(ey * g_sprite_framebpwidth) >> 1], spanlength16);
+	}
+
+	// store slab span
+	slab.spans_.push_back
+	(
+		slabspan_t
+		(
+			_spanblock_firstx, spanlength, spanlengthwords, 
+			_spanblock_firsty, _spanblock_gapy, spanblock_lines, 
+			spanwords
+		)
+	);
+}
+
+
+void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
+{
+	memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+
+	int cxmin = 0;
+	int cymin = 0;
+	int cxmax = g_sprite_width;
+	int cymax = g_sprite_height;
+
+	if (g_allargs.preview)
+	{
+		printf("\n");
+		for (int py = 0; py < g_sprite_height; py++)
+		{
+			printf("\t");
+			for (int px = 0; px < g_sprite_width; px++)
+			{
+				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+				if (c == g_allargs.keycol)
+					printf("   ");
+				else
+					printf("%02x ", (int)c);
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+
+	//if (g_allargs.spriteoptimize)
+	// always optimize the slab region 
+	{
+		cxmin = g_sprite_width;
+		cymin = g_sprite_height;
+		cxmax = 0;
+		cymax = 0;
+
+		// optimize cutting area
+
+		for (int py = 0; py < g_sprite_height; py++)
+		{
+			for (int px = 0; px < g_sprite_width; px++)
+			{
+				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+				if (c != g_allargs.keycol)
+				{
+					// opaque pixel - adjust bounds
+					cxmin = xmin(cxmin, px);
+					cxmax = xmax(cxmax, px + 1);
+					cymin = xmin(cymin, py);
+					cymax = xmax(cymax, py + 1);
+				}
+			}
+		}
+	}
+
+	// capture at least one pixel per frame
+	if ((cxmax < cxmin) || (cymax < cymin))
+	{
+		cxmin = 0;
+		cxmax = 1;
+		cymin = 0;
+		cymax = 1;
+	}
+
+	g_sprite_framewidth = cxmax - cxmin;
+	g_sprite_frameheight = cymax - cymin;
+
+	// this gets calculated again for each individual span
+	g_sprite_framebpwidth = (g_sprite_framewidth + (16-1)) & -16;
+
+	// cut chunky sprite to chunky colrbuffer & maskbuffer
+
+	for (int psy = cymin, py = 0; psy < cymax; psy++, py++)
+	{
+		for (int psx = cxmin, px = 0; psx < cxmax; psx++, px++)
+		{
+			ubyte_t c = _psource8[((psy + _y) * g_spritesource_w) + (psx + _x)];
+
+			// colour buffer receives actual colour, or 0 for keycol (so two colours can potentially map to 0)
+			g_colrbuffer8[(py * g_sprite_framebpwidth) + px] = c;// (c == g_allargs.keycol) ? 0x00 : c;
+		}
+	}
+
+	slabframe_t slab(g_sprite_framewidth, g_sprite_frameheight, cxmin, cymin, NULL);
+
+	int spanblock_firstx = -1;
+	int spanblock_lastx = -2;
+	int spanblock_firsty = 0;
+	int spanblock_lasty = 0;
+	int prevlasty = 0;
+
+	// process individual spans
+	for (int psy = cymin, py = 0; psy < cymax; psy++, py++)
+	{
+		// find begin/end of solid part of span
+		int firstx = 0;
+		for (int psx = cxmin; psx < cxmax; psx++, firstx++)
+		{
+			ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + firstx];
+			if (c != g_allargs.keycol) break;
+		}
+
+		int lastx = cxmax - 1;
+		for (int psx = cxmin; psx < cxmax; psx++, lastx--)
+		{
+			ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + lastx];
+			if (c != g_allargs.keycol) break;
+		}
+
+		// terminate spanblock if ends change
+		if ((spanblock_firstx != firstx) || (spanblock_lastx != lastx))
+		{
+			if (spanblock_lastx >= spanblock_firstx)
+			{
+				// completion of non-empty spanblock
+
+				// extract spanblock, left-justified to workbuffer and erase original (for multiple extractions)
+				extract_spanblock(slab, spanblock_firstx, spanblock_lastx, spanblock_firsty, spanblock_lasty, (spanblock_firsty-prevlasty), cxmax);
+				prevlasty = spanblock_lasty;
+			}
+			else
+			{
+				// completion of empty block
+			}
+
+			// reset run
+			spanblock_firstx = firstx;
+			spanblock_lastx = lastx;
+			spanblock_firsty = py;
+		}
+		else
+		{
+			// continue run
+		}
+
+		spanblock_lasty++;
+	}
+
+	if (spanblock_lastx >= spanblock_firstx)
+	{
+		// final spanblock (if any)
+
+		// extract spanblock, left-justified to workbuffer and erase original (for multiple extractions)
+		extract_spanblock(slab, spanblock_firstx, spanblock_lastx, spanblock_firsty, spanblock_lasty, (spanblock_firsty-prevlasty), cxmax);
+	}
+
+	std::cout << "created slab frame " << g_slabframes.size() << " from offset [" << cxmin << ", " << cymin << "] size [" << g_sprite_framewidth << " x " << g_sprite_frameheight << "]" << std::endl;
+	g_slabframes.push_back(slab);
+}
+
+bool emit_slab_sequence()
+{
+	int s = 0;
+	for (slablist_t::iterator fit = g_slabframes.begin(); fit != g_slabframes.end(); fit++, s++)
+	{
+		std::cout << "slab " << s << std::endl;
+		for (std::list<slabspan_t>::iterator sit = fit->spans_.begin(); sit != fit->spans_.end(); sit++)
+		{
+			std::cout << "spanblock[" << sit->ys_ << "]: " << sit->xo_ << ":" << sit->xs_ << std::endl;
+		}
+	}
+
+	std::string fname("slabs");
+	fname.append(".sls");
+
+	FILE *hout = fopen(fname.c_str(), "wb");
+	if (hout)
+	{
+		word_t wb;
+		word_t wv;
+		long_t lv;
+		int tracked_filesize = 0;
+
+		std::vector<int> slab_index;
+
+		// 4: size of file remaining (patched before closing)
+		lv = 0;
+		fwrite(&lv, 1, 4, hout);
+
+		// 2: version info
+		wv = endianswap16(SPS_VERSION);
+		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+		// 2: number of slab frames in sequence
+		wv = endianswap16((uword_t)g_slabframes.size());
+		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+		// 2: number of bitplanes in slab data
+		wv = endianswap16(g_allargs.planes);
+		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+		// 2: flags
+		wv = 0;
+		wv = endianswap16((uword_t)wv);
+		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+		// 1: preshift range
+		wb = 0;
+		fwrite(&wb, 1, 1, hout); tracked_filesize += 1;
+		// 1: preshift step
+		wb = 0;
+		fwrite(&wb, 1, 1, hout); tracked_filesize += 1;
+
+		// 2: source width
+		wv = endianswap16((uword_t)g_sprite_width);
+		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+		// 2: source height
+		wv = endianswap16((uword_t)g_sprite_height);
+		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+		// create slab index (patched before closing)
+		int slab_index_fpos = tracked_filesize;
+		lv = 0xBBBBBBBB;
+		for (slablist_t::iterator it = g_slabframes.begin(); it != g_slabframes.end(); it++)
+		{
+			fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+		}
+
+		// individual slabs follow
+		for (slablist_t::iterator it = g_slabframes.begin(); it != g_slabframes.end(); it++)
+		{
+			std::vector<int> spanblock_index;
+
+			// record file-offset to slab in slab index, for patching later
+			slab_index.push_back(tracked_filesize);
+
+			// 2: slab frame pixel width
+			wv = endianswap16(it->w_);
+			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+			// 2: slab frame pixel height
+			wv = endianswap16(it->h_);
+			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+			// 2: slab frame xoff
+			wv = endianswap16(it->xo_);
+			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+			// 2: slab frame yoff
+			wv = endianswap16(it->yo_);
+			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+			// 2: slab spanblocks
+			wv = endianswap16(s16(it->spans_.size()));
+			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+			// create clipper (patched after writing)
+			wv = 0xAAAA;
+			for (int i = 0; i < it->h_; i++)
+			{
+				// one 16bit index per line of frame
+				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+			}
+
+			// create spanblock index (patched after writing)
+			int spanblock_index_fpos = tracked_filesize;
+			wv = 0xBBBB;
+			for (int i = 0; i < it->spans_.size(); i++)
+			{
+				// one 16bit offset per line of frame
+				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+			}
+
+			// write out spanblocks
+//			int mapped_line = 0;
+			for (std::list<slabspan_t>::iterator spanit = it->spans_.begin(); spanit != it->spans_.end(); spanit++)
+			{
+				spanblock_index.push_back(tracked_filesize);
+
+				// 2: spanblock dy
+				wv = endianswap16(spanit->dy_);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				// 2: spanblock xo
+				wv = endianswap16(spanit->xo_);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				// 2: spanblock xs
+				wv = endianswap16(u16(spanit->xs_)<<4);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				// 2: spanblock dxw
+				wv = endianswap16(spanit->dxw_);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				// 2: spanblock y
+				wv = endianswap16(spanit->y_);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				// 2: spanblock ys-1
+				wv = endianswap16(spanit->ys_-1);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+				// output spanblock lines
+				for (int l = 0; l < spanit->ys_; l++)
+				{
+
+					if (0) // interleaved planewords (CPU)
+					{
+						// output span plane words for a line
+						for (int o = 0; o < spanit->dxw_; o++)
+						{
+							// write colour words for N planes
+							for (int p = 0; p < g_allargs.planes; p++)
+							{
+								wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
+								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+							}
+						}
+					}
+					else // plane-at-a-time scans (blitter)
+					{
+						// write colour words for N planes
+						for (int p = 0; p < g_allargs.planes; p++)
+						{
+							// output span plane words for a line
+							for (int o = 0; o < spanit->dxw_; o++)
+							{
+								wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
+								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+							}
+						}
+					}
+				}
+			}
+
+//			assert(mapped_line == it->h_);
+
+/*			while (mapped_line < it->h_)
+			{
+				spanblock_index.push_back(-1);
+				mapped_line++;
+			}
+*/
+
+			// patch spanblock index
+			int tmp_pos = ftell(hout);
+			fseek(hout, spanblock_index_fpos+4, 0);
+			for (std::vector<int>::iterator spanit = spanblock_index.begin(); spanit != spanblock_index.end(); spanit++)
+			{
+				wv = (*spanit) - spanblock_index_fpos;
+				wv = endianswap16(wv);
+				fwrite(&wv, 1, 2, hout);
+			}
+			fseek(hout, tmp_pos, 0);
+
+		}
+
+		// patch slab index
+		lv = 0;
+		fseek(hout, slab_index_fpos+4, 0);
+		for (std::vector<int>::iterator it = slab_index.begin(); it != slab_index.end(); it++)
+		{
+			lv = (*it) - slab_index_fpos;
+			lv = endianswap32(lv);
+			fwrite(&lv, 1, 4, hout);
+		}
+
+		// patch filesize
+		fseek(hout, 0, 0);
+		lv = endianswap32(tracked_filesize);
+		fwrite(&lv, 1, 4, hout);
+	}
+
+	std::cout << "emitted slab sequence [" << fname.c_str() << "]" << std::endl;
+
+	return true;
+}
+
+// --------------------------------------------------------------------
+//	sheet mode
+// --------------------------------------------------------------------
+
+bool do_sheet()
 {
 	ulong_t sourcew = 0;
 	ulong_t sourceh = 0;
@@ -2077,7 +2623,12 @@ bool do_spritesheet()
 	ubyte_t *m_psourcecol = 0;
 	ubyte_t *m_poriginalsrccol = 0;
 
-	std::cout << "spritesheet cutting mode..." << std::endl;
+	if (g_allargs.cutmode == Cutmode_SPRITES)
+		std::cout << "spritesheet cutting mode..." << std::endl;
+	else
+	if (g_allargs.cutmode == Cutmode_SLABS)
+		std::cout << "slab-sheet cutting mode..." << std::endl;
+
 	{
 		if (image_load(g_allargs.sourcefile.c_str(), m_psourcergb, m_psourcecol, m_ppalettergb, sourcew, sourceh, sourced))
 		{
@@ -2125,16 +2676,28 @@ bool do_spritesheet()
 
 				std::cout << "sprite dimensions [" << cutting_source_xs << ", " << cutting_source_ys << "]" << std::endl;
 
-				init_sprite_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
+				if (g_allargs.cutmode == Cutmode_SPRITES)
+					init_sprite_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
+				else
+				if (g_allargs.cutmode == Cutmode_SLABS)
+					init_slab_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
 
 				int cutting_source_x = g_allargs.cut_xpos;
 				int cutting_source_y = g_allargs.cut_ypos;
 
 				for (int s = 0, xc = 0; s < cuts; s++, xc++)
 				{
-					std::cout << "cutting sprite frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-
-					add_sprite_frame(m_psourcecol, cutting_source_x, cutting_source_y);
+					if (g_allargs.cutmode == Cutmode_SPRITES)
+					{
+						std::cout << "cutting sprite frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
+						add_sprite_frame(m_psourcecol, cutting_source_x, cutting_source_y);
+					}
+					else
+					if (g_allargs.cutmode == Cutmode_SLABS)
+					{
+						std::cout << "cutting slab frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
+						add_slab_frame(m_psourcecol, cutting_source_x, cutting_source_y);
+					}
 
 					cutting_source_x += g_allargs.cut_xinc;
 
@@ -2152,7 +2715,11 @@ bool do_spritesheet()
 
 			// create sprite datafile
 
-			emit_spritesequence();
+			if (g_allargs.cutmode == Cutmode_SPRITES)
+				emit_sprite_sequence();
+			else
+			if (g_allargs.cutmode == Cutmode_SLABS)
+				emit_slab_sequence();
 		}
 	}
 
@@ -2172,7 +2739,12 @@ int main(int argc, char* argv[])
 	if (g_allargs.cutmode == Cutmode_TILES)
 		do_tiles();
 	else
-	if (g_allargs.cutmode == Cutmode_SPRITES)
-		do_spritesheet();
+	if (g_allargs.cutmode == Cutmode_SPRITES || g_allargs.cutmode == Cutmode_SLABS)
+		do_sheet();
+	else
+	{
+		// error
+		std::cerr << "error: unsupported cutmode!" << std::endl;
+	}
 }
 
