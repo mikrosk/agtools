@@ -41,6 +41,11 @@ the output from the tool, then check the details of the file types involved.
 changenotes:
 ===============================================================================
 
+v0.18	19/04/2016
+---------------------------------------
+* added support for 'slab' cutting - irregular-shaped sprites optimized for
+  large fill areas
+
 v0.17	07/04/2016
 ---------------------------------------
 * added support for reading palettes direct from .cct tile libraries, to help
@@ -250,6 +255,50 @@ the assets beforehand.
 For sprites generated with explicit masks, the -key option allows masks to
 be generated for the specified key colour. It also remaps the key colour to
 0 in the colour data channel to allow mask logic to work properly at drawtime.
+
+
+
+===============================================================================
+Examples: [slabsheets]
+===============================================================================
+
+Slabsheets are emitted as '.sls' files (format: todo)
+
+Usage is exactly the same as for sprites. Invoke with '-cm slabs' instead of
+'-cm sprites'.
+
+Slabs are sprites which get rendered as individual (or blocks of) horizontal
+spans without any mask. The spans are very fast to draw but there is some
+overhead per span so these are more efficient when they are wide vs tall. In
+general they are faster than sprites for any large area though because all
+4 bitplanes can be drawn with a copy operation (instead of a series of RMW
+logic operations) and most of the exterior pixels don't get processed at all.
+
+
+The shape below can be efficiently encoded as a slab because the horizontals
+spans are contiguous and contain no holes, with the area outside the shape
+not drawn at all.
+
+                ----
+            ----------
+         ---------------
+         ---------------
+              -------
+              -------
+         ---------------
+         ---------------
+            ----------
+                ----
+
+Any holes inside the shape will currently be processed as opaque. Later the
+tool will be able to decompose one shape into several in order to accommodate
+interior holes (at some expense).
+
+Slabs are expensive to clip on the left/right side because each span group
+has its own offsets and needs individual testing. Best kept inside the main
+viewport.
+
+A description of slab format & sample reader code will follow later.
 
 
 ===============================================================================

@@ -57,10 +57,12 @@ typedef struct RGB
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.17";
+static const char* const g_version_string = "v0.18";
 
 // SPS file format version
-static const int SPS_VERSION = 0x100;
+static const int SPS_VERSION = 0x0100;
+
+static const int SLS_VERSION = 0x1100;
 
 // --------------------------------------------------------------------
 //	some ...globals (?!)
@@ -2427,7 +2429,7 @@ bool emit_slab_sequence()
 		fwrite(&lv, 1, 4, hout);
 
 		// 2: version info
-		wv = endianswap16(SPS_VERSION);
+		wv = endianswap16(SLS_VERSION);
 		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 		// 2: number of slab frames in sequence
