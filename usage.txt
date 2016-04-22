@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.18 : dml : 07/04/2016
+v0.19 : dml : 07/04/2016
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,11 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.19	22/04/2016
+---------------------------------------
+* added support for importing PhotoChrome 'solutionpair' super-palettes, to
+  allow properly dithered reduction
 
 v0.18	19/04/2016
 ---------------------------------------
@@ -299,6 +304,60 @@ has its own offsets and needs individual testing. Best kept inside the main
 viewport.
 
 A description of slab format & sample reader code will follow later.
+
+
+
+
+===============================================================================
+Palettes:
+===============================================================================
+
+The '-p' option allows an external palette to be specified for any colour
+reduction taking place. Colour reduction happens automatically if the input
+graphics are not already using colour indices in the range for the specified
+number of bitplanes. 
+
+i.e. if the art uses > 16 colours and you're targeting 4 bitplanes, colour 
+reduction will take place to make sure the output is sensible. If the art
+is already indexed colour and uses a valid colour count then it will assume
+the colour mapping has been done in advance and will be preserved.
+
+Several file formats are supported for palettes.
+
+.pi1		Degas
+.png		4-bit or 8-bit PNGs only
+.bmp		4-bit or 8-bit colour BMPs only
+.pal		RIFF format palettes (Paint Shop Pro etc.)
+.ccp		PhotoChrome v6 raw palette (output by any -ccmode job)
+.cct		PhotoChrome v6 tilesets (which happen to carry a palette)
+.ccs		PhotoChrome v6 solutionpair system (complementary dithering)
+
+
+The behaviour for all of these is the same, except for the last one [.ccs]
+
+The .ccs format is emitted by PhotoChrome v6.24+ for any jobs invoked with
+the '-ccmode' option. The ccmode feature allows PhotoChrome to generate
+optimized 'superpalettes' from single or multiple images either in isolation,
+or as part of another conversion step. 
+
+These palettes are more complex because they carry information allowing
+truecolour images to be dithered to fit these palettes in an optimized way.
+The palettes are also generated specifically to be 'dithered with'. It's 
+therefore the preferred option for producing shared game palettes when you
+want the graphics to take advantage of decent dithering. 
+
+The .ccs format is emitted as 3 files together:
+
+.ccs:		Solution pairs (pairs of 4:4 bit complementary colours)
+.ccp:		Palette data - 16 words in familiar STE format
+.ccr:		RGB->solitionpair reduction map for 6:6:6 (18bit) colour
+
+By specifying a .ccs file as the source palette for agcut, all 3 files will
+be read and used to dither the converted graphics.
+
+If you don't care about dithering, you can still use PhotoChrome-generated
+palettes by just specifying the '.ccp' file instead and it will be used as a
+normal palette.
 
 
 ===============================================================================

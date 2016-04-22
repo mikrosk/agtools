@@ -57,7 +57,7 @@ typedef struct RGB
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.18";
+static const char* const g_version_string = "v0.19";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -120,6 +120,16 @@ static inline int xmin(int _x, int _y)
 static inline int xmax(int _x, int _y)
 {
 	return (_x > _y) ? _x : _y;
+}
+
+static void replace_extension(std::string &_fname, const char* const _ext)
+{
+	size_t dot = _fname.find_last_of(".");
+	if (dot != std::string::npos)
+	{
+		_fname = _fname.substr(0, dot+1);
+		_fname.append(_ext);
+	}
 }
 
 // --------------------------------------------------------------------
@@ -354,7 +364,7 @@ public:
 		  keytol(0.01f),
 		  sourcefile("source.bmp"),
 		  palettefile("palette.pi1"),
-		  spriteguidefile("sprites.sgd"),
+//		  spriteguidefile("sprites.sgd"),
 		  masklayout(Masklayout_INTERLEAVED),
 		  cutmode(Cutmode_TILES),
 		  outmode(Outmode_DEGAS),
@@ -368,7 +378,9 @@ public:
 		  cut_yinc(16),
 		  cut_xcount(1),
 		  cut_ycount(1),
-		  cut_count(0)
+		  cut_count(0),
+		  //
+		  use_solutionpair_reduction_(false)
 	{
 	}
 
@@ -394,12 +406,15 @@ public:
 	float tolerance;
 	float keytol;
 	std::string sourcefile;
-	std::string spriteguidefile;
+//	std::string spriteguidefile;
 	Cutmode cutmode;
 	Outmode outmode;
 	Masklayout masklayout;
 	std::string palettefile;
 	int planes;
+
+	// internal: not set via commandline
+	bool use_solutionpair_reduction_;
 };
 
 Arguments g_allargs;
@@ -861,6 +876,109 @@ static bool read_pal_cct(const char* _fname, RGB *&r_ppal, unsigned short& r_num
 
 	// not recognized/not found
 	std::cerr << "error: can't open this image: " << _fname << std::endl;
+	return false;
+}
+
+
+// --------------------------------------------------------------------
+//	palette reading: 18bit->4:4 solutionpair from PhotoChrome
+// --------------------------------------------------------------------
+
+u8 *g_rgb_solutionpair_map = NULL;
+u8 g_solutionpairs[256];
+
+static bool read_pal_ccs(const char* _fname, RGB *&r_ppal, unsigned short& r_numcolours, unsigned short& r_numuniquecolours)
+{
+	std::string file_ccs(_fname);		// name of solutionpair file
+	std::string file_ccr(_fname);		// name of RGB->solutionpair reductionmap file
+	std::string file_ccp(_fname);		// name of palette file
+
+	replace_extension(file_ccr, "ccr");
+	replace_extension(file_ccp, "ccp");
+
+	FILE *hpal = NULL;
+	FILE *hsol = NULL;
+	FILE *hred = NULL;
+
+	hpal = fopen(file_ccp.c_str(), "rb");
+	if (hpal)
+	{
+		hsol = fopen(file_ccs.c_str(), "rb");
+		if (hsol)
+		{
+			hred = fopen(file_ccr.c_str(), "rb");
+			if (hred)
+			{
+				std::cout << "reading fixed palette fileset [" << file_ccs.c_str() << "] [" << file_ccr.c_str() << "] [" << file_ccp.c_str() << "]" << std::endl;
+
+				r_numcolours = 16;
+
+				// read in the colors
+				uword_t palette[16];
+				//fread(palette, 1, 2, hpal);
+				fread(palette, 1, 32, hpal);
+				fclose(hpal); hpal = NULL;
+
+				// convert whatever colours we were able to read into local format
+				r_ppal = new RGB[16];
+
+				for (int i = 0; i < 16; i++)
+				{
+					// reformat from bigendian for motorola->intel
+					uword_t ste_col = endianswap16(palette[i]);
+
+					word_t ste_r = (ste_col >> 8) & 0xF;
+					word_t ste_g = (ste_col >> 4) & 0xF;
+					word_t ste_b = (ste_col >> 0) & 0xF;
+
+					// reformat STE swizzled 4:4:4 format into 24bit 8:8:8
+					word_t r = ((ste_r & 0x7) << 1) | ((ste_r >> 3) & 1);
+					word_t g = ((ste_g & 0x7) << 1) | ((ste_g >> 3) & 1);
+					word_t b = ((ste_b & 0x7) << 1) | ((ste_b >> 3) & 1);
+
+					r_ppal[i].red = r << 4;
+					r_ppal[i].green = g << 4;
+					r_ppal[i].blue = b << 4;
+				}
+
+				// count distinct colours (in case of duplicates)
+				int u = r_numcolours;
+				for (int o = 0; o < r_numcolours; o++)
+				{
+					for (int i = o + 1; i < r_numcolours; i++)
+					{
+						if ((r_ppal[o].red == r_ppal[i].red) &&
+							(r_ppal[o].green == r_ppal[i].green) &&
+							(r_ppal[o].blue == r_ppal[i].blue))
+						{
+							u--; break;
+						}
+					}
+				}
+				r_numuniquecolours = u;
+
+				// read solutionpairs (256 8bit records)
+				fread(g_solutionpairs, 1, 256, hsol);
+				fclose(hsol); hsol = NULL;
+
+				// read RGB->solutionpair reductionmap (64x64x64 = 256kb table)
+				delete[] g_rgb_solutionpair_map;
+				g_rgb_solutionpair_map = new u8[64*64*64];
+				fread(g_rgb_solutionpair_map, 1, (64*64*64), hred);
+				fclose(hred); hred = NULL;
+
+				return true;
+			}
+		}
+	}
+
+	if (hsol)
+		fclose(hsol);
+	if (hpal)
+		fclose(hpal);
+
+	// not recognized/not found
+	std::cerr << "error: can't open complete fileset: " << _fname << std::endl;
 	return false;
 }
 
@@ -1362,20 +1480,38 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 	unsigned short r_numuniquecolours = 0;
 	bool success = false;
 
+	// Degas as container for a palette
 	if (g_allargs.palettefile.find(".pi1") != std::string::npos)
 		success = read_pal_pi1(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
 	else
+	// RIFF format palettes
 	if (g_allargs.palettefile.find(".pal") != std::string::npos)
 		success = read_pal24(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
 	else
+	// PhotoChrome-generated .cct tile libraries carry the palette as the first part of the header
 	if (g_allargs.palettefile.find(".cct") != std::string::npos)
 		success = read_pal_cct(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
 	else
+	// a lone .ccp is raw palette data, same as header for .cct, so just reuse that reader for now
+	if (g_allargs.palettefile.find(".ccp") != std::string::npos)
+		success = read_pal_cct(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+	else
 	{
-		std::cerr << " unrecognized palette format [" << g_allargs.palettefile.c_str() << "] so trying image handlers..." << std::endl;
-		success = palette_load(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
-		if (!success)
-			std::cerr << "error: this image format can't be used to supply palettes currently" << std::endl;
+		// The .ccs format infers the existence of: .ccs (solutionpairs) + .ccr (RGB->solutionpair reduction map) + .ccp (palette)
+		// which all get emitted together from PhotoChrome v6 when using '-ccmode 3' to generate palettes
+		// This format also enables a different remapping method in order to apply complementary field dithering.
+		if (g_allargs.palettefile.find(".ccs") != std::string::npos)
+		{
+			success = read_pal_ccs(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+			g_allargs.use_solutionpair_reduction_ = true;
+		}
+		else
+		{
+			std::cerr << " unrecognized palette format [" << g_allargs.palettefile.c_str() << "] so trying image handlers..." << std::endl;
+			success = palette_load(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+			if (!success)
+				std::cerr << "error: this image format can't be used to supply palettes currently" << std::endl;
+		}
 	}
 
 	if (success)
@@ -1385,16 +1521,49 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 		if (r_numuniquecolours > (1 << g_allargs.planes))
 			std::cout << " warning: target palette contains more colours than " << g_allargs.planes << " bitplanes can encode!" << std::endl;
 
-		memset(s_colours_matched, 0, 256);
-
+		if (g_allargs.use_solutionpair_reduction_)
 		{
-			RGB *psrc = _psourcergb;
-			ubyte_t *pdst = _pdstcol;
-			for (int py = 0; py < (int)_sourceh; py++)
+			// use PhotoChrome-generated complementary solution pairs for extra win!
+			// todo: assume single-field for now, add dual-field later
+			int field = 0;
+
 			{
-				for (int px = 0; px < (int)_sourcew; px++)
+				RGB *psrc = _psourcergb;
+				ubyte_t *pdst = _pdstcol;
+				for (int py = 0; py < (int)_sourceh; py++)
 				{
-					*pdst++ = match_colour(*psrc++, r_ppal, r_numcolours);
+					for (int px = 0; px < (int)_sourcew; px++)
+					{
+						RGB &rgb = *psrc++;
+
+						int rgb666 = ((rgb.blue >> 2) << 12) | ((rgb.green >> 2) << 6) | (rgb.red >> 2);
+
+						u8 solution = g_rgb_solutionpair_map[rgb666];
+						u8 solutionpair = g_solutionpairs[solution];
+
+						u8 solution0 = (solutionpair >> 4) & 0xF;
+						u8 solution1 = (solutionpair >> 0) & 0xF;
+
+						*pdst++ = (((px ^ py) ^ field) & 1) ? solution0 : solution1;
+					}
+				}
+			}
+		}
+		else
+		{
+			// use average-joe palette, with mundane nearest-match thingy. zzzzz...
+
+			memset(s_colours_matched, 0, 256);
+
+			{
+				RGB *psrc = _psourcergb;
+				ubyte_t *pdst = _pdstcol;
+				for (int py = 0; py < (int)_sourceh; py++)
+				{
+					for (int px = 0; px < (int)_sourcew; px++)
+					{
+						*pdst++ = match_colour(*psrc++, r_ppal, r_numcolours);
+					}
 				}
 			}
 		}
@@ -1504,12 +1673,14 @@ static void emit_tiles_cct(RGB *_ppal24)
 
 	// construct output filename: [infile.ccm]
 	std::string outfile(g_allargs.sourcefile);
-	size_t dot = outfile.find_last_of(".");
-	if (dot != std::string::npos)
-	{
-		outfile = outfile.substr(0, dot);
-		outfile.append(".cct");
-	}
+	replace_extension(outfile, "cct");
+
+	//size_t dot = outfile.find_last_of(".");
+	//if (dot != std::string::npos)
+	//{
+	//	outfile = outfile.substr(0, dot);
+	//	outfile.append(".cct");
+	//}
 
 	FILE* h = fopen(outfile.c_str(), "wb");
 	if (h)
