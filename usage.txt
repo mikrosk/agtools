@@ -41,6 +41,13 @@ the output from the tool, then check the details of the file types involved.
 changenotes:
 ===============================================================================
 
+v0.20	27/04/2016
+---------------------------------------
+* added support for Jaguar RBasic+ tile & map formats using 4 or 8bit BMP for
+  tiles and 16bit binary-blob .bin for map indices
+* allow tilesize to be set to 16 or 32 (rbplus mode only for now)
+* fixed a commandline parsing bug in 8bpp cutting mode
+
 v0.19	22/04/2016
 ---------------------------------------
 * added support for importing PhotoChrome 'solutionpair' super-palettes, to

@@ -21,6 +21,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rdparty\stb_image.h"
 
+#define BMP_TYPICAL_ROW_ORDER (1)		// 0 = -ve height, +ve ordering (easier to parse back in)
+										// 1 = +ve height, -ve ordering (more common)
+
 // --------------------------------------------------------------------
 //	local types
 // --------------------------------------------------------------------
@@ -57,7 +60,7 @@ typedef struct RGB
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.19";
+static const char* const g_version_string = "v0.2";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -175,6 +178,7 @@ enum
 	OPT_SPRCOUNT,
 //	OPT_SLAB,
 	// tiles
+	OPT_TILESIZE,
 	OPT_TOLERANCE, 
 	OPT_OUTMODE
 	//
@@ -256,6 +260,9 @@ CSimpleOpt::SOption g_Options[] =
 	//{ OPT_SLAB,			_T("-sl"),	 			SO_NONE		},
 	//{ OPT_SLAB,			_T("--slab"),			SO_NONE		},
 	//
+	{ OPT_TILESIZE,		_T("-ts"),	 			SO_REQ_SEP	},
+	{ OPT_TILESIZE,		_T("--tilesize"),		SO_REQ_SEP	},
+	//
 	{ OPT_TOLERANCE,	_T("-t"),	 			SO_REQ_SEP	},
 	{ OPT_TOLERANCE,	_T("--tol"), 			SO_REQ_SEP	},
 	//
@@ -316,8 +323,9 @@ static void usage(int level)
 //	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;	// todo: maybe - only if its useful
 	std::cout << std::endl;
 	std::cout << "map & tile cutting mode:" << std::endl;
+	std::cout << " -ts, --tilesize      > tile size (rbplus mode only): 16,32" << std::endl;
 	std::cout << " -t, --tol            > tile matching tolerance: 0.0+" << std::endl;
-	std::cout << " -om, --outmode       > tile library output mode: direct,degas" << std::endl;
+	std::cout << " -om, --outmode       > tile library output mode: direct,degas,rbplus" << std::endl;
 	std::cout << std::endl;
 	std::cout << "press any key..." << std::endl;
 		
@@ -332,7 +340,8 @@ static void usage(int level)
 enum Outmode
 {
 	Outmode_DIRECT,
-	Outmode_DEGAS
+	Outmode_DEGAS,
+	Outmode_RBPLUS
 };
 
 enum Cutmode
@@ -369,6 +378,7 @@ public:
 		  cutmode(Cutmode_TILES),
 		  outmode(Outmode_DEGAS),
 		  planes(4),
+		  tilesize(16),
 		  keycol(0),
 		  cut_xpos(0),
 		  cut_ypos(0),
@@ -412,6 +422,7 @@ public:
 	Masklayout masklayout;
 	std::string palettefile;
 	int planes;
+	int tilesize;
 
 	// internal: not set via commandline
 	bool use_solutionpair_reduction_;
@@ -524,6 +535,12 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					g_maxplanes = 8;
 				}
 				else
+				if (s_arg.find("rbplus") != std::string::npos)
+				{
+					_args.outmode = Outmode_RBPLUS;
+					g_maxplanes = 8;
+				}
+				else
 				{
 					printf("error - invalid arg for outmode: %s\n", s_arg.c_str());
 					exit(1);
@@ -586,13 +603,24 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				_args.keycol = iarg;	
 			}
+			else if (args.OptionId() == OPT_TILESIZE)
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if ((iarg != 16) && (iarg != 32))
+				{
+					printf("error - invalid arg for tile size: %s\n", s_arg.c_str());
+					exit(1);
+				}
+				_args.tilesize = iarg;	
+			}
 			else if (args.OptionId() == OPT_BITPLANES)
 			{
 				std::string s_arg = args.OptionArg();
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > g_maxplanes)
 				{
-					printf("error - invalid arg for tile matching tolerance: %s\n", s_arg.c_str());
+					printf("error - invalid arg for bitplanes/bpp: %s\n", s_arg.c_str());
 					exit(1);
 				}
 				_args.planes = iarg;	
@@ -1168,11 +1196,12 @@ tileplanardictionary_t s_tileplanardictionary;
 // extract pixels from 8bit indexed tile data
 static inline void extract_tile8(ubyte_t *_pdsttile, ubyte_t *_psrctile, ulong_t _sourcew)
 {
-	for (int py = 0; py < 16; py++)
+	int tilesize = g_allargs.tilesize;
+	for (int py = 0; py < tilesize; py++)
 	{
-		for (int px = 0; px < 16; px++)
+		for (int px = 0; px < tilesize; px++)
 		{
-			_pdsttile[(py << 4) + px] = _psrctile[(py * _sourcew) + px];
+			_pdsttile[(py * tilesize) + px] = _psrctile[(py * _sourcew) + px];
 		}
 	}
 }
@@ -1180,11 +1209,12 @@ static inline void extract_tile8(ubyte_t *_pdsttile, ubyte_t *_psrctile, ulong_t
 // extract pixels from 24bit TC tile data (for error comparison)
 static inline void extract_tile24(RGB *_pdsttile, RGB *_psrctile, ulong_t _sourcew)
 {
-	for (int py = 0; py < 16; py++)
+	int tilesize = g_allargs.tilesize;
+	for (int py = 0; py < tilesize; py++)
 	{
-		for (int px = 0; px < 16; px++)
+		for (int px = 0; px < tilesize; px++)
 		{
-			_pdsttile[(py << 4) + px] = _psrctile[(py * _sourcew) + px];
+			_pdsttile[(py * tilesize) + px] = _psrctile[(py * _sourcew) + px];
 		}
 	}
 }
@@ -1192,16 +1222,18 @@ static inline void extract_tile24(RGB *_pdsttile, RGB *_psrctile, ulong_t _sourc
 // compare two 24bit tiles for similarity
 static inline float compare_tile24(RGB *_pdsttile, RGB *_psrctile, ulong_t _sourcew)
 {
+	int tilesize = g_allargs.tilesize;
+
 	static const float c_n = 1.0f / 255.0f;
 
 	float errsum = 0.0f;
 
-	for (int py = 0; py < 16; py++)
+	for (int py = 0; py < tilesize; py++)
 	{
-		for (int px = 0; px < 16; px++)
+		for (int px = 0; px < tilesize; px++)
 		{
 			const RGB &spix = _psrctile[(py * _sourcew) + px];
-			const RGB &dpix = _pdsttile[(py << 4) + px];
+			const RGB &dpix = _pdsttile[(py * tilesize) + px];
 
 			float dr = float(spix.red   - dpix.red) * c_n;
 			float dg = float(spix.green - dpix.green) * c_n;
@@ -1227,7 +1259,7 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 	// compare this tile with all tiles already in dictionary
 
 	// address source tile in terms of tile coords
-	RGB *psrctile24 = &_psourcergb[(_sourcew * (_ty << 4)) + (_tx << 4)];
+	RGB *psrctile24 = &_psourcergb[(_sourcew * (_ty * g_allargs.tilesize)) + (_tx * g_allargs.tilesize)];
 
 	// configure nearest match to worst case before search
 	tile24dictionary_t::iterator best_it24 = s_tile24dictionary.end();
@@ -1267,9 +1299,9 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 		mapindex = s_tile8dictionary.size();
 
 		// if no match was found, store tile as unique
-		RGB *pnewtile24 = new RGB[16 * 16];
-		ubyte_t *pnewtile8 = new ubyte_t[16 * 16];
-		ubyte_t *psrctile8 = &_psourcecol[(_sourcew * (_ty << 4)) + (_tx << 4)];
+		RGB *pnewtile24 = new RGB[64 * 64];
+		ubyte_t *pnewtile8 = new ubyte_t[64 * 64];
+		ubyte_t *psrctile8 = &_psourcecol[(_sourcew * (_ty * g_allargs.tilesize)) + (_tx * g_allargs.tilesize)];
 
 		extract_tile24(pnewtile24, psrctile24, _sourcew);
 		extract_tile8(pnewtile8, psrctile8, _sourcew);
@@ -1293,8 +1325,8 @@ static void process_image
 )
 {
 	// find source dimensions in terms of tiles
-	int tilew = _sourcew >> 4;
-	int tileh = _sourceh >> 4;
+	int tilew = _sourcew / g_allargs.tilesize;
+	int tileh = _sourceh / g_allargs.tilesize;
 
 	r_tilemapw = tilew;
 	r_tilemaph = tileh;
@@ -1762,6 +1794,203 @@ static void emit_tiles_cct(RGB *_ppal24)
 }
 
 // --------------------------------------------------------------------
+//	emit map data file indicating where tiles go in original image
+// --------------------------------------------------------------------
+
+static void emit_tilemap_16bitraw(const char* _fname, long_t *_ptilemap, int _tilemapw, int _tilemaph)
+{
+	long_t v;
+
+	FILE *hmap = fopen(_fname, "wb");
+	if (hmap)
+	{
+		int mapentries = _tilemapw * _tilemaph;
+		for (int i = 0; i < mapentries; i++)
+		{
+			uword_t tile_index_mot = endianswap16(uword_t(_ptilemap[i]));
+			fwrite(&tile_index_mot, 1, sizeof(tile_index_mot), hmap);
+		}
+
+		fclose(hmap);
+	}
+
+	std::cout << "emitted tilemap [" << _fname << "]" << std::endl;
+}
+
+// --------------------------------------------------------------------
+//	emit tile library data file for RBasic+ (Jaguar)
+// --------------------------------------------------------------------
+
+#pragma pack(push,2) // it's a file format :-/
+struct bmp_header
+{
+	// file
+	uword_t	file_sig;
+	ulong_t	file_size;
+	uword_t	file_rsv1;
+	uword_t	file_rsv2;
+	ulong_t file_offset_pixeldata;
+	// dib
+	ulong_t dib_size_header;
+	ulong_t dib_w;
+	ulong_t dib_signed_h;
+	uword_t dib_planes;
+	uword_t dib_bpp;
+	ulong_t dib_format;
+	ulong_t dib_rawsize;
+	ulong_t dib_print_xres;
+	ulong_t dib_print_yres;
+	ulong_t dib_ncolours;
+	ulong_t dib_icolours;
+	// pixeldata
+};
+#pragma pack(pop)
+
+static void emit_tiles_rbplus(RGB *_ppal24)
+{
+//	std::string filename("tiles.cct");
+
+	// construct output filename: [infile.ccm]
+	std::string outfile(g_allargs.sourcefile);
+	replace_extension(outfile, "bmp");
+
+	//size_t dot = outfile.find_last_of(".");
+	//if (dot != std::string::npos)
+	//{
+	//	outfile = outfile.substr(0, dot);
+	//	outfile.append(".cct");
+	//}
+
+	FILE* h = fopen(outfile.c_str(), "wb");
+	if (h)
+	{
+		int tracked_filesize = 0;
+		ulong_t zero = 0;
+
+		int tilesize = g_allargs.tilesize;
+		// create header (16 x (tiles*count) x nBPP)
+
+		int pixeldatasize = (tilesize * tilesize) * s_tile8dictionary.size();
+		if (g_allargs.planes <= 4)
+			pixeldatasize >>= 1;
+
+		bmp_header bmph;
+		bmph.file_sig = 'MB';
+		bmph.file_size = 0; // patch later
+		bmph.file_rsv1 = 0;
+		bmph.file_rsv2 = 0;
+		bmph.file_offset_pixeldata = 0; // patch later
+		bmph.dib_size_header = 40;
+		bmph.dib_w = tilesize;
+#if (BMP_TYPICAL_ROW_ORDER)
+		bmph.dib_signed_h = (tilesize * s_tile8dictionary.size());
+#else
+		bmph.dib_signed_h = -(tilesize * s_tile8dictionary.size());
+#endif
+		bmph.dib_planes = 1;
+		bmph.dib_bpp = (g_allargs.planes <= 4) ? 4 : 8;
+		bmph.dib_format = 0;
+		bmph.dib_rawsize = pixeldatasize;
+		bmph.dib_print_xres = tilesize;
+		bmph.dib_print_yres = (tilesize * s_tile8dictionary.size());
+		bmph.dib_ncolours = (g_allargs.planes <= 4) ? 16 : 256;
+		bmph.dib_icolours = bmph.dib_ncolours;
+		// palette follows - no padding required
+		// image pixels follow - with padding
+
+		// write header
+		fwrite(&bmph, 1, sizeof(bmph), h); tracked_filesize += sizeof(bmph);
+
+		// write palette (16*BGRA)
+		{
+			for (int i = 0; i < bmph.dib_ncolours; i++)
+			{
+				ubyte_t r = ubyte_t(_ppal24[i].red);
+				ubyte_t g = ubyte_t(_ppal24[i].green);
+				ubyte_t b = ubyte_t(_ppal24[i].blue);
+
+				fwrite(&b, 1, 1, h);
+				fwrite(&g, 1, 1, h);
+				fwrite(&r, 1, 1, h);
+				fwrite(&zero, 1, 1, h);
+
+				tracked_filesize += 4;
+			}
+		}
+
+		// align the pixeldata
+		int aligned_filepos = (tracked_filesize + 3) & ~3;
+		int padding = aligned_filepos - tracked_filesize;
+		tracked_filesize += padding;
+		while (padding--)
+		{
+			fwrite(&zero, 1, 1, h);
+		}
+
+		int offset_pixeldata = tracked_filesize;
+
+		// write tiles (n)
+		{
+			int tileplanes = g_allargs.planes;
+			int tilepixels = tilesize * tilesize;
+			ubyte_t tilespace[64];	// expected worst case is 32
+
+#if (BMP_TYPICAL_ROW_ORDER)
+			// so we need to emit the tiles in reverse. what a crock...
+			for (tile8dictionary_t::reverse_iterator it = s_tile8dictionary.rbegin(); it != s_tile8dictionary.rend(); it++)
+#else
+			for (tile8dictionary_t::iterator it = s_tile8dictionary.begin(); it != s_tile8dictionary.end(); it++)
+#endif
+			{
+				ubyte_t *tile = *it;
+
+#if (BMP_TYPICAL_ROW_ORDER)
+				for (int r = tilesize-1; r >= 0; r--)
+#else
+				for (int r = 0; r < tilesize; r++)
+#endif
+				{
+					// access row
+					ubyte_t *tilerow = &tile[r * tilesize];
+
+					// emit a row at a time, so we can BMP-flip the row order :(
+
+					// extract pixels
+					if (tileplanes <= 4)
+					{
+						// pack as nibbles
+						for (int a = 0, p = 0; a < (tilesize >> 1); ++a, p += 2)
+						{
+							ubyte_t pixel = (tilerow[p + 0] << 4) | (tilerow[p + 1] << 0);
+							tilespace[a] = pixel;
+						}
+
+						fwrite(tilespace, 1, tilesize >> 1, h); tracked_filesize += tilesize >> 1;
+					}
+					else
+					{
+						// already in correct 8bit chunky format
+						fwrite(tilerow, 1, tilesize, h); tracked_filesize += tilesize;
+					}
+				}
+			}
+		}
+
+		// patch filesize
+		fseek(h, 2, 0);
+		fwrite(&tracked_filesize, 1, 4, h);
+
+		// patch pixeldata offset
+		fseek(h, 10, 0);
+		fwrite(&offset_pixeldata, 1, 4, h);
+
+		std::cout << "emitted tiles [" << outfile.c_str() << "]" << std::endl;
+
+		fclose(h);
+	}
+}
+
+// --------------------------------------------------------------------
 //	map & tile cutting mode
 // --------------------------------------------------------------------
 
@@ -1786,9 +2015,9 @@ bool do_tiles()
 		{
 			std::cout << "read [" << g_allargs.sourcefile.c_str() << "] with colour depth " << sourced << " and dimensions " << sourcew << " x " << sourceh << std::endl;
 
-			if ((sourcew & (16 - 1)) || (sourceh & (16 - 1)))
+			if ((sourcew & (g_allargs.tilesize - 1)) || (sourceh & (g_allargs.tilesize - 1)))
 			{
-				std::cerr << "error: source image is not a multiple of 16 pixels on both axes - check the map!" << std::endl;
+				std::cerr << "error: source image is not a multiple of " << g_allargs.tilesize << " pixels on both axes - check the map!" << std::endl;
 				exit(1);
 			}
 
@@ -1838,6 +2067,11 @@ bool do_tiles()
 			{
 				emit_tiles_cct(m_ppalettergb);
 			}
+			else
+			if (g_allargs.outmode == Outmode_RBPLUS)
+			{
+				emit_tiles_rbplus(m_ppalettergb);
+			}
 
 			if (m_psourcergb)
 				delete[] m_psourcergb;
@@ -1848,16 +2082,16 @@ bool do_tiles()
 
 			if (ptilemap)
 			{
-				// construct output filename: [infile.ccm]
+				// construct output filename: [infile.map]
 				std::string outfile(g_allargs.sourcefile);
 				size_t dot = outfile.find_last_of(".");
 				if (dot != std::string::npos)
 				{
 					outfile = outfile.substr(0, dot);
-					outfile.append(".ccm");
+					outfile.append(".bin");
 				}
 
-				emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+				emit_tilemap_16bitraw(outfile.c_str(), ptilemap, tilemapw, tilemaph);
 			}
 		}
 		else
@@ -2908,6 +3142,14 @@ int main(int argc, char* argv[])
 	std::cout << "Atari GameTools: map, tile & sprite cutter " << g_version_string << " / dml" << std::endl;
 
 	GetArguments(argc, argv, g_allargs);
+
+	if (g_allargs.cutmode == Cutmode_TILES &&
+		g_allargs.outmode != Outmode_RBPLUS &&
+		g_allargs.tilesize != 16)
+	{
+		std::cerr << "error: only 16x16 tile size is supported in degas/direct mode. other sizes are for rbplus only" << std::endl;
+		exit(1);
+	}
 
 	if (g_allargs.cutmode == Cutmode_TILES)
 		do_tiles();
