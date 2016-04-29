@@ -48,6 +48,7 @@ typedef unsigned short u16;
 typedef unsigned char u8;
 
 // meh: this arrived with BMP and lingers on...
+
 typedef struct RGB
 {
     ubyte_t blue;
@@ -55,12 +56,19 @@ typedef struct RGB
     ubyte_t red;
 } RGB;
 
+typedef struct iRGB
+{
+    int blue;
+    int green;
+    int red;
+} iRGB;
+
 // --------------------------------------------------------------------
 //	constants
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.2";
+static const char* const g_version_string = "v0.22";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -156,9 +164,11 @@ enum
 	// general
 	OPT_BITPLANES,
 	OPT_KEYCOL,
+	OPT_KEYRGB,
 	OPT_KEYGUARD,
 	OPT_KEYTOL,
 	OPT_SOURCE,
+	OPT_OUTFILE,
 	OPT_PALETTE,
 	OPT_CUTMODE,
 	// sprites
@@ -210,6 +220,9 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_KEYCOL,		_T("-key"),	 			SO_REQ_SEP	},
 	{ OPT_KEYCOL,		_T("--key-colour"),		SO_REQ_SEP	},
+	//
+	{ OPT_KEYRGB,		_T("-keyrgb"), 			SO_REQ_SEP	},
+	{ OPT_KEYRGB,		_T("--key-rgb"),		SO_REQ_SEP	},
 	//
 	{ OPT_KEYGUARD,		_T("-kg"),	 			SO_NONE		},
 	{ OPT_KEYGUARD,		_T("--key-guard"),		SO_NONE		},
@@ -269,6 +282,9 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_OUTMODE,		_T("-om"),	 			SO_REQ_SEP	},
 	{ OPT_OUTMODE,		_T("--outmode"), 		SO_REQ_SEP	},
 	//
+	{ OPT_OUTFILE,		_T("-o"),	 			SO_REQ_SEP	},
+	{ OPT_OUTFILE,		_T("--outfile"),		SO_REQ_SEP	},
+	//
 	{ OPT_PALETTE,		_T("-p"),	 			SO_REQ_SEP	},
 	{ OPT_PALETTE,		_T("--pal"),	 		SO_REQ_SEP	},
 	//
@@ -298,6 +314,7 @@ static void usage(int level)
 	std::cout << " -s, --src            > source image containing tiles/sprites:" << std::endl;
 	std::cout << "                      > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)" << std::endl;
 	std::cout << "                      > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
+	std::cout << " -o, --outfile        > output filename" << std::endl;
 	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites" << std::endl;
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
 	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
@@ -372,6 +389,7 @@ public:
 		  tolerance(0.0f),
 		  keytol(0.01f),
 		  sourcefile("source.bmp"),
+		  outfile(""),
 		  palettefile("palette.pi1"),
 //		  spriteguidefile("sprites.sgd"),
 		  masklayout(Masklayout_INTERLEAVED),
@@ -392,6 +410,9 @@ public:
 		  //
 		  use_solutionpair_reduction_(false)
 	{
+		keyrgb.red = -1;
+		keyrgb.green = -1;
+		keyrgb.blue = -1;
 	}
 
 	bool verbose;
@@ -403,6 +424,7 @@ public:
 	bool keyguard;
 
 	ubyte_t keycol;
+	iRGB keyrgb;
 	int cut_xpos;
 	int cut_ypos;
 	int cut_xsize;
@@ -416,6 +438,7 @@ public:
 	float tolerance;
 	float keytol;
 	std::string sourcefile;
+	std::string outfile;
 //	std::string spriteguidefile;
 	Cutmode cutmode;
 	Outmode outmode;
@@ -472,6 +495,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_SOURCE)
 			{
 				_args.sourcefile = args.OptionArg();
+			}
+			else if (args.OptionId() == OPT_OUTFILE)
+			{
+				_args.outfile = args.OptionArg();
 			}
 			else if (args.OptionId() == OPT_TOLERANCE)
 			{
@@ -592,6 +619,36 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			//{
 			//	_args.spriteguidefile = args.OptionArg();
 			//}
+			else if (args.OptionId() == OPT_KEYCOL)
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if (iarg < 0 || iarg > 255)
+				{
+					printf("error - invalid arg for key colour: %s\n", s_arg.c_str());
+					exit(1);
+				}
+				_args.keycol = iarg;	
+			}
+			else if (args.OptionId() == OPT_KEYRGB)
+			{
+				std::string s_arg = args.OptionArg();
+				
+				int r, g, b;
+				sscanf(s_arg.c_str(), "%x:%x:%x", &r, &g, &b);
+
+				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
+				{
+					printf("error - invalid arg for key rgb: %s\n", s_arg.c_str());
+					exit(1);
+				}
+
+				printf("key colour from rgb: r(%x):g(%x):b(%x):\n", r, g, b);
+
+				_args.keyrgb.red = r;
+				_args.keyrgb.green = g;
+				_args.keyrgb.blue = b;
+			}
 			else if (args.OptionId() == OPT_KEYCOL)
 			{
 				std::string s_arg = args.OptionArg();
@@ -944,7 +1001,7 @@ static bool read_pal_ccs(const char* _fname, RGB *&r_ppal, unsigned short& r_num
 				// read in the colors
 				uword_t palette[16];
 				//fread(palette, 1, 2, hpal);
-				fread(palette, 1, 32, hpal);
+				fread(palette, 1, sizeof(palette), hpal);
 				fclose(hpal); hpal = NULL;
 
 				// convert whatever colours we were able to read into local format
@@ -1395,11 +1452,21 @@ static void remap_dictionary_tiles()
 
 static void emit_pi1(uword_t *buffer4plane, RGB *_ppal24, int pi1_index)
 {
-	std::string fname("tiles");
-	fname += ('0' + pi1_index);
-	fname.append(".pi1");
+	std::string outfile("t");
+	outfile += ('0' + pi1_index);
 
-	FILE *hout = fopen(fname.c_str(), "wb");
+	if (g_allargs.outfile.length() > 0)
+	{
+		outfile.append(g_allargs.outfile.c_str());
+	}
+	else
+	{
+		outfile.append(g_allargs.sourcefile.c_str());
+	}
+
+	replace_extension(outfile, "pi1");
+
+	FILE *hout = fopen(outfile.c_str(), "wb");
 	if (hout)
 	{
 		uword_t palette4bit[16] = { 0x000, 0xfff, 0x111, 0x222, 0x333, 0x444, 0x555, 0x666, 0x777, 0x888, 0x999, 0xaaa, 0xbbb, 0xccc, 0xddd, 0xeee };
@@ -1438,7 +1505,7 @@ static void emit_pi1(uword_t *buffer4plane, RGB *_ppal24, int pi1_index)
 		fwrite(buffer4plane, 1, 32000, hout);
 		fclose(hout);
 
-		std::cout << "emitted tilegroup [" << fname.c_str() << "]" << std::endl;
+		std::cout << "emitted tilegroup [" << outfile.c_str() << "]" << std::endl;
 	}
 }
 
@@ -1568,13 +1635,30 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 					{
 						RGB &rgb = *psrc++;
 
-						int rgb666 = ((rgb.blue >> 2) << 12) | ((rgb.green >> 2) << 6) | (rgb.red >> 2);
+						u8 r8 = rgb.red;
+						u8 g8 = rgb.green;
+						u8 b8 = rgb.blue;
 
-						u8 solution = g_rgb_solutionpair_map[rgb666];
-						u8 solutionpair = g_solutionpairs[solution];
+						u8 solution0 = g_allargs.keycol;
+						u8 solution1 = g_allargs.keycol;
 
-						u8 solution0 = (solutionpair >> 4) & 0xF;
-						u8 solution1 = (solutionpair >> 0) & 0xF;
+						if ((r8 == g_allargs.keyrgb.red) &&
+							(g8 == g_allargs.keyrgb.green) &&
+							(b8 == g_allargs.keyrgb.blue))
+						{
+							// default to keycol
+						}
+						else
+						{
+							// otherwise use the solution pair (usually a dither)
+							int rgb666 = ((b8 >> 2) << 12) | ((g8 >> 2) << 6) | (r8 >> 2);
+
+							u8 solution = g_rgb_solutionpair_map[rgb666];
+							u8 solutionpair = g_solutionpairs[solution];
+
+							solution0 = (solutionpair >> 4) & 0xF;
+							solution1 = (solutionpair >> 0) & 0xF;
+						}
 
 						*pdst++ = (((px ^ py) ^ field) & 1) ? solution0 : solution1;
 					}
@@ -1704,15 +1788,18 @@ static void emit_tiles_cct(RGB *_ppal24)
 //	std::string filename("tiles.cct");
 
 	// construct output filename: [infile.ccm]
-	std::string outfile(g_allargs.sourcefile);
-	replace_extension(outfile, "cct");
 
-	//size_t dot = outfile.find_last_of(".");
-	//if (dot != std::string::npos)
-	//{
-	//	outfile = outfile.substr(0, dot);
-	//	outfile.append(".cct");
-	//}
+	std::string outfile;
+	if (g_allargs.outfile.length() > 0)
+	{
+		outfile = g_allargs.outfile;
+	}
+	else
+	{
+		outfile = g_allargs.sourcefile;
+	}
+
+	replace_extension(outfile, "cct");
 
 	FILE* h = fopen(outfile.c_str(), "wb");
 	if (h)
@@ -1848,18 +1935,18 @@ struct bmp_header
 
 static void emit_tiles_rbplus(RGB *_ppal24)
 {
-//	std::string filename("tiles.cct");
-
 	// construct output filename: [infile.ccm]
-	std::string outfile(g_allargs.sourcefile);
-	replace_extension(outfile, "bmp");
+	std::string outfile;
+	if (g_allargs.outfile.length() > 0)
+	{
+		outfile = g_allargs.outfile;
+	}
+	else
+	{
+		outfile = g_allargs.sourcefile;
+	}
 
-	//size_t dot = outfile.find_last_of(".");
-	//if (dot != std::string::npos)
-	//{
-	//	outfile = outfile.substr(0, dot);
-	//	outfile.append(".cct");
-	//}
+	replace_extension(outfile, "bmp");
 
 	FILE* h = fopen(outfile.c_str(), "wb");
 	if (h)
@@ -2002,6 +2089,7 @@ bool do_tiles()
 	RGB *m_psourcergb = 0;
 	RGB *m_ppalettergb = 0;
 	ubyte_t *m_psourcecol = 0;
+	ubyte_t *m_poriginalsrccol = 0;
 
 	long_t *ptilemap = 0;
 	int tilemapw = 0;
@@ -2019,6 +2107,25 @@ bool do_tiles()
 			{
 				std::cerr << "error: source image is not a multiple of " << g_allargs.tilesize << " pixels on both axes - check the map!" << std::endl;
 				exit(1);
+			}
+
+			if (m_psourcecol)
+			{
+				int maxcolidx = 1 << g_allargs.planes;
+				// check that indexed colours are in range for bitplanes specified
+				for (size_t p = 0; p < sourcew*sourceh; p++)
+				{
+					if (m_psourcecol[p] >= maxcolidx)
+					{
+						std::cout << "warning: source image is indexed, but values exceed target bitplane count: remapping..." << std::endl;
+						// ignore colourmap
+						m_poriginalsrccol = m_psourcecol;
+						m_psourcecol = 0;
+						break;
+					}
+				}
+
+				std::cout << "adopting palette and colourmap provided by source image..." << std::endl;
 			}
 
 			if (m_psourcecol)
@@ -2083,15 +2190,29 @@ bool do_tiles()
 			if (ptilemap)
 			{
 				// construct output filename: [infile.map]
-				std::string outfile(g_allargs.sourcefile);
-				size_t dot = outfile.find_last_of(".");
-				if (dot != std::string::npos)
+
+				std::string outfile;
+				if (g_allargs.outfile.length() > 0)
 				{
-					outfile = outfile.substr(0, dot);
-					outfile.append(".bin");
+					outfile = g_allargs.outfile;
+				}
+				else
+				{
+					outfile = g_allargs.sourcefile;
 				}
 
-				emit_tilemap_16bitraw(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+				if (g_allargs.outmode == Outmode_RBPLUS)
+				{
+					replace_extension(outfile, "bin");
+
+					emit_tilemap_16bitraw(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+				}
+				else
+				{
+					replace_extension(outfile, "ccm");
+
+					emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+				}
 			}
 		}
 		else
@@ -2346,8 +2467,16 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y)
 
 bool emit_sprite_sequence()
 {
-	std::string fname("sprites");
-	fname.append(".sps");
+	std::string fname;
+	if (g_allargs.outfile.length() > 0)
+	{
+		fname = g_allargs.outfile;
+	}
+	else
+	{
+		fname = g_allargs.sourcefile;
+		replace_extension(fname, "sps");
+	}
 
 	FILE *hout = fopen(fname.c_str(), "wb");
 	if (hout)
@@ -2816,10 +2945,19 @@ bool emit_slab_sequence()
 		}
 	}
 
-	std::string fname("slabs");
-	fname.append(".sls");
+	std::string outfile;
+	if (g_allargs.outfile.length() > 0)
+	{
+		outfile = g_allargs.outfile;
+	}
+	else
+	{
+		outfile = g_allargs.sourcefile;
+	}
 
-	FILE *hout = fopen(fname.c_str(), "wb");
+	replace_extension(outfile, "sls");
+
+	FILE *hout = fopen(outfile.c_str(), "wb");
 	if (hout)
 	{
 		word_t wb;
@@ -3011,7 +3149,7 @@ bool emit_slab_sequence()
 		fwrite(&lv, 1, 4, hout);
 	}
 
-	std::cout << "emitted slab sequence [" << fname.c_str() << "]" << std::endl;
+	std::cout << "emitted slab sequence [" << outfile.c_str() << "]" << std::endl;
 
 	return true;
 }
