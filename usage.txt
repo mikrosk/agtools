@@ -41,6 +41,19 @@ the output from the tool, then check the details of the file types involved.
 changenotes:
 ===============================================================================
 
+v0.22	30/04/2016
+---------------------------------------
+* added summary to usage.txt
+* added -o output file name switch
+* added support for key colour by source rgb value
+* fixed some missing help info
+* fixed tile conversion to colour-reduce if source bitmap has colours > maxcol
+  even if source bitmap is already indexed colour
+
+v0.21	29/04/2016
+---------------------------------------
+* (buggy - skipped)
+
 v0.20	27/04/2016
 ---------------------------------------
 * added support for Jaguar RBasic+ tile & map formats using 4 or 8bit BMP for
@@ -64,6 +77,295 @@ v0.17	07/04/2016
   map sprites directly to backgrounds 
 * added '-kg/--key-guard' and '-kt/--key-tol' options to control colours
   being accidentally remapped to the transparent key colour
+
+
+
+===============================================================================
+Summary: General Options
+===============================================================================
+
+-? -h --help
+
+Help & usage information
+
+
+-v --verbose
+
+Show more detailed information where relevant
+
+
+-q --quiet
+
+Suppress all but the most important messages
+
+
+-wk --wait-key
+
+Don't exit without a keypress - can be useful for debugging if warning messages
+are getting lost in batch jobs.
+
+
+-s --src <file>
+
+Specify the input file for conversion. Valid source formats are:
+
+	png, bmp, jpg, psd, tga, gif, hdr, pic, ppm/pgm/pnm
+
+Indexed colour can be used directly from these without colour reduction:
+
+	png, bmp
+
+PNG is generally recommended as it is non-lossy and supports all bitdepths.
+
+
+-o --outfile <file>
+
+Specify the output filename, minus file extension. If you specify a file
+extension it will just get replaced anyway with the output format.
+
+If you don't specify -o, the output filename will be based on the input name
+in most cases (Outputting tilebanks as Degas .PI1 will also append numbers).
+
+Be careful - if your input is .BMP and your output is also .BMP (e.g. for Jag)
+then failing to use -o can cause your source image to be overwritten.
+
+
+-cm --cutmode <sprites,slabs,tiles>
+
+Specify cutting mode. This does affect which other switches make sense...
+
+ [sprites]
+ 
+ Cut sprite frames from a single image, in column,row order as a grid (or just
+ a single row, or just a single column). Size and spacing of each cell is set
+ by other options (-sxp, -sxs, -sxi, -sxc, etc..)
+ 
+ Mask can be IMPLICIT, nonzero colour (for STF software sprites) or EXPLICIT,
+ stored with the other bitplances (for STE blitter sprites). For masks, the
+ transparent (key) colour can be specified with -key or -keyrgb and controlled
+ with some other options.
+ 
+ [slabs]
+ 
+ Works the same way as [sprites] mode but the type of object being cut is
+ optimized for large surface area. Slabs can not contain interior holes but
+ they can have an irregular outline. A large circular graphic would encode
+ well as a slab. Small objects or medium objects with holes may be better as
+ sprites.
+ 
+ [tiles]
+ 
+ Cut background tiles & map index grid from an image. Optionally performs tile
+ library optimization based on visual similarity between tiles.
+
+
+-p -pal <file>
+
+Specify external palette for colour reduction step, if needed. This allows the
+use of truecolour or 8bit images as source material, as it will get reduced to
+fit the specified palette. Several formats are accepted. Detailed below.
+
+Note that colour reduction is only performed if the source image is not already
+indexed colour (4 or 8bit BMP or PNG) or if the indexed source image has more
+colours than will fit in the specified number of output bitplanes.
+
+
+-b --bitplanes <num>
+
+Specify the number of output bitplanes. Typically 4 for STF/STE or 8 for Falcon
+but other depths can be set.
+
+
+-key --key-colour <index>
+
+Specify the transparent index colour, for source graphics which are already in
+indexed colour format (i.e. the colour indices are known in advance). You can
+also use this with the builtin colour-reduction but since the resulting colour
+indices can change if the palette changes, it might be tricky to keep track of.
+
+A separate option is provided for colour-reduction mode (see --keyrgb) which
+helps deal with this.
+
+Note that the preview mode (-prv) can help identify which colour index is being
+used for the area around sprites, as a guide to setting -key.
+
+
+-keyrgb --key-rgb <RR:GG:BB>
+
+Same as -key, but the colour is specified as R,G,B in hex. So to specify 
+magenta as transparent you would use: 
+
+	-keyrgb FF:00:FF
+
+Since this can result in TWO colours being transparent (the -key index, and
+the --keyrgb colour) it is normally a good idea to specify an unused key index
+when using this option e.g.
+
+	-keyrgb FF:00:FF -key 99
+
+This will ensure the 'post-reduced' colour index 0 is not also treated as
+transparent and produce unwanted holes...
+
+
+-kg --key-guard
+
+Makes the colour reducer extra sensitive to the key colour, such that it will
+avoid reducing nearby colours to the key colour (and accidentally making some
+transparent holes that aren't in the source image). It can still reduce colours
+to the key colour but only if they are within a very near tolerance.
+
+See --key-tol for setting the tolerance.
+
+
+-kt --key-tol <0.0+>
+
+Specify the tolerance for matching the transparent/key colour.
+
+Default: 0.01
+
+
+===============================================================================
+Summary: Sprite/Slab Options
+===============================================================================
+
+-sxp, --sprxpos
+-syp, --sprypos
+
+Specify the starting x,y position for cutting frames from the spritesheet.
+This will be the top-left corner of the first frame in the sprite sequence.
+
+
+-sxs, --sprxsize
+-sys, --sprysize
+
+Specify the size of a sprite frame in this sequence. All frames will have the
+same 'size' and no pixels will be cut from the area outside of the frame.
+
+However, the cutter will only store (and later, draw) 'used' pixels where it
+can, and encodes offsets in the sprite data to make up for the gaps. So a
+large transparent frame with a small solid area inside will not cost extra
+memory or drawing time.
+
+This provides a convenient way to cut animation frames with varying size 
+between frames.
+
+
+-sxi, --sprxinc
+-syi, --spryinc
+
+Horizontal step (spacing) between sprite frames on a single row. This is the
+distance between the top-left corner of one frame and the top-left corner of
+the next.
+
+Note: Sprites are cut left-to-right, top-to-bottom, but you can still cut a
+single row or a single column.
+
+
+-sxc, --sprxcount
+-syc, --sprycount
+
+Specify the number of frames on a row, and the number of rows. 
+
+e.g. you can cut a single row by specifying '-sxc <num>, syc 1'
+e.g. you can cut a single column by specifying '-sxc 1, syc <num>'
+
+
+-sc, --sprcount <num>
+
+If you are cutting from a W x H grid of sprites but don't want to cut every
+frame from the grid (say, the last row only has a few frames on it) you can
+cap the total number of frames cut using this option. This will stop the
+cutting early and could save a bit of memory on unwanted empty frames.
+
+
+-gm, --gen-mask
+
+Generate explicit masks from the -key and --keyrgb transparent colours. This
+is needed on STE using blitter sprites. 
+
+
+-ml, --mask-layout <interleaved,planar>
+
+Specify the memory layout for masks in the final data. 
+
+'interleaved' puts a single mask word before each group of plane words. So a
+4-plane sprite would be encoded like a 5-plane sprite with ordering:
+
+	M,P0,P1,P2,P3, M,P0,P1,P2,P3.
+
+'planar' puts the whole mask in front of all the colour data. e.g.
+
+	M,M,... P0,P1,P2,P3,P0,P1,P2,P3,... 
+
+
+Default: interleaved (expected by AGT playfield sprite code)
+
+
+-sopt. --soptimize <on,off>
+
+Optimize away unused pixels from sprite frames. Reduces storage cost and draw
+time. Offsets are stored in each frame to ensure the sprite origin is correct.
+
+Turning this off forces all frames to store the same amount of data, unused
+pixels and all. Per-frame offsets will be stored as 0,0
+
+Default: on
+
+
+-prv. --preview
+
+Use ASCII preview of sprite colour indices and masks. Helps guide setting of
+the -key, -keyrgb options etc.
+
+
+===============================================================================
+Summary: Playfield (map & tiles) Options
+===============================================================================
+
+-ts, --tilesize
+
+Specify tilesize as 16 or 32 pixels on each edge. This is mainly for the added
+RBasic+ support on Jaguar as the map system works with these two sizes.
+
+The AGT playfield system on ST is currently fixed at 16x16 as the optimal size.
+
+Default: 16
+
+
+-t, --tol
+
+Specify the tile optimization tolerance. Larger numbers will match tiles more
+loosely, and reduce the size of the tile library. If the setting is too high
+visible errors will appear in the final map. A value of 0.75 seems to work ok
+for most maps but it needs tuning.
+
+Matching is performed using least-squares-error in RGB space.
+
+Default: 0.0
+
+
+-om, --outmode <direct,degas,rbplus>
+
+Specify the output format for maps and tiles.
+
+ [direct] 
+ 
+ Custom format for AGT playfield system on ST. Also supported by PhotoChrome 6.
+ See below for detail on file formats etc.
+ 
+ Output: file.ccm (map), file.cct (tiles with palette)
+ 
+ [degas]
+ 
+ This mode is intended for use with STOS/Missing-Link. It emits the tiles as
+ a sequence of Degas .PI1 files. Each image is filled left-right, top-bottom
+ and enough images will be produced to encode all tiles in the library.
+
+ [rbplus]
+ 
+ This is for exporting to RBasic+ on the Jag. Map is a raw binary format, just
+ 16 bits per raw map index. The tiles are encoded in a 16-colour vertical .BMP
+
 
 ===============================================================================
 Examples: [maps & tile libraries]
@@ -507,8 +809,8 @@ The other flags are reserved for now...
 Quick Help info
 ===============================================================================
 
-Atari GameTools: map, tile & sprite cutter v0.16 / dml
-built on Apr  7 2016
+Atari GameTools: map, tile & sprite cutter v0.22 / dml
+built on Apr 29 2016
 usage:
  atgcut [opts] [infile]
 
@@ -521,10 +823,13 @@ general:
  -s, --src            > source image containing tiles/sprites:
                       > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)
                       > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm
+ -o, --outfile        > output filename
  -cm, --cutmode       > cutting mode: tiles,sprites
  -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png
  -bp, --bitplanes     > #bitplanes to generate: 1-8
  -key, --key-colour   > colour index assumed to be transarent: 0-255
+ -kg, --key-guard     > guard against reducing colours to key colour
+ -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)
 
 sprite cutting mode:
  -sxp, --sprxpos      > first frame xpos: 0+
@@ -542,6 +847,9 @@ sprite cutting mode:
  -prv, --preview      > show ASCII preview of extracted colours + masking
 
 map & tile cutting mode:
+ -ts, --tilesize      > tile size (rbplus mode only): 16,32
  -t, --tol            > tile matching tolerance: 0.0+
- -om, --outmode       > tile library output mode: direct,degas
+ -om, --outmode       > tile library output mode: direct,degas,rbplus
+
+press any key...
 

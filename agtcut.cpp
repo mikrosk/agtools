@@ -311,14 +311,15 @@ static void usage(int level)
 	std::cout << " -wk, --wait-key      > wait key on exit" << std::endl;
 	std::cout << std::endl;
 	std::cout << "general:" << std::endl;
-	std::cout << " -s, --src            > source image containing tiles/sprites:" << std::endl;
+	std::cout << " -s, --src            > source image containing tiles/sprites/slabs:" << std::endl;
 	std::cout << "                      > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)" << std::endl;
 	std::cout << "                      > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
 	std::cout << " -o, --outfile        > output filename" << std::endl;
-	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites" << std::endl;
+	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites,slabs" << std::endl;
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
 	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
 	std::cout << " -key, --key-colour   > colour index assumed to be transarent: 0-255" << std::endl;
+	std::cout << " -keyrgb, --key-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
 	std::cout << " -kg, --key-guard     > guard against reducing colours to key colour" << std::endl;
 	std::cout << " -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
 	std::cout << std::endl;
