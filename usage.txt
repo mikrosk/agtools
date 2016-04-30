@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.19 : dml : 07/04/2016
+v0.22 : dml : 30/04/2016
 -------------------------------------------------------------------------------
 
 
@@ -322,7 +322,7 @@ the -key, -keyrgb options etc.
 Summary: Playfield (map & tiles) Options
 ===============================================================================
 
--ts, --tilesize
+-ts, --tilesize <size>
 
 Specify tilesize as 16 or 32 pixels on each edge. This is mainly for the added
 RBasic+ support on Jaguar as the map system works with these two sizes.
@@ -332,7 +332,7 @@ The AGT playfield system on ST is currently fixed at 16x16 as the optimal size.
 Default: 16
 
 
--t, --tol
+-t, --tol <tolerance>
 
 Specify the tile optimization tolerance. Larger numbers will match tiles more
 loosely, and reduce the size of the tile library. If the setting is too high
