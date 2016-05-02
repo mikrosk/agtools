@@ -68,7 +68,7 @@ typedef struct iRGB
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.22";
+static const char* const g_version_string = "v0.23";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -3231,7 +3231,7 @@ bool do_sheet()
 				int cutting_source_x = g_allargs.cut_xpos;
 				int cutting_source_y = g_allargs.cut_ypos;
 
-				for (int s = 0, xc = 0; s < cuts; s++, xc++)
+				for (int s = 0, xc = 0; s < cuts; s++)
 				{
 					if (g_allargs.cutmode == Cutmode_SPRITES)
 					{
@@ -3246,6 +3246,8 @@ bool do_sheet()
 					}
 
 					cutting_source_x += g_allargs.cut_xinc;
+
+					xc++;
 
 					if (xc >= g_allargs.cut_xcount)
 					{
