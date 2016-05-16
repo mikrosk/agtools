@@ -13,6 +13,7 @@
 
 #include <list>
 #include <vector>
+#include <map>
 
 // --------------------------------------------------------------------
 //	stb_image! nice :)
@@ -63,12 +64,25 @@ typedef struct iRGB
     int red;
 } iRGB;
 
+typedef struct spritemapping_s
+{
+	int to;
+	int from;
+	std::string flags;
+
+	int x;
+	int y;
+
+} spritemapping_t;
+
+typedef std::map<int, spritemapping_t> spritemap_t;
+
 // --------------------------------------------------------------------
 //	constants
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.23";
+static const char* const g_version_string = "v0.24";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -141,6 +155,18 @@ static void replace_extension(std::string &_fname, const char* const _ext)
 		_fname = _fname.substr(0, dot+1);
 		_fname.append(_ext);
 	}
+	else
+	{
+		_fname.append(".");
+		_fname.append(_ext);
+	}
+}
+
+static void remove_extension(std::string &_fname)
+{
+	size_t dot = _fname.find_last_of(".");
+	if (dot != std::string::npos)
+		_fname = _fname.substr(0, dot);
 }
 
 // --------------------------------------------------------------------
@@ -171,6 +197,7 @@ enum
 	OPT_OUTFILE,
 	OPT_PALETTE,
 	OPT_CUTMODE,
+	OPT_CCFIELDS,
 	// sprites
 //	OPT_SPRITEGUIDE, // may not bother with this - command switches cover it
 	OPT_PREVIEW,
@@ -186,6 +213,7 @@ enum
 	OPT_SPRXC,
 	OPT_SPRYC,
 	OPT_SPRCOUNT,
+	OPT_SPRMAP,
 //	OPT_SLAB,
 	// tiles
 	OPT_TILESIZE,
@@ -236,6 +264,9 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_CUTMODE,		_T("-cm"),	 			SO_REQ_SEP	},
 	{ OPT_CUTMODE,		_T("--cutmode"), 		SO_REQ_SEP	},
 	//
+	{ OPT_CCFIELDS,		_T("-ccf"),	 			SO_REQ_SEP	},
+	{ OPT_CCFIELDS,		_T("--ccfields"), 		SO_REQ_SEP	},
+	//
 //	{ OPT_SPRITEGUIDE,	_T("-sg"),	 			SO_REQ_SEP	},
 //	{ OPT_SPRITEGUIDE,	_T("--sprguide"), 		SO_REQ_SEP	},
 	//
@@ -269,6 +300,9 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_SPRCOUNT,		_T("-sc"),	 			SO_REQ_SEP	},
 	{ OPT_SPRCOUNT,		_T("--sprcount"),		SO_REQ_SEP	},
+	//
+	{ OPT_SPRMAP,		_T("-sm"),	 			SO_REQ_SEP	},
+	{ OPT_SPRMAP,		_T("--sprmap"),			SO_REQ_SEP	},
 	//
 	//{ OPT_SLAB,			_T("-sl"),	 			SO_NONE		},
 	//{ OPT_SLAB,			_T("--slab"),			SO_NONE		},
@@ -316,6 +350,7 @@ static void usage(int level)
 	std::cout << "                      > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
 	std::cout << " -o, --outfile        > output filename" << std::endl;
 	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites,slabs" << std::endl;
+	std::cout << " -ccf, --ccfields     > cryptochrome fields: 1/2" << std::endl;
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
 	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
 	std::cout << " -key, --key-colour   > colour index assumed to be transarent: 0-255" << std::endl;
@@ -333,6 +368,7 @@ static void usage(int level)
 	std::cout << " -sxc, --sprxcount    > frames per row: 1+" << std::endl;
 	std::cout << " -syc, --sprycount    > frames per column: 1+" << std::endl;
 	std::cout << " -sc, --sprcount      > total frames to cut, if stopping early: 0+, where 0=ignore" << std::endl;
+	std::cout << " -sm, --sprmap        > map sprite frame from another: -sm new:existing:flipflags" << std::endl;
 	std::cout << " -gm, --gen-mask      > generate 1bpl mask data along with colour data" << std::endl;
 	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar" << std::endl;
 	std::cout << " -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
@@ -393,6 +429,7 @@ public:
 		  outfile(""),
 		  palettefile("palette.pi1"),
 //		  spriteguidefile("sprites.sgd"),
+		  ccfields(1),
 		  masklayout(Masklayout_INTERLEAVED),
 		  cutmode(Cutmode_TILES),
 		  outmode(Outmode_DEGAS),
@@ -403,10 +440,10 @@ public:
 		  cut_ypos(0),
 		  cut_xsize(16),
 		  cut_ysize(16),
-		  cut_xinc(16),
-		  cut_yinc(16),
-		  cut_xcount(1),
-		  cut_ycount(1),
+		  cut_xinc(0),
+		  cut_yinc(0),
+		  cut_xcount(0),
+		  cut_ycount(0),
 		  cut_count(0),
 		  //
 		  use_solutionpair_reduction_(false)
@@ -440,6 +477,7 @@ public:
 	float keytol;
 	std::string sourcefile;
 	std::string outfile;
+	int ccfields;
 //	std::string spriteguidefile;
 	Cutmode cutmode;
 	Outmode outmode;
@@ -447,6 +485,8 @@ public:
 	std::string palettefile;
 	int planes;
 	int tilesize;
+
+	spritemap_t spritemappings;
 
 	// internal: not set via commandline
 	bool use_solutionpair_reduction_;
@@ -672,6 +712,17 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				_args.tilesize = iarg;	
 			}
+			else if (args.OptionId() == OPT_CCFIELDS)
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if ((iarg != 1) && (iarg != 2))
+				{
+					printf("error - invalid arg for ccfields: %s\n", s_arg.c_str());
+					exit(1);
+				}
+				_args.ccfields = iarg;	
+			}
 			else if (args.OptionId() == OPT_BITPLANES)
 			{
 				std::string s_arg = args.OptionArg();
@@ -775,13 +826,81 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				_args.cut_ycount = iarg;	
 			}
+			else if (args.OptionId() == OPT_SPRCOUNT)
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if (iarg < 1 || iarg > 1024)
+				{
+					printf("error - invalid arg for sprite cutting count: %s\n", s_arg.c_str());
+					exit(1);
+				}
+				_args.cut_count = iarg;	
+			}
+			else if (args.OptionId() == OPT_SPRMAP)
+			{
+				std::string s_arg = args.OptionArg();
+
+				char flipflags[256];
+				int to, from;
+				sscanf(s_arg.c_str(), "%d:%d:%s", &to, &from, flipflags);
+
+				// record each individual mapping for processing later
+				{
+					spritemapping_t sm;
+					sm.to = to;
+					sm.from = from;
+					sm.flags = flipflags;
+					sm.x = sm.y = 0;
+					g_allargs.spritemappings[to] = sm;
+				}
+			}
 		}
 		else 
 		{
 			printf("error - invalid argument: %s\n", args.OptionText());
 			exit(1);
 		}
-    }	 	
+    }
+
+	// adjust counts to make sense for common scenarios with terse commandlines
+
+	if (g_allargs.cut_count > 0)
+	{
+		// if count cap has been set, decide if this is a grid, row or column cutting sequence
+		if (g_allargs.cut_xcount && g_allargs.cut_ycount)
+		{
+			// grid. leave things alone.
+		}
+		else
+		{
+			// either row, or column, or single, or error
+			if (g_allargs.cut_xinc == 0 && g_allargs.cut_yinc == 0)
+			{
+				// single cut. leave things alone
+			}
+			if (g_allargs.cut_yinc == 0)
+			{
+				// row
+				g_allargs.cut_xcount = 1024;
+			}
+			else
+			if (g_allargs.cut_xinc == 0)
+			{
+				// column
+				g_allargs.cut_ycount = 1024;
+			}
+		}
+	}
+	else
+	{
+		// otherwise make sure each grid axis has count of at least 1
+		// this works for grids, single rows and single columns
+		if (g_allargs.cut_xcount == 0)
+			g_allargs.cut_xcount = 1;
+		if (g_allargs.cut_ycount == 0)
+			g_allargs.cut_ycount = 1;
+	}
 }
 
 
@@ -1382,6 +1501,10 @@ static void process_image
 	RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew, ulong_t _sourceh
 )
 {
+	s_tile24dictionary.clear();
+	s_tile8dictionary.clear();
+	s_tileplanardictionary.clear();
+
 	// find source dimensions in terms of tiles
 	int tilew = _sourcew / g_allargs.tilesize;
 	int tileh = _sourceh / g_allargs.tilesize;
@@ -1451,23 +1574,15 @@ static void remap_dictionary_tiles()
 //	emit .PI1 from 4-plane buffer & palette data
 // --------------------------------------------------------------------
 
-static void emit_pi1(uword_t *buffer4plane, RGB *_ppal24, int pi1_index)
+static void emit_pi1(std::string outfile, uword_t *buffer4plane, RGB *_ppal24, int pi1_index)
 {
-	std::string outfile("t");
-	outfile += ('0' + pi1_index);
+	// t<N><outfile>.pi1
+	std::string fname("t");
+	fname += ('0' + pi1_index);
+	fname.append(outfile.c_str());
+	replace_extension(fname, "pi1");
 
-	if (g_allargs.outfile.length() > 0)
-	{
-		outfile.append(g_allargs.outfile.c_str());
-	}
-	else
-	{
-		outfile.append(g_allargs.sourcefile.c_str());
-	}
-
-	replace_extension(outfile, "pi1");
-
-	FILE *hout = fopen(outfile.c_str(), "wb");
+	FILE *hout = fopen(fname.c_str(), "wb");
 	if (hout)
 	{
 		uword_t palette4bit[16] = { 0x000, 0xfff, 0x111, 0x222, 0x333, 0x444, 0x555, 0x666, 0x777, 0x888, 0x999, 0xaaa, 0xbbb, 0xccc, 0xddd, 0xeee };
@@ -1506,7 +1621,7 @@ static void emit_pi1(uword_t *buffer4plane, RGB *_ppal24, int pi1_index)
 		fwrite(buffer4plane, 1, 32000, hout);
 		fclose(hout);
 
-		std::cout << "emitted tilegroup [" << outfile.c_str() << "]" << std::endl;
+		std::cout << "emitted tilegroup [" << fname.c_str() << "]" << std::endl;
 	}
 }
 
@@ -1574,7 +1689,7 @@ static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 //	reduce TC image to indexed colour using fixed palette
 // --------------------------------------------------------------------
 
-static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstcol, ulong_t _sourcew, ulong_t _sourceh, RGB *&r_ppal)
+static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstcol0, ubyte_t *_pdstcol1, ulong_t _sourcew, ulong_t _sourceh, RGB *&r_ppal)
 {
 	unsigned short r_numcolours = 0;
 	unsigned short r_numuniquecolours = 0;
@@ -1625,11 +1740,12 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 		{
 			// use PhotoChrome-generated complementary solution pairs for extra win!
 			// todo: assume single-field for now, add dual-field later
-			int field = 0;
+//			int field = 0;
 
 			{
 				RGB *psrc = _psourcergb;
-				ubyte_t *pdst = _pdstcol;
+				ubyte_t *pdst0 = _pdstcol0;
+				ubyte_t *pdst1 = _pdstcol1;
 				for (int py = 0; py < (int)_sourceh; py++)
 				{
 					for (int px = 0; px < (int)_sourcew; px++)
@@ -1661,7 +1777,9 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 							solution1 = (solutionpair >> 0) & 0xF;
 						}
 
-						*pdst++ = (((px ^ py) ^ field) & 1) ? solution0 : solution1;
+						*pdst0++ = (((px ^ py) ^ 0) & 1) ? solution0 : solution1;
+						if (pdst1)
+							*pdst1++ = (((px ^ py) ^ 1) & 1) ? solution0 : solution1;
 					}
 				}
 			}
@@ -1674,7 +1792,7 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 
 			{
 				RGB *psrc = _psourcergb;
-				ubyte_t *pdst = _pdstcol;
+				ubyte_t *pdst = _pdstcol0;
 				for (int py = 0; py < (int)_sourceh; py++)
 				{
 					for (int px = 0; px < (int)_sourcew; px++)
@@ -1699,15 +1817,17 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 //	emit map data file indicating where tiles go in original image
 // --------------------------------------------------------------------
 
-static void emit_tilemap_ccm(const char* _fname, long_t *_ptilemap, int _tilemapw, int _tilemaph)
+static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilemapw, int _tilemaph)
 {
 	long_t v;
+
+	replace_extension(outfile, "ccm");
 
 	int mapentries = _tilemapw * _tilemaph;
 	for (int i = 0; i < mapentries; i++)
 		_ptilemap[i] = endianswap32(_ptilemap[i]);
 
-	FILE *hmap = fopen(_fname, "wb");
+	FILE *hmap = fopen(outfile.c_str(), "wb");
 
 	v = endianswap32(_tilemapw);
 	fwrite(&v, 1, sizeof(v), hmap);
@@ -1718,7 +1838,7 @@ static void emit_tilemap_ccm(const char* _fname, long_t *_ptilemap, int _tilemap
 
 	fclose(hmap);
 
-	std::cout << "emitted tilemap [" << _fname << "]" << std::endl;
+	std::cout << "emitted tilemap [" << outfile.c_str() << "]" << std::endl;
 }
 
 // --------------------------------------------------------------------
@@ -1726,7 +1846,7 @@ static void emit_tilemap_ccm(const char* _fname, long_t *_ptilemap, int _tilemap
 // --------------------------------------------------------------------
 
 // emit tiles to a series of 320x200 .PI1 images
-static void emit_tiles_degas(RGB *_ppalettergb)
+static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
 {
 	uword_t *buffer4plane = new uword_t[16000];
 	memset(buffer4plane, 0, 32000);
@@ -1765,7 +1885,7 @@ static void emit_tiles_degas(RGB *_ppalettergb)
 				oty = 0;
 
 				// flush image
-				emit_pi1(buffer4plane, _ppalettergb, pi1_index++);
+				emit_pi1(outfile, buffer4plane, _ppalettergb, pi1_index++);
 				memset(buffer4plane, 0, 32000);
 			}
 		}
@@ -1775,7 +1895,7 @@ static void emit_tiles_degas(RGB *_ppalettergb)
 
 	// if some tiles are still pending, flush remainder
 	if (otx > 0 || oty > 0)
-		emit_pi1(buffer4plane, _ppalettergb, pi1_index++);
+		emit_pi1(outfile, buffer4plane, _ppalettergb, pi1_index++);
 
 	delete[] buffer4plane;
 }
@@ -1784,21 +1904,21 @@ static void emit_tiles_degas(RGB *_ppalettergb)
 //	emit tile library data file
 // --------------------------------------------------------------------
 
-static void emit_tiles_cct(RGB *_ppal24)
+static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 {
 //	std::string filename("tiles.cct");
 
 	// construct output filename: [infile.ccm]
 
-	std::string outfile;
-	if (g_allargs.outfile.length() > 0)
-	{
-		outfile = g_allargs.outfile;
-	}
-	else
-	{
-		outfile = g_allargs.sourcefile;
-	}
+	//std::string outfile;
+	//if (g_allargs.outfile.length() > 0)
+	//{
+	//	outfile = g_allargs.outfile;
+	//}
+	//else
+	//{
+	//	outfile = g_allargs.sourcefile;
+	//}
 
 	replace_extension(outfile, "cct");
 
@@ -1885,11 +2005,13 @@ static void emit_tiles_cct(RGB *_ppal24)
 //	emit map data file indicating where tiles go in original image
 // --------------------------------------------------------------------
 
-static void emit_tilemap_16bitraw(const char* _fname, long_t *_ptilemap, int _tilemapw, int _tilemaph)
+static void emit_tilemap_16bitraw(std::string outfile, long_t *_ptilemap, int _tilemapw, int _tilemaph)
 {
 	long_t v;
 
-	FILE *hmap = fopen(_fname, "wb");
+	replace_extension(outfile, "bin");
+
+	FILE *hmap = fopen(outfile.c_str(), "wb");
 	if (hmap)
 	{
 		int mapentries = _tilemapw * _tilemaph;
@@ -1902,7 +2024,7 @@ static void emit_tilemap_16bitraw(const char* _fname, long_t *_ptilemap, int _ti
 		fclose(hmap);
 	}
 
-	std::cout << "emitted tilemap [" << _fname << "]" << std::endl;
+	std::cout << "emitted tilemap [" << outfile.c_str() << "]" << std::endl;
 }
 
 // --------------------------------------------------------------------
@@ -1934,18 +2056,18 @@ struct bmp_header
 };
 #pragma pack(pop)
 
-static void emit_tiles_rbplus(RGB *_ppal24)
+static void emit_tiles_rbplus(std::string outfile, RGB *_ppal24)
 {
 	// construct output filename: [infile.ccm]
-	std::string outfile;
-	if (g_allargs.outfile.length() > 0)
-	{
-		outfile = g_allargs.outfile;
-	}
-	else
-	{
-		outfile = g_allargs.sourcefile;
-	}
+	//std::string outfile;
+	//if (g_allargs.outfile.length() > 0)
+	//{
+	//	outfile = g_allargs.outfile;
+	//}
+	//else
+	//{
+	//	outfile = g_allargs.sourcefile;
+	//}
 
 	replace_extension(outfile, "bmp");
 
@@ -2090,6 +2212,7 @@ bool do_tiles()
 	RGB *m_psourcergb = 0;
 	RGB *m_ppalettergb = 0;
 	ubyte_t *m_psourcecol = 0;
+	ubyte_t *m_psourcecol2 = 0;
 	ubyte_t *m_poriginalsrccol = 0;
 
 	long_t *ptilemap = 0;
@@ -2137,61 +2260,47 @@ bool do_tiles()
 			{
 				std::cout << "reducing 24bit image to external fixed palette..." << std::endl;
 				m_psourcecol = new ubyte_t[sourcew * sourceh]; // (ubyte_t*)malloc(sourcew * sourceh);
+				if (g_allargs.ccfields == 2)
+					m_psourcecol2 = new ubyte_t[sourcew * sourceh]; // (ubyte_t*)malloc(sourcew * sourceh);
 				// reduce source image to indexed colour with fixed palette
-				reduce_image24(m_psourcergb, 0, m_psourcecol, sourcew, sourceh, m_ppalettergb);
+				reduce_image24(m_psourcergb, 0, m_psourcecol, m_psourcecol2, sourcew, sourceh, m_ppalettergb);
 			}
 
-			std::cout << "extracting unique tiles..." << std::endl;
-			// generate tile dictionary from image
-			process_image(ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol, sourcew, sourceh);
-			std::cout << "...done" << std::endl;
-			// calculate compressed footprint
-			float footprint = (float)s_tile8dictionary.size() / float(tilemapw*tilemaph);
-			std::cout << "final dictionary contains " << s_tile8dictionary.size() << " unique tiles with footprint @ " << footprint  << " of original image." << std::endl;
-
-			if (footprint > 0.5f)
-				std::cout << " tile reuse is terrible - source image was rendered in crayon by a womble" << std::endl;
-			if (footprint > 0.3f)
-				std::cout << " tile reuse is poor - check tile alignment at top left and lower right of source image" << std::endl;
-			else
-			if (footprint > 0.2f)
-				std::cout << " tile reuse is fair - but carefully recheck tile alignment to be sure?" << std::endl;
-			else
-			if (footprint > 0.1f)
-				std::cout << " tile reuse seems ok but keep an eye on things..." << std::endl;
-			else
-				std::cout << " tile reuse is good! > l33t mapping 5ki11z <" << std::endl;
-
-			// convert 8bit indexed tiles into 4-plane graphics
-			remap_dictionary_tiles();
-
-			if (g_allargs.outmode == Outmode_DEGAS)
+			for (int ccf = 0; ccf < g_allargs.ccfields; ccf++)
 			{
-				// emit tiles to a series of 320x200 .PI1 images
-				emit_tiles_degas(m_ppalettergb);
-			}
-			else
-			if (g_allargs.outmode == Outmode_DIRECT)
-			{
-				emit_tiles_cct(m_ppalettergb);
-			}
-			else
-			if (g_allargs.outmode == Outmode_RBPLUS)
-			{
-				emit_tiles_rbplus(m_ppalettergb);
-			}
+				std::cout << "extracting unique tiles..." << std::endl;
 
-			if (m_psourcergb)
-				delete[] m_psourcergb;
-			if (m_psourcecol)
-				delete[] m_psourcecol;
-			if (m_ppalettergb)
-				delete[] m_ppalettergb;
+				// generate tile dictionary from image
+				if (ccf == 0)
+					process_image(ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol, sourcew, sourceh);
+				else
+					process_image(ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol2, sourcew, sourceh);
 
-			if (ptilemap)
-			{
-				// construct output filename: [infile.map]
+				std::cout << "...done" << std::endl;
+				// calculate compressed footprint
+				float footprint = (float)s_tile8dictionary.size() / float(tilemapw*tilemaph);
+				std::cout << "final dictionary contains " << s_tile8dictionary.size() << " unique tiles with footprint @ " << footprint << " of original image." << std::endl;
 
+				if (ccf == 0)
+				{
+					if (footprint > 0.5f)
+						std::cout << " tile reuse is terrible - source image was rendered in crayon by a womble" << std::endl;
+					if (footprint > 0.3f)
+						std::cout << " tile reuse is poor - check tile alignment at top left and lower right of source image" << std::endl;
+					else
+					if (footprint > 0.2f)
+						std::cout << " tile reuse is fair - but carefully recheck tile alignment to be sure?" << std::endl;
+					else
+					if (footprint > 0.1f)
+						std::cout << " tile reuse seems ok but keep an eye on things..." << std::endl;
+					else
+						std::cout << " tile reuse is good! > l33t mapping 5ki11z <" << std::endl;
+				}
+
+				// convert 8bit indexed tiles into 4-plane graphics
+				remap_dictionary_tiles();
+
+				// construct output filename: [infile]
 				std::string outfile;
 				if (g_allargs.outfile.length() > 0)
 				{
@@ -2202,19 +2311,56 @@ bool do_tiles()
 					outfile = g_allargs.sourcefile;
 				}
 
-				if (g_allargs.outmode == Outmode_RBPLUS)
+				remove_extension(outfile);
+				if (g_allargs.ccfields == 2)
 				{
-					replace_extension(outfile, "bin");
+					if (ccf == 0)
+						outfile.append("0");
+					else
+						outfile.append("1");
+				}
 
-					emit_tilemap_16bitraw(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+				if (g_allargs.outmode == Outmode_DEGAS)
+				{
+					// emit tiles to a series of 320x200 .PI1 images
+					emit_tiles_degas(outfile, m_ppalettergb);
 				}
 				else
+				if (g_allargs.outmode == Outmode_DIRECT)
 				{
-					replace_extension(outfile, "ccm");
-
-					emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+					emit_tiles_cct(outfile, m_ppalettergb);
 				}
-			}
+				else
+				if (g_allargs.outmode == Outmode_RBPLUS)
+				{
+					emit_tiles_rbplus(outfile, m_ppalettergb);
+				}
+
+				if (ptilemap)
+				{
+					// construct output filename: [infile.map]
+
+					if (g_allargs.outmode == Outmode_RBPLUS)
+					{
+						emit_tilemap_16bitraw(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+					}
+					else
+					{
+						emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+					}
+				}
+
+			} // ccf loop
+
+			if (m_psourcergb)
+				delete[] m_psourcergb;
+			if (m_ppalettergb)
+				delete[] m_ppalettergb;
+
+			if (m_psourcecol)
+				delete[] m_psourcecol;
+			if (m_psourcecol2)
+				delete[] m_psourcecol2;
 		}
 		else
 		{
@@ -2329,7 +2475,7 @@ void init_sprite_sequence(int _xs, int _ys, int _sw, int _sh)
 //	cut a single frame from source image
 // --------------------------------------------------------------------
 
-void add_sprite_frame(ubyte_t* _psource8, int _x, int _y)
+void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yflip, int _hs, int _vs)
 {
 	memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
 	memset(g_maskbuffer8, 0xFF, g_sprite_bpwidth * g_sprite_height);
@@ -2339,22 +2485,30 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y)
 	int cxmax = g_sprite_width;
 	int cymax = g_sprite_height;
 
+	// cutting may read source either x-flipped, y-flipped, both or neither so we configure loops here
+	int pxs = _xflip ? (g_sprite_width-1) : 0;
+	int pys = _yflip ? (g_sprite_height-1) : 0;
+	int pxi = _xflip ? -1 : 1;
+	int pyi = _yflip ? -1 : 1;
+
 	if (g_allargs.preview)
 	{
 		printf("\n");
-		for (int py = 0; py < g_sprite_height; py++)
+		for (int lpy = 0, py = pys; lpy < g_sprite_height; lpy++, py += pyi)
 		{
-			printf("\t");
-			for (int px = 0; px < g_sprite_width; px++)
+			printf("\t|");
+			for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
 				if (c == g_allargs.keycol)
-					printf("   ");
+					printf("  ");
 				else
-					printf("%02x ", (int)c);
+					printf("%02x", (int)c);
+				if (lpx < g_sprite_width-1)
+					printf(" ");
 			}
-			printf("\n");
+			printf("|\n");
 		}
 		printf("\n");
 	}
@@ -2368,9 +2522,9 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y)
 
 		// optimize cutting area
 
-		for (int py = 0; py < g_sprite_height; py++)
+		for (int lpy = 0, py = pys; lpy < g_sprite_height; lpy++, py += pyi)
 		{
-			for (int px = 0; px < g_sprite_width; px++)
+			for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
@@ -2403,9 +2557,13 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y)
 
 	for (int psy = cymin, py = 0; psy < cymax; psy++, py++)
 	{
+		int psyr = _yflip ? ((g_sprite_height - 1) - psy) : psy;
+
 		for (int psx = cxmin, px = 0; psx < cxmax; psx++, px++)
 		{
-			ubyte_t c = _psource8[((psy + _y) * g_spritesource_w) + (psx + _x)];
+			int psxr = _xflip ? ((g_sprite_width - 1) - psx) : psx;
+
+			ubyte_t c = _psource8[((psyr + _y) * g_spritesource_w) + (psxr + _x)];
 
 			// colour buffer receives actual colour, or 0 for keycol (so two colours can potentially map to 0)
 			g_colrbuffer8[(py * g_sprite_framebpwidth) + px] = (c == g_allargs.keycol) ? 0x00 : c;
@@ -3204,7 +3362,7 @@ bool do_sheet()
 				std::cout << "reducing 24bit image to external fixed palette..." << std::endl;
 				m_psourcecol = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
 				// reduce source image to indexed colour with fixed palette
-				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol, sourcew, sourceh, m_ppalettergb);
+				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol, 0, sourcew, sourceh, m_ppalettergb);
 			}
 
 			// sprite cutting loop
@@ -3233,17 +3391,63 @@ bool do_sheet()
 
 				for (int s = 0, xc = 0; s < cuts; s++)
 				{
+					int cx = cutting_source_x;
+					int cy = cutting_source_y;
+					bool xflip = false;
+					bool yflip = false;
+					int hs = 0;
+					int vs = 0;
+
+					spritemap_t::iterator found = g_allargs.spritemappings.find(s);
+					if (found != g_allargs.spritemappings.end())
+					{
+						// this frame is mapped from another
+						int from = found->second.from;
+
+						// locate cut record for 'from' frame
+						const spritemapping_t &other = g_allargs.spritemappings[from];
+
+						// move cutting position to that of 'from' frame
+						cx = other.x;
+						cy = other.y;
+
+						// check for X/Y flip-flags
+						if (found->second.flags.find("x") != std::string::npos)
+							xflip = true;
+
+						if (found->second.flags.find("y") != std::string::npos)
+							yflip = true;
+
+						// ...and scroll adjust L/R/U/D
+						if (found->second.flags.find("l") != std::string::npos)
+							hs = -1;
+						else
+						if (found->second.flags.find("r") != std::string::npos)
+							hs = 1;
+
+						if (found->second.flags.find("u") != std::string::npos)
+							vs = -1;
+						else
+						if (found->second.flags.find("d") != std::string::npos)
+							vs = 1;					
+					}
+
 					if (g_allargs.cutmode == Cutmode_SPRITES)
 					{
 						std::cout << "cutting sprite frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-						add_sprite_frame(m_psourcecol, cutting_source_x, cutting_source_y);
+						add_sprite_frame(m_psourcecol, cx, cy, xflip, yflip, hs, vs);
 					}
 					else
 					if (g_allargs.cutmode == Cutmode_SLABS)
 					{
 						std::cout << "cutting slab frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-						add_slab_frame(m_psourcecol, cutting_source_x, cutting_source_y);
+						add_slab_frame(m_psourcecol, cx, cy);
 					}
+
+					// store mappings for each frame, so future frames can refer to these
+					// mappings in order to re-cut earlier frames with optional flipping
+					g_allargs.spritemappings[s].x = cx;
+					g_allargs.spritemappings[s].y = cy;
 
 					cutting_source_x += g_allargs.cut_xinc;
 

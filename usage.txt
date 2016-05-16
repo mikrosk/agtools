@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.22 : dml : 30/04/2016
+v0.24 : dml : 15/05/2016
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,19 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.24	15/05/2016
+---------------------------------------
+* added support for -cm sprite frame mapping where subsequent frames can be cut
+  as flipped copies of earlier ones in the same sequence. reduces need to edit
+  the source art for flips & rotates
+* add -ccf complementary field support for tilemaps
+* improved preview mode - show left/right frame bounds
+* improve file-extension processing
+
+v0.23	02/05/2016
+---------------------------------------
+* fixed bug in sprite column cutting - fixes -sc option to work properly
 
 v0.22	30/04/2016
 ---------------------------------------
@@ -277,6 +290,48 @@ frame from the grid (say, the last row only has a few frames on it) you can
 cap the total number of frames cut using this option. This will stop the
 cutting early and could save a bit of memory on unwanted empty frames.
 
+-sm, --sprmap <to:from:flags>
+
+Map a non-existent frame in the source sequence to an existing one with some
+optional transformations applied. This is used mainly to provide flips and
+rotations for sprite frames which are not present in the source image.
+
+to: 	the missing frame to be mapped
+from:	the existing frame to use as the source
+flags:	optional transformations to apply
+
+e.g. a typical layout for 4 frames on the source image...
+
+	[A] [B] [C] [D]
+
+...being cut as usual from left-to-right...
+
+	-sc 4
+
+...would cut a normal 4-frame sequence. But extending this...
+
+	-sc 6 -sm 4:2:y -sm 5:1:xy
+
+
+...would cut the same 4 frames, but add 2 new frames to the sequence at frame
+#4 (5th frame) and #5 (6th frame). Frame #4 would be a copy of frame #2, with
+y-flip applied. Frame #5 would be a copy of frame #1, with x & y-flips applied.
+
+
+So the resulting sprite sequence would be (where <^ means x,y flipped):
+
+	[A] [B] [C] [D] [<C] [<^B]
+	
+
+Using this notation, it is possible to cut a sprite with 360' rotation in four
+quadrants, when only one quadrant is present in the source image.
+
+Note: It's usually better practice to make sure the source image contains all
+the frames required. However when working with ripped (e.g. arcade) art, it
+can be useful to leave the spritesheet unmodified. There are also a few useful
+optimizations which could be done by the cutting tool later if it knows a 
+frame is a flipped copy of another - storing metadata for the frame instead of
+pixels (and let the engine do the flip).
 
 -gm, --gen-mask
 
@@ -342,6 +397,19 @@ for most maps but it needs tuning.
 Matching is performed using least-squares-error in RGB space.
 
 Default: 0.0
+
+
+-ccf, --ccfields <num>
+
+Specify 1- or 2- field rendering for backgrounds. Similar to tile cutting mode
+in the PCS tool. Outputs two sets of .ccm (map) and .cct (tile library) files
+which are intended to be dislpayed on odd/even fields at 50hz.
+
+The 2nd set is equivalent to the 1st with the opposite dither pattern applied.
+
+When left at the default 1, only the first set is emitted.
+
+Default: 1
 
 
 -om, --outmode <direct,degas,rbplus>
