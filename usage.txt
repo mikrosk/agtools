@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.24 : dml : 15/05/2016
+v0.26 : dml : 09/08/2016
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,25 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.26	09/08/2016
+---------------------------------------
+* added -ccr (cryptochrome colour remapping control) with arguments:
+  both,high,low
+  this allows graphics being remapped via cryptochrome palettes to use dual-
+  field dithering (both), only the high field (lighter), or only the low field
+  (darker). note that cryptochrome palettes do not have any exact source
+  colours so true approximations should be dithered, otherwise - compromise.
+* added '-ml preshift' to generate preshifted masks for STE blitter sprites.
+  note that this produces a secondary structure where the spritedata usually
+  would be in the file format, in order to sub-index the preshift frames.
+* fix inappropriate size warning in slab cutting mode
+* fixed default mask layout to 'preshift', being the faster STE sprite mode
+  at the current time for width<=32 sprites (more to follow). for wider
+  sprites on STE use the 'interleaved' format instead with blit-per-plane
+  mask and combine (or use slabs for big irregular outlines with no holes).
+* fixed some documentation
+
 
 v0.24	15/05/2016
 ---------------------------------------
@@ -339,7 +358,7 @@ Generate explicit masks from the -key and --keyrgb transparent colours. This
 is needed on STE using blitter sprites. 
 
 
--ml, --mask-layout <interleaved,planar>
+-ml, --mask-layout <interleaved,planar,preshift>
 
 Specify the memory layout for masks in the final data. 
 
@@ -347,13 +366,31 @@ Specify the memory layout for masks in the final data.
 4-plane sprite would be encoded like a 5-plane sprite with ordering:
 
 	M,P0,P1,P2,P3, M,P0,P1,P2,P3.
+	
+This is the preferred format for STE blitter sprites using width>32. It will
+require a blit per plane, in two passes (AND, OR). The most flexible method.
+	
 
 'planar' puts the whole mask in front of all the colour data. e.g.
 
 	M,M,... P0,P1,P2,P3,P0,P1,P2,P3,... 
 
+For completeness only - no particular benefit at current time. May prove to
+be useful on STF if an explicit mask is wanted, independent of colour 0
+(i.e. colour 0 can be solid in some areas of the sprite).
 
-Default: interleaved (expected by AGT playfield sprite code)
+'preshift' puts the whole mask in front of all the colour data while
+generating a unique mask frame for each pixel shift. A sub-index is emitted
+to the file format recording an offset to each mask preshift frame.
+
+The colour data layout is also change to plane-at-a-time, line-at-a-time,
+so each scanline can be rendered as 4 planes in a single blit.
+	
+
+Default: preshift (expected by AGT playfield-STE optimized sprite code)
+
+IMPORTANT: Change this to '-ml interleaved' for width>=32 on STE. For STF
+no explicit mask should be generated currently.
 
 
 -sopt. --soptimize <on,off>
@@ -410,6 +447,20 @@ The 2nd set is equivalent to the 1st with the opposite dither pattern applied.
 When left at the default 1, only the first set is emitted.
 
 Default: 1
+
+
+-ccr <both,high,low>
+
+Specify which cryptochrome fields to use when reducing graphics to dual-field
+cryptochrome palettes. Currently CC palettes are mainly useful for dithered
+backgrounds so if the sprites should use the same palette but without dither
+this feature can select the high or low CC field for undithered reduction.
+
+The high field is biased slightly brighter. The low field slightly darker.
+
+There is no middle field - the dither usually approximates the middle field.
+
+Default: both
 
 
 -om, --outmode <direct,degas,rbplus>
@@ -814,9 +865,7 @@ So to calculate the file position of the third frame...
 	add.w		d0,d0
 	lea		sps_frameindex(a0),a1	; access frame index
 	add.l		(a1,d0.w),a1		; access sprite frame data
-
-
-
+	
 Immediately following the frame index, are the frames themselves, one after
 the other in sequence until the file completes:
 
@@ -827,7 +876,20 @@ yoffset:		2 bytes	(compensate for optimized size vs src size)
 [framedata]:		...
 
 
-Three layouts currently possible for the frame data. This is based on 
+IMPORTANT: when using '-ml preshift' the format is extended here.
+
+	With 'preshift' mode the 'frame data' is actually a second index of 
+	32bit offsets which then point at the actual colour and mask data.
+	Currently only the mask is preshifted, but the index has an entry
+	for colour data to simplify access. When colour preshifting is 
+	introduced for STF the [colr_index] will grow to support that.
+
+[framedata]
+[colr_index]:		4 bytes * preshift_count (==1 preshift for now)
+[mask_index]:		4 bytes * preshift_count (==16 preshifts)
+[...]
+
+The following layouts currently possible for the frame data. This is based on 
 the contents of the 'flags' field and mainly involves mask options. More
 layouts will likely be added in future e.g. plane-by-plane colour data.
 
@@ -841,13 +903,17 @@ layouts will likely be added in future e.g. plane-by-plane colour data.
 	mask data: 	2 bytes * ((framewidth + 15) >> 4) * frameheight
 	colour data: 	(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight
 
+3) preshifted mask
+	index:		[4 bytes * (colr=1 + masks=16)]
+	colour data: 	(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight * 1 preshifts
+	mask data: 	2 bytes * ((framewidth + 15) >> 4) * frameheight * 16 preshifts
+
 
 The sprite frame should be drawn at xpos+frame.xoffset, ypos+frame.yoffset to
 reproduce the original assets, if cutting optimization has been used.
 
-Note: Currently no precalculated mask data is stored. This will be added soon
-for blitter based sprites. Software based sprites can be drawn more efficiently
-using keycolour=0, without a pre-calculated mask.
+Note: Currently only blitter-based sprites need a mask. Software based sprites 
+can be drawn more efficiently using keycolour=0, without a pre-calculated mask.
 
 
 Sprite Sheets flags
@@ -863,11 +929,14 @@ bits: 0 0 0 0 0 0 0 0 : 0 0 0 0 0 L L M
  
         M:  1 = explicit mask data present (-gm was specified)
 
-       LL: 00 = mask layout is interleaved. 1 mask word emitted before each
-	        group of N plane words.
-           01 = mask layout is planar (-mg planar was specified). The whole
+       LL: 00 = mask layout is interleaved (-ml interleaved was specified). 
+                1 mask word emitted before each group of N plane words.
+           01 = mask layout is planar (-ml planar was specified). The whole
                 mask plane comes before any colour data. 
-
+           10 = mask layout is preshifted (-ml preshift was specified, and
+                now the default setting, being the faster STE sprite mode).
+                A secondary index is generated where the sprite data would
+                normally follow, which contains offsets to the preshifts. 
 
 The other flags are reserved for now...
 
@@ -877,8 +946,7 @@ The other flags are reserved for now...
 Quick Help info
 ===============================================================================
 
-Atari GameTools: map, tile & sprite cutter v0.22 / dml
-built on Apr 29 2016
+[A]tari [G]ame [T]ools: playfield/sprite/slab cutter v0.26 / dml
 usage:
  atgcut [opts] [infile]
 
@@ -888,14 +956,16 @@ usage:
  -wk, --wait-key      > wait key on exit
 
 general:
- -s, --src            > source image containing tiles/sprites:
+ -s, --src            > source image containing tiles/sprites/slabs:
                       > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)
                       > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm
  -o, --outfile        > output filename
- -cm, --cutmode       > cutting mode: tiles,sprites
+ -cm, --cutmode       > cutting mode: tiles,sprites,slabs
+ -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)
  -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png
  -bp, --bitplanes     > #bitplanes to generate: 1-8
  -key, --key-colour   > colour index assumed to be transarent: 0-255
+ -keyrgb, --key-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex
  -kg, --key-guard     > guard against reducing colours to key colour
  -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)
 
@@ -909,15 +979,15 @@ sprite cutting mode:
  -sxc, --sprxcount    > frames per row: 1+
  -syc, --sprycount    > frames per column: 1+
  -sc, --sprcount      > total frames to cut, if stopping early: 0+, where 0=ignore
+ -sm, --sprmap        > map sprite frame from another: -sm new:existing:flipflags
  -gm, --gen-mask      > generate 1bpl mask data along with colour data
- -ml, --mask-layout   > mask layout strategy: interleaved,planar
+ -ml, --mask-layout   > mask layout strategy: interleaved,planar,preshift
  -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)
+ -ccr                 > cryptochrome colour field remapping: both,high,low
  -prv, --preview      > show ASCII preview of extracted colours + masking
 
 map & tile cutting mode:
  -ts, --tilesize      > tile size (rbplus mode only): 16,32
  -t, --tol            > tile matching tolerance: 0.0+
  -om, --outmode       > tile library output mode: direct,degas,rbplus
-
-press any key...
 

@@ -82,7 +82,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.24";
+static const char* const g_version_string = "v0.26";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -198,6 +198,7 @@ enum
 	OPT_PALETTE,
 	OPT_CUTMODE,
 	OPT_CCFIELDS,
+	OPT_CCREMAP,
 	// sprites
 //	OPT_SPRITEGUIDE, // may not bother with this - command switches cover it
 	OPT_PREVIEW,
@@ -266,6 +267,8 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_CCFIELDS,		_T("-ccf"),	 			SO_REQ_SEP	},
 	{ OPT_CCFIELDS,		_T("--ccfields"), 		SO_REQ_SEP	},
+	//
+	{ OPT_CCREMAP,		_T("-ccr"),	 			SO_REQ_SEP	},
 	//
 //	{ OPT_SPRITEGUIDE,	_T("-sg"),	 			SO_REQ_SEP	},
 //	{ OPT_SPRITEGUIDE,	_T("--sprguide"), 		SO_REQ_SEP	},
@@ -350,7 +353,7 @@ static void usage(int level)
 	std::cout << "                      > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
 	std::cout << " -o, --outfile        > output filename" << std::endl;
 	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites,slabs" << std::endl;
-	std::cout << " -ccf, --ccfields     > cryptochrome fields: 1/2" << std::endl;
+	std::cout << " -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
 	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
 	std::cout << " -key, --key-colour   > colour index assumed to be transarent: 0-255" << std::endl;
@@ -370,8 +373,9 @@ static void usage(int level)
 	std::cout << " -sc, --sprcount      > total frames to cut, if stopping early: 0+, where 0=ignore" << std::endl;
 	std::cout << " -sm, --sprmap        > map sprite frame from another: -sm new:existing:flipflags" << std::endl;
 	std::cout << " -gm, --gen-mask      > generate 1bpl mask data along with colour data" << std::endl;
-	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar" << std::endl;
+	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar,preshift" << std::endl;
 	std::cout << " -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
+	std::cout << " -ccr                 > cryptochrome colour field remapping: both,high,low" << std::endl;
 //	std::cout << " -sl, --slab          > generate 'slab' sprites: on/off" << std::endl;
 	std::cout << " -prv, --preview      > show ASCII preview of extracted colours + masking" << std::endl;
 //	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;	// todo: maybe - only if its useful
@@ -391,6 +395,14 @@ static void usage(int level)
 //	general argument handling
 // --------------------------------------------------------------------
 
+
+enum CCRemap
+{
+	CCRemap_BOTH,
+	CCRemap_HIGH,
+	CCRemap_LOW
+};
+
 enum Outmode
 {
 	Outmode_DIRECT,
@@ -408,7 +420,8 @@ enum Cutmode
 enum Masklayout
 {
 	Masklayout_INTERLEAVED,
-	Masklayout_PLANAR
+	Masklayout_PLANAR,
+	Masklayout_PRESHIFT
 };
 
 class Arguments
@@ -425,12 +438,13 @@ public:
 		  keyguard(false),
 		  tolerance(0.0f),
 		  keytol(0.01f),
-		  sourcefile("source.bmp"),
+		  sourcefile(""),
 		  outfile(""),
 		  palettefile("palette.pi1"),
 //		  spriteguidefile("sprites.sgd"),
 		  ccfields(1),
-		  masklayout(Masklayout_INTERLEAVED),
+		  ccremap(CCRemap_BOTH),
+		  masklayout(Masklayout_PRESHIFT),
 		  cutmode(Cutmode_TILES),
 		  outmode(Outmode_DEGAS),
 		  planes(4),
@@ -482,6 +496,7 @@ public:
 	Cutmode cutmode;
 	Outmode outmode;
 	Masklayout masklayout;
+	CCRemap ccremap;
 	std::string palettefile;
 	int planes;
 	int tilesize;
@@ -628,6 +643,11 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					_args.masklayout = Masklayout_INTERLEAVED;
 				}
 				else
+				if (s_arg.find("preshift") != std::string::npos)
+				{
+					_args.masklayout = Masklayout_PRESHIFT;
+				}
+				else
 				{
 					printf("error - invalid arg for masklayout: %s\n", s_arg.c_str());
 					exit(1);
@@ -723,6 +743,30 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				_args.ccfields = iarg;	
 			}
+			else if (args.OptionId() == OPT_CCREMAP)
+			{
+				std::string s_arg = args.OptionArg();
+
+				if (s_arg.find("both") != std::string::npos)
+				{
+					_args.ccremap = CCRemap_BOTH;
+				}
+				else
+				if (s_arg.find("high") != std::string::npos)
+				{
+					_args.ccremap = CCRemap_HIGH;
+				}
+				else
+				if (s_arg.find("low") != std::string::npos)
+				{
+					_args.ccremap = CCRemap_LOW;
+				}
+				else
+				{
+					printf("error - invalid arg for ccr: %s\n", s_arg.c_str());
+					exit(1);
+				}
+			}
 			else if (args.OptionId() == OPT_BITPLANES)
 			{
 				std::string s_arg = args.OptionArg();
@@ -765,9 +809,14 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					printf("error - invalid arg for sprite cutting size: %s\n", s_arg.c_str());
 					exit(1);
 				}
-				if (iarg > 128)
+				if ((_args.cutmode == Cutmode_SPRITES) && (iarg > 128))
 				{
-					printf("warning - sprite cutting width %s exceeds max. of 128 for AGT spritesystem!\n", s_arg.c_str());
+					printf("warning - sprite cutting width %s exceeds max. of 128 for AGT sprite system!\n", s_arg.c_str());
+				}
+				else
+				if ((_args.cutmode == Cutmode_SLABS) && (iarg > 256))
+				{
+					printf("warning - sprite cutting width %s exceeds max. of 256 for AGT slab system!\n", s_arg.c_str());
 				}
 				_args.cut_xsize = iarg;	
 			}
@@ -862,6 +911,13 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			exit(1);
 		}
     }
+
+	if (_args.sourcefile.length() == 0)
+	{
+		usage(0);
+		exit(1);
+	}
+
 
 	// adjust counts to make sense for common scenarios with terse commandlines
 
@@ -1777,9 +1833,28 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 							solution1 = (solutionpair >> 0) & 0xF;
 						}
 
-						*pdst0++ = (((px ^ py) ^ 0) & 1) ? solution0 : solution1;
-						if (pdst1)
-							*pdst1++ = (((px ^ py) ^ 1) & 1) ? solution0 : solution1;
+						if (g_allargs.ccremap == CCRemap_LOW)
+						{
+							// primary field gets low intensity component, secondary field gets high intensity
+							*pdst0++ = solution0;
+							if (pdst1)
+								*pdst1++ = solution1;
+						}
+						else
+						if (g_allargs.ccremap == CCRemap_HIGH)
+						{
+							// primary field gets high intensity component, secondary field gets low intensity
+							*pdst0++ = solution1;
+							if (pdst1)
+								*pdst1++ = solution0;
+						}
+						else
+						{
+							// both fields get alternating, complementary pattern of high/low
+							*pdst0++ = (((px ^ py) ^ 0) & 1) ? solution0 : solution1;
+							if (pdst1)
+								*pdst1++ = (((px ^ py) ^ 1) & 1) ? solution0 : solution1;
+						}
 					}
 				}
 			}
@@ -2387,6 +2462,39 @@ static int g_sprite_height = 0;
 static int g_spritesource_w = 0;
 static int g_spritesource_h = 0;
 
+class preshift_t
+{
+public:
+
+	word_t shift_;
+	word_t planes_;
+	word_t height_;
+	word_t wordwidth_;
+	word_t planewords_;
+	uword_t *data_;
+
+	preshift_t(int _shift, int _planes, int _height, int _wordwidth, uword_t *_data)
+		: shift_(_shift),
+		  planes_(_planes),
+		  height_(_height),
+		  wordwidth_(_wordwidth),
+		  data_(_data)
+	{
+		planewords_ = _height * _wordwidth;
+	}
+
+	~preshift_t()
+	{
+		// do not delete here - no refcounting on allocations happening within STL container
+	}
+
+	void release()
+	{
+		delete[] data_; data_ = 0;
+	}
+};
+
+typedef std::list<preshift_t> preshiftlist_t;
 
 class spriteframe_t
 {
@@ -2396,6 +2504,9 @@ public:
 	word_t xo_, yo_;
 	uword_t *mask_;
 	uword_t *colr_;
+
+	preshiftlist_t pscolr_frames_;
+	preshiftlist_t psmask_frames_;
 
 	spriteframe_t(int _w, int _h, int _xo, int _yo, uword_t *_mask, uword_t *_colr)
 		: w_(_w),
@@ -2410,6 +2521,54 @@ public:
 	~spriteframe_t()
 	{
 		// do not delete here - no refcounting on allocations happening within STL container
+	}
+
+	void generate_mask_preshifts(int _range, int _step)
+	{
+		int src_wordwidth = ((w_ + 15) & -16) >> 4;
+
+		for (int s = 0; s < _range; s += _step)
+		{
+//			printf("\n");
+
+			int dst_wordwidth = (((w_ + s) + 15) & -16) >> 4;
+			int preshiftwords = h_ * dst_wordwidth;
+
+			//printf("shift: %d\n", s);
+			//printf("dst_wordwidth: %d\n", dst_wordwidth);
+			//printf("preshiftwords: %d\n", preshiftwords);
+
+			uword_t *preshift = new uword_t[preshiftwords];
+			uword_t *pout = preshift;
+
+			for (int y = 0; y < h_; y++)
+			{
+//				printf("\n");
+
+				// preload shift register
+				uword_t *pin = &mask_[y * src_wordwidth];
+				u32 shiftreg = 0;
+
+				for (int dw = 0; dw < dst_wordwidth; dw++)
+				{
+//					printf(" sr:%08x", (u32)shiftreg);
+
+					shiftreg <<= 16;
+
+					// fetch source while data remains
+					if (dw < src_wordwidth)
+						shiftreg |= u32(u16(~(*pin++)));
+
+					uword_t m = ((uword_t)(shiftreg >> s));
+
+//					printf(" m:%04x", (u32)m);
+
+					*pout++ = m;
+				}
+			}
+
+			psmask_frames_.push_back(preshift_t(s, 1, h_, dst_wordwidth, preshift));
+		}
 	}
 
 	void release()
@@ -2618,6 +2777,13 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 
 	std::cout << "created sprite frame " << g_spriteframes.size() << " from offset [" << cxmin << ", " << cymin << "] size [" << g_sprite_framewidth << " x " << g_sprite_frameheight << "]" << std::endl;
 	g_spriteframes.push_back(spriteframe_t(g_sprite_framewidth, g_sprite_frameheight, cxmin, cymin, maskdata, colrdata));
+
+	// optionally generate preshifts for mask or colour data
+	if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PRESHIFT))
+	{
+		std::cout << "preshifting mask..." << std::endl;
+		g_spriteframes.back().generate_mask_preshifts(16, 1);
+	}
 }
 
 // --------------------------------------------------------------------
@@ -2666,7 +2832,7 @@ bool emit_sprite_sequence()
 		// 2: flags
 		// 0 0 0 0 0 0 0 0 0 0 0 0 0 L L M
 		// M	mask present (1bpl mask data before colour data)
-		// LL	mask layout mode (00=interleaved, 01=planar)
+		// LL	mask layout mode (00=interleaved, 01=planar, 10=preshift)
 		wv = 0;
 		wv |= (g_allargs.genmask) ? 1 : 0;
 		wv |= (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PLANAR)) ? 2 : 0;
@@ -2720,33 +2886,136 @@ bool emit_sprite_sequence()
 			// size of plane in words
 			int planewords = wordwidth * it->h_;
 
-			// write mask,colr[n] words
-
-			// in planar-mask mode, we emit the entire mask before the colour data planes
-			if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PLANAR))
+			// if preshifting is specified, additional indirection table used for preshifted sub-frames
+			if (g_allargs.masklayout == Masklayout_PRESHIFT)
 			{
+				// preshifting is present so we need additional indirection for preshifted sub-frames
+				std::vector<int> pscolr_index;
+				std::vector<int> psmask_index;
+
+				lv = 0xBBBBBBBB;
+
+				// write single offset for colourdata (no preshifts yet)
+				int colr_preshift_index_fpos = tracked_filesize;
+					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+
+				// write N offsets for maskdata preshifts
+				int mask_preshift_index_fpos = tracked_filesize;
+				for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
+				{
+					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+				}
+
+				// track colour preshifts
+				// todo: assumes only one for now
+				pscolr_index.push_back(tracked_filesize);
+
+				// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
+				wv = endianswap16(wordwidth);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+				// write colour words for N lines, lines(planes(words))) order
+				for (int y = 0; y < it->h_; y++)
+				{
+					for (int p = 0; p < g_allargs.planes; p++)
+					{
+						for (int x = 0; x < wordwidth; x++)
+						{
+							wv = endianswap16(it->colr_[(((y*wordwidth)+x)*g_allargs.planes) + p]);
+							fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+						}
+					}
+				}
+
+				//for (int o = 0; o < planewords; o++)
+				//{
+				//	// write colour words for N planes, interleaved
+				//	for (int p = 0; p < g_allargs.planes; p++)
+				//	{
+				//		wv = endianswap16(it->colr_[(o*g_allargs.planes) + p]);
+				//		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				//	}
+				//}
+
+				// track mask preshifts
+				for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
+				{
+					psmask_index.push_back(tracked_filesize);
+
+					// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
+					wv = endianswap16(itm->wordwidth_);
+					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+					// write whole mask preshift
+					for (int o = 0; o < itm->planewords_; o++)
+					{
+						// write colour words for single mask plane
+						wv = endianswap16(itm->data_[o]);
+						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					}
+				}
+
+				// patch colour preshift index
+				{
+					lv = 0;
+					size_t save = ftell(hout);
+					fseek(hout, colr_preshift_index_fpos + 4, 0);
+					for (std::vector<int>::iterator it = pscolr_index.begin(); it != pscolr_index.end(); it++)
+					{
+						lv = (*it) - colr_preshift_index_fpos;
+						lv = endianswap32(lv);
+						fwrite(&lv, 1, 4, hout);
+					}
+					fseek(hout, save, 0);
+				}
+
+				// patch mask preshift index
+				{
+					lv = 0;
+					size_t save = ftell(hout);
+					fseek(hout, mask_preshift_index_fpos + 4, 0);
+					for (std::vector<int>::iterator it = psmask_index.begin(); it != psmask_index.end(); it++)
+					{
+						lv = (*it) - mask_preshift_index_fpos;
+						lv = endianswap32(lv);
+						fwrite(&lv, 1, 4, hout);
+					}
+					fseek(hout, save, 0);
+				}
+
+			}
+			else
+			{
+				// immediate data follows - no preshifting present
+
+				// write mask,colr[n] words
+
+				// in planar-mask mode, we emit the entire mask before the colour data planes
+				if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PLANAR))
+				{
+					for (int o = 0; o < planewords; o++)
+					{
+						// write mask plane data
+						wv = endianswap16(it->mask_[o]);
+						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					}
+				}
+
 				for (int o = 0; o < planewords; o++)
 				{
-					// write mask plane data
-					wv = endianswap16(it->mask_[o]);
-					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				}
-			}
+					if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_INTERLEAVED))
+					{
+						// write interleaved mask word BEFORE each group of colour plane words
+						wv = endianswap16(it->mask_[o]);
+						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					}
 
-			for (int o = 0; o < planewords; o++)
-			{
-				if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_INTERLEAVED))
-				{
-					// write interleaved mask word BEFORE each group of colour plane words
-					wv = endianswap16(it->mask_[o]);
-					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				}
-
-				// write colour words for N planes
-				for (int p = 0; p < g_allargs.planes; p++)
-				{
-					wv = endianswap16(it->colr_[(o*g_allargs.planes)+p]);
-					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					// write colour words for N planes
+					for (int p = 0; p < g_allargs.planes; p++)
+					{
+						wv = endianswap16(it->colr_[(o*g_allargs.planes) + p]);
+						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					}
 				}
 			}
 		}
@@ -3224,7 +3493,7 @@ bool emit_slab_sequence()
 				// 2: spanblock xo
 				wv = endianswap16(spanit->xo_);
 				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				// 2: spanblock xs
+				// 2: spanblock xs (<<4 to preshift for blitter lookups)
 				wv = endianswap16(u16(spanit->xs_)<<4);
 				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 				// 2: spanblock dxw
@@ -3484,7 +3753,8 @@ bool do_sheet()
 
 int main(int argc, char* argv[])
 {
-	std::cout << "Atari GameTools: map, tile & sprite cutter " << g_version_string << " / dml" << std::endl;
+
+	std::cout << "[A]tari [G]ame [T]ools: playfield/sprite/slab cutter " << g_version_string << " / dml" << std::endl;
 
 	GetArguments(argc, argv, g_allargs);
 
