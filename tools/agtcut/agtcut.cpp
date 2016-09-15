@@ -33,11 +33,11 @@
 // --------------------------------------------------------------------
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "3rdparty\stb_image.h"
+#include "..\3rdparty\stb_image.h"
 
 #define BMP_TYPICAL_ROW_ORDER (1)		// 0 = -ve height, +ve ordering (easier to parse back in)
 										// 1 = +ve height, -ve ordering (more common)
-#include "rnd.h"
+#include "..\common\rnd.h"
 
 //static const int USE_LINEDUPE_OPTIMIZATION = 1;
 static const int USE_DELTA_OPTIMIZATION = 1;
@@ -142,8 +142,8 @@ static uword_t *g_workbufferbpl = 0;
 # define _T(x)		x
 #endif
 
-#include "3rdparty\SimpleOpt.h"
-#include "3rdparty\SimpleGlob.h"
+#include "..\3rdparty\SimpleOpt.h"
+#include "..\3rdparty\SimpleGlob.h"
 
 // --------------------------------------------------------------------
 //	misc. small helper functions
