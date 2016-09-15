@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.26 : dml : 09/08/2016
+v0.27 : dml : 15/09/2016
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,16 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.27	15/09/2016
+---------------------------------------
+* added EMXSPR sprite format - a code-generated version of the earlier EMSPR
+  format (both based on Anima's endmask technique). older format is still 
+  supported (--cutmode emxspr / --cutmode emspr).
+* file extensions now forced to .ems/.emx for these formats to prevent mixups
+* verifier added to code generator to ensure correct sprite output after
+  optimization passes.
+
 
 v0.26	09/08/2016
 ---------------------------------------
@@ -176,6 +186,20 @@ Specify cutting mode. This does affect which other switches make sense...
  stored with the other bitplances (for STE blitter sprites). For masks, the
  transparent (key) colour can be specified with -key or -keyrgb and controlled
  with some other options.
+ 
+ [emspr]
+ 
+ Cut sprites up to 32 pixels wide using EMSPR format. This is based on Anima's
+ blitter endmask technique, where the sprite is drawn using one copy operation
+ per scanline, instead of AND+OR passes per entire bitplane. The endmasks are
+ optimal for 32-wide sprites and still slightly faster for smaller sizes.
+ 
+ [emxspr]
+ 
+ Highly optimized variation on [emspr] using dedicated code generation for
+ each preshift of each sprite frame. Also incorporates sprite restore records
+ in the generated code (i.e. assumes sprite pagerestore mode is enabled in
+ the engine at runtime)
  
  [slabs]
  
@@ -387,11 +411,11 @@ The colour data layout is also change to plane-at-a-time, line-at-a-time,
 so each scanline can be rendered as 4 planes in a single blit.
 	
 
-Default: preshift (expected by AGT playfield-STE optimized sprite code)
+Default: interleaved (for generic blitter sprites on STE)
 
-IMPORTANT: Change this to '-ml interleaved' for width>=32 on STE. For STF
-no explicit mask should be generated currently.
-
+IMPORTANT: Must be '-ml interleaved' for blitter sprites with width>=32 on 
+STE. For STF no explicit mask should be generated currently - it is derived
+from the colour planes at drawtime.
 
 -sopt. --soptimize <on,off>
 
@@ -876,18 +900,30 @@ yoffset:		2 bytes	(compensate for optimized size vs src size)
 [framedata]:		...
 
 
-IMPORTANT: when using '-ml preshift' the format is extended here.
+IMPORTANT: when using '--cutmode emspr' or '--cutmode emxspr' the format is extended here.
 
-	With 'preshift' mode the 'frame data' is actually a second index of 
-	32bit offsets which then point at the actual colour and mask data.
+	With emspr/emxspr modes the 'frame data' is actually a second set of index
+	tables containing 32bit offsets which then point at the actual colour and mask data.
 	Currently only the mask is preshifted, but the index has an entry
 	for colour data to simplify access. When colour preshifting is 
 	introduced for STF the [colr_index] will grow to support that.
+
+[EMSPR format]
 
 [framedata]
 [colr_index]:		4 bytes * preshift_count (==1 preshift for now)
 [mask_index]:		4 bytes * preshift_count (==16 preshifts)
 [...]
+
+[EMXSPR format]
+
+[framedata]
+[colr_index]:		4 bytes * preshift_count (==1 preshift for now)
+[colropt_index]:	4 bytes * preshift_count (==1 preshift for now)
+[mask_index]:		4 bytes * preshift_count (==16 preshifts)
+[maskopt_index]:	4 bytes * preshift_count (==16 preshifts)
+[...]
+
 
 The following layouts currently possible for the frame data. This is based on 
 the contents of the 'flags' field and mainly involves mask options. More
@@ -903,10 +939,17 @@ layouts will likely be added in future e.g. plane-by-plane colour data.
 	mask data: 	2 bytes * ((framewidth + 15) >> 4) * frameheight
 	colour data: 	(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight
 
-3) preshifted mask
+3) preshifted mask (EMSPR)
 	index:		[4 bytes * (colr=1 + masks=16)]
 	colour data: 	(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight * 1 preshifts
 	mask data: 	2 bytes * ((framewidth + 15) >> 4) * frameheight * 16 preshifts
+
+3) preshifted codegen (EMXSPR)
+	index:		[4 bytes * (colr=1 + colropt=1 + masks=16 + masksopt=16)]
+	colour data: 	(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight * 1 preshifts
+	colouropt data:	(num_bitplanes * 2 bytes) * ((framewidth + 15) >> 4) * frameheight * 1 preshifts
+	mask data: 	2 bytes * ((framewidth + 15) >> 4) * frameheight * 16 preshifts
+	maskopt data: 	variable amount of generated 68k code
 
 
 The sprite frame should be drawn at xpos+frame.xoffset, ypos+frame.yoffset to
@@ -933,10 +976,14 @@ bits: 0 0 0 0 0 0 0 0 : 0 0 0 0 0 L L M
                 1 mask word emitted before each group of N plane words.
            01 = mask layout is planar (-ml planar was specified). The whole
                 mask plane comes before any colour data. 
-           10 = mask layout is preshifted (-ml preshift was specified, and
-                now the default setting, being the faster STE sprite mode).
+           10 = mask layout is preshifted (EMSPR format).
                 A secondary index is generated where the sprite data would
                 normally follow, which contains offsets to the preshifts. 
+           11 = mask is code-generated (EMXSPR format).
+                A secondary index is generated where the sprite data would
+                normally follow, which contains offsets to the preshifts. 
+                A second instance of both colour and mask indices is stored
+                for clipping purposes.
 
 The other flags are reserved for now...
 
@@ -946,9 +993,9 @@ The other flags are reserved for now...
 Quick Help info
 ===============================================================================
 
-[A]tari [G]ame [T]ools: playfield/sprite/slab cutter v0.26 / dml
+[A]tari [G]ame [T]ools: playfield/sprite/slab cutter v0.27 / dml
 usage:
- atgcut [opts] [infile]
+ atgcut [opts] -s infile
 
  -?, -h, --help       > show help/usage
  -v, --verbose        > more output
@@ -960,7 +1007,7 @@ general:
                       > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)
                       > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm
  -o, --outfile        > output filename
- -cm, --cutmode       > cutting mode: tiles,sprites,slabs
+ -cm, --cutmode       > cutting mode: tiles,sprites,emspr,emxspr,slabs
  -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)
  -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png
  -bp, --bitplanes     > #bitplanes to generate: 1-8

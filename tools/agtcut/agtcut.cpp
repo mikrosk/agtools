@@ -472,7 +472,7 @@ public:
 //		  spriteguidefile("sprites.sgd"),
 		  ccfields(1),
 		  ccremap(CCRemap_BOTH),
-		  masklayout(Masklayout_PRESHIFT),
+		  masklayout(Masklayout_INTERLEAVED),
 		  cutmode(Cutmode_TILES),
 		  outmode(Outmode_DEGAS),
 		  masklayout_lock(false),

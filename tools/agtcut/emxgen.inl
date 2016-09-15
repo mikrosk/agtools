@@ -3311,8 +3311,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			if (errors > 0)
 			{
 				std::cerr << "error: simulation failed on frame " << _frame << " preshift " << pi << std::endl;
-				while (1) {};
-				exit(1);
+				//while (1) {};
+				//exit(1);
 			}
 		}
 
