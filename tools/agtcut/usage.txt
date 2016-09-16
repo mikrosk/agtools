@@ -41,6 +41,10 @@ the output from the tool, then check the details of the file types involved.
 changenotes:
 ===============================================================================
 
+v0.28	16/09/2016
+---------------------------------------
+* fixes to support EMSPR format alongside EMXSPR (EMSPR was broken in v0.27)
+
 v0.27	15/09/2016
 ---------------------------------------
 * added EMXSPR sprite format - a code-generated version of the earlier EMSPR

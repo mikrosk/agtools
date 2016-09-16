@@ -107,7 +107,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.27";
+static const char* const g_version_string = "v0.28";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -2982,9 +2982,12 @@ bool emit_sprite_sequence()
 				int colr_preshift_index_fpos = tracked_filesize;
 				fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 
-				// write single offset for optimized colourdata (no preshifts yet)
 				int colropt_preshift_index_fpos = tracked_filesize;
-				fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+				if (g_allargs.cutmode == Cutmode_EMXSPR)
+				{
+					// write single offset for optimized colourdata (no preshifts yet)
+					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+				}
 
 				// write N offsets for plain mask preshifts
 				int mask_preshift_index_fpos = tracked_filesize;
@@ -2993,11 +2996,14 @@ bool emit_sprite_sequence()
 					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 				}
 
-				// write N offsets for optimixed mask preshifts
 				int maskopt_preshift_index_fpos = tracked_filesize;
-				for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
+				if (g_allargs.cutmode == Cutmode_EMXSPR)
 				{
-					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+					// write N offsets for optimixed mask preshifts
+					for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
+					{
+						fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+					}
 				}
 
 				// plain colour 
@@ -3030,6 +3036,7 @@ bool emit_sprite_sequence()
 				}
 
 				// optimized colour
+				if (g_allargs.cutmode == Cutmode_EMXSPR)
 				{
 					// track colour preshifts
 					// todo: assumes only one for now
@@ -3044,7 +3051,7 @@ bool emit_sprite_sequence()
 					{
 						// reorder colour data if necessary
 						int realy = y;
-//						if (g_allargs.cutmode == Cutmode_EMXSPR)
+						//if (g_allargs.cutmode == Cutmode_EMXSPR)
 							realy = it->lineorder[y];
 
 						for (int p = 0; p < g_allargs.planes; p++)
@@ -3098,32 +3105,35 @@ bool emit_sprite_sequence()
 				}
 
 				// track mask preshifts
-				for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
+				if (g_allargs.cutmode == Cutmode_EMXSPR)
 				{
-					psmaskopt_index.push_back(tracked_filesize);
-
-					// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
-//					wv = endianswap16(itm->wordwidth_);
-//					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-
-//					if (g_allargs.cutmode == Cutmode_EMXSPR)
+					for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
 					{
-						//fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
+						psmaskopt_index.push_back(tracked_filesize);
 
-						// write 68k binary code for this preshift
-						fwrite((itm->p68kbin + 32), 1, (itm->size68kbin - 32), hout);
-						tracked_filesize += (itm->size68kbin - 32);
+						// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
+						//					wv = endianswap16(itm->wordwidth_);
+						//					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+						//					if (g_allargs.cutmode == Cutmode_EMXSPR)
+						{
+							//fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
+
+							// write 68k binary code for this preshift
+							fwrite((itm->p68kbin + 32), 1, (itm->size68kbin - 32), hout);
+							tracked_filesize += (itm->size68kbin - 32);
+						}
+						//else
+						//{
+						//	// write whole mask preshift
+						//	for (int o = 0; o < itm->planewords_; o++)
+						//	{
+						//		// write colour words for single mask plane
+						//		wv = endianswap16(itm->data_[o]);
+						//		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+						//	}
+						//}
 					}
-					//else
-					//{
-					//	// write whole mask preshift
-					//	for (int o = 0; o < itm->planewords_; o++)
-					//	{
-					//		// write colour words for single mask plane
-					//		wv = endianswap16(itm->data_[o]);
-					//		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-					//	}
-					//}
 				}
 
 				// patch colour preshift index
@@ -3141,6 +3151,7 @@ bool emit_sprite_sequence()
 				}
 
 				// patch colouropt preshift index
+				if (g_allargs.cutmode == Cutmode_EMXSPR)
 				{
 					lv = 0;
 					size_t save = ftell(hout);
@@ -3169,6 +3180,7 @@ bool emit_sprite_sequence()
 				}
 
 				// patch maskopt preshift index
+				if (g_allargs.cutmode == Cutmode_EMXSPR)
 				{
 					lv = 0;
 					size_t save = ftell(hout);
