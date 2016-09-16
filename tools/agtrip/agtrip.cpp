@@ -83,7 +83,7 @@ typedef struct pixelsolution_s
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.1";
+static const char* const g_version_string = "v0.2";
 
 // --------------------------------------------------------------------
 //	some ...globals (?!)
@@ -198,6 +198,8 @@ enum
 	OPT_FRAMEYSIZE,
 	OPT_COMPCURVE,
 	OPT_ERRCURVE,
+	OPT_STARTBOT,
+	OPT_STARTRIGHT,
 };
 
 CSimpleOpt::SOption g_Options[] = 
@@ -255,6 +257,12 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_FRAMEEND,		_T("-fe"),    			SO_REQ_SEP	},
 	{ OPT_FRAMEEND,		_T("--frameend"),		SO_REQ_SEP	},
 	//
+	{ OPT_STARTBOT,		_T("-sb"),    			SO_NONE	},
+	{ OPT_STARTBOT,		_T("--startbot"),		SO_NONE	},
+	//
+	{ OPT_STARTBOT,		_T("-sr"),    			SO_NONE	},
+	{ OPT_STARTBOT,		_T("--startright"),		SO_NONE	},
+	//
 	{ OPT_COMPCURVE,	_T("-cc"),    			SO_REQ_SEP	},
 	{ OPT_COMPCURVE,	_T("--compcurve"), 		SO_REQ_SEP	},
 	//
@@ -275,26 +283,28 @@ static void usage(int level)
 	std::cout << "usage:" << std::endl;
 	std::cout << " atgcut [opts] -s infile" << std::endl;
 	std::cout << std::endl;
-	std::cout << " -?, -h, --help       > show help/usage" << std::endl;
-	std::cout << " -v, --verbose        > more output" << std::endl;
-	std::cout << " -q, --quiet          > less output" << std::endl;
-	std::cout << " -wk, --wait-key      > wait key on exit" << std::endl;
+	std::cout << " -?, -h, --help        > show help/usage" << std::endl;
+	std::cout << " -v, --verbose         > more output" << std::endl;
+	std::cout << " -q, --quiet           > less output" << std::endl;
+	std::cout << " -wk, --wait-ke y      > wait key on exit" << std::endl;
 	std::cout << std::endl;
-	std::cout << " -s, --srcseq         > filename stub for source frame sequence (extension assumed .png)" << std::endl;
-	std::cout << " -o, --outfile        > output panorama/playfield image (extension forced to .tga)" << std::endl;
-	std::cout << " -sm, --srcmask       > magenta mask applied to source frames, for ignoring static (hud) overlays" << std::endl;
-	std::cout << " -pw, --panwidth      > (over-estimate) width of final panorama/playfield" << std::endl;
-	std::cout << " -ph, --panheight     > (over-estimate) height of final panorama/playfield" << std::endl;
-	std::cout << " -fsx, --forcestepx   > minimum x-step/scroll between frames (to help with blank regions)" << std::endl;
-	std::cout << " -fsy, --forcestepy   > minimum y-step/scroll between frames" << std::endl;
-	std::cout << " -fxo, --framexoff    > xoffset of active capture region in source frames" << std::endl;
-	std::cout << " -fyo, --frameyoff    > yoffset of active capture region in source frames" << std::endl;
-	std::cout << " -fxs, --framexsize   > xsize of active capture region in source frames" << std::endl;
-	std::cout << " -fys, --frameysize   > ysize of active capture region in source frames" << std::endl;
-	std::cout << " -fs, --framestart    > first source frame in numbered 000-nnn .png sequence" << std::endl;
-	std::cout << " -fe, --frameend      > last source frame in numbered 000-nnn .png sequence" << std::endl;
-	std::cout << " -cc, --compcurve     > delta competition curve for synclock & integrate (default=0.25)" << std::endl;
-	std::cout << " -ec, --errorcurve    > colour error curve for synclock & integrate (default=20.0)" << std::endl;
+	std::cout << " -s, --srcseq          > filename stub for source frame sequence (extension assumed .png)" << std::endl;
+	std::cout << " -o, --outfile         > output panorama/playfield image (extension forced to .tga)" << std::endl;
+	std::cout << " -sm, --srcmask        > magenta mask applied to source frames, for ignoring static (hud) overlays" << std::endl;
+	std::cout << " -sb, --startbot       > assume view begins at bottom (not top) of map" << std::endl;
+	std::cout << " -sr, --startright     > assume view begins at right (not left) of map" << std::endl;
+	std::cout << " -pw, --panwidth       > (over-estimate) width of final panorama/playfield" << std::endl;
+	std::cout << " -ph, --panheight      > (over-estimate) height of final panorama/playfield" << std::endl;
+	std::cout << " -fsx, --forcestepx    > minimum x-step/scroll between frames (to help with blank regions)" << std::endl;
+	std::cout << " -fsy, --forcestepy    > minimum y-step/scroll between frames" << std::endl;
+	std::cout << " -fxo, --framexoff     > xoffset of active capture region in source frames" << std::endl;
+	std::cout << " -fyo, --frameyoff     > yoffset of active capture region in source frames" << std::endl;
+	std::cout << " -fxs, --framexsize    > xsize of active capture region in source frames" << std::endl;
+	std::cout << " -fys, --frameysize    > ysize of active capture region in source frames" << std::endl;
+	std::cout << " -fs, --framestart     > first source frame in numbered 000-nnn .png sequence" << std::endl;
+	std::cout << " -fe, --frameend       > last source frame in numbered 000-nnn .png sequence" << std::endl;
+	std::cout << " -cc, --compcurve      > delta competition curve for synclock & integrate (default=0.25)" << std::endl;
+	std::cout << " -ec, --errorcurve     > colour error curve for synclock & integrate (default=20.0)" << std::endl;
 
 	std::cout << std::endl;
 		
@@ -326,7 +336,9 @@ public:
 		  forcestep_x(0),
 		  forcestep_y(0),
 		  competition_curve(0.25),
-		  error_curve(20.0)
+		  error_curve(20.0),
+		  startbot(false),
+		  startright(false)
 	{
 	}
 
@@ -345,6 +357,8 @@ public:
 	std::string outfile;
 	float competition_curve;
 	float error_curve;
+	bool startbot;
+	bool startright;
 
 	bool verbose;
 	bool quiet;
@@ -379,6 +393,14 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			{
 				_args.waitkey = true;
 			}			
+			else if (args.OptionId() == OPT_STARTBOT) 
+			{
+				_args.startbot = true;
+			}	
+			else if (args.OptionId() == OPT_STARTRIGHT) 
+			{
+				_args.startright = true;
+			}		
 			else if (args.OptionId() == OPT_SOURCE)
 			{
 				_args.sourcefile = args.OptionArg();
@@ -461,7 +483,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			{
 				std::string s_arg = args.OptionArg();
 				int iarg = atoi(s_arg.c_str());
-				if (iarg < 0 || iarg > 256)
+				if (iarg < 0 || iarg > 1024)
 				{
 					printf("error - invalid arg frame xoff: %s\n", s_arg.c_str());
 					exit(1);
@@ -472,7 +494,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			{
 				std::string s_arg = args.OptionArg();
 				int iarg = atoi(s_arg.c_str());
-				if (iarg < 0 || iarg > 256)
+				if (iarg < 0 || iarg > 1024)
 				{
 					printf("error - invalid arg frame yoff: %s\n", s_arg.c_str());
 					exit(1);
@@ -631,12 +653,18 @@ void integrate(const image_t &inew, canvas_t &ipan, int xr, int yr)
 	int sw = xmin(inew.w, g_allargs.frame_xsize);
 	int sh = xmin(inew.h, g_allargs.frame_ysize);
 
-	for (int y = 0; (y < sh) && ((y+yr) < ipan.h); y++)
+	for (int y = 0; (y < sh)/* && ((y+yr) < ipan.h)*/; y++)
 	{
+		if ((y + yr) >= ipan.h) continue;
+		if ((y + yr) < 0) continue;
+
 		int yy = y + g_allargs.frame_yoff;
 
-		for (int x = 0; (x < sw) && ((x+xr) < ipan.w); x++)
+		for (int x = 0; (x < sw)/* && ((x+xr) < ipan.w)*/; x++)
 		{
+			if ((x + xr) >= ipan.w) continue;
+			if ((x + xr) < 0) continue;
+
 			int xx = x + g_allargs.frame_xoff;
 
 			const RGB &rgbnew = inew.psourcergb[(yy * inew.w) + xx];
@@ -859,10 +887,16 @@ double compare(const image_t &inew, const canvas_t &ipan, int xr, int yr)
 	double esum = 0.0;
 	double count = 0;
 
-	for (int y = 0; (y < sh) && ((y+yr) < ipan.yclip); y++)
+	for (int y = 0; (y < sh) /*&& ((y+yr) < ipan.yclip)*/; y++)
 	{
-		for (int x = 0; (x < sw) && ((x+xr) < ipan.xclip); x++)
+		if ((y + yr) < 0) continue;
+		if ((y + yr) >= ipan.yclip) continue;
+
+		for (int x = 0; (x < sw)/* && ((x+xr) < ipan.xclip)*/; x++)
 		{
+			if ((x + xr) < 0) continue;
+			if ((x + xr) >= ipan.xclip) continue;
+
 			const dRGB &rgbpan = ipan.pcompute[((y+yr) * ipan.w) + (x+xr)];
 			const RGB &rgbnew = inew.psourcergb[((y+g_allargs.frame_yoff) * inew.w) + (x+g_allargs.frame_xoff)];
 
@@ -919,9 +953,12 @@ bool synchronize(const image_t &inew, const canvas_t &ipan, int lastx, int lasty
 	int best_xo = -1;
 	int best_yo = -1;
 
-	for (int yo = lasty + g_allargs.forcestep_y; (yo < ipan.yclip) && (yo < lasty+1); yo++)
+	/*
+//	for (int yo = lasty + g_allargs.forcestep_y; (yo < ipan.yclip) && (yo < lasty+1); yo++)
+	for (int yo = lasty + g_allargs.forcestep_y; (yo < (ipan.yclip - (sh>>1))); yo += 16)
 	{
-		for (int xo = lastx + g_allargs.forcestep_x; (xo < (ipan.xclip - (sw>>1))); xo++)
+		for (int xo = lastx + g_allargs.forcestep_x; (xo < ipan.yclip) && (xo < lastx+1); xo++)
+//		for (int xo = lastx + g_allargs.forcestep_x; (xo < (ipan.xclip - (sw>>1))); xo += 16)
 		{
 			double try_oe = compare(inew, ipan, xo, yo);
 
@@ -933,6 +970,114 @@ bool synchronize(const image_t &inew, const canvas_t &ipan, int lastx, int lasty
 			}
 		}
 	}
+*/
+#if (1)
+	// pass #0
+
+//	for (int yo = lasty + g_allargs.forcestep_y; (yo < (ipan.yclip - (sh>>1))); yo += 16)
+	for (int yo = lasty - (sh>>1); yo < lasty + (sh>>1); yo += 16)
+	{
+//		for (int xo = lastx + g_allargs.forcestep_x; (xo < (ipan.xclip - (sw>>1))); xo += 16)
+		for (int xo = lastx - (sw>>1); xo < lastx + (sw>>1); xo += 16)
+		{
+			double try_oe = compare(inew, ipan, xo, yo);
+
+			if (try_oe < best_oe)
+			{
+				best_oe = try_oe;
+				best_xo = xo;
+				best_yo = yo;
+			}
+		}
+	}
+
+	// pass #1
+
+	for (int yo = best_yo - 16; (yo <= (best_yo + 16)) && (yo < (ipan.yclip - (sh>>1))); yo += 4)
+	{
+		if (yo < 0) continue;
+
+		for (int xo = best_xo - 16; (xo <= (best_xo + 16)) && (xo < (ipan.xclip - (sw>>1))); xo += 4)
+		{
+			if (xo < 0) continue;
+
+			double try_oe = compare(inew, ipan, xo, yo);
+
+			if (try_oe < best_oe)
+			{
+				best_oe = try_oe;
+				best_xo = xo;
+				best_yo = yo;
+			}
+		}
+	}
+
+	// pass #2
+
+	for (int yo = best_yo - 4; (yo <= (best_yo + 4)) && (yo < (ipan.yclip - (sh>>1))); yo += 1)
+	{
+		if (yo < 0) continue;
+
+		for (int xo = best_xo - 4; (xo <= (best_xo + 4)) && (xo < (ipan.xclip - (sw>>1))); xo += 1)
+		{
+			if (xo < 0) continue;
+
+			double try_oe = compare(inew, ipan, xo, yo);
+
+			if (try_oe < best_oe)
+			{
+				best_oe = try_oe;
+				best_xo = xo;
+				best_yo = yo;
+			}
+		}
+	}
+
+	/*
+	// pass #3
+
+	for (int yo = best_yo - 4; (yo <= (best_yo + 4)) && (yo < (ipan.yclip - (sh>>1))); yo += 2)
+	{
+		if (yo < 0) continue;
+
+		for (int xo = best_xo - 4; (xo <= (best_xo + 4)) && (xo < (ipan.xclip - (sw>>1))); xo += 2)
+		{
+			if (xo < 0) continue;
+
+			double try_oe = compare(inew, ipan, xo, yo);
+
+			if (try_oe < best_oe)
+			{
+				best_oe = try_oe;
+				best_xo = xo;
+				best_yo = yo;
+			}
+		}
+	}
+
+
+	// pass #4
+
+	for (int yo = best_yo - 2; (yo <= (best_yo + 2)) && (yo < (ipan.yclip - (sh>>1))); yo += 1)
+	{
+		if (yo < 0) continue;
+
+		for (int xo = best_xo - 2; (xo <= (best_xo + 2)) && (xo < (ipan.xclip - (sw>>1))); xo += 1)
+		{
+			if (xo < 0) continue;
+
+			double try_oe = compare(inew, ipan, xo, yo);
+
+			if (try_oe < best_oe)
+			{
+				best_oe = try_oe;
+				best_xo = xo;
+				best_yo = yo;
+			}
+		}
+	}
+	*/
+#endif
 
 	newx = best_xo;
 	newy = best_yo;
@@ -1115,11 +1260,21 @@ int main(int argc, char* argv[])
 
 	std::vector<image_t>::iterator oit = imagestream.begin();
 	// load first image
-	integrate(*oit, panorama, 0, 0);
+
+	// default origin (top/left)
 	int lastx = 0; 
 	int lasty = 0;
 
-	// integrate subsequent images
+	// adjust origin for initial synclock on different types of scroll
+	if (g_allargs.startright)
+		lastx = panorama.w - g_allargs.frame_xsize;
+	if (g_allargs.startbot)
+		lasty = panorama.h - g_allargs.frame_ysize;
+
+	// integrate the first image at the origin
+	integrate(*oit, panorama, lastx, lasty);
+
+	// integrate subsequent images based on synclock deltas
 	oit++;
 	for (; oit != imagestream.end(); oit++)
 	{
