@@ -11,8 +11,11 @@
 #define PREFER_TRANSFORMS (1) // hacks for testing
 #define USE_MOVEQ_INITS (0) // hacks for testing
 
+#if defined(_MSC_VER)
 #define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
+#endif
+
 #include "stdio.h"
 
 #include <string>
@@ -33,11 +36,11 @@
 // --------------------------------------------------------------------
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "..\3rdparty\stb_image.h"
+#include "../3rdparty/stb_image.h"
 
 #define BMP_TYPICAL_ROW_ORDER (1)		// 0 = -ve height, +ve ordering (easier to parse back in)
 										// 1 = +ve height, -ve ordering (more common)
-#include "..\common\rnd.h"
+#include "../common/rnd.h"
 
 //static const int USE_LINEDUPE_OPTIMIZATION = 1;
 static const int USE_DELTA_OPTIMIZATION = 1;
@@ -142,8 +145,8 @@ static uword_t *g_workbufferbpl = 0;
 # define _T(x)		x
 #endif
 
-#include "..\3rdparty\SimpleOpt.h"
-#include "..\3rdparty\SimpleGlob.h"
+#include "../3rdparty/SimpleOpt.h"
+#include "../3rdparty/SimpleGlob.h"
 
 // --------------------------------------------------------------------
 //	misc. small helper functions
@@ -171,6 +174,28 @@ static inline int xmax(int _x, int _y)
 {
 	return (_x > _y) ? _x : _y;
 }
+
+
+ulong_t rofl32(ulong_t _v, size_t _bits)
+{
+    return (_v >> _bits) | (_v << ((sizeof(_v) << 3) - _bits));
+}
+
+ulong_t lofl32(ulong_t _v, size_t _bits)
+{
+    return (_v << _bits) | (_v << ((sizeof(_v) << 3) - _bits));
+}
+
+uword_t rofl16(uword_t _v, size_t _bits)
+{
+    return (_v >> _bits) | (_v << ((sizeof(_v) << 3) - _bits));
+}
+
+uword_t lofl16(uword_t _v, size_t _bits)
+{
+    return (_v << _bits) | (_v << ((sizeof(_v) << 3) - _bits));
+}
+
 
 static void replace_extension(std::string &_fname, const char* const _ext)
 {
@@ -1581,7 +1606,7 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 	}
 	else
 	{
-		mapindex = s_tile8dictionary.size();
+		mapindex = (int)s_tile8dictionary.size();
 
 		// if no match was found, store tile as unique
 		RGB *pnewtile24 = new RGB[64 * 64];

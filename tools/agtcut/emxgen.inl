@@ -526,17 +526,17 @@ public:
 
 	void assemble(ubyte_t *&r_p68kbin, size_t &r_size68kbin)
 	{
-		ubyte_t *p68kbin = 0;
+//		ubyte_t *p68kbin = 0;
 
-		std::string& str = genout.str();  
+		const std::string& str = genout.str();
 		std::ofstream cfile;
 		cfile.open("tmp68k.s");  
 		cfile << str;  
 		cfile.close();
 
+#if defined(_MSC_VER)
 		// execute assembler, turning our temporary .s into binary 68k
 		//		ShellExecute(NULL, "open", "rmac.exe", "-n -o tmp68k.bin tmp68k.s", NULL, SW_HIDE);
-
 		{
 			SHELLEXECUTEINFO ShExecInfo = { 0 };
 			ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
@@ -564,7 +564,8 @@ public:
 
 			DeleteFileA("tmp68k.s");
 		}
-
+#endif
+        
 		// read code back in
 		{
 			FILE *h = fopen("tmp68k.bin", "rb");
@@ -603,7 +604,7 @@ public:
 				}
 #endif
 
-				int oldsize = r_size68kbin;
+				size_t oldsize = r_size68kbin;
 				while (
 					r_size68kbin &&
 					(
@@ -630,8 +631,10 @@ public:
 
 				fclose(h);
 
+#if defined(_MSC_VER)
 				DeleteFileA("tmp68k.bin");
-			}
+#endif
+            }
 			else
 			{
 				std::cerr << "error opening binary code!" << std::endl;

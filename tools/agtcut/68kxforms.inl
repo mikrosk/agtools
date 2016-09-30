@@ -2287,7 +2287,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							return true;
 						}
 
-						if (data16 == _rotl16(it_treg->L, i))
+						if (data16 == lofl16(it_treg->L, i))
 						{
 							if (_opsize == OpSize_16)
 								printf("transform: move.w #$%04x,%s -> rol.w #%d,%s [$%04x<-<%d]\n",
@@ -2313,7 +2313,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							return true;
 						}
 
-						if (data16 == _rotr16(it_treg->L, i))
+						if (data16 == rofl16(it_treg->L, i))
 						{
 							if (_opsize == OpSize_16)
 								printf("transform: move.w #$%04x,%s -> ror.w #%d,%s [$%04x>->%d]\n",
@@ -2364,7 +2364,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							return true;
 						}
 
-						if (data32 == _rotl(treg32, i))
+						if (data32 == lofl32(treg32, i))
 						{
 							printf("transform: move.w #$%04x,%s -> rol.l #%d,%s [$%08x<-<%d]\n",
 								data16,
@@ -2458,7 +2458,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							return true;
 						}
 
-						if (data32 == _rotl(reg32, i))
+						if (data32 == lofl32(reg32, i))
 						{
 							printf("transform: move.l #$%04x%04x,%s -> rol.l #%d,%s [$%08x<-<%d]\n",
 								_dataH, _dataL,
@@ -2475,7 +2475,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							return true;
 						}
 
-						if (data32 == _rotr(reg32, i))
+						if (data32 == rofl32(reg32, i))
 						{
 							printf("transform: move.l #$%04x%04x,%s -> ror.l #%d,%s [$%08x>->%d]\n",
 								_dataH, _dataL,

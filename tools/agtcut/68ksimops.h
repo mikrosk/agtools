@@ -973,9 +973,9 @@ public:
 	virtual void onExecute()
 	{
 		if (imm < 0)
-			ctx.registers[dreg].L = _rotl16(ctx.registers[dreg].L, (-imm));
+			ctx.registers[dreg].L = lofl16(ctx.registers[dreg].L, (-imm));
 		else
-			ctx.registers[dreg].L = _rotr16(ctx.registers[dreg].L, imm);
+			ctx.registers[dreg].L = rofl16(ctx.registers[dreg].L, imm);
 
 		ctx.cycles += cost;
 	}
@@ -1023,9 +1023,9 @@ public:
 		ulong_t data32 = (ulong_t(ctx.registers[dreg].H) << 16) | ctx.registers[dreg].L;
 
 		if (imm < 0)
-			data32 = _rotl(data32, (-imm));
+			data32 = lofl32(data32, (-imm));
 		else
-			data32 = _rotr(data32, (imm));
+			data32 = rofl32(data32, (imm));
 
 		ctx.registers[dreg].H = data32 >> 16;
 		ctx.registers[dreg].L = data32 & 0xFFFF;
