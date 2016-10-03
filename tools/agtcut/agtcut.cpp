@@ -41,6 +41,9 @@
 #define BMP_TYPICAL_ROW_ORDER (1)		// 0 = -ve height, +ve ordering (easier to parse back in)
 										// 1 = +ve height, -ve ordering (more common)
 #include "../common/rnd.h"
+#include "../common/csvreader.h"
+
+#include "../../static/tiny6x6fnt.c"
 
 //static const int USE_LINEDUPE_OPTIMIZATION = 1;
 static const int USE_DELTA_OPTIMIZATION = 1;
@@ -110,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.28";
+static const char* const g_version_string = "v0.29";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -219,6 +222,65 @@ static void remove_extension(std::string &_fname)
 		_fname = _fname.substr(0, dot);
 }
 
+static void plot6x6char(RGB *_buf, int _bufw, int _c, int _x, int _y)
+{
+	u8 *fnt = &tiny6x6fnt[_c * 6];
+	RGB *out = &_buf[(_y * _bufw) + _x];
+
+	for (int l = 0; l < 6; l++)
+	{
+		u8 b = *fnt++;
+
+		for (int p = 0; p < 6; p++)
+		{
+			s8 v = (b & 0x80); v >>= 7;
+			b <<= 1;
+			out[p].red		|= v;
+			out[p].green	|= v;
+			out[p].blue		|= v;
+		}
+
+		out += _bufw;
+	}
+}
+
+static void plot6x6text(RGB *_buf, int _bufw, char *_str, int _x, int _y)
+{
+	int c;
+	while (0 != (c = *_str++))
+	{
+		plot6x6char(_buf, _bufw, c, _x, _y);
+		_x += 5;
+	}
+}
+
+static void plot6x6hex3(RGB *_buf, int _bufw, int _v, int _x, int _y)
+{
+	char numbuf[4] = { 0, 0, 0 };
+	int n;
+
+	for (int i = 0; i < 3; i++)
+	{
+		if (_v == 0)
+		{
+			n = ' ';
+		}
+		else
+		{
+			n = (_v & 0xF); _v >>= 4;
+
+			if (n < 10)
+				n += '0';
+			else
+				n += 'A' - 10;
+		}
+
+		numbuf[2-i] = n;
+	}
+
+	plot6x6text(_buf, _bufw, numbuf, _x, _y);
+}
+
 // --------------------------------------------------------------------
 //	interface to engine tileset reader, for access to palettes
 // --------------------------------------------------------------------
@@ -245,6 +307,7 @@ enum
 	OPT_KEYTOL,
 	OPT_SOURCE,
 	OPT_OUTFILE,
+	OPT_TILETAGS,
 	OPT_PALETTE,
 	OPT_CUTMODE,
 	OPT_CCFIELDS,
@@ -372,6 +435,9 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_OUTFILE,		_T("-o"),	 			SO_REQ_SEP	},
 	{ OPT_OUTFILE,		_T("--outfile"),		SO_REQ_SEP	},
 	//
+	{ OPT_TILETAGS,		_T("-ttags"), 			SO_REQ_SEP	},
+	{ OPT_TILETAGS,		_T("--tiletags"),		SO_REQ_SEP	},
+	//
 	{ OPT_PALETTE,		_T("-p"),	 			SO_REQ_SEP	},
 	{ OPT_PALETTE,		_T("--pal"),	 		SO_REQ_SEP	},
 	//
@@ -432,6 +498,7 @@ static void usage(int level)
 	std::cout << std::endl;
 	std::cout << "map & tile cutting mode:" << std::endl;
 	std::cout << " -ts, --tilesize      > tile size (rbplus mode only): 16,32" << std::endl;
+	std::cout << " -ttags, --tiletags   > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
 	std::cout << " -t, --tol            > tile matching tolerance: 0.0+" << std::endl;
 	std::cout << " -om, --outmode       > tile library output mode: direct,degas,rbplus" << std::endl;
 	std::cout << std::endl;
@@ -493,6 +560,7 @@ public:
 		  keytol(0.01f),
 		  sourcefile(""),
 		  outfile(""),
+		  tiletags(""),
 		  palettefile("palette.pi1"),
 //		  spriteguidefile("sprites.sgd"),
 		  ccfields(1),
@@ -545,6 +613,7 @@ public:
 	float keytol;
 	std::string sourcefile;
 	std::string outfile;
+	std::string tiletags;
 	int ccfields;
 //	std::string spriteguidefile;
 	Cutmode cutmode;
@@ -610,6 +679,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_OUTFILE)
 			{
 				_args.outfile = args.OptionArg();
+			}
+			else if (args.OptionId() == OPT_TILETAGS)
+			{
+				_args.tiletags = args.OptionArg();
 			}
 			else if (args.OptionId() == OPT_TOLERANCE)
 			{
@@ -1550,6 +1623,8 @@ static inline float compare_tile24(RGB *_pdsttile, RGB *_psrctile, ulong_t _sour
 			float db = float(spix.blue  - dpix.blue) * c_n;
 
 			float err = (dr * dr) + (dg * dg) + (db * db);
+//			float err = pow(fabs(dr), 0.5) + pow(fabs(dg), 0.5) + pow(fabs(db), 0.5);
+//			float err = fabs(dr) + fabs(dg) + fabs(db);
 
 			errsum += err;
 		}
@@ -1976,8 +2051,11 @@ static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilema
 	replace_extension(outfile, "ccm");
 
 	int mapentries = _tilemapw * _tilemaph;
+	long_t *be_tilemap = new long_t[mapentries];
+//	memcpy(be_tilemap, _ptilemap, mapentries * sizeof(long_t));
+
 	for (int i = 0; i < mapentries; i++)
-		_ptilemap[i] = endianswap32(_ptilemap[i]);
+		be_tilemap[i] = endianswap32(_ptilemap[i]);
 
 	FILE *hmap = fopen(outfile.c_str(), "wb");
 
@@ -1986,9 +2064,11 @@ static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilema
 	v = endianswap32(_tilemaph);
 	fwrite(&v, 1, sizeof(v), hmap);
 
-	fwrite(_ptilemap, sizeof(long_t), mapentries, hmap);
+	fwrite(be_tilemap, sizeof(long_t), mapentries, hmap);
 
 	fclose(hmap);
+
+	delete[] be_tilemap;
 
 	std::cout << "emitted tilemap [" << outfile.c_str() << "]" << std::endl;
 }
@@ -2356,6 +2436,60 @@ static void emit_tiles_rbplus(std::string outfile, RGB *_ppal24)
 //	map & tile cutting mode
 // --------------------------------------------------------------------
 
+void emit_tga(const char* const _name, RGB *data, int _w, int _h)
+{
+	// emit trivial targa format, out of sheer lazyness
+	FILE *fptr = fopen(_name, "wb");
+	if (fptr)
+	{
+		putc(0,fptr);
+		putc(0,fptr);
+		putc(2,fptr);                         /* uncompressed RGB */
+		putc(0,fptr); putc(0,fptr);
+		putc(0,fptr); putc(0,fptr);
+		putc(0,fptr);
+		putc(0,fptr); putc(0,fptr);           /* X origin */
+		putc(0,fptr); putc(0,fptr);           /* y origin */
+		putc((_w & 0x00FF),fptr);
+		putc((_w & 0xFF00) / 256,fptr);
+		putc((_h & 0x00FF),fptr);
+		putc((_h & 0xFF00) / 256,fptr);
+		putc(24,fptr);                        /* 24 bit bitmap */
+		putc(0,fptr);
+
+		for (int y = _h-1; y >= 0; y--)
+		{
+			for (int x = 0; x < _w; x++)
+			{
+				const RGB &rgbpan = data[(y * _w) + x];
+
+				putc(rgbpan.blue,		fptr);
+				putc(rgbpan.green,		fptr);
+				putc(rgbpan.red,		fptr);
+			}
+		}
+
+		fclose(fptr);
+	}
+	else
+	{
+		std::cerr << "error: could not create review TGA file: " << _name << std::endl;
+	}
+}
+
+inline char sanitise_csv_integer(char ch)
+{
+	unsigned char uc = (unsigned char)ch;
+	if ((uc >= '0' && uc <= '9') ||
+		(uc >= 'a' && uc <= 'f') ||
+		(uc >= 'A' && uc <= 'F') ||
+		(uc == '-') ||
+		(uc == 'x'))
+		return ch;
+
+	return ' ';
+}
+
 bool do_tiles()
 {
 	ulong_t sourcew = 0;
@@ -2503,6 +2637,222 @@ bool do_tiles()
 				}
 
 			} // ccf loop
+
+
+			// emit review
+			{
+				int tilesize = g_allargs.tilesize;
+
+				// rebuild source from tiles
+				for (int yy = 0; yy < tilemaph; yy++)
+				{
+					for (int xx = 0; xx < tilemapw; xx++)
+					{
+						RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
+
+						int index = ptilemap[(yy * tilemapw) + xx];
+
+						// unfortunately we're storing the tiles in a list - better change this
+						tile24dictionary_t::iterator it24 = s_tile24dictionary.begin();
+						for (int i = 0; i < index; i++, it24++);
+
+						RGB *psrc = *it24;
+
+						for (int py = 0; py < tilesize; py++)
+						{
+							for (int px = 0; px < tilesize; px++)
+							{
+								pdst[(py * sourcew) + px] = psrc[(py * tilesize) + px];
+
+								plot6x6hex3(pdst, sourcew, index, 1, 1);
+							}
+						}
+					}
+				}
+
+				{
+					std::string reviewfile(g_allargs.outfile);
+					remove_extension(reviewfile);
+					reviewfile.append("_index.tga");
+
+					emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
+				}
+
+
+				if (g_allargs.tiletags.length() > 0)
+				{
+					std::ifstream tiletags(g_allargs.tiletags.c_str());
+					if (!(tiletags.is_open() && tiletags.good()))
+					{
+						std::cerr << "error - unable to locate or read specified tiletags CSV file!" << std::endl;
+						printf("press any key...\n");
+						getchar();	
+					}
+
+					// create maskindex from marked indices
+					const int numtiles = s_tile24dictionary.size();
+					u8 *pmaskindex = new u8[numtiles];
+					memset(pmaskindex, 0, numtiles);
+
+					// parse CSV
+					for (CSVIterator loop(tiletags); loop != CSVIterator(); ++loop)
+					{
+						const CSVRow& r = (*loop);
+						size_t s = r.size();
+						if (s > 0)
+						{
+							std::string inspect = r[0];
+							if (inspect[0] == ';')
+							{
+								// skip comment
+							}
+							else
+							{
+								int column_value = 0;
+								int column_index = 0;
+
+								std::cout << "reading tiletags: ";
+
+								// <width>		
+								std::string colval = r[column_index++];
+								std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+								char *pend = 0;
+								column_value = strtol(colval.c_str(), &pend, 16);
+								printf("index: %s\n", colval.c_str());
+								if ((column_value >= 0) && (column_value <= numtiles))
+								{	
+									// tag this tile
+									pmaskindex[column_value] = 1;
+									std::cout << "tagged tile index [" << column_value << "]" << std::endl;
+								}
+								else
+								{
+									fprintf(stderr, "error - invalid tile index field (%d) in tiletags CSV file!\n", column_value);
+									printf("press any key...\n");
+									getchar();	
+									exit(1);				
+								}
+							}
+						}
+					}
+/*
+					pmaskindex[0x00] = 1;
+					pmaskindex[0x01] = 1;
+					pmaskindex[0x02] = 1;
+					pmaskindex[0x03] = 1;
+					pmaskindex[0x04] = 1;
+					pmaskindex[0x05] = 1;
+					pmaskindex[0x06] = 1;
+					pmaskindex[0x07] = 1;
+					pmaskindex[0x08] = 1;
+					pmaskindex[0x09] = 1;
+					pmaskindex[0x0a] = 1;
+					pmaskindex[0x0b] = 1;
+					pmaskindex[0x0c] = 1;
+					pmaskindex[0x0d] = 1;
+					pmaskindex[0x0e] = 1;
+					pmaskindex[0x0f] = 1;
+					pmaskindex[0x10] = 1;
+					pmaskindex[0x11] = 1;
+					pmaskindex[0x12] = 1;
+					pmaskindex[0x13] = 1;
+					pmaskindex[0x14] = 1;
+					pmaskindex[0x1c] = 1;
+					pmaskindex[0x1e] = 1;
+					pmaskindex[0x20] = 1;
+					pmaskindex[0x22] = 1;
+					pmaskindex[0x25] = 1;
+					pmaskindex[0x26] = 1;
+					pmaskindex[0x27] = 1;
+					pmaskindex[0x2f] = 1;
+					pmaskindex[0x34] = 1;
+					pmaskindex[0x37] = 1;
+					pmaskindex[0x58] = 1;
+					pmaskindex[0x68] = 1;
+					pmaskindex[0x69] = 1;
+					pmaskindex[0x6a] = 1;
+					pmaskindex[0x7a] = 1;
+					pmaskindex[0x9a] = 1;
+					pmaskindex[0xe8] = 1;
+					pmaskindex[0xe9] = 1;
+					pmaskindex[0xea] = 1;
+					pmaskindex[0x136] = 1;
+					pmaskindex[0x14b] = 1;
+					pmaskindex[0x14f] = 1;
+					pmaskindex[0x150] = 1;
+					pmaskindex[0x151] = 1;
+					pmaskindex[0x152] = 1;
+					pmaskindex[0x153] = 1;
+					pmaskindex[0x158] = 1;
+					pmaskindex[0x159] = 1;
+					pmaskindex[0x15b] = 1;
+					pmaskindex[0x15c] = 1;
+					pmaskindex[0x160] = 1;
+					pmaskindex[0x162] = 1;
+					pmaskindex[0x163] = 1;
+					pmaskindex[0x164] = 1;
+					pmaskindex[0x168] = 1;
+					pmaskindex[0x16e] = 1;
+					pmaskindex[0x16e] = 1;
+					pmaskindex[0x18b] = 1;
+					pmaskindex[0x18d] = 1;
+					pmaskindex[0x18e] = 1;
+					pmaskindex[0x18f] = 1;
+					pmaskindex[0x190] = 1;
+					pmaskindex[0x192] = 1;
+					pmaskindex[0x193] = 1;
+					pmaskindex[0x194] = 1;
+					pmaskindex[0x19a] = 1;
+					pmaskindex[0x19b] = 1;
+					pmaskindex[0x19c] = 1;
+					pmaskindex[0x19d] = 1;
+					pmaskindex[0x19e] = 1;
+					pmaskindex[0x1b3] = 1;
+					pmaskindex[0x1b4] = 1;
+					pmaskindex[0x1b5] = 1;
+					pmaskindex[0x1b6] = 1;
+					pmaskindex[0x1b8] = 1;
+					pmaskindex[0x1b9] = 1;
+					pmaskindex[0x1d0] = 1;
+					pmaskindex[0x1d1] = 1;
+					pmaskindex[0x1d2] = 1;
+*/
+					// rebuild source from tiles
+					for (int yy = 0; yy < tilemaph; yy++)
+					{
+						for (int xx = 0; xx < tilemapw; xx++)
+						{
+							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
+
+							int index = ptilemap[(yy * tilemapw) + xx];
+
+							if (pmaskindex[index])
+							{
+								for (int py = 0; py < tilesize; py++)
+								{
+									for (int px = 0; px < tilesize; px++)
+									{
+										pdst[(py * sourcew) + px].red =		~(pdst[(py * sourcew) + px].red>>1);
+										pdst[(py * sourcew) + px].green =	~(pdst[(py * sourcew) + px].green>>1);
+										pdst[(py * sourcew) + px].blue =	~(pdst[(py * sourcew) + px].blue>>1);
+									}
+								}
+							}
+						}
+					}
+
+					delete[] pmaskindex;
+
+					{
+						std::string reviewfile(g_allargs.outfile);
+						remove_extension(reviewfile);
+						reviewfile.append("_tags.tga");
+
+						emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
+					}
+
+				}
+			}
 
 			if (m_psourcergb)
 				delete[] m_psourcergb;
@@ -3633,7 +3983,7 @@ bool emit_slab_sequence()
 
 		// 4: size of file remaining (patched before closing)
 		lv = 0;
-		fwrite(&lv, 1, 4, hout);
+		fwrite(&lv, 1, sizeof(lv), hout);
 
 		// 2: version info
 		wv = endianswap16(SLS_VERSION);
@@ -3671,13 +4021,17 @@ bool emit_slab_sequence()
 		lv = 0xBBBBBBBB;
 		for (slablist_t::iterator it = g_slabframes.begin(); it != g_slabframes.end(); it++)
 		{
-			fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+			fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
 		}
 
 		// individual slabs follow
 		for (slablist_t::iterator it = g_slabframes.begin(); it != g_slabframes.end(); it++)
 		{
 			std::vector<int> spanblock_index;
+			std::vector<int> spanblock_clipper;
+			std::vector<int> clipspandata_ptrs;
+			std::vector<int> spandata_ptrs;
+			std::vector<int> spandata_index;
 
 			// record file-offset to slab in slab index, for patching later
 			slab_index.push_back(tracked_filesize);
@@ -3700,11 +4054,33 @@ bool emit_slab_sequence()
 			wv = endianswap16(s16(it->spans_.size()));
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
-			// create clipper (patched after writing)
+			//// pointer to spanblock index (patched after writing)
+			//int spanblock_indexptr_fpos = tracked_filesize;
+			//lv = 0xEEEEEEEE;
+			//fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
+
+			int indextables_fpos = tracked_filesize;
+
+			// create clipper index (patched after writing)
+			int spanblock_clipper_fpos = tracked_filesize;
 			wv = 0xAAAA;
+//			lv = 0xDDDDDDDD;
 			for (int i = 0; i < it->h_; i++)
 			{
-				// one 16bit index per line of frame
+				// 4x 16bit fields per line of slab frame
+
+				// offset to spanblock reference for this line
+				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+
+				// remaining spanblocks for this top yc -1
+				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+
+				// pointer to spandata for top yc
+				clipspandata_ptrs.push_back(tracked_filesize);
+//				fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
+				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+
+				// remaining spanblocks for this bottom yc -1
 				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
 			}
 
@@ -3715,15 +4091,37 @@ bool emit_slab_sequence()
 			{
 				// one 16bit offset per line of frame
 				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+
+				//	cy		sbi		sb
+				//	0		A		A
+				//	1		A		-
+				//	2		A		-
+				//	3		B		B
+				//	4		B		-
+				//	5		C		C
+				//	6		D		D
+				//	7		D		-
 			}
 
-			// write out spanblocks
+			// write out spanblock records
 //			int mapped_line = 0;
+			int last_spanblock = -1;
+			int last_spanblock_y = 0;
 			for (std::list<slabspan_t>::iterator spanit = it->spans_.begin(); spanit != it->spans_.end(); spanit++)
 			{
 				spanblock_index.push_back(tracked_filesize);
 
-				// 2: spanblock dy
+				// fill clipper for all lines up to start of new spanblock (if any)
+				// note: take care over initial y skip, which would otherwise fill -1 for last spanblock
+				int last_valid_spanblock = (last_spanblock >= 0) ? last_spanblock : 0;
+				for (; last_spanblock_y < (spanit->y_ - spanit->dy_); last_spanblock_y++)
+				{
+					spanblock_clipper.push_back(last_valid_spanblock);
+				}
+
+				last_spanblock++;
+
+				// 2: spanblock dy (skipped lines)
 				wv = endianswap16(spanit->dy_);
 				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 				// 2: spanblock xo
@@ -3735,31 +4133,42 @@ bool emit_slab_sequence()
 				// 2: spanblock dxw
 				wv = endianswap16(spanit->dxw_);
 				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				// 2: spanblock y
+				// 2: spanblock y (for skipped then nonskipped lines of spanblock)
 				wv = endianswap16(spanit->y_);
 				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				// 2: spanblock ys-1
+				// 2: spanblock nonskipped lines (ys-1)
 				wv = endianswap16(spanit->ys_-1);
 				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+				// 4: spandata ptr
+				spandata_ptrs.push_back(tracked_filesize);
+				lv = 0xAAAAAAAA;
+				fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
+			}
+
+			// now write pixel data separately, and contiguously
+			for (std::list<slabspan_t>::iterator spanit = it->spans_.begin(); spanit != it->spans_.end(); spanit++)
+			{
+				spandata_index.push_back(tracked_filesize);
 
 				// output spanblock lines
 				for (int l = 0; l < spanit->ys_; l++)
 				{
 
-					if (0) // interleaved planewords (CPU)
-					{
-						// output span plane words for a line
-						for (int o = 0; o < spanit->dxw_; o++)
-						{
-							// write colour words for N planes
-							for (int p = 0; p < g_allargs.planes; p++)
-							{
-								wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
-								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-							}
-						}
-					}
-					else // plane-at-a-time scans (blitter)
+					//if (0) // interleaved planewords (CPU)
+					//{
+					//	// output span plane words for a line
+					//	for (int o = 0; o < spanit->dxw_; o++)
+					//	{
+					//		// write colour words for N planes
+					//		for (int p = 0; p < g_allargs.planes; p++)
+					//		{
+					//			wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
+					//			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					//		}
+					//	}
+					//}
+					//else // plane-at-a-time scans (blitter)
 					{
 						// write colour words for N planes
 						for (int p = 0; p < g_allargs.planes; p++)
@@ -3775,6 +4184,14 @@ bool emit_slab_sequence()
 				}
 			}
 
+			// fill clipper for all lines up to end of last spanblock
+			// note: take care over initial y skip, which would otherwise fill -1 for last spanblock
+			int last_valid_spanblock = (last_spanblock >= 0) ? last_spanblock : 0;
+			for (; last_spanblock_y < it->h_; last_spanblock_y++)
+			{
+				spanblock_clipper.push_back(last_valid_spanblock);
+			}
+
 //			assert(mapped_line == it->h_);
 
 /*			while (mapped_line < it->h_)
@@ -3784,17 +4201,101 @@ bool emit_slab_sequence()
 			}
 */
 
-			// patch spanblock index
+			// save seek			
 			int tmp_pos = ftell(hout);
+
+			// patch spanblock record data pointers
+			int yi = 0;
+			for (std::vector<int>::iterator cspit = clipspandata_ptrs.begin(); cspit != clipspandata_ptrs.end(); cspit++, yi++)
+			{
+				int ptr_off = (*cspit);
+				fseek(hout, ptr_off+4, 0);
+				// find spanblock used by this y
+				int pi = spanblock_clipper[yi];
+				// antireloc spandata ptr
+
+				wv = (word_t)(spandata_index[pi] - indextables_fpos);
+//				printf("clipper[%d]:[%08x] %08x\n", yi, ptr_off, lv);
+				wv = endianswap16(wv);
+				fwrite(&wv, 1, sizeof(wv), hout);
+
+//				lv = spandata_index[pi] - indextables_fpos;
+////				printf("clipper[%d]:[%08x] %08x\n", yi, ptr_off, lv);
+//				lv = endianswap32(lv);
+//				fwrite(&lv, 1, sizeof(lv), hout);
+			}
+
+			// patch spanblock record data pointers
+			int pi = 0;
+			for (std::vector<int>::iterator srpit = spandata_ptrs.begin(); srpit != spandata_ptrs.end(); srpit++, pi++)
+			{
+				int ptr_off = (*srpit);
+				fseek(hout, ptr_off+4, 0);
+				// antireloc next spandata ptr
+				lv = spandata_index[pi] - indextables_fpos;
+//				printf("record[%d]: %08x\n", pi, lv);
+				lv = endianswap32(lv);
+				fwrite(&lv, 1, sizeof(lv), hout);
+			}
+
+			// patch clipper index
+			fseek(hout, spanblock_clipper_fpos+4, 0);
+			int yc = 0;
+			for (std::vector<int>::iterator cit = spanblock_clipper.begin(); cit != spanblock_clipper.end(); cit++, yc++)
+			{
+				// spanblock clipper addresses spanblocks, but based on scanline indices
+				// the clipper array contains spanblock indices counting from 0 and we translate 
+				// these into offset from the spanblock index so the drawing routine starts on 
+				// the correct spanblock index entry for any initial yclip
+
+				int clipfirst = (*cit);
+
+//				printf("clipper[%d]: %d\n", ci, clipfirst);
+
+				wv = (spanblock_index_fpos + (clipfirst * sizeof(word_t))) - indextables_fpos;
+				wv = endianswap16(wv);
+				fwrite(&wv, 1, sizeof(wv), hout);
+
+				// remaining spanblocks for top yc, assuming this was the first
+				wv = spanblock_index.size() - clipfirst;
+				wv = endianswap16(wv);
+				fwrite(&wv, 1, sizeof(wv), hout);
+
+				// skip offset, already patched
+				fseek(hout, 2, SEEK_CUR);
+
+				// sum spanblocks until (y2 >= yc)
+				{
+					// ybot recedes as yc advances
+					int ybot = it->h_ - yc;
+
+					int sbcount = 0;
+					for (std::list<slabspan_t>::iterator blkit = it->spans_.begin(); blkit != it->spans_.end(); blkit++)
+					{
+						int spanblock_y2 = (blkit->y_ + blkit->dy_ + blkit->ys_);
+						if (spanblock_y2 >= ybot) 
+							break;
+						sbcount++;
+					}
+
+					// remaining spanblocks for bottom yc -1
+					wv = sbcount;
+					wv = endianswap16(wv);
+					fwrite(&wv, 1, sizeof(wv), hout);
+				}
+			}
+
+			// patch spanblock index
 			fseek(hout, spanblock_index_fpos+4, 0);
 			for (std::vector<int>::iterator spanit = spanblock_index.begin(); spanit != spanblock_index.end(); spanit++)
 			{
-				wv = (*spanit) - spanblock_index_fpos;
+				wv = (*spanit) - indextables_fpos;// spanblock_index_fpos;
 				wv = endianswap16(wv);
-				fwrite(&wv, 1, 2, hout);
+				fwrite(&wv, 1, sizeof(wv), hout);
 			}
-			fseek(hout, tmp_pos, 0);
 
+			// restore seek
+			fseek(hout, tmp_pos, 0);
 		}
 
 		// patch slab index
@@ -3804,13 +4305,13 @@ bool emit_slab_sequence()
 		{
 			lv = (*it) - slab_index_fpos;
 			lv = endianswap32(lv);
-			fwrite(&lv, 1, 4, hout);
+			fwrite(&lv, 1, sizeof(lv), hout);
 		}
 
 		// patch filesize
 		fseek(hout, 0, 0);
 		lv = endianswap32(tracked_filesize);
-		fwrite(&lv, 1, 4, hout);
+		fwrite(&lv, 1, sizeof(lv), hout);
 	}
 
 	std::cout << "emitted slab sequence [" << outfile.c_str() << "]" << std::endl;

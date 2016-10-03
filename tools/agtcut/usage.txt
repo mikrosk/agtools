@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.27 : dml : 15/09/2016
+v0.29 : dml : 03/10/2016
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,12 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.29	03/10/2016
+---------------------------------------
+* implement SLABS file format changes to support proper top/bottom viewport clipping
+* implement tile index tagging via tiletags.csv (outputs ?_tags.tga to guide index selection for solid tiles)
+* output ?_index.tga as feedback on extracted tile indices
 
 v0.28	16/09/2016
 ---------------------------------------
@@ -176,7 +182,7 @@ Be careful - if your input is .BMP and your output is also .BMP (e.g. for Jag)
 then failing to use -o can cause your source image to be overwritten.
 
 
--cm --cutmode <sprites,slabs,tiles>
+-cm --cutmode <sprites,emspr,emxspr,slabs,tiles>
 
 Specify cutting mode. This does affect which other switches make sense...
 
@@ -208,10 +214,10 @@ Specify cutting mode. This does affect which other switches make sense...
  [slabs]
  
  Works the same way as [sprites] mode but the type of object being cut is
- optimized for large surface area. Slabs can not contain interior holes but
- they can have an irregular outline. A large circular graphic would encode
- well as a slab. Small objects or medium objects with holes may be better as
- sprites.
+ optimized for large surface area - primarily larger widths up to 256 pixels. 
+ Slabs can not contain interior holes but they can have an irregular vertical
+ outline. A large circular graphic would encode well as a slab. Small objects,
+ tall thin objects or wider objects with interior holes are better as sprites.
  
  [tiles]
  
@@ -730,10 +736,11 @@ Usage is exactly the same as for sprites. Invoke with '-cm slabs' instead of
 
 Slabs are sprites which get rendered as individual (or blocks of) horizontal
 spans without any mask. The spans are very fast to draw but there is some
-overhead per span so these are more efficient when they are wide vs tall. In
-general they are faster than sprites for any large area though because all
+overhead per span so these are most efficient when they are wide and short.
+In general they are faster than sprites for any large area though because all
 4 bitplanes can be drawn with a copy operation (instead of a series of RMW
 logic operations) and most of the exterior pixels don't get processed at all.
+There are also some memory savings for the transparent regions.
 
 
 The shape below can be efficiently encoded as a slab because the horizontals
@@ -753,14 +760,14 @@ not drawn at all.
 
 Any holes inside the shape will currently be processed as opaque. Later the
 tool will be able to decompose one shape into several in order to accommodate
-interior holes (at some expense).
+interior holes (at some expense - internal operation will remain the same).
 
-Slabs are expensive to clip on the left/right side because each span group
-has its own offsets and needs individual testing. Best kept inside the main
-viewport.
+Slabs are now fully clipped against the top/bottom of the viewport. The
+left/right viewport edges however are not handled - if horizontal clipping is
+required it should be achieved using a hidden viewport margin (up to 256
+pixels of offscreen area, configured via the playfield template).
 
 A description of slab format & sample reader code will follow later.
-
 
 
 
@@ -997,7 +1004,8 @@ The other flags are reserved for now...
 Quick Help info
 ===============================================================================
 
-[A]tari [G]ame [T]ools: playfield/sprite/slab cutter v0.27 / dml
+[A]tari [G]ame [T]ools: playfield/sprite/slab cutter v0.29 / dml
+built on Oct  3 2016
 usage:
  atgcut [opts] -s infile
 
@@ -1039,6 +1047,6 @@ sprite cutting mode:
 
 map & tile cutting mode:
  -ts, --tilesize      > tile size (rbplus mode only): 16,32
+ -ttags, --tiletags   > list of tile indices to tag (CSV file - one hex value per row)
  -t, --tol            > tile matching tolerance: 0.0+
  -om, --outmode       > tile library output mode: direct,degas,rbplus
-

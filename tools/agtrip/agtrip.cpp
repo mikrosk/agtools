@@ -83,7 +83,7 @@ typedef struct pixelsolution_s
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.2";
+static const char* const g_version_string = "v0.3";
 
 // --------------------------------------------------------------------
 //	some ...globals (?!)
@@ -190,8 +190,6 @@ enum
 	OPT_PANHEIGHT,
 	OPT_FRAMESTART,
 	OPT_FRAMEEND,
-	OPT_FORCESTEPX,
-	OPT_FORCESTEPY,
 	OPT_FRAMEXOFF,
 	OPT_FRAMEYOFF,
 	OPT_FRAMEXSIZE,
@@ -200,6 +198,10 @@ enum
 	OPT_ERRCURVE,
 	OPT_STARTBOT,
 	OPT_STARTRIGHT,
+	OPT_MINHS,
+	OPT_MAXHS,
+	OPT_MINVS,
+	OPT_MAXVS
 };
 
 CSimpleOpt::SOption g_Options[] = 
@@ -233,12 +235,6 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_PANHEIGHT,	_T("-ph"),    			SO_REQ_SEP	},
 	{ OPT_PANHEIGHT,	_T("--panheight"), 		SO_REQ_SEP	},
 	//
-	{ OPT_FORCESTEPX,	_T("-fsx"),    			SO_REQ_SEP	},
-	{ OPT_FORCESTEPX,	_T("--forcestepx"),		SO_REQ_SEP	},
-	//
-	{ OPT_FORCESTEPY,	_T("-fsy"),    			SO_REQ_SEP	},
-	{ OPT_FORCESTEPY,	_T("--forcestepy"),		SO_REQ_SEP	},
-	//
 	{ OPT_FRAMEXOFF,	_T("-fxo"),    			SO_REQ_SEP	},
 	{ OPT_FRAMEXOFF,	_T("--framexoff"),		SO_REQ_SEP	},
 	//
@@ -256,6 +252,18 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_FRAMEEND,		_T("-fe"),    			SO_REQ_SEP	},
 	{ OPT_FRAMEEND,		_T("--frameend"),		SO_REQ_SEP	},
+	//
+	{ OPT_MINHS,		_T("-mnhs"),   			SO_REQ_SEP	},
+	{ OPT_MINHS,		_T("--minhscroll"),		SO_REQ_SEP	},
+	//
+	{ OPT_MAXHS,		_T("-mxhs"),   			SO_REQ_SEP	},
+	{ OPT_MAXHS,		_T("--maxhscroll"),		SO_REQ_SEP	},
+	//
+	{ OPT_MINVS,		_T("-mnvs"),   			SO_REQ_SEP	},
+	{ OPT_MINVS,		_T("--minvscroll"),		SO_REQ_SEP	},
+	//
+	{ OPT_MAXVS,		_T("-mxvs"),   			SO_REQ_SEP	},
+	{ OPT_MAXVS,		_T("--maxvscroll"),		SO_REQ_SEP	},
 	//
 	{ OPT_STARTBOT,		_T("-sb"),    			SO_NONE	},
 	{ OPT_STARTBOT,		_T("--startbot"),		SO_NONE	},
@@ -295,8 +303,10 @@ static void usage(int level)
 	std::cout << " -sr, --startright     > assume view begins at right (not left) of map" << std::endl;
 	std::cout << " -pw, --panwidth       > (over-estimate) width of final panorama/playfield" << std::endl;
 	std::cout << " -ph, --panheight      > (over-estimate) height of final panorama/playfield" << std::endl;
-	std::cout << " -fsx, --forcestepx    > minimum x-step/scroll between frames (to help with blank regions)" << std::endl;
-	std::cout << " -fsy, --forcestepy    > minimum y-step/scroll between frames" << std::endl;
+	std::cout << " -mnhs, --minhscroll   > set min hscroll step per frame" << std::endl;
+	std::cout << " -mxhs, --maxhscroll   > set max hscroll step per frame" << std::endl;
+	std::cout << " -mnvs, --minvscroll   > set min vscroll step per frame" << std::endl;
+	std::cout << " -mxvs, --maxvscroll   > set max vscroll step per frame" << std::endl;
 	std::cout << " -fxo, --framexoff     > xoffset of active capture region in source frames" << std::endl;
 	std::cout << " -fyo, --frameyoff     > yoffset of active capture region in source frames" << std::endl;
 	std::cout << " -fxs, --framexsize    > xsize of active capture region in source frames" << std::endl;
@@ -333,8 +343,10 @@ public:
 		  frame_yoff(0),
 		  frame_xsize(320),
 		  frame_ysize(200),
-		  forcestep_x(0),
-		  forcestep_y(0),
+		  minhs(-32768),
+		  maxhs(32767),
+		  minvs(-32768),
+		  maxvs(32767),
 		  competition_curve(0.25),
 		  error_curve(20.0),
 		  startbot(false),
@@ -350,8 +362,10 @@ public:
 	int frame_ysize;
 	int frame_xoff;
 	int frame_yoff;
-	int forcestep_x;
-	int forcestep_y;
+	int minhs;
+	int maxhs;
+	int minvs;
+	int maxvs;
 	std::string sourcefile;
 	std::string sourcemask;
 	std::string outfile;
@@ -457,27 +471,49 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				_args.frameend = iarg;	
 			}
-			else if (args.OptionId() == OPT_FORCESTEPX) 
+			else if (args.OptionId() == OPT_MINHS) 
 			{
 				std::string s_arg = args.OptionArg();
 				int iarg = atoi(s_arg.c_str());
-				if (iarg < 0 || iarg > 256)
+				if (iarg < -512 || iarg > 512)
 				{
-					printf("error - invalid arg force step x: %s\n", s_arg.c_str());
+					printf("error - invalid arg min hscroll: %s\n", s_arg.c_str());
 					exit(1);
 				}
-				_args.forcestep_x = iarg;	
+				_args.minhs = iarg;	
 			}
-			else if (args.OptionId() == OPT_FORCESTEPY) 
+			else if (args.OptionId() == OPT_MAXHS) 
 			{
 				std::string s_arg = args.OptionArg();
 				int iarg = atoi(s_arg.c_str());
-				if (iarg < 0 || iarg > 256)
+				if (iarg < -512 || iarg > 512)
 				{
-					printf("error - invalid arg force step y: %s\n", s_arg.c_str());
+					printf("error - invalid arg max hscroll: %s\n", s_arg.c_str());
 					exit(1);
 				}
-				_args.forcestep_y = iarg;	
+				_args.maxhs = iarg;	
+			}
+			else if (args.OptionId() == OPT_MINVS) 
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if (iarg < -512 || iarg > 512)
+				{
+					printf("error - invalid arg min vscroll: %s\n", s_arg.c_str());
+					exit(1);
+				}
+				_args.minvs = iarg;	
+			}
+			else if (args.OptionId() == OPT_MAXVS) 
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if (iarg < -512 || iarg > 512)
+				{
+					printf("error - invalid arg max vscroll: %s\n", s_arg.c_str());
+					exit(1);
+				}
+				_args.maxvs = iarg;	
 			}
 			else if (args.OptionId() == OPT_FRAMEXOFF) 
 			{
@@ -672,9 +708,11 @@ void integrate(const image_t &inew, canvas_t &ipan, int xr, int yr)
 			pixelstack_t &rgbstack = ipan.pstack[((y+yr) * ipan.w) + (x+xr)];
 
 			// dodge areas which have been statically (manually) masked for all frames
+			// i.e. painted magenta in mask.png
+			if (maskobj.pmask)
 			if ((yy >= 0) && (yy < maskobj.h))
 				if ((xx >= 0) && (xx < maskobj.w))
-					if (maskobj.pmask[(yy * maskobj.w) + xx] < 1e-7)
+						if (maskobj.pmask[(yy * maskobj.w) + xx] < -0.5)
 						continue;
 
 			// running average
@@ -892,16 +930,17 @@ double compare(const image_t &inew, const canvas_t &ipan, int xr, int yr)
 		if ((y + yr) < 0) continue;
 		if ((y + yr) >= ipan.yclip) continue;
 
+		int yy = y + g_allargs.frame_yoff;
+
 		for (int x = 0; (x < sw)/* && ((x+xr) < ipan.xclip)*/; x++)
 		{
 			if ((x + xr) < 0) continue;
 			if ((x + xr) >= ipan.xclip) continue;
 
+			int xx = x + g_allargs.frame_xoff;
+
 			const dRGB &rgbpan = ipan.pcompute[((y+yr) * ipan.w) + (x+xr)];
 			const RGB &rgbnew = inew.psourcergb[((y+g_allargs.frame_yoff) * inew.w) + (x+g_allargs.frame_xoff)];
-
-//			if (inew.pmask[((y + frame_yoff) * inew.w) + (x + frame_xoff)] < 1e-7)
-//				continue;
 
 			double n = rgbpan.n;
 			if (n < 1.0)
@@ -929,6 +968,14 @@ double compare(const image_t &inew, const canvas_t &ipan, int xr, int yr)
 			double e = (dr * dr) + (dg * dg) + (db * db);
 
 			e = pow(e, g_allargs.competition_curve);
+
+			// demote areas which have been statically (manually) masked for all frames
+			// i.e. painted green in mask.png
+			if (maskobj.pmask)
+				if ((yy >= 0) && (yy < maskobj.h))
+					if ((xx >= 0) && (xx < maskobj.w))
+						if (maskobj.pmask[(yy * maskobj.w) + xx] < 0.5)
+							e = 0;
 
 			// error sum
 			esum += e; count += 1.0;
@@ -975,10 +1022,12 @@ bool synchronize(const image_t &inew, const canvas_t &ipan, int lastx, int lasty
 	// pass #0
 
 //	for (int yo = lasty + g_allargs.forcestep_y; (yo < (ipan.yclip - (sh>>1))); yo += 16)
-	for (int yo = lasty - (sh>>1); yo < lasty + (sh>>1); yo += 16)
+//	for (int yo = lasty - (sh>>1); yo < lasty + (sh>>1); yo += 16)
+	for (int yo = lasty + g_allargs.minvs; yo < lasty + g_allargs.maxvs; yo += 16)
 	{
 //		for (int xo = lastx + g_allargs.forcestep_x; (xo < (ipan.xclip - (sw>>1))); xo += 16)
-		for (int xo = lastx - (sw>>1); xo < lastx + (sw>>1); xo += 16)
+//		for (int xo = lastx - (sw>>1); xo < lastx + (sw>>1); xo += 16)
+		for (int xo = lastx + g_allargs.minhs; xo < lastx + g_allargs.maxhs; xo += 16)
 		{
 			double try_oe = compare(inew, ipan, xo, yo);
 
@@ -993,13 +1042,13 @@ bool synchronize(const image_t &inew, const canvas_t &ipan, int lastx, int lasty
 
 	// pass #1
 
-	for (int yo = best_yo - 16; (yo <= (best_yo + 16)) && (yo < (ipan.yclip - (sh>>1))); yo += 4)
+	for (int yo = best_yo - 16; (yo <= (best_yo + 16)) /*&& (yo < (ipan.yclip - (sh>>1)))*/; yo += 4)
 	{
-		if (yo < 0) continue;
+		if ((yo < lasty + g_allargs.minvs) || (yo >= lasty + g_allargs.maxvs)) continue;
 
-		for (int xo = best_xo - 16; (xo <= (best_xo + 16)) && (xo < (ipan.xclip - (sw>>1))); xo += 4)
+		for (int xo = best_xo - 16; (xo <= (best_xo + 16)) /*&& (xo < (ipan.xclip - (sw>>1)))*/; xo += 4)
 		{
-			if (xo < 0) continue;
+			if ((xo < lastx + g_allargs.minhs) || (xo >= lastx + g_allargs.maxhs)) continue;
 
 			double try_oe = compare(inew, ipan, xo, yo);
 
@@ -1014,13 +1063,13 @@ bool synchronize(const image_t &inew, const canvas_t &ipan, int lastx, int lasty
 
 	// pass #2
 
-	for (int yo = best_yo - 4; (yo <= (best_yo + 4)) && (yo < (ipan.yclip - (sh>>1))); yo += 1)
+	for (int yo = best_yo - 4; (yo <= (best_yo + 4)) /*&& (yo < (ipan.yclip - (sh>>1)))*/; yo += 1)
 	{
-		if (yo < 0) continue;
+		if ((yo < lasty + g_allargs.minvs) || (yo >= lasty + g_allargs.maxvs)) continue;
 
-		for (int xo = best_xo - 4; (xo <= (best_xo + 4)) && (xo < (ipan.xclip - (sw>>1))); xo += 1)
+		for (int xo = best_xo - 4; (xo <= (best_xo + 4)) /*&& (xo < (ipan.xclip - (sw>>1)))*/; xo += 1)
 		{
-			if (xo < 0) continue;
+			if ((xo < lastx + g_allargs.minhs) || (xo >= lastx + g_allargs.maxhs)) continue;
 
 			double try_oe = compare(inew, ipan, xo, yo);
 
@@ -1126,9 +1175,30 @@ int main(int argc, char* argv[])
 		namestream.push_back(name);
 	}
 
+
+	// load images
+	std::vector<image_t> imagestream;
+	for (std::vector<std::string>::iterator nit = namestream.begin(); nit != namestream.end(); nit++)
+	{
+		std::string& name = *nit;
+
+		image_t imageobj;
+
+		if (image_load(name.c_str(), imageobj.psourcergb, imageobj.psourcecol, imageobj.ppalettergb, imageobj.w, imageobj.h, imageobj.d))
+		{
+			imagestream.push_back(imageobj);
+
+			std::cout << "loaded image frame: " << name.c_str() << std::endl;
+		}
+		else
+		{
+			std::cerr << "error: could not read source image frame: " << name.c_str() << std::endl;
+		}
+	}
+
 	// load mask
 
-//	if (image_load("s:\\grad_bgs\\g3_final\\mask.png", maskobj.psourcergb, maskobj.psourcecol, maskobj.ppalettergb, maskobj.w, maskobj.h, maskobj.d))
+	maskobj.pmask = 0;
 	if (g_allargs.sourcemask.length() > 0)
 	{
 		if (image_load(g_allargs.sourcemask.c_str(), maskobj.psourcergb, maskobj.psourcecol, maskobj.ppalettergb, maskobj.w, maskobj.h, maskobj.d))
@@ -1141,9 +1211,18 @@ int main(int argc, char* argv[])
 				{
 					RGB &rgb = maskobj.psourcergb[(y*maskobj.w) + x];
 
-					if (rgb.red > 250 && rgb.green < 8 && rgb.blue > 250)
+					if ((rgb.red > 250) && (rgb.green < 8) && (rgb.blue > 250))
+						// magenta = -1
+						// no synclock, no integrate (e.g. completely ignore HUD text)
+						maskobj.pmask[(y*maskobj.w) + x] = -1.0;
+					else
+					if ((rgb.red < 8) && (rgb.green) > 250 && (rgb.blue < 8))
+						// green = 0
+						// no synclock, but still integrate (e.g. insensitive to parallax but keeping pixels)
 						maskobj.pmask[(y*maskobj.w) + x] = 0.0;
 					else
+						// remainder = 1
+						// synclock + integrate
 						maskobj.pmask[(y*maskobj.w) + x] = 1.0;
 				}
 			}
@@ -1151,36 +1230,6 @@ int main(int argc, char* argv[])
 		else
 		{
 			std::cerr << "error: could not read source mask:" << g_allargs.sourcemask.c_str() << std::endl;
-		}
-	}
-
-	// load images
-	std::vector<image_t> imagestream;
-	for (std::vector<std::string>::iterator nit = namestream.begin(); nit != namestream.end(); nit++)
-	{
-		std::string& name = *nit;
-
-		image_t imageobj;
-
-		if (image_load(name.c_str(), imageobj.psourcergb, imageobj.psourcecol, imageobj.ppalettergb, imageobj.w, imageobj.h, imageobj.d))
-		{
-//			imageobj.pmask = new double[imageobj.w * imageobj.h];
-////			memset(imageobj.pmask, 0, imageobj.w * imageobj.h * sizeof(double));
-//			for (int y = 0; y < imageobj.h; y++)
-//			{
-//				for (int x = 0; x < imageobj.w; x++)
-//				{
-//					imageobj.pmask[(y*imageobj.w) + x] = maskobj.pmask[(y*maskobj.w) + x];// 1.0;
-//				}
-//			}
-
-			imagestream.push_back(imageobj);
-
-			std::cout << "loaded image frame: " << name.c_str() << std::endl;
-		}
-		else
-		{
-			std::cerr << "error: could not read source image frame: " << name.c_str() << std::endl;
 		}
 	}
 
@@ -1243,6 +1292,20 @@ int main(int argc, char* argv[])
 
 	// for each image, compare with subsequent images (until some error threshold exceeded),
 	// using varying offsets until lowest error found
+
+	// set scroll step search limits on both axes
+	int limhs = imagestream.front().w >> 2;
+	int limvs = imagestream.front().h >> 2;
+
+	if (g_allargs.minhs < -16384)
+		g_allargs.minhs = -limhs;
+	if (g_allargs.maxhs > 16384)
+		g_allargs.maxhs = limhs;
+
+	if (g_allargs.minvs < -16384)
+		g_allargs.minvs = -limvs;
+	if (g_allargs.maxvs > 16384)
+		g_allargs.maxvs = limvs;
 
 	canvas_t panorama;
 //	panorama.w = 12000;
