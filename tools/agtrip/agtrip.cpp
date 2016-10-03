@@ -100,8 +100,6 @@ static int s_progress = 0;
 
 static const int max_stackdepth = (16-1);
 
-//double g_competition_curve = 0.25; //0.25;
-
 // --------------------------------------------------------------------
 // SimpleOpt... because life is too short
 // --------------------------------------------------------------------
@@ -195,7 +193,7 @@ enum
 	OPT_FRAMEXSIZE,
 	OPT_FRAMEYSIZE,
 	OPT_COMPCURVE,
-	OPT_ERRCURVE,
+	OPT_INTCURVE,
 	OPT_STARTBOT,
 	OPT_STARTRIGHT,
 	OPT_MINHS,
@@ -274,8 +272,8 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_COMPCURVE,	_T("-cc"),    			SO_REQ_SEP	},
 	{ OPT_COMPCURVE,	_T("--compcurve"), 		SO_REQ_SEP	},
 	//
-	{ OPT_ERRCURVE,		_T("-ec"),    			SO_REQ_SEP	},
-	{ OPT_ERRCURVE,		_T("--errorcurve"),		SO_REQ_SEP	},
+	{ OPT_INTCURVE,		_T("-ic"),    			SO_REQ_SEP	},
+	{ OPT_INTCURVE,		_T("--intcurve"),		SO_REQ_SEP	},
 	//
 	SO_END_OF_OPTIONS
 };
@@ -313,8 +311,8 @@ static void usage(int level)
 	std::cout << " -fys, --frameysize    > ysize of active capture region in source frames" << std::endl;
 	std::cout << " -fs, --framestart     > first source frame in numbered 000-nnn .png sequence" << std::endl;
 	std::cout << " -fe, --frameend       > last source frame in numbered 000-nnn .png sequence" << std::endl;
-	std::cout << " -cc, --compcurve      > delta competition curve for synclock & integrate (default=0.25)" << std::endl;
-	std::cout << " -ec, --errorcurve     > colour error curve for synclock & integrate (default=20.0)" << std::endl;
+	std::cout << " -cc, --compcurve      > colour error curve for synclock comparison (default=0.25)" << std::endl;
+	std::cout << " -ic, --intcurve       > colour error curve for integration (default=20.0)" << std::endl;
 
 	std::cout << std::endl;
 		
@@ -347,8 +345,8 @@ public:
 		  maxhs(32767),
 		  minvs(-32768),
 		  maxvs(32767),
-		  competition_curve(0.25),
-		  error_curve(20.0),
+		  comparison_curve(0.25),
+		  integration_curve(20.0),
 		  startbot(false),
 		  startright(false)
 	{
@@ -369,8 +367,8 @@ public:
 	std::string sourcefile;
 	std::string sourcemask;
 	std::string outfile;
-	float competition_curve;
-	float error_curve;
+	float comparison_curve;
+	float integration_curve;
 	bool startbot;
 	bool startright;
 
@@ -565,21 +563,21 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				float farg = (float)atof(s_arg.c_str());
 				if (farg <= 0.0f || farg > 256.0f)
 				{
-					printf("error - invalid arg for competition curve: %s\n", s_arg.c_str());
+					printf("error - invalid arg for synclock comparison curve: %s\n", s_arg.c_str());
 					exit(1);
 				}
-				_args.competition_curve = farg;	
+				_args.comparison_curve = farg;	
 			}
-			else if (args.OptionId() == OPT_ERRCURVE) 
+			else if (args.OptionId() == OPT_INTCURVE) 
 			{
 				std::string s_arg = args.OptionArg();
 				float farg = (float)atof(s_arg.c_str());
 				if (farg <= 0.0f || farg > 256.0f)
 				{
-					printf("error - invalid arg for error curve: %s\n", s_arg.c_str());
+					printf("error - invalid arg for integration curve: %s\n", s_arg.c_str());
 					exit(1);
 				}
-				_args.error_curve = farg;	
+				_args.integration_curve = farg;	
 			}
 		}
 		else 
@@ -854,7 +852,7 @@ void resolve(canvas_t &ipan)
 					}
 
 					// record error for this entry vs all others (including temporary)
-					rgbstack.error[o] = pow(osum, g_allargs.error_curve);
+					rgbstack.error[o] = pow(osum, g_allargs.integration_curve);
 				}
 
 				// normalize error for all slots
@@ -967,10 +965,10 @@ double compare(const image_t &inew, const canvas_t &ipan, int xr, int yr)
 			// error
 			double e = (dr * dr) + (dg * dg) + (db * db);
 
-			e = pow(e, g_allargs.competition_curve);
+			e = pow(e, g_allargs.comparison_curve);
 
 			// demote areas which have been statically (manually) masked for all frames
-			// i.e. painted green in mask.png
+			// i.e. painted green or magenta in mask.png
 			if (maskobj.pmask)
 				if ((yy >= 0) && (yy < maskobj.h))
 					if ((xx >= 0) && (xx < maskobj.w))
