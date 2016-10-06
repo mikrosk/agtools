@@ -35,3 +35,8 @@
   Hatari - Windows nightly builds: [http://antarctica.no/~hatari/](Link URL)
   STEEM Engine: [http://steem.atari.st/](Link URL)
   STEEM SSE: [http://ataristeven.exxoshost.co.uk/Steem.htm](Link URL)
+
+### Reference ###
+
+* the RMAC assembler manual can be found here: [http://dbug.kicks-ass.net/various/rmacman/rmac.html](Link URL)
+* the VASM assembler manual can be found here: [http://sun.hasenbraten.de/vasm/release/vasm.html](Link URL)
