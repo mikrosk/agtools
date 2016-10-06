@@ -468,7 +468,7 @@ static void usage(int level)
 	std::cout << "                      > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)" << std::endl;
 	std::cout << "                      > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
 	std::cout << " -o, --outfile        > output filename" << std::endl;
-	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites,emspr,emxspr,slabs" << std::endl;
+	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites,emspr,emxspr,slabs,slabrestore" << std::endl;
 	std::cout << " -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
 	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
@@ -533,7 +533,8 @@ enum Cutmode
 	Cutmode_SPRITES,			// standard sprites (software w/o mask, or blitter w/ mask)
 	Cutmode_EMSPR,				// <= 32 wide EM blitter sprites (preshifted masks)
 	Cutmode_EMXSPR,				// <= 32 wide EM eXtreme blitter sprites (preshifted codegen)
-	Cutmode_SLABS
+	Cutmode_SLABS,
+	Cutmode_SLABRESTORE,
 };
 
 enum Masklayout
@@ -739,6 +740,13 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				if (s_arg.find("slabs") != std::string::npos)
 				{
 					_args.cutmode = Cutmode_SLABS;
+					_args.masklayout = Masklayout_IMPLIED;
+					_args.masklayout_lock = true;
+				}
+				else
+				if (s_arg.find("slabrestore") != std::string::npos)
+				{
+					_args.cutmode = Cutmode_SLABRESTORE;
 					_args.masklayout = Masklayout_IMPLIED;
 					_args.masklayout_lock = true;
 				}
@@ -964,7 +972,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					printf("warning - sprite cutting width %s exceeds max. of 128 for AGT sprite system!\n", s_arg.c_str());
 				}
 				else
-				if ((_args.cutmode == Cutmode_SLABS) && (iarg > 256))
+				if ((_args.cutmode == Cutmode_SLABS || _args.cutmode == Cutmode_SLABRESTORE) && (iarg > 256))
 				{
 					printf("warning - sprite cutting width %s exceeds max. of 256 for AGT slab system!\n", s_arg.c_str());
 				}
@@ -3947,6 +3955,324 @@ void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
 	g_slabframes.push_back(slab);
 }
 
+void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
+{
+	// preprocess slab to produce fewer, less precise spanblock regions for accelerated clearing
+
+	// 1) quantise spans to 16 pixel (planeword) boundaries
+	{
+		for (int py = 0; py < g_sprite_height; py++)
+		{
+			// find first solid pixel
+			int px = 0;
+			for (; px < g_sprite_width; px++)
+			{
+				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+				if (c != g_allargs.keycol)
+					break;
+			}
+
+			// round towards left
+			int left = px & -16;
+
+			// find last solid pixel
+			for (px = g_sprite_width-1; px >= 0; px--)
+			{
+				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+				if (c != g_allargs.keycol)
+					break;
+			}
+
+			// last pixel exclusive
+			px++;
+
+			// round towards right
+			int right = (px + 15) & -16;
+
+			// clamp
+			if (right > g_spritesource_w)
+				right = g_spritesource_w;
+
+			// choose random colours for debugging the regions
+//			int cc = py & 15;
+//			if (cc == g_allargs.keycol)
+//				cc = 15 - cc;
+
+			ubyte_t cc = g_allargs.keycol + 1;
+
+			// replace colour for quantised region
+			px = left;
+			for (; px < right; px++)
+			{
+				// final colour doesn't matter, so long as its not keycol
+				_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = cc;
+			}
+		}
+	}
+
+	// 2) reduce fragmentation of quantised regions
+	{
+		ubyte_t k = g_allargs.keycol;
+		ubyte_t s = k + 1;
+		ubyte_t b = s + 1;
+		// process columns, not rows
+		for (int px = 0; px < g_sprite_width; px += 16)
+		{
+			// single column
+			for (int py = 0; py < g_sprite_height; py++)
+			{
+				// for each word, look at the above/below flanking word pattern and blur
+
+				// this whole sequence is crap, but it'll do
+
+				int pym2 = xmax(py - 2, 0);
+				int pym1 = xmax(py - 1, 0);
+				int pyp1 = xmin(py + 1, g_sprite_height-1);
+				int pyp2 = xmin(py + 2, g_sprite_height-1);
+
+				ubyte_t cm2 = _psource8[((pym2 + _y) * g_spritesource_w) + (px + _x)];
+				ubyte_t cm1 = _psource8[((pym1 + _y) * g_spritesource_w) + (px + _x)];
+				ubyte_t c00 = _psource8[((py   + _y) * g_spritesource_w) + (px + _x)];
+				ubyte_t cp1 = _psource8[((pyp1 + _y) * g_spritesource_w) + (px + _x)];
+				ubyte_t cp2 = _psource8[((pyp2 + _y) * g_spritesource_w) + (px + _x)];
+
+				if (c00 == k)
+				{
+					if ((cm1 == s && cp2 == s) ||
+						(cm2 == s && cp1 == s) ||
+						(cm1 == s && cp1 == s))
+					{
+						for (int x = px; x < px + 16; x++)
+						{
+							_psource8[((py + _y) * g_spritesource_w) + (x + _x)] = b;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	std::vector<std::pair<int, int> > fragments;
+	fragments.resize(g_sprite_height);
+	std::vector<int> blocksize;
+	blocksize.resize(g_sprite_height);
+
+
+	// 4) merge single-span blocks with neighbour blocks
+	//    most of the overhead is coming from these alone
+	bool changed = true;
+//	for (int p = 0; p < 3; p++)
+	while (changed)
+	{
+		// 4a) recolour/encode by spanblock fragmentation
+		{
+			ubyte_t k = g_allargs.keycol;
+			ubyte_t cc = k + 1;
+
+			int lastleft = -1;
+			int lastright = -1;
+			int spancount = 1;
+			int last_block = 0;
+
+			for (int py = 0; py < g_sprite_height; py++)
+			{
+				// find first solid pixel
+				int px = 0;
+				for (; px < g_sprite_width; px++)
+				{
+					ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+					if (c != g_allargs.keycol)
+						break;
+				}
+
+				// round towards left
+				int left = px & -16;
+
+				// find last solid pixel
+				for (px = g_sprite_width-1; px >= 0; px--)
+				{
+					ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+					if (c != g_allargs.keycol)
+						break;
+				}
+
+				// last pixel exclusive
+				px++;
+
+				// round towards right
+				int right = (px + 15) & -16;
+
+				// clamp
+				if (right > g_spritesource_w)
+					right = g_spritesource_w;
+
+				// record fragment left/right coords
+				fragments[py].first = left;
+				fragments[py].second = right;
+
+				if ((left != lastleft) ||
+					(right != lastright))
+				{
+					// change colour
+					cc++;
+
+					// but dodge key colour
+					if (cc == k)
+						cc++;
+
+					lastleft = left;
+					lastright = right;
+
+					for (int s = last_block; s < py; s++)
+					{
+						blocksize[s] = spancount;
+						printf("spancount[%d]: %d\n", s, spancount);
+					}
+
+
+					spancount = 1;
+					last_block = py;
+				}
+				else
+				{
+					spancount++;
+				}
+
+				// replace colour for quantised region
+				px = left;
+				for (; px < right; px++)
+				{
+					// final colour doesn't matter, so long as its not keycol
+					_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = cc;
+				}
+			}
+		}
+
+		ubyte_t k = g_allargs.keycol;
+		ubyte_t cc = k + 1;
+
+		changed = false;
+
+		for (int py = 0; py < g_sprite_height; py++)
+		{
+
+
+//			continue;
+
+			// 4b) merge spans with neighbours 
+			
+			int pym2 = xmax(py - 2, 0);
+			int pym1 = xmax(py - 1, 0);
+			int pyp1 = xmin(py + 1, g_sprite_height - 1);
+			int pyp2 = xmin(py + 2, g_sprite_height - 1);
+
+			if (
+				(blocksize[py] < 3)
+/*
+				(
+					//difference with m1
+					((pym1 == py) ||
+					 (fragments[pym1].first  != fragments[py].first) ||
+					 (fragments[pym1].second != fragments[py].second))
+					&&
+					//difference with p1
+					((pyp1 == py) ||
+					 (fragments[pyp1].first  != fragments[py].first) ||
+					 (fragments[pyp1].second != fragments[py].second))
+				)
+				||
+				(
+					//difference with m2
+					((pym2 == py) ||
+					 (fragments[pym2].first  != fragments[py].first) ||
+					 (fragments[pym2].second != fragments[py].second))
+					&&
+					//difference with p1
+					((pyp1 == py) ||
+					 (fragments[pyp1].first  != fragments[py].first) ||
+					 (fragments[pyp1].second != fragments[py].second))
+				)
+				||
+				(
+					//difference with m1
+					((pym1 == py) ||
+					 (fragments[pym1].first  != fragments[py].first) ||
+					 (fragments[pym1].second != fragments[py].second))
+					&&
+					//difference with p2
+					((pyp2 == py) ||
+					 (fragments[pyp2].first  != fragments[py].first) ||
+					 (fragments[pyp2].second != fragments[py].second))
+				)
+*/
+			)
+			{
+				// this is a single-span or 2-span block
+
+				// check possibility of merging with upper neighbour
+				bool mu = 
+					(py != pym1) &&
+					(fragments[py].first  >= fragments[pym1].first) &&
+					(fragments[py].second <= fragments[pym1].second);
+
+				// check possibility of merging with lower neighbour
+				bool ml = 
+					(py != pyp1) &&
+					(fragments[py].first  >= fragments[pyp1].first) &&
+					(fragments[py].second <= fragments[pyp1].second);
+
+				// find merge error with each neighbour
+				int erru = mu ? ((fragments[py].first - fragments[pym1].first) + (fragments[pym1].second - fragments[py].second)) : 0x7fffffff;
+				int errl = ml ? ((fragments[py].first - fragments[pyp1].first) + (fragments[pyp1].second - fragments[py].second)) : 0x7fffffff;
+
+				// ignore pre-merged cases
+				if (erru == 0) erru = 0x7fffffff;
+				if (errl == 0) errl = 0x7fffffff;
+
+				// find merge error with lower neighbour
+				if (erru < errl)
+				{
+					if (erru < 0x7fffffff)
+					{
+						ubyte_t col = _psource8[((py + _y) * g_spritesource_w) + (fragments[py].first + _x)];
+
+						int px = fragments[pym1].first;
+						for (; px < fragments[pym1].second; px++)
+						{
+							_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = col;
+						}
+						changed = true;
+						break;
+					}
+				}
+				else
+				{
+					if (errl < 0x7fffffff)
+					{
+						ubyte_t col = _psource8[((py + _y) * g_spritesource_w) + (fragments[py].first + _x)];
+
+						int px = fragments[pyp1].first;
+						for (; px < fragments[pyp1].second; px++)
+						{
+							_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = col;
+						}
+						changed = true;
+						break;
+					}
+				}
+			}
+
+		} // py loop
+	}
+
+	// now process the quantised frame normally
+	add_slab_frame(_psource8, _x, _y);
+}
+
 bool emit_slab_sequence()
 {
 	int s = 0;
@@ -3969,7 +4295,11 @@ bool emit_slab_sequence()
 		outfile = g_allargs.sourcefile;
 	}
 
-	replace_extension(outfile, "sls");
+	if (g_allargs.cutmode == Cutmode_SLABS)
+		replace_extension(outfile, "sls");
+	else
+	if (g_allargs.cutmode == Cutmode_SLABRESTORE)
+		replace_extension(outfile, "slr");
 
 	FILE *hout = fopen(outfile.c_str(), "wb");
 	if (hout)
@@ -4338,6 +4668,9 @@ bool do_sheet()
 	else
 	if (g_allargs.cutmode == Cutmode_SLABS)
 		std::cout << "slab-sheet cutting mode..." << std::endl;
+	else
+	if (g_allargs.cutmode == Cutmode_SLABRESTORE)
+		std::cout << "slab-sheet region restore mode..." << std::endl;
 
 	{
 		if (image_load(g_allargs.sourcefile.c_str(), m_psourcergb, m_psourcecol, m_ppalettergb, sourcew, sourceh, sourced))
@@ -4391,7 +4724,7 @@ bool do_sheet()
 					g_allargs.cutmode == Cutmode_EMXSPR)
 					init_sprite_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
 				else
-				if (g_allargs.cutmode == Cutmode_SLABS)
+				if (g_allargs.cutmode == Cutmode_SLABS || g_allargs.cutmode == Cutmode_SLABRESTORE)
 					init_slab_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
 
 				int cutting_source_x = g_allargs.cut_xpos;
@@ -4451,7 +4784,15 @@ bool do_sheet()
 					if (g_allargs.cutmode == Cutmode_SLABS)
 					{
 						std::cout << "cutting slab frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
+						memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
 						add_slab_frame(m_psourcecol, cx, cy);
+					}
+					else
+					if (g_allargs.cutmode == Cutmode_SLABRESTORE)
+					{
+						std::cout << "cutting slabrestore frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
+						memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+						add_slabrestore_frame(m_psourcecol, cx, cy);
 					}
 
 					// store mappings for each frame, so future frames can refer to these
@@ -4492,6 +4833,9 @@ bool do_sheet()
 			case Cutmode_SLABS:
 				emit_slab_sequence();
 				break;
+			case Cutmode_SLABRESTORE:
+				emit_slab_sequence();
+				break;
 			}
 		}
 	}
@@ -4521,11 +4865,14 @@ int main(int argc, char* argv[])
 	if (g_allargs.cutmode == Cutmode_TILES)
 		do_tiles();
 	else
-	if (g_allargs.cutmode == Cutmode_SPRITES || 
+	if (g_allargs.cutmode == Cutmode_SPRITES ||
 		g_allargs.cutmode == Cutmode_EMSPR ||
 		g_allargs.cutmode == Cutmode_EMXSPR ||
-		g_allargs.cutmode == Cutmode_SLABS)
+		g_allargs.cutmode == Cutmode_SLABS ||
+		g_allargs.cutmode == Cutmode_SLABRESTORE)
+	{
 		do_sheet();
+	}
 	else
 	{
 		// error
