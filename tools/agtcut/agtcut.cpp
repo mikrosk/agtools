@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.29";
+static const char* const g_version_string = "v0.30";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -1590,8 +1590,10 @@ static inline void extract_tile8(ubyte_t *_pdsttile, ubyte_t *_psrctile, ulong_t
 	int tilesize = g_allargs.tilesize;
 	for (int py = 0; py < tilesize; py++)
 	{
+//		printf("\n");
 		for (int px = 0; px < tilesize; px++)
 		{
+//			printf("%02x ", _psrctile[(py * _sourcew) + px]);
 			_pdsttile[(py * tilesize) + px] = _psrctile[(py * _sourcew) + px];
 		}
 	}
@@ -1603,8 +1605,10 @@ static inline void extract_tile24(RGB *_pdsttile, RGB *_psrctile, ulong_t _sourc
 	int tilesize = g_allargs.tilesize;
 	for (int py = 0; py < tilesize; py++)
 	{
+//		printf("\n");
 		for (int px = 0; px < tilesize; px++)
 		{
+//			printf("%02x ", _psrctile[(py * _sourcew) + px].green);
 			_pdsttile[(py * tilesize) + px] = _psrctile[(py * _sourcew) + px];
 		}
 	}
@@ -1768,7 +1772,16 @@ static void remap_dictionary_tiles()
 	for (; it8 != s_tile8dictionary.end(); it8++)
 	{
 		ubyte_t *ptile8 = *it8;
-
+/*
+		for (int y = 0; y < 16; y++)
+		{
+			printf("\n");
+			for (int x = 0; x < 16; x++)
+			{
+				printf("%02x ", ptile8[(y*16)+x]);
+			}
+		}
+*/
 		uword_t *ptileplanar = new uword_t[16*8];
 
 		// convert chunk 8-bit tiles into 8-planar format

@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.29 : dml : 03/10/2016
+v0.30 : dml : 07/10/2016
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,14 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.30	07/10/2016
+---------------------------------------
+* fix bug in loader for pre-palettized .bmp files which caused tiles to be cut
+  from upside-down version of indexed colourmap, where 24bit previews looked
+  correct (colourmap not being flipped along with rgb image on load).
+* implemented SLABRESTORE cutting mode which cuts an optimized/simplified
+  version of SLABS using the same format, but intended for fast clearing.
 
 v0.29	03/10/2016
 ---------------------------------------

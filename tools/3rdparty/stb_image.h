@@ -1009,6 +1009,16 @@ static unsigned char *stbi__load_flip(stbi__context *s, int *x, int *y, int *com
             }
          }
       }
+
+	if (g_stbi_colourmap)
+		for (row = 0; row < (h>>1); row++) {
+			for (col = 0; col < w; col++) {
+				temp = g_stbi_colourmap[(row * w + col)];
+				g_stbi_colourmap[(row * w + col)] = g_stbi_colourmap[((h - row - 1) * w + col)];
+				g_stbi_colourmap[((h - row - 1) * w + col)] = temp;
+			}
+		}
+
    }
 
    return result;
@@ -4993,6 +5003,16 @@ g_stbi_colourmap[cmz++] = v;
             t = p1[i], p1[i] = p2[i], p2[i] = t;
          }
       }
+
+      for (j=0; j < (int) s->img_y>>1; ++j) 
+	  {
+         stbi_uc *p1 = g_stbi_colourmap +      j     *s->img_x;
+         stbi_uc *p2 = g_stbi_colourmap + (s->img_y-1-j)*s->img_x;
+         for (i=0; i < (int) s->img_x; ++i) {
+            t = p1[i], p1[i] = p2[i], p2[i] = t;
+         }
+      }
+
    }
 
    if (req_comp && req_comp != target) {
