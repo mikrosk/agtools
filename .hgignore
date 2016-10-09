@@ -1,0 +1,46 @@
+# use glob syntax.
+syntax: glob
+
+*.obj
+*.lib
+*.suo
+*.ncb
+*.user
+*.db
+
+*.o
+*.a
+*.sym
+*.stackdump
+*.zip
+*.rar
+
+*.ttp
+*.tos
+*.cld
+*.lst
+*.o.lst
+*.bak
+*.bkp
+*.orig
+*.p56
+*.dblod
+*.dsym
+*.map
+*.tmp
+
+*.gif
+*.pcx
+*.pi1
+*.PI1
+
+Debug
+debug
+Release
+release
+backup/
+
+
+syntax: regexp
+
+(^|/)\.hgtags($|/)
