@@ -1,0 +1,133 @@
+# create a superpalette from all art assets (only needs done once, or after significant art changes)
+#
+# generate STE palette
+# use cc mode #3 (batched superpalette)
+# use 6 solver rounds on 6 threads (takes several minutes - can get a fast preview with 1,1)
+# reduce colour satuation to 0.8
+# cap input colours to 4096 to save time (only about 300 used anyway)
+# ignore any magenta present (FF:00:FF) in spritesheet sources
+# set colour population control to log(population), so over-used colours don't steal disproportionat significance
+# set accuracy-population-curve and differential-population-curve low, so dominant colours don't get exaggerated importance or exaggerated dither suppression
+# set differential-chroma-significance high, to avoid dithering with strongly opposing colours
+# specify all source images
+
+#../../bin/pcs -cd ste -ccmode 3 -ccrounds 6 -ccthreads 6 -ccsat 0.9 -ccincap 8192 -ccl 0=0:0:0 -ccl 15=f:f:f -ccignore ff:00:ff -ccpopctrl log -ccapc 0.5 -ccdpc 0.3 -ccdcs 0.06 -v map.png player.png sprites.png
+#../../bin/pcs -cd ste -ccmode 3 -ccrounds 6 -ccthreads 4 -ccsat 0.75 -ccincap 8192 -ccignore ff:00:ff -ccpopctrl log -ccapc 0.5 -ccdpc 0.3 -ccdcs 0.06 -v g3_testbg.png player.png sprites.png
+
+
+# cut background map & tiles
+#
+# [tiles] mode
+# specify 2-field rendering (complementary dithered fields)
+# specify 4 bitplane tiles
+# specify direct output (.cct/.ccm) for playfield engine
+# specify source image (level map .png)
+# specify output file
+# specify palette source (chunky8.ccs from PCS)
+
+../../bin/agtcut -cm tiles -t 0.75 -ccf 2 -bp 4 -om direct -s map.png -o demo1.cct -p chunky8.ccs
+#../../bin/agtcut -cm tiles -ccf 2 -bp 4 -om direct -s g3_testbg.png -o demo1.cct -p chunky8.ccs
+
+
+# cut vicviper sprite animation
+#
+# [sprite] mode
+# enable colour index/mask preview
+# select unused key colour index (99) and key transparency off magenta (ff:00:ff)
+# enable key colour guard, set tolerance low
+# generate mask for STE blitter (plane-interleaved)
+# specify source, output files
+# specify palette source (chunky8.ccs from PCS)
+# specify cutting coordinates & frame count
+
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s player.png -o vicviper.spe -p chunky8.ccs -sxp 46 -syp 2 -sxs 23 -sys 16 -syi 18 -sc 9
+
+
+# cut options sprite animation
+#
+# [sprite] mode
+# enable colour index/mask preview
+# select unused key colour index (99) and key transparency off magenta (ff:00:ff)
+# enable key colour guard, set tolerance low
+# generate mask for STE blitter (plane-interleaved)
+# specify source, output files
+# specify palette source (chunky8.ccs from PCS)
+# specify cutting coordinates & frame count
+
+# option (multiple)
+../../bin/agtcut -v -cm emxspr -prv -ccr low -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o options.spe -p chunky8.ccs -sxp 309 -syp 23 -sxs 16 -sys 12 -sxi 17 -sc 3
+
+# lasers
+../../bin/agtcut -v -cm emxspr -prv -ccr low -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o lasers.spe -p chunky8.ccs -sxp 216 -syp 19 -sxs 32 -sys 1 -sxi 0 -sc 1
+../../bin/agtcut -v -cm emxspr -prv -ccr low -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o dlasers.spe -p chunky8.ccs -sxp 216 -syp 23 -sxs 32 -sys 3 -sxi 0 -sc 1
+../../bin/agtcut -v -cm emxspr -prv -ccr high -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o plasers.spe -p chunky8.ccs -sxp 216 -syp 27 -sxs 14 -sys 5 -sxi 0 -sc 1
+
+# flame (really, volcano lavabomb)
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o flames.spe -p chunky8.ccs -sxp 220 -syp 124 -sxs 16 -sys 16 -sxi 16 -sc 3
+
+# powerup drone
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o powerup.spe -p chunky8.ccs -sxp 156 -syp 44 -sxs 16 -sys 14 -sxi 19 -sc 8
+
+# bullet #1
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o bullet.spe -p chunky8.ccs -sxp 172 -syp 28 -sxs 9 -sys 2 -sxi 12 -sc 2
+
+# bullet #2
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o bulletd.spe -p chunky8.ccs -sxp 196 -syp 26 -sxs 7 -sys 7 -sxi 10 -sc 2
+
+# missile
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o missile.spe -p chunky8.ccs -sxp 311 -syp 45 -sxs 12 -sys 12 -sxi 13 -sc 5
+
+
+# pink splat
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o sparks.spe -p chunky8.ccs -sxp 228 -syp 451 -sxs 16 -sys 16 -sxi 19 -sc 5
+
+
+# nme: amoeba
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o amoeba.spe -p chunky8.ccs -sxp 5 -syp 124 -sxs 17 -sys 16 -sxi 18 -sc 12
+
+# nme: spinny (z-rotating)
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o spinny.spe -p chunky8.ccs -sxp 7 -syp 83 -sxs 16 -sys 16 -sxi 17 -sc 4 -sm 3:1:xy
+
+# nme: square (y-rotating)
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o square.spe -p chunky8.ccs -sxp 89 -syp 65 -sxs 12 -sys 12 -sxi 14 -sc 6 -sm 4:2:x -sm 5:1:x
+
+# nme: drone (x-rotating)
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o drone.spe -p chunky8.ccs -sxp 108 -syp 83 -sxs 18 -sys 16 -sxi 19 -sc 5
+
+# nme: cylon-ish fighter (x-rotating)
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o cylon.spe -p chunky8.ccs -sxp 205 -syp 83 -sxs 16 -sys 16 -sxi 19 -sc 8 -sm 5:3:y -sm 6:2:y -sm 7:1:y
+
+# nme: bee-ish fighter (x-rotating)
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o bee.spe -p chunky8.ccs -sxp 300 -syp 83 -sxs 16 -sys 16 -sxi 19 -sc 7 -sm 5:2:y -sm 6:1:y
+
+# nme: fly (seeking)
+# the spritesheet provides 1 rotation quadrant of 4 needed, so we map the rest as x/y flips
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o fly.spe -p chunky8.ccs -sxp 6 -syp 105 -sxs 17 -sys 16 -sxi 19 -sc 16 -sm 5:3:x -sm 6:2:x -sm 7:1:x -sm 8:0:x -sm 9:1:xy -sm 10:2:xy -sm 11:3:xy -sm 12:4:xy -sm 13:3:y -sm 14:2:y -sm 15:1:y
+
+# nme: fly2 (seeking)
+# the spritesheet provides 1 rotation quadrant of 4 needed, so we map the rest as x/y flips
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o fly2.spe -p chunky8.ccs -sxp 193 -syp 104 -sxs 16 -sys 16 -sxi 16 -sc 16 -sm 5:3:x -sm 6:2:x -sm 7:1:x -sm 8:0:x -sm 9:1:xy -sm 10:2:xy -sm 11:3:xy -sm 12:4:xy -sm 13:3:y -sm 14:2:y -sm 15:1:y
+
+# nme: tie (x-rotating)
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o tie.spe -p chunky8.ccs -sxp 101 -syp 104 -sxs 16 -sys 16 -sxi 19 -sc 8 -sm 5:3:y -sm 6:2:y -sm 7:1:y
+
+# nme: quad
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o quad.spe -p chunky8.ccs -sxp 279 -syp 104 -sxs 16 -sys 16 -sxi 17 -sc 5
+
+# nme: pellets
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o pellets.spe -p chunky8.ccs -sxp 345 -syp 275 -sxs 4 -sys 5 -sxi 57 -sc 2
+
+# nme: diamonds
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o diamonds.spe -p chunky8.ccs -sxp 312 -syp 202 -sxs 6 -sys 6 -sxi 9 -sc 2
+
+# nme: blobs
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o blobs.spe -p chunky8.ccs -sxp 323 -syp 273 -sxs 8 -sys 8 -sxi 11 -sc 2
+
+# nme: jelly
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o jelly.spe -p chunky8.ccs -sxp 283 -syp 254 -sxs 32 -sys 30 -sc 1
+
+# nme: beam
+../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o beam.spe -p chunky8.ccs -sxp 361 -syp 162 -sxs 30 -sys 4 -sc 1
+
+# nme: walker
+../../bin/agtcut -v -cm emxspr -ccr high -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o walker.spe -p chunky8.ccs -sxp 8 -syp 196 -sxs 21 -sys 15 -sxi 23 -sc 4
