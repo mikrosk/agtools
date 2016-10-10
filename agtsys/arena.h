@@ -1,0 +1,388 @@
+//======================================================================================================================
+//	[A]tari [G]ame [T]ools / dml 2016
+//======================================================================================================================
+// 	world arena: creates world instance from multiple playfield buffers each with separate state
+//----------------------------------------------------------------------------------------------------------------------
+
+#ifndef arena_h_
+#define arena_h_
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+extern "C" s16 g_linebytes;
+extern "C" s16 g_xpreshift;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// sprite clipping window (world coordinates)
+// todo: this is now part of drawcontext struct and will soon be deprecated
+
+extern "C" s16 g_spr_window_x1;
+extern "C" s16 g_spr_window_y1;
+extern "C" s16 g_spr_window_x2;
+extern "C" s16 g_spr_window_y2;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// arena
+
+template<s16 _num_buffers, bool _singleframe, class _playfield_type>
+class arena_template
+{
+public:
+
+	static const int c_num_buffers_ = _num_buffers;
+	static const bool c_singleframe = _singleframe;
+		
+	s16 display_width_;
+	s16 display_height_;
+
+	typedef _playfield_type playfield_type;
+
+	// context holds memory resources shared between related playfields
+	typename playfield_type::mapcontext mapctx0_;
+	typename playfield_type::mapcontext mapctx1_;
+	typename playfield_type::fieldcontext pfctx_;
+	
+	class buffer
+	{
+	public:
+		
+		playfield_type fields[c_max_shiftfields];	
+	};
+		
+	buffer buffers_[c_num_buffers_];
+
+	s16 buffer_index_;
+	s16 field_index_;
+	s16 dualfield_;
+	buffer *pactive_;
+	s16 xpos_;
+	s16 ypos_;
+
+	shifter_common& shift_;
+	
+	arena_template(shifter_common& _shift, s16 _display_width, s16 _display_height, int _dualfield)
+		: shift_(_shift),
+		  display_width_(_display_width),
+		  display_height_(_display_height),
+		  buffer_index_(0), field_index_(0),
+		  xpos_(0), ypos_(0),
+		  pactive_(0),
+		  dualfield_(_dualfield)
+	{
+		// make sure all playfields share common context
+		for (s16 b = 0; b < c_num_buffers_; b++)
+		{
+			if (c_singleframe)
+			{
+				// only one field, but still using two buffers to interlace display
+				if (b & 1)
+				{
+					buffers_[b].fields[0].setcontext(&mapctx1_, &pfctx_);
+					buffers_[b].fields[1].setcontext(&mapctx1_, &pfctx_);
+				}
+				else
+				{
+					buffers_[b].fields[0].setcontext(&mapctx0_, &pfctx_);
+					buffers_[b].fields[1].setcontext(&mapctx0_, &pfctx_);
+				}
+			}
+			else
+			{
+				// separate context for each field
+				buffers_[b].fields[0].setcontext(&mapctx0_, &pfctx_);
+				buffers_[b].fields[1].setcontext(&mapctx1_, &pfctx_);
+			}
+		}
+	}
+	
+	~arena_template()
+	{
+		dprintf("destroy arena\n");
+	}
+
+	inline void snapview(drawcontext_t& r_ctx, s16 _vpw, s16 _vph)
+	{
+		buffer& b = *pactive_;
+		playfield_type& pf = b.fields[0];
+
+		// generate loopback snapping adjustments
+		if (pf.c_hloop)
+			r_ctx.pfsnapadjx = pf.xpos_ - tmod16(pf.xpos_, pf.wrap_width_>>0);
+		else
+			r_ctx.pfsnapadjx = 0;
+
+		if (pf.c_vloop)
+			r_ctx.pfsnapadjy = pf.ypos_ - tmod16(pf.ypos_, pf.wrap_height_>>0);
+		else
+			r_ctx.pfsnapadjy = 0;
+
+		// produce workbuffer page coordinates which follow any hops performed by the playfield engine
+		drawcontext.vpagex = xpos_ - drawcontext.pfsnapadjx;
+		drawcontext.vpagey = ypos_ - drawcontext.pfsnapadjy;
+
+		// generate clipping window
+		drawcontext.clip_window_x1 = drawcontext.vpagex & -16;
+		drawcontext.clip_window_y1 = drawcontext.vpagey;
+		drawcontext.clip_window_x2 = drawcontext.clip_window_x1 + _vpw + 16;
+		drawcontext.clip_window_y2 = drawcontext.clip_window_y1 + _vph;
+
+		// todo: remove
+		g_spr_window_x1 = drawcontext.clip_window_x1;
+		g_spr_window_y1 = drawcontext.clip_window_y1;
+		g_spr_window_x2 = drawcontext.clip_window_x2;
+		g_spr_window_y2 = drawcontext.clip_window_y2;
+	}
+
+	// retrieve digest of draw context fields for low level graphics functions
+	inline void get_context(drawcontext_t& r_ctx, s16 _field, s16 _vpw, s16 _vph)
+	{
+		const playfield_type &pf = buffers_[buffer_index_].fields[_field];
+
+		r_ctx.p_pfframebuffer = pf.framebuffer_;
+		r_ctx.p_pflinemod = pf.pfieldcontext_->linemod_;
+		r_ctx.p_pflineidx = pf.pfieldcontext_->lineindex_;
+
+		r_ctx.pfvpagebytes = pf.virtual_pagebytes_;
+		r_ctx.pfvpageh = pf.wrap_height_;
+
+		snapview(drawcontext, _vpw, _vph);
+	}
+
+	void select_buffer(s16 _index, s16 _field)
+	{
+		buffer_index_ = _index;
+		field_index_ = _field;
+		pactive_ = &buffers_[buffer_index_];
+		playfield_type& pf0 = pactive_->fields[0];
+
+		// publish metrics for writing to this backbuffer
+		g_linebytes = pf0.virtual_linewords_ << 1;
+		g_xpreshift = pf0.xpreshift_;
+	}
+	
+	void activate_buffer()
+	{
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+		b.fields[0].select(shift_);
+		if (dualfield_)
+			b.fields[1].select(shift_);
+		shift_.advance();
+	}
+
+	void modview(s16 &r_x, s16 &r_y)
+	{
+		buffer& b = *pactive_;
+		playfield_type& pf = b.fields[0];
+
+		if (pf.c_hloop)
+			r_x = tmod16(pf.xpos_, pf.wrap_width_>>0);
+		if (pf.c_vloop)
+			r_y = tmod16(pf.ypos_, pf.wrap_height_>>0);
+	}
+
+	void setpos(s16 _x, s16 _y)
+	{
+		// track current scroll position
+		xpos_ = _x;
+		ypos_ = _y;
+
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+		b.fields[0].setpos(_x, _y);		
+		if (dualfield_)
+			b.fields[1].setpos(_x, _y);		
+	}
+		
+	void setmap(s32* _map0, s32* _map1)
+	{
+		mapctx0_.setmap(_map0);
+		mapctx1_.setmap(_map1);
+		//buffer& b = buffers_[buffer_index_];
+		//b.fields[0].setmap(_map0);
+		//if (dualfield_)
+		//	b.fields[1].setmap(_map1);
+	}
+	
+	void setmap(worldmap* _map0, worldmap* _map1)
+	{
+		mapctx0_.setmap(_map0);
+		mapctx1_.setmap(_map1);
+		//buffer& b = buffers_[buffer_index_];
+		//b.fields[0].setmap(_map0);
+		//if (dualfield_)
+		//	b.fields[1].setmap(_map1);
+	}
+
+	void settiles(tileset* _tiles0, tileset* _tiles1)
+	{
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+		b.fields[0].settiles(_tiles0);
+		if (dualfield_)
+			b.fields[1].settiles(_tiles1);
+	}	
+
+	void setpreshift(s16 _xps)
+	{
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+		b.fields[0].setpreshift(_xps);
+		if (dualfield_)
+			b.fields[1].setpreshift(_xps);
+	}
+	
+	void fill_abs(bool _force)
+	{
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+
+		if (dualfield_)
+		{
+			if (c_singleframe && !_force)
+			{
+				b.fields[field_index_].fill_abs();
+			}
+			else
+			{
+				b.fields[0].fill_abs();
+				b.fields[1].fill_abs();
+			}
+		}
+		else
+		{
+			b.fields[0].fill_abs();
+		}
+	}	
+
+	void fill(bool _force)
+	{
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+	
+		if (dualfield_)
+		{
+			if (c_singleframe && !_force)
+			{
+				b.fields[field_index_].fill();
+			}
+			else
+			{
+				b.fields[0].fill();
+				b.fields[1].fill();
+			}
+		}
+		else
+		{
+			b.fields[0].fill();
+		}		
+		//b.fields[0].fill();
+		//if (dualfield_)
+		//	b.fields[1].fill();
+	}
+	
+	void speculative_fill(bool _force)
+	{
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+
+		if (dualfield_)
+		{
+			if (c_singleframe && !_force)
+			{
+				b.fields[field_index_].speculative_fill();
+			}
+			else
+			{
+				b.fields[0].speculative_fill();
+				b.fields[1].speculative_fill();
+			}
+		}
+		else
+		{
+			b.fields[0].speculative_fill();
+		}
+//		b.fields[0].speculative_fill();
+//		if (dualfield_)
+//			b.fields[1].speculative_fill();
+	}	
+
+	void hybrid_fill(bool _force)
+	{
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+
+		if (dualfield_)
+		{
+			if (c_singleframe && !_force)
+			{
+				b.fields[field_index_].hybrid_fill();
+			}
+			else
+			{
+				b.fields[0].hybrid_fill();
+				b.fields[1].hybrid_fill();
+			}
+		}
+		else
+		{
+			b.fields[0].hybrid_fill();
+		}
+		//b.fields[0].hybrid_fill();
+		//if (dualfield_)
+		//	b.fields[1].hybrid_fill();
+	}	
+
+	void hybrid_fill_bufferspec()
+	{
+		buffer& b = *pactive_; //buffers_[buffer_index_];
+		s16 x = b.fields[0].xpos_;
+		s16 y = b.fields[0].ypos_;
+
+		s16 i = buffer_index_;
+
+		for (s16 s = 0; s < c_num_buffers_; s++)
+		{
+			buffer& sb = buffers_[i++];
+			i &= (c_num_buffers_-1);
+
+			sb.fields[0].setpos(x++,y);
+			sb.fields[0].setslice(s);
+			sb.fields[0].hybrid_fill();
+		}
+	}	
+
+	void init(s16 x, s16 y)
+	{
+		for (s16 b = 0; b < c_num_buffers_; ++b)
+		{
+			buffer& rb = buffers_[b];
+
+//			if (dualfield_)
+//			{
+//				//if (c_singleframe)
+//				//{
+//				//	rb.fields[0].init(b, 0, display_width_, display_height_, x, y);
+//				//	rb.fields[1].init(b, 1, display_width_, display_height_, x, y);
+//				//}
+//				//else
+//				{
+////					b.fields[0].speculative_fill();
+////					b.fields[1].speculative_fill();
+//					rb.fields[0].init(b, 0, display_width_, display_height_, x, y);
+//					rb.fields[1].init(b, 1, display_width_, display_height_, x, y);
+//				}
+//			}
+//			else
+//			{
+//				rb.fields[0].init(b, 0, display_width_, display_height_, x, y);
+//			}
+
+			rb.fields[0].init(b, 0, display_width_, display_height_, x, y);
+			if (dualfield_)
+				rb.fields[1].init(b, 1, display_width_, display_height_, x, y);
+		}
+		
+		select_buffer(buffer_index_, 0);
+		setpos(x,y);
+		//activate_buffer();	
+	}
+
+		
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+#endif // arena_h_

@@ -1,0 +1,66 @@
+Name:        IncBin
+Version:     2.1
+Category:    Programmers utility
+Price:       Free
+Disclaimer:  Use it any way you want
+Author:      wAxEn
+Contact:     waxen@mail.lt
+
+Description: One day I realized that I definitely need some program to
+             include binary data files into my project and started
+             searching the web for such utility. But the results
+             didn't satisfy me. The programs I've found were either
+             useless because of lack of features or they simply didn't
+             run on my machine giving "runtime error 200". So I
+             decided to write such a program by myself and I think the
+             result is not bad at all :).
+             IncBin currently supports only c/c++ data format. You can
+             set the output format (hex or decimal), data variable
+             name, output number size in bytes (i.e. byte, word,
+             dword, qword) and of course the column count.
+             IncBin isn't very fast yet as it is absolutely not
+             optimized but seems to work well. Any bug reports or
+             comments are always welcome.
+
+Usage:       incbin infile outfile [-n=<name> -s=<size> -c=<columns> -h -d -v -?]
+
+             infile - input file name
+	     outfile - output file name
+	     -n=<name> - name of the variable (default: "data")
+	     -s=<size> - size in bytes of one element (default: 1)
+	     -c=<columns> - number of columns (default: 8)
+	     -h - data in hexadecimal form
+	     -d - includes commented out declarations for data
+	     -v - be verbose
+	     -? - this help
+	     Parameters can be in any order, only infile and outfile
+	     must follow one other as shown.
+
+Output:      The binary file itself will be stored in unsigned format.
+             (The only exception is 64 bit storage because there is
+	     no unsigned 64 bit number in C++ at the moment)
+             IncBin will define three variables:
+	     <name> - the data itself.
+             <name>_elements - this indicates the number of
+	     elements in the data array and is affected by the 4th
+	     parameter.
+             <name>_in_bytes - this constant describes the
+             actual size of data in bytes no matter what and is
+             declared even if you passed "1" as width parameter.
+
+WARNING:     If you specify width parameter >1 and the binary file is 
+             not aligned to that width, it will be truncated to fit
+             the requested boundary so be careful when using >1 data 
+             unit size or you can loose a bit of your data!
+
+Examples:    incbin -n=data binary.dat -s=3 -c=4 my_h.h -h -d
+             incbin sound.wav a.inl -n=snd_data -v
+
+History:     2.1 - Corrected a couple of bugs.
+             2.0 - Added a sophisticated command line argument parser, 
+                   added progress indicator, tweaked this and that...
+		   Now IncBin's more like a usable program :)
+             1.1 - Rewrited most of IncBin, speeded up a lot. Changed
+                   output formatting and variable names a bit to make
+		   them more readable and portable.
+             1.0 - Initial release.

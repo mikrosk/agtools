@@ -1,0 +1,156 @@
+//======================================================================================================================
+// 	[A]tari [G]ame [T]ools / dml 2016
+//======================================================================================================================
+//	Keyboard/Joystick/Mouse/Joypad interfacing
+//----------------------------------------------------------------------------------------------------------------------
+
+#ifndef input_h_
+#define input_h_
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Atari IKBD scancodes
+
+enum ScanCode
+{
+	ScanCode_ESC = 0x01,
+	//
+	ScanCode_1 = 0x02,
+	ScanCode_2,
+	ScanCode_3,
+	ScanCode_4,
+	ScanCode_5,
+	ScanCode_6,
+	ScanCode_7,
+	ScanCode_8,
+	ScanCode_9,
+	ScanCode_0,
+	//
+	ScanCode_MINUS = 0x0c,
+	ScanCode_EQU = 0x0d,
+	ScanCode_BS = 0x0e,
+	ScanCode_TAB = 0x0f,
+	//
+	ScanCode_Q = 0x10,
+	ScanCode_W,
+	ScanCode_E,
+	ScanCode_R,
+	ScanCode_T,
+	ScanCode_Y,
+	ScanCode_U,
+	ScanCode_I,
+	ScanCode_O,
+	ScanCode_P,
+	//
+	ScanCode_SBOPEN = 0x1a,
+	ScanCode_SBCLOSE = 0x1b,
+	ScanCode_RETURN = 0x1c,
+	ScanCode_CTRL = 0x1d,
+	//
+	ScanCode_A = 0x1e,
+	ScanCode_S,
+	ScanCode_D,
+	ScanCode_F,
+	ScanCode_G,
+	ScanCode_H,
+	ScanCode_J,
+	ScanCode_K,
+	ScanCode_L,
+	//
+	ScanCode_SEMICOLON = 0x27,
+	ScanCode_AP1 = 0x28,
+	ScanCode_AT = ScanCode_AP1,
+	ScanCode_AP2 = 0x29,
+	ScanCode_LSHIFT = 0x2a,
+	ScanCode_HASH = 0x2b,
+	//
+	ScanCode_Z = 0x2c,
+	ScanCode_X,
+	ScanCode_C,
+	ScanCode_V,
+	ScanCode_B,
+	ScanCode_N,
+	ScanCode_M,
+	//
+	ScanCode_COMMA = 0x33,
+	ScanCode_DOT = 0x34,
+	ScanCode_FSLASH = 0x35,
+	ScanCode_RSHIFT = 0x36,
+	// 37?
+	ScanCode_ALT = 0x38,
+	ScanCode_SPACE = 0x39,
+	ScanCode_CAPS = 0x3a,
+	//
+	ScanCode_F1 = 0x3b,
+	ScanCode_F2,
+	ScanCode_F3,
+	ScanCode_F4,
+	ScanCode_F5,
+	ScanCode_F6,
+	ScanCode_F7,
+	ScanCode_F8,
+	ScanCode_F9,
+	ScanCode_F10,
+	// 45-46?
+	ScanCode_CLRHOME = 0x47,
+	ScanCode_UP = 0x48,
+	// 49?
+	ScanCode_KP_MINUS = 0x4a,
+	ScanCode_LEFT = 0x4b,
+	// 4c?
+	ScanCode_RIGHT = 0x4d,
+	ScanCode_KP_PLUS = 0x4e,
+	// 4f?
+	ScanCode_DOWN = 0x50,
+	// 51?
+	ScanCode_INS = 0x52,
+	ScanCode_DEL = 0x53,
+	// 54-5f?
+	ScanCode_BSLASH = 0x60,
+	ScanCode_UNDO = 0x61,
+	ScanCode_HELP = 0x62,
+	ScanCode_KP_BROPEN = 0x63,
+	ScanCode_KP_BRCLOSE = 0x64,
+	ScanCode_KP_FSLASH = 0x65,
+	ScanCode_KP_STAR = 0x66,
+	//
+	ScanCode_KP_7 = 0x67,
+	ScanCode_KP_8,
+	ScanCode_KP_9,
+	ScanCode_KP_4,
+	ScanCode_KP_5,
+	ScanCode_KP_6,
+	ScanCode_KP_1,
+	ScanCode_KP_2,
+	ScanCode_KP_3,
+	ScanCode_KP_0,
+	//
+	ScanCode_KP_DOT = 0x71,
+	ScanCode_KP_ENTER = 0x72,
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// table for translating scancodes into ASCII and special key enums
+extern u8 scantokey[128];
+// buffer holding instantaneous down/up state of every key (0 or nonzero)
+extern "C" u8 key_states[256];
+// ringbuffer of key events
+extern "C" u8 key_eventring[256];
+// write position of eventring (written by IKBD interupt)
+extern "C" volatile s16 key_eventhead;
+// read position of eventring (read by game input services)
+extern "C" volatile s16 key_eventtail;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// install keyboard & joystick services
+
+extern "C" int AGT_InstallInputService();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// remove keyboard & joystick services (note: keyboard & mouse will then be off! shutdown will restore things on exit)
+
+extern "C" int AGT_RemoveInputService();
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+#endif // input_h_

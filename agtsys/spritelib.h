@@ -1,0 +1,142 @@
+//======================================================================================================================
+// 	[A]tari [G]ame [T]ools / dml 2016
+//======================================================================================================================
+//	SPRITE drawing interfaces
+//----------------------------------------------------------------------------------------------------------------------
+//	Realtime-shifted 4bpl sprites:
+//	- Optional auto-clearing mechanism
+//	- Includes FISR/NFSR read optimizations
+//	- Compatible with sprite files from AGTCut tool
+// ---------------------------------------------------------------------------------------------------------------------
+
+#ifndef spritelib_h_
+#define spritelib_h_
+
+// =====================================================================================================================
+// 	access to sprite library
+// =====================================================================================================================
+//
+//  - 'fixed-shift' just means there are dedicated pieces of code for each shift offset
+//	  so all shift positions are available but optimizations consume a lot of ram.
+//  - 'variable-shift' means there is one pieces of code for all shift offsets
+//	  which is slightly slower but requires very little code.
+
+// ---------------------------------------------------------------------------------------------------------------------
+// precisely clipped, software-scrolled, variable-shift, masking, 4-bitplane sprite function
+// notes: 
+//  - full clipping, providing sprite does not cross L+R or T+B edges together
+//  - FISR (force initial source read) implemented for precise left-edge clipping
+//	- safest most general path, but slower than the others
+
+extern "C" int STFM_ISSprDrawClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+
+extern "C" int AGT_BLiT_IMSprDrawClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_EMSprDrawClipped(spritesheet::sps_header *_psps, u16 *_pfb, s32 *_plinetable, int _frame, int _x, int _y);
+//extern "C" int STE_EMXSprDrawClipped(spritesheet::sps_header *_psps, u16 *_pfb, s32 *_plinetable, int _frame, int _x, int _y);
+
+//extern "C" int STE_EMSprClipGeneral2BPL(spritesheet::sps_header *_psps, u16 *_pfb, s32 *_plinetable, int _frame, int _x, int _y);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// unclipped, software-scrolled, variable-shift, masking, 4-bitplane sprite function
+// notes: 
+//  - no clipping at all - be careful!
+//	- preferred path for smaller sprites when ram is tight
+
+extern "C" int STFM_ISSprDrawUnClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+
+extern "C" int AGT_BLiT_IMSprDrawUnClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_EMSprDrawUnClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+//extern "C" int STE_EMXSprDrawUnClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+
+//extern "C" int STE_EMSprNoClipGeneral2BPL(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+
+//extern "C" int STE_SlabNoClipGeneral4BPL(slabsheet::sls_header *_psls, u16 *_pfb, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_SlabDraw(slabsheet::sls_header *_psls, u16 *_pfb, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_SlabSetupOnce();
+
+extern "C" int AGT_BLiT_EMSprDrawString(char* string, spritesheet::sps_header *_psps, u16 *_pfb, s32 *_plinetable, int _x, int _y);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// signal to playfield engine that a rectangle has been drawn/destroyed and needs repainted with BG
+// note: in [PageRestore] mode, this is not order sensitive. repainting is achieved from an offscreen copy
+// however in [SaveRestore] mode, the repainting order takes place in reverse order, and is order sensitive
+// since the current BG state is saved at the moment the signal is sent.
+
+extern "C" int AGT_MarkDirtyRectangle(u16 *_pfb, int _x, int _y, int _xs, int _ys);
+extern "C" int STFM_MarkDirtyRectangle(u16 *_pfb, int _x, int _y, int _xs, int _ys);
+
+extern "C" int AGT_SlabDirtyRegion(slabsheet::sls_header *_psls, u16 *_pfb, int _frame, int _x, int _y);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// clipped, software-scrolled, fixed-shift, masking, 4-bitplane sprite function
+// notes: 
+//	- precise clipping of T,R,B edges, providing sprite does not cross L+R or T+B edges together
+//  - L edge uses safety clipping only - the FISR (force initial source read) case has 
+//	  been removed for speed and to save RAM 
+//	- preferred path for most wide or tall sprites
+extern "C" int STFM_SprClipOpt4BPL(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// unclipped, software-scrolled, fixed-shift, masking, 4-bitplane sprite function
+// notes: 
+//  - no clipping at all - be careful! use as fast path only.
+//	- special path for any sprites which don't approach window edges (e.g. bullets, player fx)
+extern "C" int STFM_SprNoClipOpt4BPL(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// init sprite clearing stacks - called one time only before using sprite system
+
+extern "C" int AGT_PlayfieldRestoreInit();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// reset sprite clearing stacks - called before first frame to be drawn in each new scene/level
+
+extern "C" int AGT_PlayfieldRestoreReset();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// restore sprite footprints using Blitter, with arbitrary display width
+
+extern "C" int AGT_BLiT_PlayfieldRestore();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// restore sprite footprints using CPU only, using fixed display width (STF)
+
+extern "C" int STFM_SprClearCPU();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// initialise Blitter for [I]nterleaved [M]asked [S]prites - moderate performance, low memory overhead
+// notes:
+// - called once before a series of manually drawn IMSPR sprites
+// - automatically handled from EntityDraw system - only needed when drawing objects directly via manual calls
+
+extern "C" int AGT_BLiT_IMSprInit();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// initialise Blitter for [E]nd [M]asked (+E[X]tended)[S]prites - high performance, moderate or high memory overhead
+// notes:
+// - called once before a series of manually drawn EMSPR/EMXSPR sprites
+// - automatically handled from EntityDraw system - only needed when drawing objects directly via manual calls
+
+extern "C" int AGT_BLiT_EMSprInit();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// sprite clipping window (world coordinates)
+
+extern "C" s16 g_spr_window_x1;
+extern "C" s16 g_spr_window_y1;
+extern "C" s16 g_spr_window_x2;
+extern "C" s16 g_spr_window_y2;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// some internal stuff: todo: clean this up
+
+//extern "C" u16 *g_frb;
+//extern "C" s16 *g_pflinemod;
+//extern "C" s32 *g_pflineidx;
+//extern "C" s32 g_pfvpagebytes;
+//extern "C" s16 g_pfvpageh;
+//extern "C" s16 g_pfviewy;
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+#endif // spritelib_h_

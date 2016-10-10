@@ -1,0 +1,767 @@
+*=======================================================*
+*	[A]tari [G]ame [T]ools / dml 2016
+*=======================================================*
+* 	SLAB sprite implementation
+*-------------------------------------------------------*
+*	max source xsize: 256
+*	max source ysize: viewport clipper ysize
+*-------------------------------------------------------*
+
+_use_slab_restore_	set	(use_slab_restore&(use_sprite_saverestore|use_sprite_pagerestore))
+
+
+*-------------------------------------------------------*
+.macro	dospans
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+.start_spanblock\~:	
+*-------------------------------------------------------*
+
+;	a0		*
+;	a1		dst line
+;	a2		spanblock offsets
+;	a3		BLIT:go
+;	a4		linebytes
+;	a5		[clearing]
+;	a6		spanblock index
+;	usp		slab_precalcs
+
+
+;	line skip
+	move.w		(a0)+,d4
+	beq.s		.no_lineskip_init\~
+
+*-------------------------------------------------------*
+*	skip empty lines
+*-------------------------------------------------------*
+
+;	todo: data setup pass
+	mulu.w		_g_linebytes,d4
+	add.l		d4,a1
+	moveq		#0,d4
+	
+*-------------------------------------------------------*
+.no_lineskip_init\~:
+*-------------------------------------------------------*
+
+	move.w		(a0)+,d3
+	move.w		(a0)+,d4
+	add.w		d1,d3
+
+;	skew/nfsr	1
+;	width		1
+;	em1		2
+;	em3		2
+;	dyi		2
+
+*-------------------------------------------------------*
+*	single span or rectangular block of spans?
+*-------------------------------------------------------*
+	tst.w		d6
+	beq		.do_sgl\~
+	bra		.do_block\~
+	
+*-------------------------------------------------------*
+.wt_next_spanblock\~:	
+*-------------------------------------------------------*
+.wt\~:	bset.b		d0,(a3)
+	.if		(use_blitter_nops)
+	nop
+	.endif
+	bne.s		.wt\~
+
+*-------------------------------------------------------*
+.cont_spanblock\~:
+*-------------------------------------------------------*
+
+	move.l		a6,a0				; spanblock index
+	add.w		(a2)+,a0			; next spanblock
+
+*-------------------------------------------------------*
+
+;	a0		*
+;	a1		dst line
+;	a2		spanblock offsets
+;	a3		BLIT:go
+;	a4		linebytes
+;	a5		[clearing]
+;	a6		spanblock index
+;	usp		slab_precalcs
+
+
+;	line skip
+	move.w		(a0)+,d4
+	beq.s		.no_lineskip\~
+
+*-------------------------------------------------------*
+*	skip empty lines
+*-------------------------------------------------------*
+
+;	todo: data setup pass
+	mulu.w		_g_linebytes,d4
+	add.l		d4,a1
+	moveq		#0,d4
+	
+*-------------------------------------------------------*
+.no_lineskip\~:
+*-------------------------------------------------------*
+
+	move.w		(a0)+,d3
+	move.w		(a0)+,d4
+	add.w		d1,d3
+
+;	skew/nfsr	1
+;	width		1
+;	em1		2
+;	em3		2
+;	dyi		2
+
+*-------------------------------------------------------*
+*	single span or rectangular block of spans?
+*-------------------------------------------------------*
+	move.w		ssb_ys-6(a0),d6
+	beq		.do_sgl\~
+*-------------------------------------------------------*
+*	block of related, unique spans
+*-------------------------------------------------------*
+.do_block\~:
+*-------------------------------------------------------*
+
+	.if		(use_slab_restore)
+	.if		(use_sprite_pagerestore)
+	move.l		a5,d2
+	move.w		ssb_y-6(a0),d5
+	add.w		.sp_yoff(sp),d5
+	move.w		d5,(a5)+
+	.endif
+	.endif
+
+*-------------------------------------------------------*
+;	dst addr xoffset	
+	moveq		#-16,d5
+	and.l		d3,d5				; ceil16(x)
+	eor.w		d5,d3				; pixel offset
+	lsr.w		d5	
+	.if		(use_slab_restore)
+	.if		(use_sprite_pagerestore)	
+	move.w		d5,(a5)+
+	.endif
+	.endif
+	add.l		a1,d5
+*-------------------------------------------------------*
+;	lsl.w		#4,d4
+	or.w		d3,d4
+	lsl.w		#3,d4
+	move.l		usp,a0
+	add.l		d4,a0	
+	move.b		(a0)+,BLiTSKEW.w
+	move.b		(a0)+,d3
+	move.w		d3,BLiTXC.w
+	move.w		(a0)+,BLiTEM1.w
+	move.w		(a0)+,BLiTEM3.w
+	move.w		(a0)+,BLiTDYI.w
+*-------------------------------------------------------*
+
+	.if		(use_slab_restore)
+
+	.if		(use_sprite_pagerestore)
+
+	add.w		d3,d3
+	
+	; clearing record
+	move.l		d5,(a5)+			; clear addr
+
+	move.l		a4,a0
+
+	sub.w		d3,a0
+	sub.w		d3,a0
+	sub.w		d3,a0
+	sub.w		d3,a0
+
+	move.w		a0,(a5)+			; dst skip
+	move.w		d3,(a5)+			; word width*2
+
+	moveq		#1,d4
+	add.w		d6,d4
+	move.w		d4,(a5)+			; lines
+;	move.w		#1,(a5)+			; lines
+
+	move.l		d2,(a5)+
+
+	moveq		#$80,d2
+
+	.endif
+
+
+	.if		(use_sprite_saverestore&1)
+	
+	add.w		d3,d3
+	
+	; clearing record
+	move.l		a5,d2
+	move.l		d5,(a5)+			; clear addr
+
+	move.l		a4,a0
+
+	sub.w		d3,a0
+	sub.w		d3,a0
+	sub.w		d3,a0
+	sub.w		d3,a0
+
+	move.w		a0,(a5)+			; dst skip
+	move.w		d3,(a5)+			; word width*2
+
+	moveq		#1,d4
+	add.w		d6,d4
+	move.w		d4,(a5)+			; lines
+;	move.w		#1,(a5)+			; lines
+
+	move.l		d5,a3
+;	moveq		#-1,d1
+;	add.w		d4,d1
+	
+	subq.w		#1,d4
+
+	add.w		d3,d3
+	neg.w		d3
+;	todo: optimize this
+.sylp\~:
+	jmp		.jtb\~(pc,d3.w)
+	.rept		17
+	move.l		(a3)+,(a5)+
+	move.l		(a3)+,(a5)+
+	.endr
+.jtb\~:
+
+	add.w		a0,a3
+
+	dbra		d4,.sylp\~
+
+	move.l		d2,(a5)+
+
+	moveq		#$80,d2
+	lea		BLiTCTRL.w,a3
+	
+	.endif
+	
+	.endif
+
+*-------------------------------------------------------*
+	moveq		#4,d4
+	subq.w		#1,d6
+*-------------------------------------------------------*
+.spanloop_begin\~:
+*-------------------------------------------------------*
+	move.w		d4,BLiTYC.w			; BLIT: planes
+	.if		(_use_slab_restore_)
+	move.l		d5,BLiTDST.w			; dst
+	.else
+	move.l		d5,(a5)				; dst
+	.endif
+	move.b		d2,(a3)
+	add.l		a4,d5
+	add.w		a4,a1
+
+;.wtb:	bset.b		d0,(a3)
+;	dbra		d6,.spanloop_parallel
+;;	bne.s		.wtb
+;;	dbra		d6,.spanloop_begin
+;*-------------------------------------------------------*
+;	dbra		d7,.cont_spanblock
+;*-------------------------------------------------------*
+;	bra		.end
+
+*-------------------------------------------------------*
+.spanloop_parallel\~:
+*-------------------------------------------------------*
+	bset.b		d0,(a3)
+	.if		(use_blitter_nops)
+	nop
+	.endif
+	bne.s		.spanloop_parallel\~
+	move.w		d4,BLiTYC.w			; BLIT: planes
+	move.l		d5,BLiTDST.w			; dst
+	move.b		d2,(a3)
+	add.l		a4,d5
+	add.w		a4,a1
+.wtb2\~:
+	bset.b		d0,(a3)
+;	bne.s		.wtb2
+	dbra		d6,.spanloop_parallel\~
+*-------------------------------------------------------*
+.spanloop_final\~:
+*-------------------------------------------------------*
+	bset.b		d0,(a3)
+	.if		(use_blitter_nops)
+	nop
+	.endif
+	bne.s		.spanloop_final\~
+*-------------------------------------------------------*
+	dbra		d7,.cont_spanblock\~
+*-------------------------------------------------------*
+	bra		.end\~
+
+*-------------------------------------------------------*
+*	single span
+*-------------------------------------------------------*
+.do_sgl\~:
+*-------------------------------------------------------*
+
+	.if		(use_slab_restore)
+	.if		(use_sprite_pagerestore)
+	move.l		a5,d6
+	move.w		ssb_y-6(a0),d5
+	add.w		.sp_yoff(sp),d5
+	move.w		d5,(a5)+
+	.endif
+	.endif
+
+*-------------------------------------------------------*
+;	dst addr xoffset	
+	moveq		#-16,d5
+	and.l		d3,d5				; ceil16(x)
+	eor.w		d5,d3				; pixel offset
+	lsr.w		d5
+	.if		(use_slab_restore)
+	.if		(use_sprite_pagerestore)	
+	move.w		d5,(a5)+
+	.endif
+	.endif
+	add.l		a1,d5
+*-------------------------------------------------------*
+;	lsl.w		#4,d4
+	or.w		d3,d4
+	lsl.w		#3,d4
+	move.l		usp,a0
+	add.l		d4,a0	
+	move.b		(a0)+,BLiTSKEW.w
+	move.b		(a0)+,d3
+	.if		(_use_slab_restore_)
+	move.w		d3,BLiTXC.w
+	.endif
+	move.w		(a0)+,BLiTEM1.w
+;	move.w		#-1,BLiTEM1.w
+	move.w		(a0)+,BLiTEM3.w
+	move.w		(a0)+,BLiTDYI.w
+	
+
+	
+	.if		(use_slab_restore)
+	.if		(use_sprite_pagerestore)
+	
+	add.w		d3,d3
+	
+	; clearing record
+	move.l		d5,(a5)+			; clear addr
+
+	move.l		a4,a0
+
+	sub.w		d3,a0
+	sub.w		d3,a0
+	sub.w		d3,a0
+	sub.w		d3,a0
+
+	move.w		a0,(a5)+			; dst skip
+	move.w		d3,(a5)+			; word width*2
+
+;	moveq		#1,d4
+;	add.w		d6,d4
+;	move.w		d4,(a5)+			; lines
+	move.w		#1,(a5)+			; lines
+	
+	move.l		d6,(a5)+
+	
+	.endif
+	
+	
+	.if		(use_sprite_saverestore&1)
+	
+	add.w		d3,d3
+	
+	; clearing record
+	move.l		a5,d6
+	move.l		d5,(a5)+			; clear addr
+
+	move.l		a4,a0
+
+	sub.w		d3,a0
+	sub.w		d3,a0
+	sub.w		d3,a0
+	sub.w		d3,a0
+
+	move.w		a0,(a5)+			; dst skip
+	move.w		d3,(a5)+			; word width*2
+
+;	moveq		#1,d4
+;	add.w		d6,d4
+;	move.w		d4,(a5)+			; lines
+	move.w		#1,(a5)+			; lines
+
+	move.l		d5,a3
+;	moveq		#-1,d1
+;	add.w		d4,d1
+
+	add.w		d3,d3
+	neg.w		d3
+;	todo: optimize this
+	jmp		.jt\~(pc,d3.w)
+	.rept		17
+	move.l		(a3)+,(a5)+
+	move.l		(a3)+,(a5)+
+	.endr
+.jt\~:
+
+;	add.w		a0,a3
+
+;	dbra		d1,.sylp
+
+	move.l		d6,(a5)+
+
+	lea		BLiTCTRL.w,a3
+	
+	.endif
+	.endif
+	
+	
+*-------------------------------------------------------*
+	.if		(_use_slab_restore_)
+	move.l		d5,BLiTDST.w			; BLiTDST
+	move.w		#4,BLiTYC.w			; BLiTYC: planes
+	.else
+	move.l		d5,(a5)+			; BLiTDST
+	move.w		d3,(a5)+			; BLiTXC
+	move.w		#4,(a5)				; BLiTYC: planes
+	subq		#6,a5
+	.endif
+	move.b		d2,(a3)
+	add.w		a4,a1
+	bset.b		d0,(a3)	
+*-------------------------------------------------------*
+;	hide the dbra behind the blitter restart
+	dbra		d7,.wt_next_spanblock\~
+
+*=======================================================*
+;	ensure blit completes on fall-through
+.wtend\~:
+	bset.b		d0,(a3)
+	.if		(use_blitter_nops)
+	nop
+	.endif
+	bne.s		.wtend\~
+*-------------------------------------------------------*
+.end\~:
+
+*-------------------------------------------------------*
+	.endm
+*-------------------------------------------------------*
+
+
+
+
+*=======================================================*
+*	entrypoint
+*=======================================================*
+
+	.if		(use_sanity_checks)
+;	sanity check on frame index!
+	cmp.w		sps_framecount(a0),d0
+	blo.s		.slb_frameok
+.slb_framefault:
+	not.w		$ffff8240.w
+	bra.s		.slb_framefault
+.slb_frameok:
+	.endif
+
+	; 'hitflash' for strobing shape to single colour on damage etc.
+	; todo: opt
+	
+	move.b		#3,BLiTLOP.w			; HOP
+	tst.w		d7
+	beq.s		.slb_no_hitflash
+	move.b		#15,BLiTLOP.w			; HOP	
+.slb_no_hitflash:
+	
+
+	; access sprite frame table
+	
+	add.w		d0,d0				; todo: game layer can prescale this
+	add.w		d0,d0
+	move.l		sls_frameindex(a0,d0.w),a0	; access sprite frame data
+			
+	; remaining spanblocks
+		
+	moveq		#-1,d7
+	add.w		slf_spanblocks(a0),d7
+	
+	; frame coord. fields
+	
+	move.w		slf_w(a0),d3			; w
+	move.w		slf_h(a0),d4			; h
+	add.w		slf_xo(a0),d1			; +xo
+	add.w		slf_yo(a0),d2			; +yo
+
+	; relative base for offset tables
+	
+	lea		slf_indexbase(a0),a6		; indexbase
+	
+	move.l		a6,a2
+
+	cmp.w		_drawcontext+dctx_clipwindow_y1,d2
+	bpl.s		.slb_clip_safetop
+
+*-------------------------------------------------------*
+.slb_clip_top:
+*-------------------------------------------------------*
+*	top clipping is a bit complex, but relative to 
+*	drawing the object and limits on slab drawing
+*	count generally, the overhead is neglegible	
+*-------------------------------------------------------*
+
+	sub.w		_drawcontext+dctx_clipwindow_y1,d2
+	neg.w		d2
+	cmp.w		d4,d2
+	bge		.slb_degen			; completely cropped?
+	
+	move.w		d2,d5				; total amount to crop
+
+	lsl.w		#3,d2
+	lea		(a6,d2.w),a0
+
+	add.w		(a0)+,a2			; slc_tyc_offset : first spanblock record = [clipper + yc]
+	move.w		(a0)+,d7			; slc_tyc_remain : spanblocks remaining for this yc
+	subq.w		#1,d7
+
+	moveq		#0,d4
+	move.w		(a0),d4				; slc_tyc_data
+	lea		(a6,d4.l),a3			; +64k reach for span pixel data
+	
+
+; A     0
+; B ____4____
+; B          8
+; B
+; C     16
+
+;	address first spanblock record
+
+	move.l		a6,a0				; spanblock index
+	add.w		(a2)+,a0			; next spanblock
+
+;	real cropping is (y+dy) since dy = optional empty lines at start of block
+
+	sub.w		ssb_y(a0),d5
+	sub.w		ssb_dy(a0),d5
+
+;	crop first block size by yc-(y+dy)
+
+	move.w		ssb_ys(a0),d6
+	sub.w		d5,d6
+
+;	index source by yc-(y+dy) pixeldata lines
+
+	lsl.w		#3,d5
+	mulu.w		ssb_dxw(a0),d5
+	add.l		d5,a3
+
+;	y origin = clipping edge
+
+	move.w		_drawcontext+dctx_clipwindow_y1,d2
+	
+;	slab size is restricted - if clipped at top, 
+;	can't also be clipped at bottom	
+
+	bra		.slb_clip_safebot
+						
+*-------------------------------------------------------*
+.slb_clip_safetop:
+*-------------------------------------------------------*
+*	not clipped at window top
+*	may still be clipped at window bottom
+*-------------------------------------------------------*
+
+;	access first spanblock reference
+
+	add.w		slc_tyc_offset(a6),a2
+
+;	access spanblock record
+
+	move.l		a6,a0				; index base
+	add.w		(a2)+,a0
+
+;	first block is uncropped - draw all lines
+
+	move.w		ssb_ys(a0),d6
+
+;	first block uses unadjusted start of pixeldata
+	
+	move.l		ssb_data(a0),a3
+
+;	test window bottom
+
+	add.w		d2,d4
+	cmp.w		_drawcontext+dctx_clipwindow_y2,d4
+	ble		.slb_clip_safebot
+
+*-------------------------------------------------------*
+.slb_clip_bot:
+*-------------------------------------------------------*
+*	bottom clipping is achieved by drawing
+*	(spanblocks-nc) normally and then one final
+*	block with cropped height, if required
+*-------------------------------------------------------*
+
+;	test for fully clipped out
+
+	cmp.w		_drawcontext+dctx_clipwindow_y2,d2
+	bge		.slb_degen
+
+;	ys: recover slab ysize
+
+	move.w		d4,d5
+	sub.w		d2,d5
+
+;	byc: amount to crop from full slab height (up to max of slab height)
+	
+	sub.w		_drawcontext+dctx_clipwindow_y2,d4
+;	move.w		d4,.sp_ycrop(sp)
+
+;	byr: amount rmaining of full slab height (up to max of slab height)
+	
+	sub.w		d4,d5
+	move.w		d5,.sp_yrem(sp)
+	
+;	index clipper to obtain (spanblocks-1)-1 for main, unclipped portion
+
+	lsl.w		#3,d4
+	move.w		slc_byc_remain(a6,d4.w),d7
+
+;	load initial block source
+
+	move.l		a3,BLiTSRC.w
+
+;	address initial line
+
+	move.w		d2,.sp_yoff(sp)
+	mulu.w		_g_linebytes,d2
+	add.l		d2,a1	
+
+;	usp tends to be used by engine for context/object/sprite-restore,
+;	but here its more valuable for an inner loop so we need to save it first
+
+	move.l		usp,a5				; usp (auto sprite restore) is preserved via a5
+
+	.if		(0=_use_slab_restore_)
+	.if		(preserve_usp)			; auto sprite restore is off, so
+	move.l		a5,.sp_save_usp(sp)		; usp needs preserved explicitly
+	.endif
+	lea		BLiTDST.w,a5
+	.endif
+	
+	lea		BLiTCTRL.w,a3
+	lea		slab_precalcs,a4
+	move.l		a4,usp
+	move.w		_g_linebytes,a4
+
+	moveq		#7,d0
+	moveq		#$80,d2
+	moveq		#0,d3
+	moveq		#0,d4
+
+	subq.w		#1,d7
+	bmi		.slb_bc_no_main
+	
+;	(spanblocks-nc) in d7
+;	(spans-1) in d6
+
+	dospans
+
+	move.l		a6,a0				; spanblock index
+	add.w		(a2)+,a0			; next spanblock
+
+	move.w		ssb_ys(a0),d6
+	
+.slb_bc_no_main:
+
+;	always render one final (cropped) block - 0 or more full blocks before this
+
+;	actual spans remaining = yrem-(y+dy)
+
+	move.w		.sp_yrem(sp),d6
+	sub.w		ssb_y(a0),d6
+	sub.w		ssb_dy(a0),d6
+	ble		.slb_done
+
+	subq.w		#1,d6		
+	moveq		#0,d7
+	
+;	(spanblocks-1) in d7
+;	(spans-1) in d6
+	
+	dospans
+	
+	bra		.slb_done
+		
+*-------------------------------------------------------*
+.slb_clip_safebot:
+*-------------------------------------------------------*
+
+;	load initial block source
+
+	move.l		a3,BLiTSRC.w
+
+;	address initial line
+
+	move.w		d2,.sp_yoff(sp)
+	mulu.w		_g_linebytes,d2
+	add.l		d2,a1
+
+;	setup
+
+;	usp tends to be used by engine for context/object/sprite-restore,
+;	but here its more valuable for an inner loop so we need to save it first
+
+	move.l		usp,a5				; usp (auto sprite restore) is preserved via a5
+
+	.if		(0=_use_slab_restore_)
+	.if		(preserve_usp)			; auto sprite restore is off, so
+	move.l		a5,.sp_save_usp(sp)		; usp needs preserved explicitly
+	.endif
+	lea		BLiTDST.w,a5
+	.endif
+	
+	lea		BLiTCTRL.w,a3
+	lea		slab_precalcs,a4
+	move.l		a4,usp
+	move.w		_g_linebytes,a4
+
+	moveq		#7,d0
+	moveq		#$80,d2
+	moveq		#0,d3
+	moveq		#0,d4
+
+;	(spanblocks-1) in d7
+;	(spans-1) in d6
+
+	dospans
+
+*-------------------------------------------------------*
+.slb_done:
+*-------------------------------------------------------*
+
+	.if		(_use_slab_restore_)
+	move.l		a5,usp
+	.else
+	.if		(preserve_usp)			; auto sprite restore is off, so
+	move.l		.sp_save_usp(sp),a5		; usp needs preserved explicitly
+	move.l		a5,usp
+	.endif
+	.endif
+
+*-------------------------------------------------------*
+.slb_degen:
+*-------------------------------------------------------*
+
+*=======================================================*
+*	exitpoint
+*=======================================================*
