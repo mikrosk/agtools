@@ -423,7 +423,7 @@ int main(int argc, char **argv)
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	note: using EMXSPR sprite format
 
-		// player craft & engines, multiples, other fx
+		// bouncy skeleton
 		skelly.load("sprite2.emx");
 
 		// ---------------------------------------------------------------------------------------------------------------------
@@ -437,8 +437,6 @@ int main(int argc, char **argv)
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	init world, set viewport initial position
 
-//		g_fscrollx = (s32)c_scroll_safety_margin<<16;
-//		g_fscrolly = g_map_fylimit;
 
 		// convert 3D world to 2D iso coords (all fixedpoint)
 		Iso2DFrom3D(g_fworldx,g_fworldy,g_fworldz, g_fscrollx,g_fscrolly);
@@ -525,10 +523,6 @@ restart_game:
 		// player coords within viewport
 		g_player_viewx = 160;
 		g_player_viewy = 100;
-
-		// viewport coords within world
-//		g_fscrollx = (s32)c_scroll_safety_margin<<16;
-//		g_fscrolly = g_map_fylimit;
 
 		// convert 3D world to 2D iso coords (all fixedpoint)
 		Iso2DFrom3D(g_fworldx,g_fworldy,g_fworldz, g_fscrollx,g_fscrolly);
@@ -974,6 +968,8 @@ entitydef_t entity_dictionary[] =
 //	Music fixup callback: opportunity to set the instruments and multiplex routing for specific songs
 //----------------------------------------------------------------------------------------------------------------------
 
+#if defined(ENABLE_AGT_AUDIO)
 void AGT_MusicFixupCallback(const char* const _name, remap_ft &remap_func)
 {
 }
+#endif // defined(ENABLE_AGT_AUDIO)

@@ -3040,6 +3040,7 @@ entitydef_t entity_dictionary[] =
 //	Music fixup callback: opportunity to set the instruments and multiplex routing for specific songs
 //----------------------------------------------------------------------------------------------------------------------
 
+#if defined(ENABLE_AGT_AUDIO)
 void AGT_MusicFixupCallback(const char* const _name, remap_ft &remap_func)
 {
 	// todo: crude - provide a proper callback filter
@@ -3067,3 +3068,4 @@ void AGT_MusicFixupCallback(const char* const _name, remap_ft &remap_func)
 		set_channel_routing(routing);
 	}
 }
+#endif // defined(ENABLE_AGT_AUDIO)

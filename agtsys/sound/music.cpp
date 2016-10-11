@@ -413,3 +413,10 @@ void AGT_MusicLoad(const char* _name)
 }
 
 //-----------------------------------------------------------------------------
+// stub in case audio not imported to a given project, but audio still linked
+
+#if !defined(ENABLE_AGT_AUDIO)
+void AGT_MusicFixupCallback(const char* const _name, remap_ft &remap_func)
+{
+}
+#endif // defined(ENABLE_AGT_AUDIO)
