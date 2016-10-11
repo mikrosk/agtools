@@ -288,8 +288,11 @@ inline void endianswap16(word_t* _data, datasize_t _num)
 #define PRFINLINE static inline __attribute__((always_inline))
 #endif
 
-// inhibit inlining
-#define OUTLINE __attribute__((noinline))
+// force inlining for small functions
+#define agt_inline inline __attribute__((always_inline))
+
+// inhibit inlining for big functions (or for easier debugging)
+#define agt_outline __attribute__((noinline))
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	quick alternatives to common mem ops

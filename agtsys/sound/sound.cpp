@@ -775,7 +775,7 @@ extern "C" s8 g_bmm_channel_octave_map[];
 
 extern "C" void assign_bmm_channel_68k(virtual_channel_t *_virt_channel, s16 _bmmchannel, s16 _mpmap, u8 _instrument, u8 _volume, u8 _note/*, s32 _step*/);
 
-OUTLINE void assign_bmm_channel(virtual_channel_t *_virt_channel, s16 _bmmchannel, s16 _mpmap, u8 _instrument, u8 _volume, u8 _note/*, s32 _step*/)
+agt_outline void assign_bmm_channel(virtual_channel_t *_virt_channel, s16 _bmmchannel, s16 _mpmap, u8 _instrument, u8 _volume, u8 _note/*, s32 _step*/)
 {
 	u32 active_length;
 	s32 step;
