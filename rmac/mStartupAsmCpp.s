@@ -24,7 +24,12 @@
 
 BASEPAGE_SIZE		=		$100
 USPS			=		$100*4
+
+			.if		^^defined AGT_CONFIG_STACK
+SSPS			=		(AGT_CONFIG_STACK)
+			.else
 SSPS			=		$4000
+			.endif
 
 ; --------------------------------------------------------------
 

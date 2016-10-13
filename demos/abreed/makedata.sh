@@ -9,6 +9,6 @@
 ../../bin/agtcut -cm tiles -t 0.25 -ccf 2 -bp 4 -om direct -s ab1x.png -ttags solidtiles.csv -o abreed.cct -p chunky8.ccs
 
 
-# cut the monster sprite: 8 rotation frames x 8 animation frames = 64 cuts
+# cut the monster sprite: 8 rotation frames x 4 animation frames = 32 cuts
 
 ../../bin/agtcut -v -cm emspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o monster.ems -p chunky8.ccs -sxp 0 -syp 256 -sxs 32 -sys 32 -sxi 32 -syi 32 -sxc 8 -syc 4

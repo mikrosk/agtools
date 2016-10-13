@@ -127,7 +127,7 @@ STRIP = $(TOOLCHAIN_PREFIX)strip
 STACK = $(TOOLCHAIN_PREFIX)stack
 FLAGS = $(TOOLCHAIN_PREFIX)flags
 
-STACKSIZE = 8192
+STACKSIZE = 16384
 
 
 # =============================================================================
@@ -137,6 +137,7 @@ STACKSIZE = 8192
 
 COMPILERDEFS += \
 		-D__ATARI__ -D__M68000__ \
+		-DAGT_CONFIG_STACK=$(STACKSIZE) \
 		-DAGT_CONFIG_WORLD_XMAJOR \
 
 #		-DTIMING_RASTERS_MAIN \

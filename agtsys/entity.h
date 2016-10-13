@@ -42,6 +42,9 @@ enum EntityDraw
 // flags covering generic properties
 enum EntityFlags
 {
+	EntityFlag_NONE			= 0x0000,		// no classification
+	EntityFlag_INERT		= 0x0000,		// inert, no classification
+
 	// classification: breaks entities down roughly into interaction groups
 
 	EntityFlag_VIEWPORT		= 0x0001,		// identifies viewport rectangle, to assist waking up spawnpoints etc.

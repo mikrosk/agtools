@@ -134,7 +134,7 @@ machine machinestate;
 //	MiNTlib builds need need to define a local superstack. otherwise, AGT does it during CRT startup.
 // ---------------------------------------------------------------------------------------------------------------------
 
-S_SUPER_SSP(8192*4);
+S_SUPER_SSP(AGT_CONFIG_STACK);
 
 // ---------------------------------------------------------------------------------------------------------------------
 
