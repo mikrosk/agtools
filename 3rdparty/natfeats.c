@@ -26,7 +26,7 @@
 #include "natfeats.h"
 
 /* NatFeats available & initialized */
-static int nf_ok = 0;
+static short g_hnf_ok = 0;
 
 /* handles for frequently used NF features */
 static long nfid_print;
@@ -36,10 +36,10 @@ int nf_init(void)
 {
 //	dml: we're already in super mode
 //	void *sup = Super(0);
-	nf_ok = detect_nf();
+	g_hnf_ok = detect_nf();
 //	Super(sup);
 
-	if (nf_ok) {
+	if (g_hnf_ok) {
 		/* initialize handles */
 		nfid_print = nf_id("NF_STDERR");
 	} else {
@@ -47,7 +47,7 @@ int nf_init(void)
 		Cconws("Native Features initialization failed!\r\n");
 #endif
 	}
-	return nf_ok;
+	return g_hnf_ok;
 }
 
 /* show given string on emulator console */
@@ -67,7 +67,7 @@ long nf_print(const char *text)
 void nf_shutdown(void)
 {
 	long id;
-	if(nf_ok && (id = nf_id("NF_SHUTDOWN"))) {
+	if(g_hnf_ok && (id = nf_id("NF_SHUTDOWN"))) {
 		void *sup = (void*)Super(0);
 		/* needs to be called in supervisor mode */
 		nf_call(id);
@@ -85,7 +85,7 @@ void nf_shutdown(void)
 static void nf_showname(void)
 {
 	long id;
-	if (nf_ok && (id = nf_id("NF_NAME"))) {
+	if (g_hnf_ok && (id = nf_id("NF_NAME"))) {
 		long chars;
 		char buffer[64];
 		id |= 0x0001;  /* name + version */

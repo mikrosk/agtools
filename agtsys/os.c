@@ -349,8 +349,9 @@ int bmprintf(const char *pFormat, ...)
 	len = vsnprintf(buf, 1000, pFormat, pArg);
 	va_end(pArg);
 #ifdef HATARI_NF_PRINTF
-	// always route to Hatari NF console if enabled
-	nf_print(buf);
+	// always route to Hatari NF console if enabled and detected
+	if (g_hnf)
+		nf_print(buf);
 #endif
 
 	// route to TOS console

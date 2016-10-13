@@ -50,6 +50,11 @@ static inline void halt() { while (1) { } }
 extern short g_displaylocked;
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Hatari NATFEATS interface was detected if nonzero
+
+extern "C" short g_hnf_ok;
+
+// ---------------------------------------------------------------------------------------------------------------------
 // machine detection
 
 extern "C" u8 bSTF;
