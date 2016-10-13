@@ -31,8 +31,6 @@ syntax: glob
 
 *.gif
 *.pcx
-*.pi1
-*.PI1
 
 Debug
 debug

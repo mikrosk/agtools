@@ -110,12 +110,12 @@ enum EntityType : int
 
 // enable this for dualfield/interlaced rendering (requires 2x playfield graphics)
 // otherwise use normal rendering
-static const s16 c_dualfield = 1;
+static const s16 c_dualfield = 0;
 // this tweak optimizes dualfield display for 50hz, otherwise set 0 for a 25hz-or-less refresh
 // note: at 50hz we need only one buffer for even field, one for odd. at 25hz or below we need 
 // to store independent odd/even fields for each front/back buffer so the 50hz interlace can 
 // be maintained.
-static const s16 c_singlevbl = 1;
+static const s16 c_singlevbl = 0;
 
 
 // define a playfield config for horizontal-only scrolling using STE HW HSCROLL
@@ -1223,6 +1223,8 @@ void boss_state3_moveA_fntick(entity_t *_pself)
 				// assign velocity
 				pnew->fvx = s_fdirs_32ang[a + 0] << 3;
 				pnew->fvy = s_fdirs_32ang[a + 1] << 3;
+				// pseudorandom starting anim-frame
+				pnew->frame = pnew->id & 7;
 			}
 		}
 
@@ -1251,6 +1253,8 @@ void boss_state3_moveA_fntick(entity_t *_pself)
 				// assign velocity
 				pnew->fvx = s_fdirs_32ang[a + 0] << 2;
 				pnew->fvy = s_fdirs_32ang[a + 1] << 2;
+				// pseudorandom starting anim-frame
+				pnew->frame = pnew->id & 7;
 			}
 		}
 
@@ -1365,6 +1369,8 @@ void boss_state5_moveB_fntick(entity_t *_pself)
 				// assign velocity
 				pnew->fvx = s_fdirs_32ang[a + 0] << 2;
 				pnew->fvy = s_fdirs_32ang[a + 1] << 3;
+				// pseudorandom starting anim-frame
+				pnew->frame = pnew->id & 7;
 			}
 		}
 
@@ -1393,6 +1399,8 @@ void boss_state5_moveB_fntick(entity_t *_pself)
 				// assign velocity
 				pnew->fvx = s_fdirs_32ang[a + 0] << 3;
 				pnew->fvy = s_fdirs_32ang[a + 1] << 2;
+				// pseudorandom starting anim-frame
+				pnew->frame = pnew->id & 7;
 			}
 		}
 
@@ -1637,7 +1645,7 @@ void bossball_fntick(entity_t *_pself)
 	if (--self.counter < 0)
 	{
 		// reset counter
-		self.counter = 3;
+		self.counter = 1;
 
 		// advance animation (backwards, for quick -ve test on wrap)
 		// note: there are 9 frames, so 0...8
@@ -1662,11 +1670,14 @@ void bosseye_fntick(entity_t *_pself)
 	// eye can't exist without boss, so we don't never to check the pointer destination is valid!
 	entity_t &parent = *self.pparent;
 
-	// advance animation frame
-	self.frame = self.counter++ >> c_eye_stroberate;
-	// wrap at 6 frames
-	if (self.counter >= (6 << c_eye_stroberate))
-		self.counter = 0;
+	if (parent.vy)
+	{
+		// advance animation frame
+		self.frame = self.counter++ >> c_eye_stroberate;
+		// wrap at 6 frames
+		if (self.counter >= (6 << c_eye_stroberate))
+			self.counter = 0;
+	}
 
 	// attached to boss - follows boss
 	// entities are defined as rectangles, with graphics offset by a centering origin (ox,oy)
