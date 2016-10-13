@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.30";
+static const char* const g_version_string = "v0.31";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -572,7 +572,7 @@ public:
 		  masklayout_lock(false),
 		  planes(4),
 		  tilesize(16),
-		  keycol(0),
+		  keycol(255),
 		  cut_xpos(0),
 		  cut_ypos(0),
 		  cut_xsize(16),
@@ -585,9 +585,9 @@ public:
 		  //
 		  use_solutionpair_reduction_(false)
 	{
-		keyrgb.red = -1;
-		keyrgb.green = -1;
-		keyrgb.blue = -1;
+		keyrgb.red = 255;
+		keyrgb.green = 0;
+		keyrgb.blue = 255;
 	}
 
 	bool verbose;
@@ -1871,36 +1871,56 @@ static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 	float fg = float(rgb.green);
 	float fb = float(rgb.blue);
 
-	float best_err = 1e7;
-	int best_hit = -1;
-	for (int i = 0; i < _ncols; i++)
+	//if (fr > 250.0f && fg > 250.0f && fb > 250.0f)
+	//{
+	//	__asm int 3;
+	//}
+
+	// default to keycol
+	int best_hit = g_allargs.keycol;
+
+	u8 kr = g_allargs.keyrgb.red;
+	u8 kg = g_allargs.keyrgb.green;
+	u8 kb = g_allargs.keyrgb.blue;
+
+	if ((rgb.red == kr) &&
+		(rgb.green == kg) &&
+		(rgb.blue == kb))
 	{
-		const RGB &pal = _ppal[i];
-
-		float pr = float(pal.red /*+ 8*/);
-		float pg = float(pal.green /*+ 8*/);
-		float pb = float(pal.blue /*+ 8*/);
-
-		// YUV error - meh
-		//float dr = (fr - pr) * c_n * 0.299;
-		//float dg = (fg - pg) * c_n * 0.587;
-		//float db = (fb - pb) * c_n * 0.114;
-
-		float dr = (fr - pr) * c_n;
-		float dg = (fg - pg) * c_n;
-		float db = (fb - pb) * c_n;
-
-		float err = (dr * dr) + (dg * dg) + (db * db);
-
-		// in exact mode, don't remap anything to keycol index unless its an exact colour match
-		if (!g_allargs.keyguard ||
-			(i != g_allargs.keycol) ||
-			(err < g_allargs.keytol))
+		// map keycol, even if it's outside indexed colour range (it won't be emitted as graphics anyway)
+	}
+	else
+	{
+		float best_err = 1e7;
+		for (int i = 0; i < _ncols; i++)
 		{
-			if (err < best_err)
+			const RGB &pal = _ppal[i];
+
+			float pr = float(pal.red /*+ 8*/);
+			float pg = float(pal.green /*+ 8*/);
+			float pb = float(pal.blue /*+ 8*/);
+
+			// YUV error - meh
+			//float dr = (fr - pr) * c_n * 0.299;
+			//float dg = (fg - pg) * c_n * 0.587;
+			//float db = (fb - pb) * c_n * 0.114;
+
+			float dr = (fr - pr) * c_n;
+			float dg = (fg - pg) * c_n;
+			float db = (fb - pb) * c_n;
+
+			float err = (dr * dr) + (dg * dg) + (db * db);
+
+			// in exact mode, don't remap anything to keycol index unless its an exact colour match
+			if (!g_allargs.keyguard ||
+				(i != g_allargs.keycol) ||
+				(err < g_allargs.keytol))
 			{
-				best_err = err;
-				best_hit = i;
+				if (err < best_err)
+				{
+					best_err = err;
+					best_hit = i;
+				}
 			}
 		}
 	}
