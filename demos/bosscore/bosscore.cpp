@@ -567,8 +567,8 @@ int main(int argc, char **argv)
 		map_xsize = mymap0.getwidth() << 4;
 		map_ysize = mymap0.getheight() << 4;
 
-		// start in middle of map (fixedpoint)
-		g_fscrollx = map_xsize<<(16-1);
+		// start at left of map
+		g_fscrollx = c_scroll_safety_margin<<16;
 		g_fscrolly = 0;
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
@@ -781,8 +781,8 @@ restart_game:
 		g_player_viewx = 160;
 		g_player_viewy = 100;
 
-		// viewport coords within world - centre of map
-		g_fscrollx = map_xsize<<(16-1);
+		// start at left of map
+		g_fscrollx = c_scroll_safety_margin<<16;
 		g_fscrolly = 0;
 
 		// convert fixedpoint to screen coords
