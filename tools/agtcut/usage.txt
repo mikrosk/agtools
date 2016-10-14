@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.30 : dml : 07/10/2016
+v0.32 : dml : 14/10/2016
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,25 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.32	14/10/2016
+---------------------------------------
+* added -sg/--sprguide option to specify sprite cutting guide (.sgd) script 
+  instead of commandline cutposition switches
+* added -vis/--visual option to output <filename>_vis.tga preview visualisation
+  of cut spritesheets
+* added -qc/--quickcut option for faster previewing of slower spritecut modes
+* fixed some error/warning inconsistencies
+* reduced spam unless in -v/--verbose mode
+
+v0.31	13/10/2016
+---------------------------------------
+* fix problems with keycol/keyrgb remapping when applying a normal 16c palette
+  to sprites and maps (unlike .ccs remapping, colour reduction would occur
+  before keyrgb testing - at which point the keyrgb fidelity had already been 
+  lost and transparent areas ended up dithered/solid)
+* change key colour defaults when not specified, so they don't interfere with
+  map cutting: keycol=255, keyrgb=magenta
 
 v0.30	07/10/2016
 ---------------------------------------
@@ -301,6 +320,143 @@ Default: 0.01
 ===============================================================================
 Summary: Sprite/Slab Options
 ===============================================================================
+
+-qc, --quickcut
+
+Speed up cutting of more complex asset types (emxspr) for quicker test/debug
+turnaround, especially when there are lots of sprites involved and cutting
+coordinates are not yet final.
+
+This also disables verbose mode, since spam slows jobs down.
+
+Note: this produces less optimised, less efficient sprites. It's just a speedup
+for the cutting process itself.
+
+
+-vis, --visual
+
+Emit <outfile>_vis.tga for spritesheets, showing exactly what got cut, and what
+the cut graphics will look like when rendered in the engine.
+
+This shortcuts the need to run the game engine to check sprites, and annoying
+engine crashes which may result if the frame count wasn't defined correctly!
+
+The image is emitted as a vertical strip, with the first frame at the top.
+
+
+-sg, --sprguide <guidefile.sgd>
+
+Provides a second, more powerful way to define cutting jobs using a script file.
+
+This overrides any -sxp/syp, -sxs/sys, -sxi/syi, -sxc/syc/sc settings passed on
+the commandline, and allows more complicated patterns to be cut to a single
+asset file from a single source image. Only row, column or grid cuts are
+possible using the commandline only. With a sprite guide, any sequence of cuts
+(rows or columns) can be used in a single cutting job.
+
+Each 'cut' can set its own cutting flags to flip or nudge sprite frames. These
+flags are reset after each cut.
+
+Note: It is wise to enable -vis when using this feature, to help confirm and
+debug the cutting job definitions before using the results!
+
+spriteguide script commands:
+
+[size]
+<xsize>,<ysize>
+	
+	Sets the common/shared frame size for all frames in this asset
+	note: can only be set once per .sgd script job! all assets must
+	share the same max size even if the sprites will vary in size.
+	see notes on automatic frame optimizaion for more detail on why
+	an over-estimate here doesn't waste space or drawing time!
+
+[step]
+<xinc>,<yinc>
+	
+	Sets the pixel step between each frame of this cut
+	note: diagonals not allowed. use individual cuts for that.
+	
+[flags]
+<flagstring>
+	
+	Sets flip-flags for this cutting job. this allows flipped copies
+	of sprites to be cut from a single source frame.
+	flags are cleared after each cut and must be re-specified for
+	future cuts where required.
+
+	This is the spriteguide version of the -sm,--sprmap command, without
+	the to/from and coordinates override (which make no sense here)
+	
+	flags:
+	
+	x = flip horizontally
+	y = flip vertically
+	l = nudge left
+	r = nudge right
+	u = nudge up
+	d = nudge down
+	
+	e.g.
+	
+	'xyl' = flip on x AND y, and nudge left
+
+	Note: the nudge flags are there to assist with the flipping of
+	odd-sized sprites where a flip would cause the sprite to move by
+	a single pixel. even-sized sprites don't require a nudge.
+
+[cut]
+<count>,<xstart>,<ystart>
+
+	Initiates a sequence of cuts with <count> frames, and starting
+	coordinates <xstart>,<ystart> on the source image.
+	
+	Subsequent frames will be stepped along the source image according
+	to the last [step] command.
+	
+	Any number of [cut] commands can be issued in one .sgd file, and
+	they will all end up in the same asset file.
+	
+	Note; It is not necessary to redefine [step] for each cut - it will
+	remember the last definition if required. [flags] however does need
+	specified for each cut where needed since it will be reset each time.
+	
+
+Example [villager.sgd] sprite guide file (from the AGT isoscroll demo):
+
+	
+	; <xsize>,<ysize>
+	[size]
+	31,32
+	
+	
+	; configure row cuts with an x-step of 32 pixels between frames
+	
+	; <xi>,<yi> distance/separation between each frame in this cut
+	; e.g. yi=0 for row cut, xi=0 for column cut
+	[step]
+	32,0
+	
+	
+	; cut the first row starting x=96,y=32
+	
+	; <framecount>,<xstart>,<ystart>
+	[cut]
+	5,96,32
+	
+	; cut remaining rows (total of 4 rows), each below the last
+	
+	[cut]
+	5,96,64
+	
+	[cut]
+	5,96,96
+	
+	[cut]
+	5,96,128
+
+
+
 
 -sxp, --sprxpos
 -syp, --sprypos
