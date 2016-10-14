@@ -59,8 +59,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>cp $(TargetPath) ..\..\bin\.
+cp $(TargetPath) C:\FalconVFS\share\N\AGTsource\bin\.</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -81,7 +81,9 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <PostBuildEvent>
-      <Command>cp $(TargetPath) c:\bin\slam\.</Command>
+      <Command>cp $(TargetPath) ..\..\bin\.
+cp $(TargetPath) C:\FalconVFS\share\N\AGTsource\bin\.
+</Command>
     </PostBuildEvent>
     <CustomBuildStep>
       <Command>
