@@ -77,7 +77,7 @@ enum EntityType : int
 	EntityType_VIEWPORT,
 
 	// player
-	EntityType_SKELLY,
+	EntityType_VILLAGER,
 	
 	// end!
 	EntityType_MAX_
@@ -94,12 +94,12 @@ enum EntityType : int
 
 // enable this for dualfield/interlaced rendering (requires 2x playfield graphics)
 // otherwise use normal rendering
-static const s16 c_dualfield = 0;
+static const s16 c_dualfield = 1;
 // this tweak optimizes dualfield display for 50hz, otherwise set 0 for a 25hz-or-less refresh
 // note: at 50hz we need only one buffer for even field, one for odd. at 25hz or below we need 
 // to store independent odd/even fields for each front/back buffer so the 50hz interlace can 
 // be maintained.
-static const s16 c_singlevbl = 0;
+static const s16 c_singlevbl = 1;
 
 
 // define a playfield config for horizontal-only scrolling using STE HW HSCROLL
@@ -186,8 +186,8 @@ entity_t *g_pe_viewport = NULL;
 
 // sprite assets
 
-// skeleton
-spritesheet skelly;
+// villager
+spritesheet villager_asset;
 
 // playfield tile assets (x2 in dual-field mode)
 tileset mytiles0;
@@ -423,8 +423,8 @@ int main(int argc, char **argv)
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	note: using EMXSPR sprite format
 
-		// bouncy skeleton
-		skelly.load("sprite2.emx");
+		// villager sprite
+		villager_asset.load("villager.emx");
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	tie gfx assets into entity type dictionary, so we don't need to do it every time we spawn an object
@@ -432,7 +432,7 @@ int main(int argc, char **argv)
 		// note: asset binding could be done automatically via the dictionary but its useful to be able to override sizes etc.
 		// and its better not to hide asset assignment steps in a system with simple memory management.
 
-		EntityDefAsset_Sprite(EntityType_SKELLY, &skelly);
+		EntityDefAsset_Sprite(EntityType_VILLAGER, &villager_asset);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	init world, set viewport initial position
@@ -547,16 +547,16 @@ restart_game:
 		g_pe_viewport = EntitySpawn(EntityType_VIEWPORT, 0, 0);
 
 		// ---------------------------------------------------------------------------------------------------------------------
-		//	fill the map with bouncy skeletons!
+		//	fill the map with bouncy villagers!
 
-		for (int e = 0; e < 16; e++)
+		for (int e = 0; e < 40; e++)
 		{
 			// make the entity first
 			// note: the first tick of the entity will incur a spike cost as
 			// the real coordinates are applied and the scene is sorted-in. this
 			// happens because we spawned at 0,0 2D and forced a big change in 
 			// position later. an isometric-specific spawn would be better here.
-			entity_t *pent = EntitySpawn(EntityType_SKELLY, 0, 0);
+			entity_t *pent = EntitySpawn(EntityType_VILLAGER, 0, 0);
 
 			s32 vx, vy, x, y, z;
 
@@ -596,6 +596,9 @@ restart_game:
 				pent->fvx = xsign(prng.genS32()) << 15;
 			else
 				pent->fvy = xsign(prng.genS32()) << 15;
+
+			Iso2DFrom3D(pent->fwx,pent->fwy,pent->fwz, pent->frx,pent->fry);
+
 		}
 
 		// =====================================================================================================================
@@ -641,8 +644,8 @@ mainloop:
 			//	entities get sorted automatically by the tick system.
 
 			// manually update the viewport first. we don't need a full tick for this but we do need to keep the viewport sorted
-			g_pe_viewport->rx = g_viewport_worldx - c_viewport_margin;
-			g_pe_viewport->ry = g_viewport_worldy;
+			g_pe_viewport->rx = g_viewport_worldx;// - c_viewport_margin;
+			g_pe_viewport->ry = g_viewport_worldy - c_viewport_margin;
 			EntitySort2D(g_pe_viewport);
 
 			// ---------------------------------------------------------------------------------------------------------------------
@@ -669,7 +672,7 @@ mainloop:
 			//	the interaction is reciprocal, so both entities will perform the same test on each other with their own flags.
 			//	a particular interaction order is not guaranteed although it will be stable.
 
-			EntityInteractVisible();
+//			EntityInteractVisible();
 
 			TIMING_MAIN(0x707);	
 
@@ -867,42 +870,76 @@ mainloop:
 
 
 // ---------------------------------------------------------------------------------------------------------------------
-// tick: skeleton
+// tick: villager
 
-void skelly_fntick(entity_t *_pself)
+static const s8 animations_for_directions[] =
+{
+	//LL
+	2, 3, 4, 3, 2, 1, 0, 1,
+	//LR
+	7, 8, 9, 8, 7, 6, 5, 6,
+	//UR
+	12,13,14,13,12,11,10,11,
+	//UL
+	17,18,19,18,17,16,15,16,
+};
+
+void villager_fntick(entity_t *_pself)
 {
 	// get non-aliasable reference to object
 	entity_t &self = *_pself;
 
+	// sleep when offscreen
+	u16 spx = self.rx - (g_viewport_worldx-32);
+	u16 spy = self.ry - (g_viewport_worldy-32);
+	if ((spx > (320+48)) || (spy > (SCREEN_LINES+64)))
+		return;
+
+	s16 s = (self.id + self.counter++);
+
+	if ((s & 1) == 0)
+	{
+		s16 walk = (s >> 1) & 7;
+
+	//	\ 0,-1  1,0 a=3
+	//	/ 1,0  2,1  a=2
+	//	\ 0,1  1,2  a=1
+	//	/ -1,0  0,1 a=0
+		s16 angle = tsign16(self.fvx>>2)+1;
+		if (self.vy < 0) 
+			angle = 3;
+
+		self.frame = animations_for_directions[(angle << 3) + walk];
+
+		// cycle of 127 with id-offset trigger
+		if ((s & 127) == 0)
+		{
+			// rotate direction by 90'
+			{
+				s32 vx = self.fvx;
+				s32 vy = self.fvy;
+				self.fvx = -vy;
+				self.fvy = vx;
+			}
+
+			// jump every 64'th frame (but each entity is async with others)
+			if ((s & 255) == 0)
+				self.fvz = 0x00030000;
+		}
+	}
+	
 	// move on z axis (height)
 	self.fwz += self.fvz;
-	if (self.fwz < 0)
-	{
-		// hit ground & stop
-		self.fwz = 0;
-		self.fvz = 0;
-	}
-	else
+	if (self.fwz > 0)
 	{
 		// fall back under gravity
 		self.fvz -= 0x00004000;
 	}
-
-	// cycle of 64 with id-offset trigger
-	s16 s = (self.id + self.counter++);
-	if ((s & 63) == 0)
+	else
 	{
-		// jump every 64'th frame (but each entity is async with others)
-		self.fvz = 0x00040000;
-
-		// rotate direction by 90'
-		if ((s & 127) == 0)
-		{
-			s32 vx = self.fvx;
-			s32 vy = self.fvy;
-			self.fvx = -vy;
-			self.fvy = vx;
-		}
+		// hit ground & stop
+		self.fwz = 0;
+		self.fvz = 0;
 	}
 
 	// move on iso grid axis
@@ -922,7 +959,7 @@ void skelly_fntick(entity_t *_pself)
 // ---------------------------------------------------------------------------------------------------------------------
 // collision reaction: player vs other
 
-void skelly_fncol(entity_t *_pself, entity_t *_pother)
+void villager_fncol(entity_t *_pself, entity_t *_pother)
 {
 	// get non-aliasable reference to object
 	entity_t &self = *_pself;
@@ -955,12 +992,12 @@ entitydef_t entity_dictionary[] =
 	// Q: why? A: because it's a rectangle and we can determine what is inside it quickly if it is also an entity which moves through the world
 	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,	EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
 
-	// skeleton objects...
+	// villager objects...
 
-	// skeleton
+	// villager
 	//	summary:
 	//	- bouncy, run, bouncy!
-	{ &skelly_fntick,&skelly_fncol,0,			{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPR,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_POWERUP },
+	{ &villager_fntick,&villager_fncol,0,		{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPR,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 };
 
