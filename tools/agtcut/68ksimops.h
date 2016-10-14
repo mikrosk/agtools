@@ -130,6 +130,7 @@ public:
 		  em(_em),
 		  data(_data)
 	{
+		assert(_areg < 256);
 		areg = _areg;
 	}
 
@@ -164,6 +165,7 @@ public:
 		  dataH(_dataH),
 		  dataL(_dataL)
 	{
+		assert(_areg < 256);
 		areg = _areg;
 	}
 
@@ -201,7 +203,9 @@ public:
 		: Operation(_ctx, OpKind_StoreR16, OpSize_16, OpSource_Register, OpSource_Memory, OpWrite_Replace, 8, 0),
 		  em(_em)
 	{
+		assert(_reg < 256);
 		sreg = _reg;
+		assert(_areg < 256);
 		areg = _areg;
 	}
 
@@ -234,7 +238,9 @@ public:
 		: Operation(_ctx, OpKind_StoreR32, OpSize_32, OpSource_Register, OpSource_Memory, OpWrite_Replace, 12, 0),
 		  em(_em)
 	{
+		assert(_reg < 256);
 		sreg = _reg;
+		assert(_areg < 256);
 		areg = _areg;
 	}
 

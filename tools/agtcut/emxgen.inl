@@ -344,6 +344,11 @@ public:
 		// em1 addr always needed
 		EM1_reg = r;
 		registers.push_back(dataregister("a2", r++, RegClass_Address,	setconstants, setconstants, true,		0x00ff8a28));	// em1
+		
+		// em2 not used unless 3 words wide
+		EM2_reg = 999;
+		// em3 not used unless 2-3 words wide
+		EM3_reg = 999;
 
 		// em2,em3 addr depend on sprite width - free up registers if possible
 		if (srcww == 3)
@@ -1117,6 +1122,8 @@ void Context::register_sweep()
 		// data source
 		if (poper->sreg >= 0)
 		{
+			assert(poper->sreg < tags.size());
+
 			// if not yet tagged - generate new tag
 			std::pair<int,int> &optag = tags[poper->sreg];
 
@@ -1155,6 +1162,9 @@ void Context::register_sweep()
 		// address source
 		if (poper->areg >= 0)
 		{
+//			printf("areg: %d\n", poper->areg);
+			assert(poper->areg < tags.size());
+
 			// if not yet tagged - generate new tag
 			std::pair<int,int> &optag = tags[poper->areg];
 
@@ -1180,6 +1190,8 @@ void Context::register_sweep()
 			 (poper->opwr == OpWrite_ReplaceHCombineL))
 		)
 		{
+			assert(poper->dreg < tags.size());
+
 			// if not yet tagged - generate new tag
 			std::pair<int,int> &optag = tags[poper->dreg];
 
@@ -1251,6 +1263,7 @@ void Context::register_sweep()
 			std::pair<int,int> &tag = *it;
 
 			// save full tag pattern for this state in operation to help with renaming
+			assert(r < sizeof(poper->alltagsH));
 			poper->alltagsH[r] = tag.second;
 			poper->alltagsL[r] = tag.first;
 
@@ -1262,9 +1275,15 @@ void Context::register_sweep()
 
 		// reset tags for replaced register BEFORE replace op (running backwards)
 		if (replacedL >= 0)
+		{
+			assert(replacedL < tags.size());
 			tags[replacedL].first = -1;
+		}
 		if (replacedH >= 0)
+		{
+			assert(replacedH < tags.size());
 			tags[replacedH].second = -1;
+		}
 
 		//printf("\n");
 	}
@@ -1274,6 +1293,8 @@ bool Context::tag_busy(std::list<Operation*>::iterator _start, int _r, OpSize _s
 {
 	// detect lifespan tag conflicts between two registers
 	Operation *poper = *_start;
+
+	assert(_r < sizeof(poper->alltagsL));
 
 	if (poper->alltagsL[_r] >= 0)
 		return true;
@@ -1290,21 +1311,28 @@ bool Context::tag_collision(std::list<Operation*>::iterator _start, int _rold, i
 	if (_rnew == _rold)
 		return false;
 
+	assert(_rold >= 0);
+	assert(_rnew >= 0);
+
 	// detect lifespan tag conflicts between two registers
 	for (std::list<Operation*>::iterator it = _start; it != operations.end(); it++)
 	{
 		Operation *poper = *it;
 
+		assert(_rold < sizeof(poper->alltagsL));
 		if (poper->alltagsL[_rold] >= 0)
 		{
+			assert(_rnew < sizeof(poper->alltagsL));
 			if (poper->alltagsL[_rnew] >= 0)
 				return true;
 		}
 
 		if (_sz == OpSize_32)
 		{
+			assert(_rold < sizeof(poper->alltagsH));
 			if (poper->alltagsH[_rold] >= 0)
 			{
+				assert(_rnew < sizeof(poper->alltagsH));
 				if (poper->alltagsH[_rnew] >= 0)
 					return true;
 			}
@@ -1614,6 +1642,7 @@ void Context::cleanup_pass()
 							registers[rnew].L
 						);
 						curr = operations.erase(curr);
+						assert(arold < 256);
 						curr = operations.insert(curr, new EM_MoveR32(*this, emold, rnew, arold));
 						goto terminate;
 					}
@@ -2168,8 +2197,10 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			printf("\n");
 		}
 
-		byte_t *changes = new byte_t[shift.planewords_ * shift.height_];
-		memset(changes, 0, shift.planewords_ * shift.height_);
+//		byte_t *changes = new byte_t[shift.planewords_ * shift.height_];
+//		memset(changes, 0, shift.planewords_ * shift.height_);
+		byte_t *changes = new byte_t[3 * shift.height_];
+		memset(changes, 0, 3 * shift.height_);
 
 		// make copy of data in terms of 3*y EM words
 		uword_t *buffer = new uword_t[3 * shift.height_];
@@ -2319,7 +2350,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		if (USE_DELTA_OPTIMIZATION)
 		{
 			uword_t lastchanges[3];
-			//bool got_first_line = false;
+			bool dirtyline = true;
 
 			for (int v = 0; v < shift.height_; v++)
 			{
@@ -2339,17 +2370,19 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				// generate deltas for only real lines
 				if (m)
 				{
-					changes[yn + 0] = (lastchanges[0] != buffer[yn + 0]) ? 1 : 0;
+					changes[yn + 0] = (dirtyline || (lastchanges[0] != buffer[yn + 0])) ? 1 : 0;
 					if (shift.wordwidth_ == 3)
-						changes[yn + 1] = (lastchanges[1] != buffer[yn + 1]) ? 1 : 0;
+						changes[yn + 1] = (dirtyline || (lastchanges[1] != buffer[yn + 1])) ? 1 : 0;
 					if (shift.wordwidth_ >= 2)
-						changes[yn + 2] = (lastchanges[2] != buffer[yn + 2]) ? 1 : 0;
+						changes[yn + 2] = (dirtyline || (lastchanges[2] != buffer[yn + 2])) ? 1 : 0;
 
 					// accept new data for non-empty lines
 					lastchanges[0] = buffer[yn + 0];
 					lastchanges[1] = buffer[yn + 1];
 					lastchanges[2] = buffer[yn + 2];
 				}
+
+				dirtyline = false;
 			}
 		}
 		else

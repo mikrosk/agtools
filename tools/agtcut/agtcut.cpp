@@ -155,6 +155,15 @@ static uword_t *g_workbufferbpl = 0;
 //	misc. small helper functions
 // --------------------------------------------------------------------
 
+//#undef assert
+//#define assert(_x_) \
+//{ \
+//	if (!(_x_)) \
+//	{ \
+//		__asm { int 3 }; \
+//	}; \
+//}
+
 static inline uword_t endianswap16(const uword_t _v)
 {
 	return ((_v & 0xFF00) >> 8) | ((_v & 0x00FF) << 8);
@@ -1829,7 +1838,7 @@ bool palette_load(const char* filename, RGB *&r_ppal, unsigned short &r_numcolou
 				r_ppal[p].green = g_stbi_palette[p][1];
 				r_ppal[p].blue = g_stbi_palette[p][2];
 			}
-
+			
 			r_numcolours = g_stbi_colours;
 
 			// count distinct colours (in case of duplicates)
