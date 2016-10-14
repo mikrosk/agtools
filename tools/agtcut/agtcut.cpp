@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.31";
+static const char* const g_version_string = "v0.32";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -222,6 +222,19 @@ static void remove_extension(std::string &_fname)
 		_fname = _fname.substr(0, dot);
 }
 
+inline char sanitise_csv_integer(char ch)
+{
+	unsigned char uc = (unsigned char)ch;
+	if ((uc >= '0' && uc <= '9') ||
+		(uc >= 'a' && uc <= 'f') ||
+		(uc >= 'A' && uc <= 'F') ||
+		(uc == '-') ||
+		(uc == 'x'))
+		return ch;
+
+	return ' ';
+}
+
 static void plot6x6char(RGB *_buf, int _bufw, int _c, int _x, int _y)
 {
 	u8 *fnt = &tiny6x6fnt[_c * 6];
@@ -313,7 +326,9 @@ enum
 	OPT_CCFIELDS,
 	OPT_CCREMAP,
 	// sprites
-//	OPT_SPRITEGUIDE, // may not bother with this - command switches cover it
+	OPT_SPRITEGUIDE,
+	OPT_QUICKCUT,
+	OPT_VIS,
 	OPT_PREVIEW,
 	OPT_GENMASK,
 	OPT_MASKLAYOUT,
@@ -383,8 +398,14 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_CCREMAP,		_T("-ccr"),	 			SO_REQ_SEP	},
 	//
-//	{ OPT_SPRITEGUIDE,	_T("-sg"),	 			SO_REQ_SEP	},
-//	{ OPT_SPRITEGUIDE,	_T("--sprguide"), 		SO_REQ_SEP	},
+	{ OPT_SPRITEGUIDE,	_T("-sg"),	 			SO_REQ_SEP	},
+	{ OPT_SPRITEGUIDE,	_T("--sprguide"), 		SO_REQ_SEP	},
+	//
+	{ OPT_QUICKCUT,		_T("-qc"),	 			SO_NONE	},
+	{ OPT_QUICKCUT,		_T("--quickcut"), 		SO_NONE	},
+	//
+	{ OPT_VIS,			_T("-vis"),	 			SO_NONE	},
+	{ OPT_VIS,			_T("--visual"), 		SO_NONE	},
 	//
 	{ OPT_SPROPT,		_T("-sopt"), 			SO_REQ_SEP	},
 	{ OPT_SPROPT,		_T("--soptimize"),		SO_REQ_SEP	},
@@ -491,10 +512,11 @@ static void usage(int level)
 	std::cout << " -gm, --gen-mask      > generate 1bpl mask data along with colour data" << std::endl;
 	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar,preshift" << std::endl;
 	std::cout << " -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
+	std::cout << " -qc, --quickcut      > improve cutting speed (reduce optimization) for quicker test/debug turnaround" << std::endl;
+	std::cout << " -vis, --visual       > provide feedback/visualisation of cut spritesheet as .tga file" << std::endl;
 	std::cout << " -ccr                 > cryptochrome colour field remapping: both,high,low" << std::endl;
-//	std::cout << " -sl, --slab          > generate 'slab' sprites: on/off" << std::endl;
 	std::cout << " -prv, --preview      > show ASCII preview of extracted colours + masking" << std::endl;
-//	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;	// todo: maybe - only if its useful
+	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;
 	std::cout << std::endl;
 	std::cout << "map & tile cutting mode:" << std::endl;
 	std::cout << " -ts, --tilesize      > tile size (rbplus mode only): 16,32" << std::endl;
@@ -545,6 +567,23 @@ enum Masklayout
 	Masklayout_IMPLIED,
 };
 
+// sprite guide cutting event, extracted from .sgd text file
+class guideevent
+{
+public:
+
+	guideevent(int _count, std::string _flags, int _xp, int _yp, int _xs, int _ys, int _xi, int _yi)
+		: count(_count), flags(_flags), xp(_xp), yp(_yp), xs(_xs), ys(_ys), xi(_xi), yi(_yi)
+	{
+	}
+
+	int count;
+	std::string flags;
+	int xp, yp;
+	int xs, ys;
+	int xi, yi;
+};
+
 class Arguments
 {
 public:
@@ -557,13 +596,15 @@ public:
 		  preview(false),
 		  genmask(false),
 		  keyguard(false),
+		  quickcut(false),
+		  visual(false),
 		  tolerance(0.0f),
 		  keytol(0.01f),
 		  sourcefile(""),
 		  outfile(""),
 		  tiletags(""),
 		  palettefile("palette.pi1"),
-//		  spriteguidefile("sprites.sgd"),
+		  spriteguidefile(""),
 		  ccfields(1),
 		  ccremap(CCRemap_BOTH),
 		  masklayout(Masklayout_INTERLEAVED),
@@ -597,6 +638,8 @@ public:
 	bool preview;
 	bool genmask;
 	bool keyguard;
+	bool quickcut;
+	bool visual;
 
 	ubyte_t keycol;
 	iRGB keyrgb;
@@ -616,7 +659,7 @@ public:
 	std::string outfile;
 	std::string tiletags;
 	int ccfields;
-//	std::string spriteguidefile;
+	std::string spriteguidefile;
 	Cutmode cutmode;
 	Outmode outmode;
 	Masklayout masklayout;
@@ -625,6 +668,8 @@ public:
 	std::string palettefile;
 	int planes;
 	int tilesize;
+
+	std::list<guideevent> guideeventseq;
 
 	spritemap_t spritemappings;
 
@@ -691,7 +736,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				float farg = (float)atof(s_arg.c_str());
 				if (farg < 0.0f || farg > 1e4f)
 				{
-					printf("error - invalid arg for tile matching tolerance: %s\n", s_arg.c_str());
+					printf("error: invalid arg for tile matching tolerance: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.tolerance = farg;	
@@ -702,7 +749,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				float farg = (float)atof(s_arg.c_str());
 				if (farg < 0.0f || farg > 1e4f)
 				{
-					printf("error - invalid arg for key guard tolerance: %s\n", s_arg.c_str());
+					printf("error: invalid arg for key guard tolerance: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.keytol = farg;	
@@ -752,7 +801,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					printf("error - invalid arg for cutmode: %s\n", s_arg.c_str());
+					printf("error: invalid arg for cutmode: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 			}
@@ -779,7 +830,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					printf("error - invalid arg for outmode: %s\n", s_arg.c_str());
+					printf("error: invalid arg for outmode: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 			}
@@ -806,10 +859,20 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					}
 					else
 					{
-						printf("error - invalid arg for masklayout: %s\n", s_arg.c_str());
+						printf("error: invalid arg for masklayout: %s\n", s_arg.c_str());
+						printf("press any key...\n");
+						getchar();
 						exit(1);
 					}
 				}
+			}
+			else if (args.OptionId() == OPT_QUICKCUT)
+			{
+				_args.quickcut = true;
+			}
+			else if (args.OptionId() == OPT_VIS)
+			{
+				_args.visual = true;
 			}
 			else if (args.OptionId() == OPT_SPROPT)
 			{
@@ -826,7 +889,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					printf("error - invalid arg for sprite-optimize: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite-optimize: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 			}
@@ -834,17 +899,19 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			{
 				_args.palettefile = args.OptionArg();
 			}
-			//else if (args.OptionId() == OPT_SPRITEGUIDE)
-			//{
-			//	_args.spriteguidefile = args.OptionArg();
-			//}
+			else if (args.OptionId() == OPT_SPRITEGUIDE)
+			{
+				_args.spriteguidefile = args.OptionArg();
+			}
 			else if (args.OptionId() == OPT_KEYCOL)
 			{
 				std::string s_arg = args.OptionArg();
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 255)
 				{
-					printf("error - invalid arg for key colour: %s\n", s_arg.c_str());
+					printf("error: invalid arg for key colour: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.keycol = iarg;	
@@ -858,7 +925,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 
 				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
 				{
-					printf("error - invalid arg for key rgb: %s\n", s_arg.c_str());
+					printf("error: invalid arg for key rgb: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 
@@ -874,7 +943,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 255)
 				{
-					printf("error - invalid arg for key colour: %s\n", s_arg.c_str());
+					printf("error: invalid arg for key colour: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.keycol = iarg;	
@@ -885,7 +956,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if ((iarg != 16) && (iarg != 32))
 				{
-					printf("error - invalid arg for tile size: %s\n", s_arg.c_str());
+					printf("error: invalid arg for tile size: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.tilesize = iarg;	
@@ -896,7 +969,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if ((iarg != 1) && (iarg != 2))
 				{
-					printf("error - invalid arg for ccfields: %s\n", s_arg.c_str());
+					printf("error: invalid arg for ccfields: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.ccfields = iarg;	
@@ -921,7 +996,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					printf("error - invalid arg for ccr: %s\n", s_arg.c_str());
+					printf("error: invalid arg for ccr: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 			}
@@ -931,7 +1008,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > g_maxplanes)
 				{
-					printf("error - invalid arg for bitplanes/bpp: %s\n", s_arg.c_str());
+					printf("error: invalid arg for bitplanes/bpp: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.planes = iarg;	
@@ -942,7 +1021,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					printf("error - invalid arg for sprite cutting position: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting position: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.cut_xpos = iarg;	
@@ -953,7 +1034,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					printf("error - invalid arg for sprite cutting position: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting position: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.cut_ypos = iarg;	
@@ -964,17 +1047,19 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 4096)
 				{
-					printf("error - invalid arg for sprite cutting size: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting size: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				if ((_args.cutmode == Cutmode_SPRITES) && (iarg > 128))
 				{
-					printf("warning - sprite cutting width %s exceeds max. of 128 for AGT sprite system!\n", s_arg.c_str());
+					printf("warning: sprite cutting width %s exceeds max. of 128 for AGT sprite system!\n", s_arg.c_str());
 				}
 				else
 				if ((_args.cutmode == Cutmode_SLABS || _args.cutmode == Cutmode_SLABRESTORE) && (iarg > 256))
 				{
-					printf("warning - sprite cutting width %s exceeds max. of 256 for AGT slab system!\n", s_arg.c_str());
+					printf("warning: sprite cutting width %s exceeds max. of 256 for AGT slab system!\n", s_arg.c_str());
 				}
 				_args.cut_xsize = iarg;	
 			}
@@ -984,7 +1069,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 4096)
 				{
-					printf("error - invalid arg for sprite cutting size: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting size: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.cut_ysize = iarg;	
@@ -995,7 +1082,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					printf("error - invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.cut_xinc = iarg;	
@@ -1006,7 +1095,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					printf("error - invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.cut_yinc = iarg;	
@@ -1017,7 +1108,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					printf("error - invalid arg for sprite cutting x-count: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting x-count: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.cut_xcount = iarg;	
@@ -1028,7 +1121,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					printf("error - invalid arg for sprite cutting y-count: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting y-count: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.cut_ycount = iarg;	
@@ -1039,7 +1134,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					printf("error - invalid arg for sprite cutting count: %s\n", s_arg.c_str());
+					printf("error: invalid arg for sprite cutting count: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
 					exit(1);
 				}
 				_args.cut_count = iarg;	
@@ -1065,7 +1162,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		}
 		else 
 		{
-			printf("error - invalid argument: %s\n", args.OptionText());
+			printf("error: invalid argument: %s\n", args.OptionText());
+			printf("press any key...\n");
+			getchar();
 			exit(1);
 		}
     }
@@ -1075,7 +1174,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		usage(0);
 		exit(1);
 	}
-
+	
+	// trounce verbosity in quickcut mode
+	if (g_allargs.quickcut)
+		g_allargs.verbose = false;
 
 	// adjust counts to make sense for common scenarios with terse commandlines
 
@@ -1114,6 +1216,193 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			g_allargs.cut_xcount = 1;
 		if (g_allargs.cut_ycount == 0)
 			g_allargs.cut_ycount = 1;
+	}
+
+	// if a spriteguide file was specified, read it
+	if (g_allargs.spriteguidefile.length() > 0)
+	{
+		std::cout << "processing sprite guide file: " << g_allargs.spriteguidefile.c_str() << std::endl;
+		std::ifstream sprguide(g_allargs.spriteguidefile.c_str());
+		if (!(sprguide.is_open() && sprguide.good()))
+		{
+			std::cerr << "error: unable to locate or read specified spriteguide file!" << std::endl;
+			printf("press any key...\n");
+			getchar();
+			exit(1);
+		}
+
+		// [size]
+		int cutxs = 16;
+		int cutys = 16;
+		// [step]
+		int cutxi = 0;
+		int cutyi = 0;
+		// [flags]
+		std::string cutflags;
+		// [cut]
+		int cutcount = 1;
+		int cutxp = 0;
+		int cutyp = 0;
+		int cutsofar = 0;
+		int cmdmode = -1;
+
+		// parse CSV
+		for (CSVIterator loop(sprguide); loop != CSVIterator(); ++loop)
+		{
+			const CSVRow& r = (*loop);
+			size_t s = r.size();
+			if (s > 0)
+			{
+				std::string inspect = r[0];
+
+				if ((inspect.length() == 0) ||
+					(inspect[0] == ';'))
+				{
+					// skip comments & empty lines
+				}
+				else
+				if (inspect[0] == '[')
+				{
+					// command
+					if (inspect.find("[size]") == 0)
+					{
+						cmdmode = 0;
+					}
+					else
+					if (inspect.find("[step]") == 0)
+					{
+						cmdmode = 1;
+					}
+					else
+					if (inspect.find("[flags]") == 0)
+					{
+						cmdmode = 2;
+					}
+					else
+					if (inspect.find("[cut]") == 0)
+					{
+						cmdmode = 3;
+					}
+					else
+					{
+						std::cerr << "error: unknown spriteguide command: " << inspect.c_str() << std::endl;
+						printf("press any key...\n");
+						getchar();
+						exit(1);
+					}
+				}
+				else
+				{
+					int column_value = 0;
+					int column_index = 0;
+					std::string colval;
+					char *pdummy = 0;
+
+					switch (cmdmode)
+					{
+					case 0:
+						{
+							// size
+							colval = r[column_index++];
+							std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+							column_value = strtol(colval.c_str(), &pdummy, 10);
+							cutxs = column_value;
+							//
+							colval = r[column_index++];
+							std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+							column_value = strtol(colval.c_str(), &pdummy, 10);
+							cutys = column_value;
+
+							cmdmode = -1;
+						}
+						break;
+					case 1:
+						{
+							// step
+							colval = r[column_index++];
+							std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+							column_value = strtol(colval.c_str(), &pdummy, 10);
+							cutxi = column_value;
+							//
+							colval = r[column_index++];
+							std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+							column_value = strtol(colval.c_str(), &pdummy, 10);
+							cutyi = column_value;
+
+							cmdmode = -1;
+						}
+						break;
+					case 2:
+						{
+							// flags
+							colval = r[column_index++];
+							cutflags = colval;
+
+							cmdmode = -1;
+						}
+						break;
+					case 3:
+						{
+							// count
+							colval = r[column_index++];
+							std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+							column_value = strtol(colval.c_str(), &pdummy, 10);
+							cutcount = column_value;
+							// xpos
+							colval = r[column_index++];
+							std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+							column_value = strtol(colval.c_str(), &pdummy, 10);
+							cutxp = column_value;
+							// ypos
+							colval = r[column_index++];
+							std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+							column_value = strtol(colval.c_str(), &pdummy, 10);
+							cutyp = column_value;
+
+							// create extra mappings for frames with flags
+							if (cutflags.length() > 0)
+							{
+								int mapend = cutsofar + cutcount;
+								int mappos = cutsofar;
+								while (mappos < mapend)
+								{
+									spritemapping_t &mapping = g_allargs.spritemappings[mappos];
+									mapping.flags = cutflags;
+									// no remapping of frames, just applying flags
+									// also, no need to modify x/y position when not remapping frames
+									mapping.from = mappos;
+									mapping.to = mappos;
+									mappos++;
+								}
+							}
+
+							// record cutting event
+							g_allargs.guideeventseq.push_back(guideevent(cutcount, cutflags, cutxp, cutyp, cutxs, cutys, cutxi, cutyi));
+
+							std::cout << "recorded cutting event:" <<
+								" count=" << cutcount << 
+								" xp=" << cutxp <<
+								" yp=" << cutyp <<
+								" xs=" << cutxs <<
+								" ys=" << cutys <<
+								" xi=" << cutxi <<
+								" yi=" << cutyi <<
+								" fl=" << cutflags.c_str() <<
+								std::endl;
+
+							// reset flags
+							cutflags = "";
+
+							cutsofar += cutcount;
+
+							cmdmode = -1;
+						}
+					default:
+						break;
+					};
+				}
+			}
+		}
 	}
 }
 
@@ -1229,7 +1518,7 @@ static bool read_pal24(const char* _fname, RGB *&r_ppal, unsigned short& r_numco
 	}
 
 	// not recognized/not found
-	std::cerr << "error: can't open this palette file: " << _fname << std::endl;
+	std::cerr << "warning: can't open this palette file: " << _fname << std::endl;
 	return false;
 }
 
@@ -1294,7 +1583,7 @@ static bool read_pal_cct(const char* _fname, RGB *&r_ppal, unsigned short& r_num
 	}
 
 	// not recognized/not found
-	std::cerr << "error: can't open this image: " << _fname << std::endl;
+	std::cerr << "warning: can't open this image: " << _fname << std::endl;
 	return false;
 }
 
@@ -1397,7 +1686,7 @@ static bool read_pal_ccs(const char* _fname, RGB *&r_ppal, unsigned short& r_num
 		fclose(hpal);
 
 	// not recognized/not found
-	std::cerr << "error: can't open complete fileset: " << _fname << std::endl;
+	std::cerr << "warning: can't open complete fileset: " << _fname << std::endl;
 	return false;
 }
 
@@ -1462,7 +1751,7 @@ static bool read_pal_pi1(const char* _fname, RGB *&r_ppal, unsigned short& r_num
 	}
 
 	// not recognized/not found
-	std::cerr << "error: can't open this image: " << _fname << std::endl;
+	std::cerr << "warning: can't open this image: " << _fname << std::endl;
 	return false;
 }
 
@@ -1513,7 +1802,7 @@ bool image_load(const char* filename, RGB *&r_psourcergb, unsigned char *&r_psou
 	}
 
 	// not recognized/not found
-	std::cerr << "error: can't open this image" << std::endl;
+	std::cerr << "warning: can't open this image" << std::endl;
 	return false;
 }
 
@@ -1563,12 +1852,12 @@ bool palette_load(const char* filename, RGB *&r_ppal, unsigned short &r_numcolou
 		}
 
 		// not indexed colour - no palette
-		std::cerr << "error: non-indexed colour image or unsupported image type - no palette available" << std::endl;
+		std::cerr << "warning: non-indexed colour image or unsupported image type - no palette available" << std::endl;
 		return false;
 	}
 
 	// not recognized/not found
-	std::cerr << "error: can't open this image" << std::endl;
+	std::cerr << "warning: can't open this image" << std::endl;
 	return false;
 }
 
@@ -1971,10 +2260,10 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 		}
 		else
 		{
-			std::cerr << " unrecognized palette format [" << g_allargs.palettefile.c_str() << "] so trying image handlers..." << std::endl;
+			std::cout << " unrecognized palette format [" << g_allargs.palettefile.c_str() << "] so trying image handlers..." << std::endl;
 			success = palette_load(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
 			if (!success)
-				std::cerr << "error: this image format can't be used to supply palettes currently" << std::endl;
+				std::cerr << "warning: this image format can't be used to supply palettes currently" << std::endl;
 		}
 	}
 
@@ -2076,6 +2365,8 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 	else
 	{
 		std::cerr << "error: could not read input palette from palette file or image" << std::endl;
+		printf("press any key...\n");
+		getchar();	
 		exit(1);
 	}
 	std::cout << "...done" << std::endl;
@@ -2514,21 +2805,8 @@ void emit_tga(const char* const _name, RGB *data, int _w, int _h)
 	}
 	else
 	{
-		std::cerr << "error: could not create review TGA file: " << _name << std::endl;
+		std::cerr << "warning: could not create review TGA file: " << _name << std::endl;
 	}
-}
-
-inline char sanitise_csv_integer(char ch)
-{
-	unsigned char uc = (unsigned char)ch;
-	if ((uc >= '0' && uc <= '9') ||
-		(uc >= 'a' && uc <= 'f') ||
-		(uc >= 'A' && uc <= 'F') ||
-		(uc == '-') ||
-		(uc == 'x'))
-		return ch;
-
-	return ' ';
 }
 
 bool do_tiles()
@@ -2557,6 +2835,8 @@ bool do_tiles()
 			if ((sourcew & (g_allargs.tilesize - 1)) || (sourceh & (g_allargs.tilesize - 1)))
 			{
 				std::cerr << "error: source image is not a multiple of " << g_allargs.tilesize << " pixels on both axes - check the map!" << std::endl;
+				printf("press any key...\n");
+				getchar();	
 				exit(1);
 			}
 
@@ -2717,6 +2997,7 @@ bool do_tiles()
 					reviewfile.append("_index.tga");
 
 					emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
+					std::cout << "emitted map index visualisation [" << reviewfile.c_str() << "]" << std::endl;
 				}
 
 
@@ -2725,9 +3006,10 @@ bool do_tiles()
 					std::ifstream tiletags(g_allargs.tiletags.c_str());
 					if (!(tiletags.is_open() && tiletags.good()))
 					{
-						std::cerr << "error - unable to locate or read specified tiletags CSV file!" << std::endl;
+						std::cerr << "error: unable to locate or read specified tiletags CSV file!" << std::endl;
 						printf("press any key...\n");
 						getchar();	
+						exit(1);
 					}
 
 					// create maskindex from marked indices
@@ -2768,7 +3050,7 @@ bool do_tiles()
 								}
 								else
 								{
-									fprintf(stderr, "error - invalid tile index field (%d) in tiletags CSV file!\n", column_value);
+									fprintf(stderr, "error: invalid tile index field (%d) in tiletags CSV file!\n", column_value);
 									printf("press any key...\n");
 									getchar();	
 									exit(1);				
@@ -2890,6 +3172,7 @@ bool do_tiles()
 						reviewfile.append("_tags.tga");
 
 						emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
+						std::cout << "emitted map tags visualisation [" << reviewfile.c_str() << "]" << std::endl;
 					}
 
 				}
@@ -2907,12 +3190,12 @@ bool do_tiles()
 		}
 		else
 		{
-			std::cerr << "error: could not decode [" << g_allargs.sourcefile.c_str() << "] source image" << std::endl;
+			std::cerr << "warning: could not decode [" << g_allargs.sourcefile.c_str() << "] source image" << std::endl;
 		}
 	}
 	else
 	{
-		std::cerr << "error: could not open [" << g_allargs.sourcefile.c_str() << "] source file" << std::endl;
+		std::cerr << "warning: could not open [" << g_allargs.sourcefile.c_str() << "] source file" << std::endl;
 	}
 
 	return true;
@@ -3108,7 +3391,7 @@ void init_sprite_sequence(int _xs, int _ys, int _sw, int _sh)
 //	cut a single frame from source image
 // --------------------------------------------------------------------
 
-void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yflip, int _hs, int _vs)
+void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yflip, int _hs, int _vs, RGB* _ppal, RGB* _pvisualrgb)
 {
 	memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
 	memset(g_maskbuffer8, 0xFF, g_sprite_bpwidth * g_sprite_height);
@@ -3123,6 +3406,32 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 	int pys = _yflip ? (g_sprite_height-1) : 0;
 	int pxi = _xflip ? -1 : 1;
 	int pyi = _yflip ? -1 : 1;
+
+	if (g_allargs.visual && _pvisualrgb)
+	{
+		for (int lpy = 0, py = pys; lpy < g_sprite_height; lpy++, py += pyi)
+		{
+			for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
+			{
+				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+				int frame = g_spriteframes.size();
+
+				RGB &pix = _pvisualrgb[(frame * (g_sprite_width*g_sprite_height)) + (lpy*g_sprite_width) + lpx];
+
+				if (c == g_allargs.keycol)
+				{	
+					pix.red = g_allargs.keyrgb.red;
+					pix.green = g_allargs.keyrgb.green;
+					pix.blue = g_allargs.keyrgb.blue;
+				}
+				else
+				{
+					pix = _ppal[c];
+				}
+			}
+		}
+	}
 
 	if (g_allargs.preview)
 	{
@@ -4695,6 +5004,8 @@ bool do_sheet()
 	RGB *m_ppalettergb = 0;
 	ubyte_t *m_psourcecol = 0;
 	ubyte_t *m_poriginalsrccol = 0;
+	RGB *pvisualrgb = 0;
+	int visualw, visualh;
 
 	if (g_allargs.cutmode == Cutmode_SPRITES)
 		std::cout << "spritesheet cutting mode..." << std::endl;
@@ -4747,104 +5058,210 @@ bool do_sheet()
 				else
 					cuts = g_allargs.cut_xcount * g_allargs.cut_ycount;
 
+				// configure expected cut count for allocating visual feedback image
+				int total_expected_cuts = cuts;
+				// if using a spriteguide file, sum up frames from the cutting events
+				if (!g_allargs.guideeventseq.empty())
+				{
+					total_expected_cuts = 0;
+					for (std::list<guideevent>::iterator git = g_allargs.guideeventseq.begin();
+						git != g_allargs.guideeventseq.end();
+						git++)
+					{
+						total_expected_cuts += git->count;
+					}
+				}
+
+				// configure default cut from command args
+
 				int cutting_source_xs = g_allargs.cut_xsize;
 				int cutting_source_ys = g_allargs.cut_ysize;
-
-				std::cout << "sprite dimensions [" << cutting_source_xs << ", " << cutting_source_ys << "]" << std::endl;
-
-				if (g_allargs.cutmode == Cutmode_SPRITES ||
-					g_allargs.cutmode == Cutmode_EMSPR ||
-					g_allargs.cutmode == Cutmode_EMXSPR)
-					init_sprite_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
-				else
-				if (g_allargs.cutmode == Cutmode_SLABS || g_allargs.cutmode == Cutmode_SLABRESTORE)
-					init_slab_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
 
 				int cutting_source_x = g_allargs.cut_xpos;
 				int cutting_source_y = g_allargs.cut_ypos;
 
-				for (int s = 0, xc = 0; s < cuts; s++)
+				int total_cuts = 0;
+
+				do
 				{
-					int cx = cutting_source_x;
-					int cy = cutting_source_y;
-					bool xflip = false;
-					bool yflip = false;
-					int hs = 0;
-					int vs = 0;
-
-					spritemap_t::iterator found = g_allargs.spritemappings.find(s);
-					if (found != g_allargs.spritemappings.end())
+					// if cutting from a guide file, override command settings for cutting cursor
+					// and repeat the cut while guide events remain unprocessed
+					if (!g_allargs.guideeventseq.empty())
 					{
-						// this frame is mapped from another
-						int from = found->second.from;
+						guideevent &ge = g_allargs.guideeventseq.front();
 
-						// locate cut record for 'from' frame
-						const spritemapping_t &other = g_allargs.spritemappings[from];
+						cutting_source_x = ge.xp;
+						cutting_source_y = ge.yp;
+						g_allargs.cut_xpos = ge.xp;
+						g_allargs.cut_ypos = ge.yp;
 
-						// move cutting position to that of 'from' frame
-						cx = other.x;
-						cy = other.y;
+						cutting_source_xs = ge.xs;
+						cutting_source_ys = ge.ys;
+						g_allargs.cut_xsize = ge.xs;
+						g_allargs.cut_ysize = ge.ys;
 
-						// check for X/Y flip-flags
-						if (found->second.flags.find("x") != std::string::npos)
-							xflip = true;
+						g_allargs.cut_xinc = ge.xi;
+						g_allargs.cut_yinc = ge.yi;
 
-						if (found->second.flags.find("y") != std::string::npos)
-							yflip = true;
-
-						// ...and scroll adjust L/R/U/D
-						if (found->second.flags.find("l") != std::string::npos)
-							hs = -1;
+						// cutting N frames from static position
+						if ((ge.xi == 0) && (ge.yi == 0))
+						{
+							g_allargs.cut_xcount = ge.count;
+							g_allargs.cut_ycount = 1;
+						}
 						else
-						if (found->second.flags.find("r") != std::string::npos)
-							hs = 1;
-
-						if (found->second.flags.find("u") != std::string::npos)
-							vs = -1;
+						// row cut
+						if ((ge.xi != 0) && (ge.yi == 0))
+						{
+							g_allargs.cut_xcount = ge.count;
+							g_allargs.cut_ycount = 1;
+						}
 						else
-						if (found->second.flags.find("d") != std::string::npos)
-							vs = 1;					
+						// column cut
+						if ((ge.xi == 0) && (ge.yi != 0))
+						{
+							g_allargs.cut_xcount = 1;
+							g_allargs.cut_ycount = ge.count;
+						}
+						else
+						// everything else is an error
+						{
+							std::cerr << "error: cutting sequences in spriteguide files must be row or column, not diagonal!" << std::endl;
+							printf("press any key...\n");
+							getchar();	
+							exit(1);
+						}
+	
+						// configure cut count based on new args
+						cuts = g_allargs.cut_xcount * g_allargs.cut_ycount;
+
+						// this event has been dealt with - remove it
+						g_allargs.guideeventseq.pop_front();
 					}
 
-					if (g_allargs.cutmode == Cutmode_SPRITES ||
-						g_allargs.cutmode == Cutmode_EMSPR ||
-						g_allargs.cutmode == Cutmode_EMXSPR)
+					// can only have one sprite (outer) frame size per file, so we initialise
+					// the sequence on the first cut and ignore any subsequent size changes
+					static bool bfirstcut = true;
+					if (bfirstcut)
 					{
-						std::cout << "cutting sprite frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-						add_sprite_frame(m_psourcecol, cx, cy, xflip, yflip, hs, vs);
+						bfirstcut = false;
+
+						std::cout << "sprite dimensions [" << cutting_source_xs << ", " << cutting_source_ys << "]" << std::endl;
+
+						if (g_allargs.cutmode == Cutmode_SPRITES ||
+							g_allargs.cutmode == Cutmode_EMSPR ||
+							g_allargs.cutmode == Cutmode_EMXSPR)
+						{
+							init_sprite_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
+
+							// opportunity to create visual feedback for cutting jobs
+							// note: sprites only
+							if (g_allargs.visual && !pvisualrgb)
+							{
+								visualw = cutting_source_xs;
+								visualh = cutting_source_ys * total_expected_cuts;
+								pvisualrgb = new RGB[visualw * visualh];
+								memset(pvisualrgb, 0, visualw * visualh * sizeof(RGB));
+							}
+						}
+						else
+							if (g_allargs.cutmode == Cutmode_SLABS || g_allargs.cutmode == Cutmode_SLABRESTORE)
+							{
+								init_slab_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
+							}
 					}
-					else
-					if (g_allargs.cutmode == Cutmode_SLABS)
+
+
+					for (int event_cuts = 0, xc = 0; event_cuts < cuts; event_cuts++, total_cuts++)
 					{
-						std::cout << "cutting slab frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-						memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
-						add_slab_frame(m_psourcecol, cx, cy);
+						int cx = cutting_source_x;
+						int cy = cutting_source_y;
+						bool xflip = false;
+						bool yflip = false;
+						int hs = 0;
+						int vs = 0;
+
+						spritemap_t::iterator found = g_allargs.spritemappings.find(total_cuts);
+						if (found != g_allargs.spritemappings.end())
+						{
+							// this frame is mapped from another
+							int from = found->second.from;
+
+							// locate cut record for 'from' frame
+							const spritemapping_t &other = g_allargs.spritemappings[from];
+
+							if (from != total_cuts)
+							{
+								// move cutting position to that of 'from' frame, if they are different frames
+								cx = other.x;
+								cy = other.y;
+							}
+
+							// check for X/Y flip-flags
+							if (found->second.flags.find("x") != std::string::npos)
+								xflip = true;
+
+							if (found->second.flags.find("y") != std::string::npos)
+								yflip = true;
+
+							// ...and scroll adjust L/R/U/D
+							if (found->second.flags.find("l") != std::string::npos)
+								hs = -1;
+							else
+								if (found->second.flags.find("r") != std::string::npos)
+									hs = 1;
+
+							if (found->second.flags.find("u") != std::string::npos)
+								vs = -1;
+							else
+								if (found->second.flags.find("d") != std::string::npos)
+									vs = 1;
+						}
+
+						if (g_allargs.cutmode == Cutmode_SPRITES ||
+							g_allargs.cutmode == Cutmode_EMSPR ||
+							g_allargs.cutmode == Cutmode_EMXSPR)
+						{
+							std::cout << "cutting sprite frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
+							add_sprite_frame(m_psourcecol, cx, cy, xflip, yflip, hs, vs, 
+								m_ppalettergb, pvisualrgb);
+						}
+						else
+							if (g_allargs.cutmode == Cutmode_SLABS)
+							{
+								std::cout << "cutting slab frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
+								memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+								add_slab_frame(m_psourcecol, cx, cy);
+							}
+							else
+								if (g_allargs.cutmode == Cutmode_SLABRESTORE)
+								{
+									std::cout << "cutting slabrestore frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
+									memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+									add_slabrestore_frame(m_psourcecol, cx, cy);
+								}
+
+						// store mappings for each frame, so future frames can refer to these
+						// mappings in order to re-cut earlier frames with optional flipping
+						g_allargs.spritemappings[total_cuts].x = cx;
+						g_allargs.spritemappings[total_cuts].y = cy;
+
+						cutting_source_x += g_allargs.cut_xinc;
+
+						xc++;
+
+						if (xc >= g_allargs.cut_xcount)
+						{
+							// reset row when cut_xcount expires
+							xc = 0;
+							cutting_source_x = g_allargs.cut_xpos;
+							cutting_source_y += g_allargs.cut_yinc;
+						}
 					}
-					else
-					if (g_allargs.cutmode == Cutmode_SLABRESTORE)
-					{
-						std::cout << "cutting slabrestore frame " << s << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-						memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
-						add_slabrestore_frame(m_psourcecol, cx, cy);
-					}
 
-					// store mappings for each frame, so future frames can refer to these
-					// mappings in order to re-cut earlier frames with optional flipping
-					g_allargs.spritemappings[s].x = cx;
-					g_allargs.spritemappings[s].y = cy;
-
-					cutting_source_x += g_allargs.cut_xinc;
-
-					xc++;
-
-					if (xc >= g_allargs.cut_xcount)
-					{
-						// reset row when cut_xcount expires
-						xc = 0;
-						cutting_source_x = g_allargs.cut_xpos;
-						cutting_source_y += g_allargs.cut_yinc;
-					}
+					// continue while guide events remain (if there were any guide events)
 				}
+				while (!g_allargs.guideeventseq.empty());
 
 				std::cout << "...done" << std::endl;
 			}
@@ -4871,6 +5288,18 @@ bool do_sheet()
 				break;
 			}
 		}
+
+		if (g_allargs.visual && pvisualrgb)
+		{
+			std::string reviewfile(g_allargs.outfile);
+			remove_extension(reviewfile);
+			reviewfile.append("_vis.tga");
+
+			emit_tga(reviewfile.c_str(), pvisualrgb, visualw, visualh);
+			std::cout << "emitted spritesheet visualisation [" << reviewfile.c_str() << "]" << std::endl;
+			delete[] pvisualrgb; pvisualrgb = 0;
+		}
+
 	}
 
 	return true;
@@ -4892,6 +5321,8 @@ int main(int argc, char* argv[])
 		g_allargs.tilesize != 16)
 	{
 		std::cerr << "error: only 16x16 tile size is supported in degas/direct mode. other sizes are for rbplus only" << std::endl;
+		printf("press any key...\n");
+		getchar();	
 		exit(1);
 	}
 
@@ -4910,6 +5341,9 @@ int main(int argc, char* argv[])
 	{
 		// error
 		std::cerr << "error: unsupported cutmode!" << std::endl;
+		printf("press any key...\n");
+		getchar();	
+		exit(1);
 	}
 }
 

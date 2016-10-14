@@ -616,8 +616,10 @@ public:
 					r_size68kbin--;
 				}
 
-				if (oldsize != r_size68kbin)
-					std::cout << "trimmed binary code by " << (oldsize-r_size68kbin) << " bytes" << std::endl;
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+						if (oldsize != r_size68kbin)
+							std::cout << "trimmed binary code by " << (oldsize-r_size68kbin) << " bytes" << std::endl;
 
 
 				if (r_size68kbin == 0)
@@ -1504,7 +1506,9 @@ void Context::cleanup_pass()
 
 	register_sweep();
 
-	printf("cleanup pass: replace #immediate EM stores with modified register values\n");
+	if (!g_allargs.quickcut)
+		if (g_allargs.verbose)
+			printf("cleanup pass: replace #immediate EM stores with modified register values\n");
 
 	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end();)
 	{
@@ -1804,7 +1808,9 @@ void Context::reduce_pass()
 
 	register_sweep();
 
-	printf("load reduction pass: replace redundant register load/stores with immediate stores\n");
+	if (!g_allargs.quickcut)
+		if (g_allargs.verbose)
+			printf("load reduction pass: replace redundant register load/stores with immediate stores\n");
 
 	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end();)
 	{
@@ -1847,7 +1853,9 @@ void Context::reduce_pass()
 					((pwrite->kind == OpKind_LoadI16) && (pop->kind == OpKind_StoreR16))
 				)
 				{
-					printf("reduce opportunity: reg %d [$%04x%04x]\n", reg, registers[reg].H, registers[reg].L);
+					if (!g_allargs.quickcut)
+						if (g_allargs.verbose)
+							printf("reduce opportunity: reg %d [$%04x%04x]\n", reg, registers[reg].H, registers[reg].L);
 
 					int arold = pwrite->areg;
 
@@ -1884,7 +1892,7 @@ terminate:
 void Context::tail_pass()
 {
 	reset_sim(true);
-
+	
 	register_sweep();
 
 	printf("tail optimization: move BLiT operations to hide long tails...\n");
@@ -1965,6 +1973,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 	}
 
 	// find common optimized line order
+	if (!g_allargs.quickcut)
 	if (USE_COMMON_LINEORDER_OPTIMIZATION && (spr.h_ > 1))
 	{
 		printf("optimizing common line order across all preshifts...\n");
@@ -2141,9 +2150,11 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 		Context context(shift.wordwidth_, shift.height_);
 
+		if (!g_allargs.quickcut)
 		printf("\n\npreshift %d preview:\n", pi);
 
 		// output the source image pattern
+		if (!g_allargs.quickcut)
 		if (g_allargs.verbose)
 		{
 			for (int v = 0; v < shift.height_; v++)
@@ -2187,6 +2198,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			}
 		}
 
+		if (!g_allargs.quickcut)
 		if (USE_PERSHIFT_LINEORDER_OPTIMIZATION && (shift.height_ > 1))
 		{
 			best_pattern.clear();
@@ -2354,6 +2366,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 		bool em_dirty[3];
 
+		if (!g_allargs.quickcut)
 		printf("deltas...\n");
 
 		// reset dirty EM registers for this blit width
@@ -2368,41 +2381,48 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			if (changes[y + 0] || em_dirty[0])
 			{
 				em_dirty[0] = false;
-				if (g_allargs.verbose)
-					print_dataword(buffer[y + 0]);
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+						print_dataword(buffer[y + 0]);
 			}
 			else
 			{
-				if (g_allargs.verbose)
-					printf("................");
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+						printf("................");
 			}
 
 			if (changes[y + 1] || em_dirty[1])
 			{
 				em_dirty[1] = false;
-				if (g_allargs.verbose)
-					print_dataword(buffer[y + 1]);
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+						print_dataword(buffer[y + 1]);
 			}
 			else
 			{
-				if (g_allargs.verbose)
-					printf("................");
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+						printf("................");
 			}
 
 			if (changes[y + 2] || em_dirty[2])
 			{
 				em_dirty[2] = false;
-				if (g_allargs.verbose)
-					print_dataword(buffer[y + 2]);
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+						print_dataword(buffer[y + 2]);
 			}
 			else
 			{
-				if (g_allargs.verbose)
-					printf("................");
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+						printf("................");
 			}
 
-			if (g_allargs.verbose)
-				printf("\n");
+			if (!g_allargs.quickcut)
+				if (g_allargs.verbose)
+					printf("\n");
 		}
 
 		class lineout
@@ -2420,7 +2440,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 		std::vector<lineout> active_lines;
 
-		printf("\nsurviving datawords...\n");
+		if (!g_allargs.quickcut)
+			printf("\nsurviving datawords...\n");
 
 		// reset dirty EM registers for this blit width
 		em_dirty[0] = true;
@@ -2459,8 +2480,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					{
 						if (!linechanges[x] && !em_dirty[x])
 						{
-							if (g_allargs.verbose)
-								printf("----------------");
+							if (!g_allargs.quickcut)
+								if (g_allargs.verbose)
+									printf("----------------");
 							continue;
 						}
 
@@ -2469,8 +2491,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						uword_t dataword = srcdata[x];
 						emx_metric_t &m = context.metrics[dataword];
 
-						if (g_allargs.verbose)
-							print_dataword(dataword);
+						if (!g_allargs.quickcut)
+							if (g_allargs.verbose)
+								print_dataword(dataword);
 
 						//if (m.name < 0)
 						//	m.name = unique_datawords++;
@@ -2516,15 +2539,18 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					// all EM words on this line have been dealt with one way or another
 					em_dirty[0] = em_dirty[1] = em_dirty[2] = false;
 
-					if (g_allargs.verbose)
-						printf("\n");
+					if (!g_allargs.quickcut)
+						if (g_allargs.verbose)
+							printf("\n");
 				}
 			}
 		}
 
-		printf("total surviving = %d\n", context.metrics.size());
+		if (!g_allargs.quickcut)
+			printf("total surviving = %d\n", context.metrics.size());
 
-		printf("\nscoring:\n");
+		if (!g_allargs.quickcut)
+			printf("\nscoring:\n");
 
 		// globally score each data word according to metrics
 		int assigned_registers = 0;
@@ -2532,8 +2558,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		{
 			const uword_t &dataword = mit->first;
 
-			if (g_allargs.verbose)
-				print_dataword(dataword);
+			if (!g_allargs.quickcut)
+				if (g_allargs.verbose)
+					print_dataword(dataword);
 
 			emx_metric_t &m = mit->second;
 
@@ -2553,8 +2580,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 			m.fincidence_score = fscore;
 
-			if (g_allargs.verbose)
-				printf(" incidence_score: %.2f\n", fscore);
+			if (!g_allargs.quickcut)
+				if (g_allargs.verbose)
+					printf(" incidence_score: %.2f\n", fscore);
 		}
 
 		// globally score each data word according to its left-adjacency (upper word opportuntiy)
@@ -2562,8 +2590,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		{
 			const uword_t &dataword = mit->first;
 
-			if (g_allargs.verbose)
-				print_dataword(dataword);
+			if (!g_allargs.quickcut)
+				if (g_allargs.verbose)
+					print_dataword(dataword);
 
 			emx_metric_t &m = mit->second;
 
@@ -2578,8 +2607,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 			m.fadjacency_score = fscore;
 
-			if (g_allargs.verbose)
-				printf(" adjacency_score: %.2f\n", fscore);
+			if (!g_allargs.quickcut)
+				if (g_allargs.verbose)
+					printf(" adjacency_score: %.2f\n", fscore);
 		}
 
 		// find the most useful values
@@ -2605,8 +2635,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 				if (m.incidence >= 2)
 				{
-					if (g_allargs.verbose)
-						printf("L preload: [$%04x] iscore: %.2f\n", dataword, uit->first);
+					if (!g_allargs.quickcut)
+						if (g_allargs.verbose)
+							printf("L preload: [$%04x] iscore: %.2f\n", dataword, uit->first);
 					context.preloads.push_back(preload(dataword));
 				}
 			}
@@ -2625,8 +2656,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 //				if (m.incidence > 1)
 				{
-					if (g_allargs.verbose)
-						printf("H preload: [$%04x] ascore: %.2f\n", dataword, h_score);
+					if (!g_allargs.quickcut)
+						if (g_allargs.verbose)
+							printf("H preload: [$%04x] ascore: %.2f\n", dataword, h_score);
 
 
 					// sort adjacencies with indirection
@@ -2652,8 +2684,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 							uword_t adjacent_low = relit->first;
 
-							if (g_allargs.verbose)
-								printf("candidate adjacent low: [$%04x] hits: %d\n", adjacent_low, relit->second);
+							if (!g_allargs.quickcut)
+								if (g_allargs.verbose)
+									printf("candidate adjacent low: [$%04x] hits: %d\n", adjacent_low, relit->second);
 
 							// try to locate it in the existing pool of L preloads
 							// if we find a match, bind it and break
@@ -2665,8 +2698,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 									pit->H = dataword;
 									pit->validH = true;
 
-									if (g_allargs.verbose)
-										printf("bound preload [$%04x]:[$%04x]\n", dataword, adjacent_low);
+									if (!g_allargs.quickcut)
+										if (g_allargs.verbose)
+											printf("bound preload [$%04x]:[$%04x]\n", dataword, adjacent_low);
 
 									goto break_bind;
 								}
@@ -2788,8 +2822,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			lifebits &= cancelbits;
 		}
 
-		if (g_allargs.verbose)
-			printf("\n\ninitial data lifespans:\n");
+		if (!g_allargs.quickcut)
+			if (g_allargs.verbose)
+				printf("\n\ninitial data lifespans:\n");
 		//for (std::vector<storedependency>::iterator rit = deps.begin(); rit != deps.end(); rit++)
 		//{
 		//	storedependency &dr = *rit;
@@ -2802,6 +2837,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		//printf("\n");
 
 		// report lifespan status for each state for each execution stage
+		if (!g_allargs.quickcut)
 		if (g_allargs.verbose)
 		{
 			std::vector<storedependency>::iterator dit = deps.begin();
@@ -3254,21 +3290,19 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 		// peephole passes
 
-		// 1) replace 16bit immediate loads to registers with register-derived values
-		// clr.w,not.w,neg.w,and/or/eor.w,add/sub.w,addq/subq.w,scc.b,tas.b
+		// immediate loads to registers with register-derived values
+		if (!g_allargs.quickcut)
+			context.transform_pass();
 
-		context.transform_pass();
+		//if (!g_allargs.quickcut)
+			context.cleanup_pass();
 
-		// 2) replace 16bit immediate loads to EMs with register-derived values
+		//if (!g_allargs.quickcut)
+			context.reduce_pass();
 
-		context.cleanup_pass();
-
-		context.reduce_pass();
-
-		// 3) replace immediate loads with ops causing side-effects
-		// moveq,swap,addq/subq.l,move-usp,ext.l
-
-		context.tail_pass();
+		// optimize instruction tail / blitter overlaps
+		if (!g_allargs.quickcut)
+			context.tail_pass();
 
 		//
 
@@ -3282,7 +3316,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		// debug the blit
 //		if (g_allargs.verbose)
 		{
-			printf("debug simulation...\n");
+			if (!g_allargs.quickcut)
+				if (g_allargs.verbose)
+					printf("debug simulation...\n");
 			int errors = 0;
 			for (int v = 0; v < context.srch; v++)
 			{
@@ -3299,16 +3335,22 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					if (m && (data != expected))
 						errors++;
 
-					if (m)
-					{
-						print_dataword(expected); printf(":"); print_dataword(data); printf("  ");
-					}
-					else
-					{
-						print_dataword(expected); printf(":----------------  ");
-					}
+					if (!g_allargs.quickcut)
+						if (g_allargs.verbose)
+						{
+							if (m)
+							{
+								print_dataword(expected); printf(":"); print_dataword(data); printf("  ");
+							}
+							else
+							{
+								print_dataword(expected); printf(":----------------  ");
+							}
+						}
 				}
-				printf(" blit=%d\n", best_invpattern[v]);
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+					printf(" blit=%d\n", best_invpattern[v]);
 			}
 
 			if (errors > 0)
