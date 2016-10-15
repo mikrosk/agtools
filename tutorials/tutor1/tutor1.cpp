@@ -90,8 +90,8 @@ S_SUPER_SSP(AGT_CONFIG_STACK);
 #define SCREEN_LINES (240)
 
 // define word buffers for a couple of hardcoded screens. add a single column of +16 to accommodate hscroll.
-u16 screenbuffer0[SCREEN_LINES * ((320+16)/2)];
-u16 screenbuffer1[SCREEN_LINES * ((320+16)/2)];
+u16 screenbuffer0[SCREEN_LINES * ((320+16)/4)];
+u16 screenbuffer1[SCREEN_LINES * ((320+16)/4)];
 
 // an array of 2 pointers, one for each screenbuffer. used to manually select between them using index 0 or 1.
 u16* screenbuffer_ptrs[] =
