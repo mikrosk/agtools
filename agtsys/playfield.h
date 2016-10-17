@@ -58,6 +58,7 @@ enum VScrollMode
 
 enum RestoreMode
 {
+	RestoreMode_NONE,
 	RestoreMode_SAVERESTORE,
 	RestoreMode_PAGERESTORE
 };
