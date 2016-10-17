@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.32";
+static const char* const g_version_string = "v0.33";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -2968,39 +2968,52 @@ bool do_tiles()
 
 			} // ccf loop
 
-
-			// emit review
+			// emit tilemap review files
 			{
 				int tilesize = g_allargs.tilesize;
 
-				// rebuild source from tiles
-				for (int yy = 0; yy < tilemaph; yy++)
+				// only emit mapvis review file if requested
+				if (g_allargs.visual)
 				{
-					for (int xx = 0; xx < tilemapw; xx++)
+					std::string reviewfile(g_allargs.outfile);
+					remove_extension(reviewfile);
+					reviewfile.append("_mapvis.tga");
+
+					emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
+					std::cout << "emitted map visualisation [" << reviewfile.c_str() << "]" << std::endl;
+				}
+
+				// only emit map index review file if requested
+				if (g_allargs.visual)
+				{
+
+					// rebuild source from tiles
+					for (int yy = 0; yy < tilemaph; yy++)
 					{
-						RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
-
-						int index = ptilemap[(yy * tilemapw) + xx];
-
-						// unfortunately we're storing the tiles in a list - better change this
-						tile24dictionary_t::iterator it24 = s_tile24dictionary.begin();
-						for (int i = 0; i < index; i++, it24++);
-
-						RGB *psrc = *it24;
-
-						for (int py = 0; py < tilesize; py++)
+						for (int xx = 0; xx < tilemapw; xx++)
 						{
-							for (int px = 0; px < tilesize; px++)
-							{
-								pdst[(py * sourcew) + px] = psrc[(py * tilesize) + px];
+							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
 
-								plot6x6hex3(pdst, sourcew, index, 1, 1);
+							int index = ptilemap[(yy * tilemapw) + xx];
+
+							// unfortunately we're storing the tiles in a list - better change this
+							tile24dictionary_t::iterator it24 = s_tile24dictionary.begin();
+							for (int i = 0; i < index; i++, it24++);
+
+							RGB *psrc = *it24;
+
+							for (int py = 0; py < tilesize; py++)
+							{
+								for (int px = 0; px < tilesize; px++)
+								{
+									pdst[(py * sourcew) + px] = psrc[(py * tilesize) + px];
+
+									plot6x6hex3(pdst, sourcew, index, 1, 1);
+								}
 							}
 						}
 					}
-				}
 
-				{
 					std::string reviewfile(g_allargs.outfile);
 					remove_extension(reviewfile);
 					reviewfile.append("_index.tga");
@@ -3009,7 +3022,7 @@ bool do_tiles()
 					std::cout << "emitted map index visualisation [" << reviewfile.c_str() << "]" << std::endl;
 				}
 
-
+				// only emit tags review if requested
 				if (g_allargs.tiletags.length() > 0)
 				{
 					std::ifstream tiletags(g_allargs.tiletags.c_str());
@@ -3067,88 +3080,7 @@ bool do_tiles()
 							}
 						}
 					}
-/*
-					pmaskindex[0x00] = 1;
-					pmaskindex[0x01] = 1;
-					pmaskindex[0x02] = 1;
-					pmaskindex[0x03] = 1;
-					pmaskindex[0x04] = 1;
-					pmaskindex[0x05] = 1;
-					pmaskindex[0x06] = 1;
-					pmaskindex[0x07] = 1;
-					pmaskindex[0x08] = 1;
-					pmaskindex[0x09] = 1;
-					pmaskindex[0x0a] = 1;
-					pmaskindex[0x0b] = 1;
-					pmaskindex[0x0c] = 1;
-					pmaskindex[0x0d] = 1;
-					pmaskindex[0x0e] = 1;
-					pmaskindex[0x0f] = 1;
-					pmaskindex[0x10] = 1;
-					pmaskindex[0x11] = 1;
-					pmaskindex[0x12] = 1;
-					pmaskindex[0x13] = 1;
-					pmaskindex[0x14] = 1;
-					pmaskindex[0x1c] = 1;
-					pmaskindex[0x1e] = 1;
-					pmaskindex[0x20] = 1;
-					pmaskindex[0x22] = 1;
-					pmaskindex[0x25] = 1;
-					pmaskindex[0x26] = 1;
-					pmaskindex[0x27] = 1;
-					pmaskindex[0x2f] = 1;
-					pmaskindex[0x34] = 1;
-					pmaskindex[0x37] = 1;
-					pmaskindex[0x58] = 1;
-					pmaskindex[0x68] = 1;
-					pmaskindex[0x69] = 1;
-					pmaskindex[0x6a] = 1;
-					pmaskindex[0x7a] = 1;
-					pmaskindex[0x9a] = 1;
-					pmaskindex[0xe8] = 1;
-					pmaskindex[0xe9] = 1;
-					pmaskindex[0xea] = 1;
-					pmaskindex[0x136] = 1;
-					pmaskindex[0x14b] = 1;
-					pmaskindex[0x14f] = 1;
-					pmaskindex[0x150] = 1;
-					pmaskindex[0x151] = 1;
-					pmaskindex[0x152] = 1;
-					pmaskindex[0x153] = 1;
-					pmaskindex[0x158] = 1;
-					pmaskindex[0x159] = 1;
-					pmaskindex[0x15b] = 1;
-					pmaskindex[0x15c] = 1;
-					pmaskindex[0x160] = 1;
-					pmaskindex[0x162] = 1;
-					pmaskindex[0x163] = 1;
-					pmaskindex[0x164] = 1;
-					pmaskindex[0x168] = 1;
-					pmaskindex[0x16e] = 1;
-					pmaskindex[0x16e] = 1;
-					pmaskindex[0x18b] = 1;
-					pmaskindex[0x18d] = 1;
-					pmaskindex[0x18e] = 1;
-					pmaskindex[0x18f] = 1;
-					pmaskindex[0x190] = 1;
-					pmaskindex[0x192] = 1;
-					pmaskindex[0x193] = 1;
-					pmaskindex[0x194] = 1;
-					pmaskindex[0x19a] = 1;
-					pmaskindex[0x19b] = 1;
-					pmaskindex[0x19c] = 1;
-					pmaskindex[0x19d] = 1;
-					pmaskindex[0x19e] = 1;
-					pmaskindex[0x1b3] = 1;
-					pmaskindex[0x1b4] = 1;
-					pmaskindex[0x1b5] = 1;
-					pmaskindex[0x1b6] = 1;
-					pmaskindex[0x1b8] = 1;
-					pmaskindex[0x1b9] = 1;
-					pmaskindex[0x1d0] = 1;
-					pmaskindex[0x1d1] = 1;
-					pmaskindex[0x1d2] = 1;
-*/
+
 					// rebuild source from tiles
 					for (int yy = 0; yy < tilemaph; yy++)
 					{
