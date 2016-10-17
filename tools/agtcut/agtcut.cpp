@@ -522,7 +522,7 @@ static void usage(int level)
 	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar,preshift" << std::endl;
 	std::cout << " -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
 	std::cout << " -qc, --quickcut      > improve cutting speed (reduce optimization) for quicker test/debug turnaround" << std::endl;
-	std::cout << " -vis, --visual       > provide feedback/visualisation of cut spritesheet as .tga file" << std::endl;
+	std::cout << " -vis, --visual       > provide feedback/visualisation of cut assets as .tga file" << std::endl;
 	std::cout << " -ccr                 > cryptochrome colour field remapping: both,high,low" << std::endl;
 	std::cout << " -prv, --preview      > show ASCII preview of extracted colours + masking" << std::endl;
 	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;
@@ -2975,6 +2975,32 @@ bool do_tiles()
 				// only emit mapvis review file if requested
 				if (g_allargs.visual)
 				{
+					// rebuild source from tiles
+					for (int yy = 0; yy < tilemaph; yy++)
+					{
+						for (int xx = 0; xx < tilemapw; xx++)
+						{
+							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
+
+							int index = ptilemap[(yy * tilemapw) + xx];
+
+							// unfortunately we're storing the tiles in a list - better change this
+							tile8dictionary_t::iterator it8 = s_tile8dictionary.begin();
+							for (int i = 0; i < index; i++, it8++);
+
+							u8 *psrc = *it8;
+
+							for (int py = 0; py < tilesize; py++)
+							{
+								for (int px = 0; px < tilesize; px++)
+								{
+									u8 c = psrc[(py * tilesize) + px];
+									pdst[(py * sourcew) + px] = m_ppalettergb[c];
+								}
+							}
+						}
+					}
+
 					std::string reviewfile(g_allargs.outfile);
 					remove_extension(reviewfile);
 					reviewfile.append("_mapvis.tga");
@@ -2986,7 +3012,6 @@ bool do_tiles()
 				// only emit map index review file if requested
 				if (g_allargs.visual)
 				{
-
 					// rebuild source from tiles
 					for (int yy = 0; yy < tilemaph; yy++)
 					{
