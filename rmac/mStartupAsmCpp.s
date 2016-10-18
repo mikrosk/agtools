@@ -163,11 +163,15 @@ super_start:
 	and.w		#-16,d0
 	move.l		d0,a0
 	move.l		sp,-(a0)
+	move.l		usp,a1
+	move.l		a1,-(a0)
 	move.l		a0,sp
 	
 	jsr		_main
 	
-_exit:	move.l		(sp)+,sp
+_exit:	move.l		(sp)+,a0
+	move.l		a0,usp
+	move.l		(sp)+,sp
 	rts
 	
 ; --------------------------------------------------------------
