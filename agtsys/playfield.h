@@ -9,6 +9,10 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
+#include "drawcontext.h"
+
+//----------------------------------------------------------------------------------------------------------------------
+
 // scanwalk mode (consume padding scanlines instead of looping on h axis)
 
 // PPPPPPPP*
@@ -70,41 +74,6 @@ extern "C" s16 g_xpreshift;
 extern "C" int STFM_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
 extern "C" int STFM_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 //extern "C" int STFM_RestoreEdges(int _xoff);
-
-// ---------------------------------------------------------------------------------------------------------------------
-// drawcontext holds copy of all relevant fields for the active workbuffer, to permit drawing
-// this structure is passed to drawing functions to minimise argument exchanges over the drawing APIs
-
-typedef struct drawcontext_s
-{
-	// playfield buffers, arrays
-	u16 *p_pfframebuffer;
-	s32 *p_pflineidx;
-	s16	*p_pflinemod;
-
-	// playfield info fields
-	s32 pfvpagebytes;
-	s16 pfvpageh;
-	s16 pfviewy;
-	s16 pfsnapadjx;
-	s16 pfsnapadjy;
-	s16 vpagex;
-	s16 vpagey;
-
-	void *pspriteclear_stack_prv;
-	void *pspriteclear_stack_cur;
-	void *pspriteclear_stack_tide;
-	void *pspriteclear_stack_prvtide;
-
-	// vpage-adjusted clipping window
-	s16 clip_window_x1;
-	s16 clip_window_y1;
-	s16 clip_window_x2;
-	s16 clip_window_y2;
-
-} drawcontext_t;
-
-extern "C" drawcontext_t drawcontext;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -1386,7 +1355,8 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 		bufferwords_ = virtual_linewords_ * virtual_height_;
 
 
-	printf("init playfield:\n");
+	pprintf("init playfield:\n");
+#if defined(REPORT_PLAYFIELD_METRICS)
 	printf("dw:%d, vw:%d, dtw:%d, vtw%d\n", (int)display_width_, (int)virtual_width_, (int)visible_tiles_x_, (int)virtual_tiles_x_);
 	printf("dh:%d, vh:%d, dth:%d, vth%d\n", (int)display_height_, (int)virtual_height_, (int)visible_tiles_y_, (int)virtual_tiles_y_);
 	printf("wrw:%d, wrh:%d\n", (int)wrap_width_, (int)wrap_height_);
@@ -1400,7 +1370,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	if (c_scanwalk) printf("scanwalk padding words = %d\n", (int)(c_max_vt_ * c_tilelinewords_));
 	printf("c_hmargin_:%d\n", (int)c_hmargin_);
 	printf("c_vmargin_:%d\n", (int)c_vmargin_);
-
+#endif
 
 	// todo: can be shared between connected playfields
 /*	{	

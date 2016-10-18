@@ -21,6 +21,10 @@
 //  - 'variable-shift' means there is one pieces of code for all shift offsets
 //	  which is slightly slower but requires very little code.
 
+//----------------------------------------------------------------------------------------------------------------------
+
+#include "drawcontext.h"
+
 // ---------------------------------------------------------------------------------------------------------------------
 // precisely clipped, software-scrolled, variable-shift, masking, 4-bitplane sprite function
 // notes: 
@@ -30,9 +34,9 @@
 
 extern "C" int STFM_ISSprDrawClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
 
-extern "C" int AGT_BLiT_IMSprDrawClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
-extern "C" int AGT_BLiT_EMSprDrawClipped(spritesheet::sps_header *_psps, u16 *_pfb, s32 *_plinetable, int _frame, int _x, int _y);
-//extern "C" int STE_EMXSprDrawClipped(spritesheet::sps_header *_psps, u16 *_pfb, s32 *_plinetable, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_IMSprDrawClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_EMSprDrawClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_EMXSprDrawClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
 
 //extern "C" int STE_EMSprClipGeneral2BPL(spritesheet::sps_header *_psps, u16 *_pfb, s32 *_plinetable, int _frame, int _x, int _y);
 
@@ -44,9 +48,9 @@ extern "C" int AGT_BLiT_EMSprDrawClipped(spritesheet::sps_header *_psps, u16 *_p
 
 extern "C" int STFM_ISSprDrawUnClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
 
-extern "C" int AGT_BLiT_IMSprDrawUnClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
-extern "C" int AGT_BLiT_EMSprDrawUnClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
-//extern "C" int STE_EMXSprDrawUnClipped(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_IMSprDrawUnClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_EMSprDrawUnClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
+extern "C" int AGT_BLiT_EMXSprDrawUnClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
 
 //extern "C" int STE_EMSprNoClipGeneral2BPL(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
 
@@ -118,6 +122,7 @@ extern "C" int AGT_BLiT_IMSprInit();
 // - automatically handled from EntityDraw system - only needed when drawing objects directly via manual calls
 
 extern "C" int AGT_BLiT_EMSprInit();
+extern "C" int AGT_BLiT_EMXSprInit();
 
 // ---------------------------------------------------------------------------------------------------------------------
 // sprite clipping window (world coordinates)

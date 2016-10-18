@@ -39,6 +39,10 @@
 	
 	.globl		_AGT_BLiT_EMSprDrawString
 
+	.globl		_AGT_BLiT_EMXSprDrawClipped
+	.globl		_AGT_BLiT_EMXSprDrawUnClipped
+	.globl		_AGT_BLiT_EMXSprInit
+
 ;	slab routines for large objects
 ;	.globl		_STE_SlabNoClipGeneral4BPL
 	.globl		_AGT_BLiT_SlabDraw
@@ -99,31 +103,47 @@ _AGT_BLiT_IMSprDrawUnClipped:
 .save:			ds.l	10
 .return:		ds.l	1
 *-------------------------------------------------------*
+.pctx:			ds.l	1
 .psps:			ds.l	1
-.pdst:			ds.l	1
 .sprframe:		ds.l	1
 .xpos:			ds.l	1
 .ypos:			ds.l	1
 *-------------------------------------------------------*
 .frame_:
 *-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+.sp_skew:		ds.w	1
+.sp_maskwidth:		ds.w	1
+.sp_flags:		ds.w	1
+.sp_linetable:		ds.l	1
+.sp_frame_:
+*-------------------------------------------------------*
 			.text
 *-------------------------------------------------------*
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
-	subq.l		#4,sp
+	lea		-.sp_frame_(sp),sp
 *-------------------------------------------------------*
+	move.l		.pctx(a6),a4
+	move.l		dctx_framebuffer(a4),a1
+	move.l		dctx_lineidx(a4),.sp_linetable(sp)
+
 	move.l		.psps(a6),a0
-	move.l		.pdst(a6),a1
 	move.w		.xpos+2(a6),d1
 	move.w		.ypos+2(a6),d2
-;	sub.w		_g_xpreshift,d1
-
+	sub.w		dctx_snapadjy(a4),d2	
 
 	; access sprite frame
 	
 	move.w		.sprframe+2(a6),d0
+	moveq		#0,d7
+
+	move.l		dctx_clearstack_tide(a4),a5
+	move.l		a5,usp
+
+*-------------------------------------------------------*
 
 enable_restore	set	1
 enable_clipping	set	1
@@ -131,8 +151,15 @@ use_hog		set	0
 	
 	include 	"ste/b_spr.s"
 
-	addq.l		#4,sp
+*-------------------------------------------------------*
+
+	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
+	
+	move.l		.pctx(a6),a4
+	move.l		usp,a5
+	move.l		a5,dctx_clearstack_tide(a4)
+	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
@@ -154,6 +181,7 @@ use_hog		set	0
 
 *-------------------------------------------------------*
 _AGT_BLiT_EMSprInit:
+_AGT_BLiT_EMXSprInit:
 *-------------------------------------------------------*
 
 	move.w		#-1,BLiTEM2.w
@@ -188,9 +216,8 @@ _AGT_BLiT_EMSprDrawUnClipped:
 .save:			ds.l	10
 .return:		ds.l	1
 *-------------------------------------------------------*
+.pctx:			ds.l	1
 .psps:			ds.l	1
-.pdst:			ds.l	1
-.plinetable:		ds.l	1
 .sprframe:		ds.l	1
 .xpos:			ds.l	1
 .ypos:			ds.l	1
@@ -212,18 +239,93 @@ _AGT_BLiT_EMSprDrawUnClipped:
 	move.l		a6,-(sp)
 	lea		-.sp_frame_(sp),sp
 *-------------------------------------------------------*
+	move.l		.pctx(a6),a4
+	move.l		dctx_framebuffer(a4),a1
+	move.l		dctx_lineidx(a4),.sp_linetable(sp)
+
 	move.l		.psps(a6),a0
-	move.l		.pdst(a6),a1
 	move.w		.xpos+2(a6),d1
 	move.w		.ypos+2(a6),d2
-	
-	move.l		.plinetable(a6),.sp_linetable(sp)
+	sub.w		dctx_snapadjy(a4),d2	
 
 	; access sprite frame
 	
 	move.w		.sprframe+2(a6),d0
+	moveq		#0,d7
 
-	move.l		_drawcontext+dctx_clearstack_tide,a5
+	move.l		dctx_clearstack_tide(a4),a5
+	move.l		a5,usp
+
+*-------------------------------------------------------*
+
+enable_restore	set	1
+enable_clipping	set	1
+
+	include		"ste/b_em_spr.s"
+	
+*-------------------------------------------------------*
+
+	lea		.sp_frame_(sp),sp
+	move.l		(sp)+,a6
+	
+	move.l		.pctx(a6),a4
+	move.l		usp,a5
+	move.l		a5,dctx_clearstack_tide(a4)
+
+	unlk		a6
+	movem.l		(sp)+,d2-d7/a2-a5
+*-------------------------------------------------------*
+	rts
+
+
+*-------------------------------------------------------*
+_AGT_BLiT_EMXSprDrawClipped:
+_AGT_BLiT_EMXSprDrawUnClipped:
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+.savea6:		ds.l	1
+.save:			ds.l	10
+.return:		ds.l	1
+*-------------------------------------------------------*
+.pctx:			ds.l	1
+.psps:			ds.l	1
+.sprframe:		ds.l	1
+.xpos:			ds.l	1
+.ypos:			ds.l	1
+*-------------------------------------------------------*
+.frame_:
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+.sp_skew:		ds.w	1
+.sp_maskwidth:		ds.w	1
+.sp_flags:		ds.w	1
+.sp_linetable:		ds.l	1
+.sp_frame_:
+*-------------------------------------------------------*
+			.text
+*-------------------------------------------------------*
+	movem.l		d2-d7/a2-a5,-(sp)
+	link		a6,#-.frame_
+	move.l		a6,-(sp)
+	lea		-.sp_frame_(sp),sp
+*-------------------------------------------------------*
+	move.l		.pctx(a6),a4
+	move.l		dctx_framebuffer(a4),a1
+	move.l		dctx_lineidx(a4),.sp_linetable(sp)
+
+	move.l		.psps(a6),a0
+	move.w		.xpos+2(a6),d1
+	move.w		.ypos+2(a6),d2
+	sub.w		dctx_snapadjy(a4),d2	
+
+	; access sprite frame
+	
+	move.w		.sprframe+2(a6),d0
+	moveq		#0,d7
+
+	move.l		dctx_clearstack_tide(a4),a5
 	move.l		a5,usp
 
 *-------------------------------------------------------*
@@ -235,18 +337,17 @@ enable_clipping	set	1
 	
 *-------------------------------------------------------*
 
-	move.l		usp,a5
-	move.l		a5,_drawcontext+dctx_clearstack_tide
-
 	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
+	
+	move.l		.pctx(a6),a4
+	move.l		usp,a5
+	move.l		a5,dctx_clearstack_tide(a4)
+	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts
-
-
-
 
 
 
