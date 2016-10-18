@@ -90,7 +90,7 @@ typedef playfield_template
     /*max_scroll=*/8192,
     /*vscroll=*/VScrollMode_LOOPBACK,
     /*hscroll=*/HScrollMode_NONE,
-    /*restore=*/RestoreMode_NONE,
+    /*restore=*/RestoreMode_PAGERESTORE,
     /*speculative=*/true,
     /*ste_hwscroll=*/true,
     /*stf_hsyncshift=*/false,
