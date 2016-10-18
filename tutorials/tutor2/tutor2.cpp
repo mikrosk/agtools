@@ -307,8 +307,8 @@ int main(int argc, char **argv)
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	wait for the current VBL period to elapse
 
-			while (g_vbl == curr_vbl) { /* spin until counter changes */ }
 			curr_vbl = g_vbl;
+			while (g_vbl == curr_vbl) { /* spin until counter changes */ }
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	update the background & scroll
