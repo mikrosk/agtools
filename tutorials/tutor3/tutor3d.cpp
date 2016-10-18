@@ -8,7 +8,7 @@
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//	+	incremental changes from 'tutor2'
+//	+	incremental changes from 'tutor3c'
 //
 //	additional:
 
@@ -83,7 +83,7 @@ S_SUPER_SSP(AGT_CONFIG_STACK);
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
 
-// define a playfield config for horizontal-only scrolling using STE HW HSCROLL
+// define a playfield config for vertical-only scrolling 
 typedef playfield_template
 <
     /*tilesize=*/4,
