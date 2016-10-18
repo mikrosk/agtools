@@ -55,7 +55,7 @@ HATARI_DEBUG_DIR = /cygdrive/d/projects/local/hatari19
 # pipe printf messages to Hatari debugger via natfeats
 USE_HATARI_NATFEATS=no
 # produce symbols for Hatari debugger
-USE_HATARI_DEBUGGING=yes
+USE_HATARI_DEBUGGING=no
 # -----------------------------------------------------------------------------
 # Requires:
 # -----------------------------------------------------------------------------
