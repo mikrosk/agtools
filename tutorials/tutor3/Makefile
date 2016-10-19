@@ -51,11 +51,11 @@ EMULATOR_GEMDOS_DIR = .
 #	Emulator (Hatari) debugger & profiler support
 # =============================================================================
 # Hatari base path
-HATARI_DEBUG_DIR = /cygdrive/d/projects/local/hatari19
+HATARI_DEBUG_DIR = .
 # pipe printf messages to Hatari debugger via natfeats
 USE_HATARI_NATFEATS=no
 # produce symbols for Hatari debugger
-USE_HATARI_DEBUGGING=yes
+USE_HATARI_DEBUGGING=no
 # -----------------------------------------------------------------------------
 # Requires:
 # -----------------------------------------------------------------------------
