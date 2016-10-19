@@ -1211,7 +1211,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					}
 
 					// SWAP + ?
-					if ((_opsize == OpSize_32) && valid_treg16)
+					if ((_opsize == OpSize_32) && valid_treg32)
 					{
 						uword_t saveH = it_treg->H;
 						uword_t saveL = it_treg->L;

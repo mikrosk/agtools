@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.33";
+static const char* const g_version_string = "v0.34";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -156,13 +156,13 @@ static uword_t *g_workbufferbpl = 0;
 // --------------------------------------------------------------------
 
 //#undef assert
-//#define assert(_x_) \
-//{ \
-//	if (!(_x_)) \
-//	{ \
-//		__asm { int 3 }; \
-//	}; \
-//}
+#define xassert(_x_) \
+{ \
+	if (!(_x_)) \
+	{ \
+		__asm { int 3 }; \
+	}; \
+}
 
 static inline uword_t endianswap16(const uword_t _v)
 {
@@ -5311,5 +5311,6 @@ int main(int argc, char* argv[])
 		getchar();	
 		exit(1);
 	}
+//	xassert(false);
 }
 
