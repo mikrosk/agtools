@@ -120,18 +120,21 @@ STACKSIZE = 16384
 COMPILERDEFS += \
 		-D__ATARI__ -D__M68000__ \
 		-DAGT_CONFIG_STACK=$(STACKSIZE) \
-		-DAGT_CONFIG_WORLD_XMAJOR \
-		-DTIMING_RASTERS_MAIN \
-
-#		-DUSE_MEMTRACE \
 
 # -----------------------------------------------------------------------------
 #	Tweaks
 # -----------------------------------------------------------------------------
 
+COMPILERDEFS += \
+		-DAGT_CONFIG_WORLD_XMAJOR \
+
 # -----------------------------------------------------------------------------
 #	Additional dev/debug options
 # -----------------------------------------------------------------------------
+
+COMPILERDEFS += \
+#		-DTIMING_RASTERS_MAIN \
+#		-DUSE_MEMTRACE \
 
 # -----------------------------------------------------------------------------
 #	C Code generation

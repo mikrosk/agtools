@@ -88,10 +88,11 @@ S_SUPER_SSP(AGT_CONFIG_STACK);
 //	CAUTION: this is only meant to be simple for the tutorial - could end up in TTRam on some Ataris and break...
 
 #define SCREEN_LINES (240)
+#define SCREEN_LINES_STORAGE (256)
 
 // define word buffers for a couple of hardcoded screens. add a single column of +16 to accommodate hscroll.
-u16 screenbuffer0[SCREEN_LINES * ((320+16)/4)];
-u16 screenbuffer1[SCREEN_LINES * ((320+16)/4)];
+u16 screenbuffer0[SCREEN_LINES_STORAGE * ((320+16)/4)];
+u16 screenbuffer1[SCREEN_LINES_STORAGE * ((320+16)/4)];
 
 // an array of 2 pointers, one for each screenbuffer. used to manually select between them using index 0 or 1.
 u16* screenbuffer_ptrs[] =
@@ -210,9 +211,10 @@ int main(int argc, char **argv)
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	fill both screenbuffers with some kind of vertical bar pattern, so we can see the scroll
+		//	note: some upper lines are blanked out to achieve 240 visible & centered, so we fill some extra lines
 
 		s32 dst = 0;
-		for (s32 data = 0; data < (SCREEN_LINES*20); data++)
+		for (s32 data = 0; data < (SCREEN_LINES_STORAGE*(20+1)); data++)
 		{
 			// we write 4 plane-words to 2 buffers at once, on each loop
 			screenbuffer0[dst] = 0xF000;
