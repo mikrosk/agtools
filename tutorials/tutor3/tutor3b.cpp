@@ -76,7 +76,6 @@ S_SUPER_SSP(AGT_CONFIG_STACK);
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	define some space for the display.
-//	CAUTION: this is only meant to be simple for the tutorial - could end up in TTRam on some Ataris and break...
 
 #define SCREEN_LINES (240)
 
@@ -221,7 +220,7 @@ int main(int argc, char **argv)
 		s16 map_ylimit = (map_ypixels-SCREEN_LINES-c_scroll_safety_margin);
 
 		// ---------------------------------------------------------------------------------------------------------------------
-		//	create an isntance of the double-buffered arena (our game world), connected to the shifter interface
+		//	create an instance of the double-buffered arena (our game world), connected to the shifter interface
 
 		printf("creating world...\n");
 		arena_vscroll_ste myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
@@ -298,13 +297,17 @@ int main(int argc, char **argv)
 		}
 
 		// =====================================================================================================================
-		//	mainloop
+		//	mainloop setup
 		// =====================================================================================================================
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	initialise playfield-restore state before any sprites are drawn
 
 		AGT_PlayfieldRestoreInit();
+
+		// =====================================================================================================================
+		//	mainloop
+		// =====================================================================================================================
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	some persistent variables we're going to need in the mainloop
@@ -313,12 +316,11 @@ int main(int argc, char **argv)
 		s16 backbuffer_num = 0;			// index of current backbuffer (0 or 1)
 		s16 curr_vbl = g_vbl;			// initial vblank number
 		s16 animation_time = 0;
-		s16 count = 0;
 
 		// ---------------------------------------------------------------------------------------------------------------------
-		//	start the mainloop - run forever
+		//	start the mainloop - run for a limited time
 
-		while (count < 400)
+		while (animation_time < 400)
 		{
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	wait for the current VBL period to elapse
@@ -384,8 +386,8 @@ int main(int argc, char **argv)
 				);
 			}
 
+			// animate the sprite
 			animation_time++;
-			count++;
 
 			TIMING_MAIN(0x007);	
 

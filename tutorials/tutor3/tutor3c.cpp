@@ -76,7 +76,6 @@ S_SUPER_SSP(AGT_CONFIG_STACK);
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	define some space for the display.
-//	CAUTION: this is only meant to be simple for the tutorial - could end up in TTRam on some Ataris and break...
 
 #define SCREEN_LINES (240)
 
@@ -130,11 +129,14 @@ static const int c_scroll_safety_margin = 16;
 static s16 g_viewport_worldx = 0; 
 static s16 g_viewport_worldy = c_scroll_safety_margin;
 
+// ---------------------------------------------------------------------------------------------------------------------
+//	sincos table
+
+#include "tables/sintab32.h"
+
 // =====================================================================================================================
 //	program entrypoint
 // =====================================================================================================================
-
-#include "tables/sintab32.h"
 
 int main(int argc, char **argv)
 {
@@ -223,7 +225,7 @@ int main(int argc, char **argv)
 		s16 map_ylimit = (map_ypixels-SCREEN_LINES-c_scroll_safety_margin);
 
 		// ---------------------------------------------------------------------------------------------------------------------
-		//	create an isntance of the double-buffered arena (our game world), connected to the shifter interface
+		//	create an instance of the double-buffered arena (our game world), connected to the shifter interface
 
 		printf("creating world...\n");
 		arena_vscroll_ste myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
@@ -300,13 +302,17 @@ int main(int argc, char **argv)
 		}
 
 		// =====================================================================================================================
-		//	mainloop
+		//	mainloop setup
 		// =====================================================================================================================
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	initialise playfield-restore state before any sprites are drawn
 
 		AGT_PlayfieldRestoreInit();
+
+		// =====================================================================================================================
+		//	mainloop
+		// =====================================================================================================================
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	some persistent variables we're going to need in the mainloop
@@ -326,7 +332,7 @@ int main(int argc, char **argv)
 		s16 yphaseinc_i = 281;
 
 		// ---------------------------------------------------------------------------------------------------------------------
-		//	start the mainloop - run forever
+		//	start the mainloop - run for a limited time
 
 		while (animation_time < 500)
 		{
@@ -378,7 +384,7 @@ int main(int argc, char **argv)
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	draw a sprite directly to the workbuffer (backbuffer) playfield
 
-			// set up primary x,y offset for first ball (of 16)
+			// set up primary x,y offset for first ball
 			s32 xphase_i = xphase_o;
 			s32 yphase_i = yphase_o;
 

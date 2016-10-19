@@ -158,11 +158,14 @@ static const int c_scroll_safety_margin = 16;
 static s16 g_viewport_worldx = 0; 
 static s16 g_viewport_worldy = c_scroll_safety_margin;
 
+// ---------------------------------------------------------------------------------------------------------------------
+//	sincos table
+
+#include "tables/sintab32.h"
+
 // =====================================================================================================================
 //	program entrypoint
 // =====================================================================================================================
-
-#include "tables/sintab32.h"
 
 int main(int argc, char **argv)
 {
