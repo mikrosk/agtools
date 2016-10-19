@@ -65,7 +65,7 @@ _BLiT_EntityDrawVisibleYM_68k:
 	move.l		dctx_framebuffer(a4),.sp_framebuf(sp)
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
-	move.w		dctx_snapadjx(a4),.sp_snapy(sp)	
+	move.w		dctx_snapadjy(a4),.sp_snapy(sp)	
 ;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
 ;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
 ;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto

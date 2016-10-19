@@ -30,7 +30,8 @@ enum EntityType : int;
 enum EntityDraw
 {
 	EntityDraw_NONE,		// invisible/no-draw
-	EntityDraw_SPRITE,		// standard interleaved bitplane sprite (software or blitter)
+	EntityDraw_IMSPR,		// standard [I]nterleaved, [M]asked sprite (software or blitter)
+	EntityDraw_SPRITE = EntityDraw_IMSPR, // another name for IMSPR
 	EntityDraw_EMSPR,		// blitter [E]nd[M]ask sprite up to 32pixels wide
 	EntityDraw_EMXSPR,		// blitter [E]nd[M]ask (extreme optimization) sprite up to 32pixels wide
 	EntityDraw_SLAB,		// blitter slab shape for large irregular fill areas
