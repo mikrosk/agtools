@@ -972,22 +972,10 @@ mainloop:
 
 			TIMING_MAIN(0x753);	
 
-
-			// ---------------------------------------------------------------------------------------------------------------------
-			//	now we're ready to draw stuff for the next frame
-
-			u16 *current_workbuffer = drawcontext.p_pfframebuffer;
-
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	draw 'all the things'
-			//	todo: should be using drawcontext instead of passing all those args...
 
-			EntityDrawVisible
-			(
-				current_workbuffer, 
-				myworld.buffers_[myworld.buffer_index_].fields[working_field].pfieldcontext_->lineindex_,
-				drawcontext.pfsnapadjx, drawcontext.pfsnapadjy
-			);
+			EntityDrawVisible(&drawcontext);
 
 			TIMING_MAIN(0x0f0);	
 				

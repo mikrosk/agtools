@@ -372,21 +372,10 @@ mainloop:
 			g_frame_prng *= (s16)28691;
 
 			// ---------------------------------------------------------------------------------------------------------------------
-			//	retrieve current workbuffer from arena
-			//	todo: this bit is horrible. will come from drawcontext in future
-			
-			u16 *current_workbuffer = g_pworld->buffers_[g_pworld->buffer_index_].fields[working_field].framebuffer_;
-
-			// ---------------------------------------------------------------------------------------------------------------------
 			//	draw 'all the things'
 			//	todo: should be using drawcontext instead of passing all those args...
 
-			EntityDrawVisible
-			(
-				current_workbuffer, 
-				g_pworld->buffers_[g_pworld->buffer_index_].fields[working_field].pfieldcontext_->lineindex_,
-				drawcontext.pfsnapadjx, drawcontext.pfsnapadjy
-			);
+			EntityDrawVisible(&drawcontext);
 
 			TIMING_MAIN(0x0f0);	
 				

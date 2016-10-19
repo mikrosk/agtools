@@ -21,10 +21,7 @@ _BLiT_EntityDrawVisibleXM_68k:
 .save:			rs.l	10
 .return:		rs.l	1
 *-------------------------------------------------------*
-.pdst:			rs.l	1
-.plinetable:		rs.l	1
-.snapx:			rs.l	1
-.snapy:			rs.l	1
+.pctx:			rs.l	1
 *-------------------------------------------------------*
 .frame_:		rs.b	0
 *-------------------------------------------------------*
@@ -62,10 +59,15 @@ _BLiT_EntityDrawVisibleXM_68k:
 *-------------------------------------------------------*
 *	load C args to local frame
 *-------------------------------------------------------*
-	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
-	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
-	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto
-	move.l		.plinetable(a6),.sp_linetable(sp)
+	move.l		.pctx(a6),a4
+	move.l		dctx_framebuffer(a4),.sp_framebuf(sp)
+	move.l		dctx_lineidx(a4),.sp_linetable(sp)
+	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
+	move.w		dctx_snapadjx(a4),.sp_snapy(sp)	
+;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
+;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
+;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto
+;	move.l		.plinetable(a6),.sp_linetable(sp)
 *-------------------------------------------------------*
 *	load display chain terminating condition
 *-------------------------------------------------------*
@@ -77,7 +79,7 @@ _BLiT_EntityDrawVisibleXM_68k:
 *	initial conditions
 *-------------------------------------------------------*
 
-	move.l		_drawcontext+dctx_clearstack_tide,a5
+	move.l		dctx_clearstack_tide(a4),a5
 	move.l		a5,usp
 
 *-------------------------------------------------------*
@@ -468,13 +470,18 @@ preserve_usp		set	0
 .STE_EntityDrawVisibleXM_complete:
 *-------------------------------------------------------*
 
-	move.l		usp,a5
-	move.l		a5,_drawcontext+dctx_clearstack_tide
+;	move.l		usp,a5
+;	move.l		a5,_drawcontext+dctx_clearstack_tide
 
 *-------------------------------------------------------*
 
 	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
+	
+	move.l		.pctx(a6),a4
+	move.l		usp,a5
+	move.l		a5,dctx_clearstack_tide(a4)
+	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*

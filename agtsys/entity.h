@@ -174,8 +174,8 @@ void EntityTickAll();
 
 // draw all entities within viewport rectangle
 // note: instead call EntityDrawVisible(...) wrapper from mainloop
-extern "C" void BLiT_EntityDrawVisibleXM_68k(u16 *_pcurrent_workbuffer, s32 *_plinetable, s16 _snapx, s16 _snapy);
-extern "C" void BLiT_EntityDrawVisibleYM_68k(u16 *_pcurrent_workbuffer, s32 *_plinetable, s16 _snapx, s16 _snapy);
+extern "C" void BLiT_EntityDrawVisibleXM_68k(drawcontext_t *_pctx);
+extern "C" void BLiT_EntityDrawVisibleYM_68k(drawcontext_t *_pctx);
 
 // interact/collide all entities within viewport rectangle
 // note: instead call EntityInteractVisible() wrapper from mainloop
