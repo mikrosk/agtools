@@ -10,6 +10,9 @@
 # armor powerup
 ../../bin/agtcut -cm emxspr -prv -vis -s tutor5_spr.png -p xpal.pi1 -o armor.emx -sxp 96 -syp 0 -sxs 16 -sys 16 -sc 1
 
+# spinner
+../../bin/agtcut -cm emxspr -prv -vis -s tutor5_spr.png -p xpal.pi1 -o spinner.emx -sxp 80 -syp 0 -sxs 16 -sys 16 -sxi 0 -syi 16 -sc 8
+
 # craft
 ../../bin/agtcut -cm emxspr -prv -vis -s tutor5_spr.png -p xpal.pi1 -o craft.emx -sxp 208 -syp 0 -sxs 32 -sys 32 -sxi 0 -syi 32 -sc 6
 
