@@ -206,7 +206,7 @@ AGLIB_STE = $(AGLIB_O) $(AGLIB_STE_O) $(NATFEATS_O)
 
 # rule to build programs
 
-all: tutorial_4a tutorial_4b tutorial_4c
+all: tutorial_4a tutorial_4b tutorial_4c tutorial_4d tutorial_4e tutorial_4f tutorial_4g
 
 # individual programs...
 
@@ -222,6 +222,18 @@ tutorial_4b: $(AGLIB_STE) tutor4b.tos
 
 tutorial_4c: AGLIB=$(AGLIB_STE)
 tutorial_4c: $(AGLIB_STE) tutor4c.tos
+
+tutorial_4d: AGLIB=$(AGLIB_STE)
+tutorial_4d: $(AGLIB_STE) tutor4d.tos
+
+tutorial_4e: AGLIB=$(AGLIB_STE)
+tutorial_4e: $(AGLIB_STE) tutor4e.tos
+
+tutorial_4f: AGLIB=$(AGLIB_STE)
+tutorial_4f: $(AGLIB_STE) tutor4f.tos
+
+tutorial_4g: AGLIB=$(AGLIB_STE)
+tutorial_4g: $(AGLIB_STE) tutor4g.tos
 
 # =============================================================================
 #	Rule to clean projects

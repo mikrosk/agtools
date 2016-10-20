@@ -410,7 +410,7 @@ int main(int argc, char **argv)
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	start the mainloop
 
-		while (animation_timer++ < 180)
+		while (animation_timer++ < 200)
 		{
 
 			// ---------------------------------------------------------------------------------------------------------------------
@@ -492,6 +492,9 @@ int main(int argc, char **argv)
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	update the scroll coordinates
+
+			if (animation_timer > 60)
+				scroll_speed = 1;
 
 			// keep copy of viewport's last position
 			g_viewport_changeinx = g_viewport_worldx;

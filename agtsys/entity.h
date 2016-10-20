@@ -246,7 +246,7 @@ extern entity_t *g_pe_viewport;
 // ---------------------------------------------------------------------------------------------------------------------
 // internal functions
 
-static inline void EntityRemove(entity_t *_pent)
+static agt_inline void EntityRemove(entity_t *_pent)
 {
 	if ((_pent->f_self & EntityFlags_KILL) == 0)
 	{	
@@ -255,7 +255,7 @@ static inline void EntityRemove(entity_t *_pent)
 	}
 }
 
-static inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent)
+static agt_inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent)
 {
 	s16 c = s_entity_link_count;
 	s_entity_links[c++] = _pent;
@@ -265,7 +265,7 @@ static inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-static inline void EntitySort2D(entity_t *pcurr)
+static agt_inline void EntitySort2D(entity_t *pcurr)
 {
 	entity_t &curr = *pcurr;
 
@@ -320,7 +320,7 @@ static inline void EntitySort2D(entity_t *pcurr)
 #endif
 }
 
-static inline void EntityUnLink2D(entity_t *_pent)
+static agt_inline void EntityUnLink2D(entity_t *_pent)
 {
 	entity_t *pcurr = _pent;
 
@@ -339,6 +339,30 @@ static inline void EntityUnLink2D(entity_t *_pent)
 	pnexty->pprev_y = pprevy;
 	pprevy->pnext_y = pnexty;
 #endif
+}
+
+static agt_inline void EntityMakeRelative(entity_t *_pent, s16 _basisx, s16 _basisy)
+{
+	_pent->wx = _pent->rx - _basisx;
+	_pent->wy = _pent->ry - _basisy;
+}
+
+static agt_inline void EntityMakeRelative(entity_t *_pent, s32 _basisfx, s32 _basisfy)
+{
+	_pent->fwx = _pent->frx - _basisfx;
+	_pent->fwy = _pent->fry - _basisfy;
+}
+
+static agt_inline void EntityWorldFromRelative(entity_t *_pent, s16 _basisx, s16 _basisy)
+{
+	_pent->rx = _pent->wx + _basisx;
+	_pent->ry = _pent->wy + _basisy;
+}
+
+static agt_inline void EntityWorldFromRelative(entity_t &ent, s16 _basisx, s16 _basisy)
+{
+	ent.rx = ent.wx + _basisx;
+	ent.ry = ent.wy + _basisy;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
