@@ -62,7 +62,7 @@
 	moveq		#16-1,d6
 	and.w		d1,d6
 ;	move.b		d6,$ffff8a3d.w	
-	move.b		d6,(sp)
+	move.b		d6,.sp_skew(sp)
 	
 	; constants
 	moveq		#16-1,d6
@@ -142,7 +142,7 @@
 	; FISR: force initial source read (i.e. shiftregisters preloaded with 1st data word)
 ;	tas.b		$ffff8a3d.w
 ;	or.b		#$80,$ffff8a3d.w
-	or.b		#$80,(sp)
+	or.b		#$80,.sp_skew(sp)
 
 	; relative to clipwindow
 	sub.w		clip_x1(a2),d1
@@ -324,7 +324,7 @@
 *-------------------------------------------------------*
 	; NFSR
 ;	or.b		#$40,$ffff8a3d.w		; BLIT: nfsr
-	or.b		#$40,(sp)
+	or.b		#$40,.sp_skew(sp)
 
 .AGT_BLiT_IMSprDrawUnClipped_EFSR:
 
@@ -335,7 +335,7 @@
 	; final height
 ;	move.w		d4,d7				; h
 
-	move.b		(sp),BLiTSKEW.w
+	move.b		.sp_skew(sp),BLiTSKEW.w
 	move.w		a3,BLiTSYI.w			; src yinc
 
 

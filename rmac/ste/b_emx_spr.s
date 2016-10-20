@@ -372,7 +372,7 @@
 	beq.s		.emx_EFSR2
 
 	; NFSR
-	or.b		#$40,(sp)
+	or.b		#$40,.sp_skew(sp)
 
 .emx_EFSR2:
 
@@ -391,7 +391,7 @@
 
 	move.w		a3,BLiTSYI.w			; src yinc
 
-	move.b		(sp),BLiTSKEW.w
+	move.b		.sp_skew(sp),BLiTSKEW.w
 
 	; word-width				
 	lsr.w		#(4-1),d6			; >>4 *2
@@ -648,7 +648,7 @@
 	and.w		d7,d0
 	sub.w		d6,d0
 	beq.s		.emx_EFSR1
-	or.b		#$40,(sp)
+	or.b		#$40,.sp_skew(sp)
 .emx_EFSR1:
 
 	; dst skip adjust by dst width	
@@ -662,7 +662,7 @@
 
 ;	move.w		a3,BLiTSYI.w
 
-	move.b		(sp),BLiTSKEW.w
+	move.b		.sp_skew(sp),BLiTSKEW.w
 
 
 	; word-width				
@@ -964,7 +964,7 @@
 	.if		(use_rasters)
 	move.w		$ffff8242.w,$ffff8240.w
 	.endif
-		
+	
 	jsr		(a6)
 
 		

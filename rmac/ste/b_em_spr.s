@@ -321,7 +321,7 @@
 .NFSR2:
 *-------------------------------------------------------*
 	; NFSR
-	or.b		#$40,(sp)
+	or.b		#$40,.sp_skew(sp)
 
 .EFSR2:
 
@@ -340,7 +340,7 @@
 
 	move.w		a3,BLiTSYI.w			; src yinc
 
-	move.b		(sp),BLiTSKEW.w
+	move.b		.sp_skew(sp),BLiTSKEW.w
 
 	; word-width
 	lsr.w		#(4-1),d6			; >>4 *2
@@ -571,7 +571,7 @@
 	and.w		d7,d0
 	sub.w		d6,d0
 	beq.s		.EFSR
-.NFSR:	or.b		#$40,(sp)
+.NFSR:	or.b		#$40,.sp_skew(sp)
 .EFSR:
 
 	; dst skip adjust by dst width
@@ -585,7 +585,7 @@
 
 ;	move.w		a3,BLiTSYI.w
 
-	move.b		(sp),BLiTSKEW.w
+	move.b		.sp_skew(sp),BLiTSKEW.w
 
 
 	; word-width
