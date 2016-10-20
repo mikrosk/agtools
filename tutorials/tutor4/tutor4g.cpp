@@ -373,16 +373,15 @@ int main(int argc, char **argv)
 
 		// time gap between each letter, in terms of starting distance offscreen. this affects the order
 		// in which the letters arrive.
-		// note: in fact the gap should be specific to each letter because the letters are different widths
-		// so letter grouping ends up less than perfect - but you get the general idea. the point here is
-		// to show the use of individual entity states sharing a single behaviour to operate independently.
-		static const s16 time_separation = 26;
+		// note: to make this work we nudge the 'e' (21pix wide) to the right by 4pix (other letters are 25pix wide)
+		// so all letters are right-justified and appear to travel edge-to-edge.
+		static const s16 time_separation = 28;
 
 		penew = EntitySpawn(EntityType_LETTER_X,	g_viewport_worldx-250,		g_viewport_worldy+c_xenon_yoffset);
 		EntityMakeRelative(penew, g_viewport_worldx, g_viewport_worldy);
 		penew->wz = index++;
 	
-		penew = EntitySpawn(EntityType_LETTER_e,	g_viewport_worldx+50,		g_viewport_worldy+c_xenon_yoffset+SCREEN_LINES+(time_separation*5));
+		penew = EntitySpawn(EntityType_LETTER_e,	g_viewport_worldx+50+4,		g_viewport_worldy+c_xenon_yoffset+SCREEN_LINES+(time_separation*5));
 		EntityMakeRelative(penew, g_viewport_worldx, g_viewport_worldy);
 		penew->wz = index++;
 
@@ -558,7 +557,7 @@ int main(int argc, char **argv)
 // screen offset for entire word, to help center things
 // note - the y coord here affects arrival time/order of the various letters so use c_xenon_yoffset to move the word up/down
 static const s16 xenonx = 80;
-static const s16 xenony = (SCREEN_LINES/2)-6+c_xenon_yoffset;
+static const s16 xenony = (SCREEN_LINES/2)-7+c_xenon_yoffset;
 
 // individial target x,y pairs (one per letter instance)
 s16 letter_target_X[] =		{ xenonx+0,				xenony+0 };
