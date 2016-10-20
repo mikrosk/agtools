@@ -364,6 +364,10 @@ int main(int argc, char **argv)
 		s16 xenony = 90;
 
 		// spawn individual letter entities at the correct relative positions, in world coordinates
+		// note that we create 2 separate 'instances' of the entity type 'n'
+
+		// this time we're interested in changing each entity as soon as its created so we want
+		// to have a temporary pointer to each one returned, for editing
 		entity_t *penew;
 
 		penew = EntitySpawn(EntityType_LETTER_X,	g_viewport_worldx+xenonx+0,				g_viewport_worldy+xenony+0);
@@ -545,10 +549,8 @@ int main(int argc, char **argv)
 
 void letter_fntick(entity_t *_pself)
 {
-	// compensate entity position for change in viewport position - track the viewport
-	//_pself->rx -= g_viewport_changeinx;
-	//_pself->ry -= g_viewport_changeiny;
-
+	// move each entity according to its own individually configured velocity/direction
+	// i.e. one common behaviour (fntick) is enough for each entity to do its own thing
 	_pself->rx += _pself->vx;
 	_pself->ry += _pself->vy;
 }
