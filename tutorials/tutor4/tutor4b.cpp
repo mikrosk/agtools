@@ -3,15 +3,15 @@
 //======================================================================================================================
 
 //----------------------------------------------------------------------------------------------------------------------
-//	tutorial: Entities
+//	tutorial: The Thinking Entity
 //----------------------------------------------------------------------------------------------------------------------
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
 //	+	incremental changes from 'tutor4a'
 //	+	display 'Xenon' text using entities instead of sprites (as before)
-//	+	implement entity 'tick' function (fntick) which automatically moves each entity to track the viewport movement
-//		this implements a simplistic 'screenspace' or viewport-relative coordinate system
+//	+	implement entity 'think' or 'tick' function (fntick) which automatically moves each entity to track the viewport 
+//		movement. this implements a simplistic 'screenspace' or viewport-relative coordinate system
 //	+	all entities share the same tick function
 //
 //	additional:
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 
 	printf("[A]tari [G]ame [T]ools\n");
 
-	printf("Entities: From Sprites to Entities\n");
+	printf("Entities: The Thinking Entity\n");
 
 
 	// ---------------------------------------------------------------------------------------------------------------------
