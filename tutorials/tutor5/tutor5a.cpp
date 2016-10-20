@@ -661,6 +661,15 @@ void craft_fntick(entity_t *_pself)
 		// spawn a powerup entity (child) at the craft (parent) position
 		EntitySpawnFrom(EntityType_ARMOR, _pself);
 	}
+
+	// animate continuously
+	if ((_pself->counter & 3) == 0)
+	{
+		// ...every 4th frame
+		_pself->frame++;
+		if (_pself->frame >= 6)
+			_pself->frame = 0;
+	}
 }
 
 // =====================================================================================================================
