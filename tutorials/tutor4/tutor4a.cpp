@@ -9,6 +9,8 @@
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
 //	+	incremental changes from 'tutor3'
+//	+	display 'Xenon' text using entities instead of sprites
+//	+	objects are in worldspace, not screenspace
 //
 //	additional:
 
@@ -385,7 +387,7 @@ int main(int argc, char **argv)
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	some persistent variables we're going to need in the mainloop
 
-		s16 scroll_speed = 1;			// disable scrolling
+		s16 scroll_speed = 0;			// disable scrolling
 		s16 backbuffer_num = 0;			// index of current backbuffer (0 or 1)
 		s16 curr_vbl = g_vbl;			// initial vblank number
 		s16 animation_timer = 0;
@@ -393,7 +395,7 @@ int main(int argc, char **argv)
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	start the mainloop
 
-		while (animation_timer++ < 160)
+		while (animation_timer++ < 200)
 		{
 
 			// ---------------------------------------------------------------------------------------------------------------------
@@ -475,6 +477,10 @@ int main(int argc, char **argv)
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	update the scroll coordinates
+
+			// start scrolling after 50 ticks
+			if (animation_timer > 50)
+				scroll_speed = 1;
 
 			g_viewport_worldy += scroll_speed;
 

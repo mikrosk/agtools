@@ -8,7 +8,11 @@
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//	+	incremental changes from 'tutor3'
+//	+	incremental changes from 'tutor4a'
+//	+	display 'Xenon' text using entities instead of sprites (as before)
+//	+	implement entity 'tick' function (fntick) which automatically moves each entity to track the viewport movement
+//		this implements a simplistic 'screenspace' or viewport-relative coordinate system
+//	+	all entities share the same tick function
 //
 //	additional:
 
@@ -383,7 +387,7 @@ int main(int argc, char **argv)
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	some persistent variables we're going to need in the mainloop
 
-		s16 scroll_speed = 1;			// disable scrolling
+		s16 scroll_speed = 0;			// disable scrolling
 		s16 backbuffer_num = 0;			// index of current backbuffer (0 or 1)
 		s16 curr_vbl = g_vbl;			// initial vblank number
 		s16 animation_timer = 0;
@@ -391,7 +395,7 @@ int main(int argc, char **argv)
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	start the mainloop
 
-		while (animation_timer++ < 750)
+		while (animation_timer++ < 800)
 		{
 
 			// ---------------------------------------------------------------------------------------------------------------------
@@ -473,6 +477,10 @@ int main(int argc, char **argv)
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	update the scroll coordinates
+
+			// start scrolling after 50 ticks
+			if (animation_timer > 50)
+				scroll_speed = 1;
 
 			// keep copy of viewport's last position
 			g_viewport_changeinx = g_viewport_worldx;

@@ -8,7 +8,10 @@
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//	+	incremental changes from 'tutor3'
+//	+	incremental changes from 'tutor4f'
+//	+	as tutor4f, but tweaked to give each letter a unique starting point, to approximate the behaviour of the
+//		iconic 'Xenon' title sequence!
+//	+	total changes are minimal, huge tables have been avoided - all done by simplistic 'AI' via one 'tick' function
 //
 //	additional:
 

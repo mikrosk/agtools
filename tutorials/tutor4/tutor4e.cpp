@@ -8,7 +8,15 @@
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//	+	incremental changes from 'tutor3'
+//	+	incremental changes from 'tutor4d'
+//	+	as tutor4d, but changed the way in which 'screenspace' coordinates are maintained by the entity. they are now
+//		truly screen-relative (local) coordinates, converted to world coordinates on every tick.
+//	+	the entity 'tick' function now uses (wx,wy) as local coords, and converts to (rx,ry) world coords each tick
+//		by adding the viewport coords.
+//	+	EntityMakeRelative() converts the spawnpoint world coords (rx,ry) into (wx,wy) screen-local coords
+//	+	EntityWorldFromRelative() converts the local coords (wx,wy) back to world coords (rx,ry) for the engine to process.
+//	+	this makes it possible to build more complex logic to operate on screen-local coordinates without the scroll
+//		calculations interfering.
 //
 //	additional:
 

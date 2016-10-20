@@ -8,7 +8,10 @@
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//	+	incremental changes from 'tutor3'
+//	+	incremental changes from 'tutor4c'
+//	+	as tutor4c, but combining with the 'screenspace' coordinate system used in tutor4b
+//	+	this approach has its limits - difficult to reason about an entity's coordinates if they are being
+//		constantly modified to track the viewport on top of its own behaviour... basic AI would be difficult to do.
 //
 //	additional:
 

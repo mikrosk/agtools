@@ -8,7 +8,14 @@
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//	+	incremental changes from 'tutor3'
+//	+	incremental changes from 'tutor4b'
+//	+	display 'Xenon' text using entities instead of sprites (as before)
+//	+	explode the text
+//	+	implement entity 'tick' function (fntick) which automatically moves each entity using its own private velocity
+//		while maintaining its own private position in worldspace.
+//	+	each entity assigned its own velocity vector to use
+//	+	all entities share the same tick function (as before), but their states are independent
+//	+	the 'screenspace' coordinate system has been lost
 //
 //	additional:
 

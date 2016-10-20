@@ -8,7 +8,11 @@
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//	+	incremental changes from 'tutor3'
+//	+	incremental changes from 'tutor4e'
+//	+	as tutor4e, but changed the 'tick' function to something more sophisticated - each entity seeks its own
+//		target coordinates in screenspace.
+//	+	each entity shares the same tick function, but each has independent state and 'adaptive' behaviour, finding
+//		its own resting point in its own time.
 //
 //	additional:
 
