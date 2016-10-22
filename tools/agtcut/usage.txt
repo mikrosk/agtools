@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.32 : dml : 14/10/2016
+v0.35 : dml : 22/10/2016
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,23 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.35	22/10/2016
+---------------------------------------
+* added -crn/--colrenorm switch to rescale 24bit image RGBs which have been
+  range stretched up to 0-255 from lower colour depths (e.g. screen grabs as
+  .PI1, export as .PNG, where white becomes 255,255,255 instead of 224,224,224)
+  to ensure correct matching against ST raw palette colours during reduce step.
+* add 'imspr' cutmode to replace 'sprites'.
+
+v0.34	19/10/2016
+---------------------------------------
+* fixed bug in emxspr generator, involving register dependencies for SWAP
+
+v0.33	17/10/2016
+---------------------------------------
+* added -vis switch to visualise output as .tga with colour reduction applied
+* fixed bug in emxspr delta tracking for first line under some conditions
 
 v0.32	14/10/2016
 ---------------------------------------
