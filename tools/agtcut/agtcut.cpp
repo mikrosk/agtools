@@ -502,7 +502,7 @@ static void usage(int level)
 	std::cout << "                      > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)" << std::endl;
 	std::cout << "                      > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
 	std::cout << " -o, --outfile        > output filename" << std::endl;
-	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites,emspr,emxspr,slabs,slabrestore" << std::endl;
+	std::cout << " -cm, --cutmode       > cutting mode: tiles,imspr,emspr,emxspr,slabs,slabrestore" << std::endl;
 	std::cout << " -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
 	std::cout << " -crn, --colrenorm    > renormalise source image to quantised rgb: 1-255" << std::endl;
@@ -781,7 +781,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					_args.cutmode = Cutmode_TILES;
 				}
 				else
-				if (s_arg.find("sprites") != std::string::npos)
+				if ((s_arg.find("imspr") != std::string::npos) || 
+					(s_arg.find("sprites") != std::string::npos))
 				{
 					_args.cutmode = Cutmode_SPRITES;
 				}
