@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.34";
+static const char* const g_version_string = "v0.35";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -331,6 +331,7 @@ enum
 	OPT_OUTFILE,
 	OPT_TILETAGS,
 	OPT_PALETTE,
+	OPT_COLRENORM,
 	OPT_CUTMODE,
 	OPT_CCFIELDS,
 	OPT_CCREMAP,
@@ -471,6 +472,9 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_PALETTE,		_T("-p"),	 			SO_REQ_SEP	},
 	{ OPT_PALETTE,		_T("--pal"),	 		SO_REQ_SEP	},
 	//
+	{ OPT_COLRENORM,	_T("-crn"),	 			SO_REQ_SEP	},
+	{ OPT_COLRENORM,	_T("--colrenorm"), 		SO_REQ_SEP	},
+	//
 	{ OPT_BITPLANES,	_T("-bp"),	 			SO_REQ_SEP	},
 	{ OPT_BITPLANES,	_T("--bitplanes"), 		SO_REQ_SEP	},
 	//
@@ -501,6 +505,7 @@ static void usage(int level)
 	std::cout << " -cm, --cutmode       > cutting mode: tiles,sprites,emspr,emxspr,slabs,slabrestore" << std::endl;
 	std::cout << " -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
+	std::cout << " -crn, --colrenorm    > renormalise source image to quantised rgb: 1-255" << std::endl;
 	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
 	std::cout << " -key, --key-colour   > colour index assumed to be transarent: 0-255" << std::endl;
 	std::cout << " -keyrgb, --key-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
@@ -607,6 +612,7 @@ public:
 		  keyguard(false),
 		  quickcut(false),
 		  visual(false),
+		  colrenorm(255),
 		  tolerance(0.0f),
 		  keytol(0.01f),
 		  sourcefile(""),
@@ -652,6 +658,7 @@ public:
 
 	ubyte_t keycol;
 	iRGB keyrgb;
+	int colrenorm;
 	int cut_xpos;
 	int cut_ypos;
 	int cut_xsize;
@@ -911,6 +918,19 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_SPRITEGUIDE)
 			{
 				_args.spriteguidefile = args.OptionArg();
+			}
+			else if (args.OptionId() == OPT_COLRENORM)
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if (iarg < 1 || iarg > 255)
+				{
+					printf("error: invalid arg for colrenorm: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
+					exit(1);
+				}
+				_args.colrenorm = iarg;	
 			}
 			else if (args.OptionId() == OPT_KEYCOL)
 			{
@@ -2165,9 +2185,9 @@ static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 {
 	static const float c_n = 1.0f / 255.0f;
 
-	float fr = float(rgb.red);
-	float fg = float(rgb.green);
-	float fb = float(rgb.blue);
+	float fr = (float(rgb.red) * g_allargs.colrenorm) / 255.0f;
+	float fg = (float(rgb.green) * g_allargs.colrenorm) / 255.0f;
+	float fb = (float(rgb.blue) * g_allargs.colrenorm) / 255.0f;
 
 	//if (fr > 250.0f && fg > 250.0f && fb > 250.0f)
 	//{
@@ -5002,11 +5022,13 @@ bool do_sheet()
 						break;
 					}
 				}
-
-				std::cout << "adopting palette and colourmap provided by source image..." << std::endl;
 			}
 
-			if (!m_psourcecol)
+			if (m_psourcecol)
+			{
+				std::cout << "adopting palette and colourmap provided by source image..." << std::endl;
+			}
+			else
 			{
 				std::cout << "reducing 24bit image to external fixed palette..." << std::endl;
 				m_psourcecol = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
