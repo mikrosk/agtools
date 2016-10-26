@@ -95,8 +95,8 @@ AGLIB_MINICRT =
 endif
 # -----------------------------------------------------------------------------
 
-VASM = $(AGTROOT)/bin/vasm16c.exe -Faout -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
-RMAC = $(AGTROOT)/bin/rmac.exe -fa +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
+VASM = $(AGTROOT)/bin/vasm16c -Faout -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
+RMAC = $(AGTROOT)/bin/rmac -fa +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
 
 TOOLCHAIN_PREFIX = m68k-atari-mint-
 
@@ -286,7 +286,7 @@ endif
 #	Trasfer .prg to emulator GEMDOS auto folder for tests
 # -----------------------------------------------------------------------------
 ifeq ($(TEST_EMULATOR),yes)
-	cp $*.tos $(EMULATOR_GEMDOS_DIR)/AUTO/$*.prg
+	cp $*.tos $(EMULATOR_GEMDOS_DIR)/auto/$*.prg
 endif
 
 # =============================================================================
