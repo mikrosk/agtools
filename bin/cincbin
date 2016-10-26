@@ -1,0 +1,2 @@
+wine /home/agt/Projects/agtools/bin/cincbin.exe "$@"
+
