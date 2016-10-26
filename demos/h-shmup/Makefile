@@ -113,8 +113,8 @@ endif
 # remove local and object file symbols from output
 GST2ASCII = $(HATARITOOL_PREFIX)gst2ascii -l -o
 
-VASM = $(AGTROOT)/bin/vasm16c.exe -Faout -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
-RMAC = $(AGTROOT)/bin/rmac.exe -fa +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
+VASM = $(AGTROOT)/bin/vasm16c -Faout -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
+RMAC = $(AGTROOT)/bin/rmac -fa +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
 
 TOOLCHAIN_PREFIX = m68k-atari-mint-
 
@@ -362,7 +362,7 @@ endif
 #	Trasfer .prg to emulator GEMDOS auto folder for tests
 # -----------------------------------------------------------------------------
 ifeq ($(TEST_EMULATOR),yes)
-	cp $*.tos $(EMULATOR_GEMDOS_DIR)/AUTO/auto.prg
+	cp $*.tos $(EMULATOR_GEMDOS_DIR)/auto/auto.prg
 endif
 # -----------------------------------------------------------------------------
 #	Create floppy image of demo for HW testing via HXC floppy emulator
