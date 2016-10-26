@@ -37,5 +37,5 @@
 
 ### Reference ###
 
-* the RMAC assembler manual can be found here: [http://dbug.kicks-ass.net/various/rmacman/rmac.html](Link URL)
-* the VASM assembler manual can be found here: [http://sun.hasenbraten.de/vasm/release/vasm.html](Link URL)
+* the RMAC assembler manual can be found [here](http://dbug.kicks-ass.net/various/rmacman/rmac.html)
+* the VASM assembler manual can be found [here](http://sun.hasenbraten.de/vasm/release/vasm.html)
