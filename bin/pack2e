@@ -2,6 +2,6 @@ platform=`uname -o`
 if [ $platform = "Cygwin" ]; then
 pack2e.exe "$@"
 else
-wine /home/agt/Projects/agtools/bin/pack2e.exe "$@"
+wine $AGTBIN/pack2e.exe "$@"
 fi
 

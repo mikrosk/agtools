@@ -2,6 +2,6 @@ platform=`uname -o`
 if [ $platform = "Cygwin" ]; then
 cincbin.exe "$@"
 else
-wine /home/agt/Projects/agtools/bin/cincbin.exe "$@"
+wine $AGTBIN/cincbin.exe "$@"
 fi
 
