@@ -22,7 +22,7 @@
 
 ### What is this repository for? ###
 
-* Tools and code for rapid prototyping of Atari ST/STE/TT & Falcon games
+* Tools and code for rapid prototyping of Atari ST/STE & Falcon games
 * Game framework samples
 
 ### How do I get set up? ###
