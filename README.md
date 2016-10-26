@@ -37,5 +37,6 @@
 
 ### Reference ###
 
+* the AGT wiki can be found [here](https://bitbucket.org/d_m_l/agtools/wiki/Home)
 * the RMAC assembler manual can be found [here](http://dbug.kicks-ass.net/various/rmacman/rmac.html)
 * the VASM assembler manual can be found [here](http://sun.hasenbraten.de/vasm/release/vasm.html)
