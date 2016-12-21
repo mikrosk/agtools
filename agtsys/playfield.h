@@ -212,6 +212,17 @@ public:
 
 	public:
 
+		mapcontext()
+			: modulo_map_x_(0),
+			  modulo_map_y_(0),
+			  mul_map_x_(0),
+			  map_tiles_x_(0),
+			  map_tiles_y_(0),
+			  srcywrap_(0),
+			  map_(0)
+		{
+		}
+
 		// owned: map addressing storage
 		s16* modulo_map_x_;
 		s16* modulo_map_y_;

@@ -220,7 +220,7 @@ write_acia:
 
 disable_ikbd_seq:	dc.b	$13,$1a,$12,-1			; reporting off, joystick events off, mouse events off 
 enable_ikbd_seq:	dc.b	$11,$14,$12,-1			; resume reporting, joystick events on, mouse events off
-reset_ikbd_seq:		dc.b	$80,$1,-1
+reset_ikbd_seq:		dc.b	$80,$1,$11,$8,-1
 			even
 
 	
@@ -243,7 +243,7 @@ ikbd_error:
 *-------------------------------------------------------*
 .done:	rts
 
-
+ 
 *-------------------------------------------------------*
 baaad:
 *-------------------------------------------------------*

@@ -37,7 +37,7 @@ configure_50hz		=	0
 			else
 configure_50hz		=	1
 			endc
-
+	
 	XDEF	_bSTF	
 	XDEF	_bSTE	
 	XDEF	_bMegaSTE
@@ -166,11 +166,23 @@ _SYS_Save:
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 *-------------------------------------------------------*
-	move.w		#$2700,sr
+	or.w		#$0700,sr
 *-------------------------------------------------------*
 	lea		savestate_store,a5
 *-------------------------------------------------------*
-*	display basics
+*	palette
+*-------------------------------------------------------*
+	lea		32+$ffff8240.w,a0
+	move.l		-(a0),-(a5)
+	move.l		-(a0),-(a5)
+	move.l		-(a0),-(a5)
+	move.l		-(a0),-(a5)
+	move.l		-(a0),-(a5)
+	move.l		-(a0),-(a5)
+	move.l		-(a0),-(a5)
+	move.l		-(a0),-(a5)
+*-------------------------------------------------------*
+*	screenbase
 *-------------------------------------------------------*
  	move.w		#3,-(sp)			; log
 	trap		#14
@@ -179,68 +191,52 @@ _SYS_Save:
 	trap		#14
 	move.l		d0,-(a5)
 	addq.l    	#4,sp
-	
+		
 ;	todo: save/restore palette
-	
+
+*-------------------------------------------------------*
+*	blitter
+*-------------------------------------------------------*
+	tst.b		_bSTF
+	bne.s		.no_blit
+	lea		$ffff8a3c.w,a0
+	moveq		#(($ff8a3c-$ff8a02)>>1)-1,d0
+.lblt:	move.w		-(a0),-(a5)
+	dbra		d0,.lblt
+.no_blit:
+*-------------------------------------------------------*
+*	video
+*-------------------------------------------------------*	
 	tst.b		_bSTF
 	bne.s		.nste
-	
-;	todo: save/restore blitter state
-;	
-;	reg16(ffff8a02) = *psave++;
-;	reg16(ffff8a04) = *psave++;
-;	reg16(ffff8a06) = *psave++;
-;	reg16(ffff8a08) = *psave++;
-;	reg16(ffff8a0a) = *psave++;
-;	reg16(ffff8a0c) = *psave++;
-;	reg16(ffff8a0e) = *psave++;
-;	reg16(ffff8a10) = *psave++;
-;	reg16(ffff8a12) = *psave++;
-;	reg16(ffff8a14) = *psave++;
-;	reg16(ffff8a16) = *psave++;
-;	reg16(ffff8a18) = *psave++;
-;	reg16(ffff8a1a) = *psave++;
-;	reg16(ffff8a1c) = *psave++;
-;	reg16(ffff8a1e) = *psave++;
-;
-;	reg16(ffff8a20) = *psave++;
-;	reg16(ffff8a22) = *psave++;
-;	reg16(ffff8a24) = *psave++;
-;	reg16(ffff8a26) = *psave++;
-;	reg16(ffff8a28) = *psave++;
-;	reg16(ffff8a2a) = *psave++;
-;	reg16(ffff8a2c) = *psave++;
-;	reg16(ffff8a2e) = *psave++;
-;	reg16(ffff8a30) = *psave++;
-;	reg16(ffff8a32) = *psave++;
-;	reg16(ffff8a34) = *psave++;
-;	reg16(ffff8a36) = *psave++;
-;	reg16(ffff8a38) = *psave++;
-;	reg16(ffff8a3a) = *psave++;	
-	
 	move.b		$ffff8265.w,-(a5)
 	move.b		$ffff820e.w,-(a5)
 .nste:	move.b		$ffff820a.w,-(a5)
-	move.b		$ffff8260.w,-(a5)
+	move.b		$ffff8260.w,-(a5)	
 *-------------------------------------------------------*
 *	vectors
 *-------------------------------------------------------*
 	lea		$140.w,a0
 	moveq		#(($140-$8)>>2)-1,d0
 .vecs:	move.l		-(a0),-(a5)
-	dbra		d0,.vecs
+	dbra		d0,.vecs	
 *-------------------------------------------------------*
 *	MFP state
 *-------------------------------------------------------*
-	move.b		$fffffa07.w,-(a5)
-	move.b		$fffffa13.w,-(a5)
-	move.b		$fffffa09.w,-(a5)
-	move.b		$fffffa15.w,-(a5)
+	move.b		d0,-(a5)
+	move.b		iera.w,-(a5)
+	move.b		imra.w,-(a5)
+	move.b		ierb.w,-(a5)
+	move.b		imrb.w,-(a5)
+	move.b		cdcr.w,-(a5)
+	move.b		tbcr.w,-(a5)
+	move.b		tacr.w,-(a5)
 *-------------------------------------------------------*
-	move.w		#$2300,sr
+	and.w		#$fbff,sr
 *-------------------------------------------------------*
-	cmp.l		#savestate_restore,a5
-.lock:	bne.s		.lock
+	move.l		a5,savestate_restorepoint
+	cmp.l		#savestate_restore_max,a5
+.lock:	blt.s		.lock
 *-------------------------------------------------------*	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -257,16 +253,16 @@ _SYS_Claim:
 .return:		rs.l	1
 *-------------------------------------------------------*
 .frame_:		rs.b	0
-*-------------------------------------------------------*
+*-------------------------------------------------------*	
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 *-------------------------------------------------------*
-	move.w		#$2700,sr
-*-------------------------------------------------------*
 *	Halt all input reporting via ACIA
 *-------------------------------------------------------*
-;	move.b		#$12,$fffffc02.w		; stop mouse reporting
 	jsr		_ST_DisableInput
+*-------------------------------------------------------*
+	or.w		#$0700,sr
+*-------------------------------------------------------*
 
 	clr.l		VBServiceVec.w
 	clr.b		DMAFlag.w
@@ -299,13 +295,6 @@ _SYS_Claim:
 	clr.b		$ffff8260.w
 	move.b		#2,$ffff820a.w
 	
-;	move.w		#-1,-(sp)
-;	move.l		#256,-(sp)			; phys
-;	move.l		#256,-(sp)			; log
-;	move.w		#5,-(sp)
-;	trap		#14
-;	lea		12(sp),sp
-
 	jsr		_blackscreen
 
 *-------------------------------------------------------*
@@ -336,7 +325,7 @@ _SYS_Claim:
 	clr.b		$fffffa09.w			; IEB (Timer-C & D)
 	clr.b		$fffffa15.w			; IMB (Timer-C & D)
 *-------------------------------------------------------*
-	move.w		#$2300,sr
+	and.w		#$fbff,sr
 *-------------------------------------------------------*	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -419,15 +408,24 @@ _SYS_Restore:
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 *-------------------------------------------------------*
-	move.w		#$2700,sr
-	lea		savestate_restore,a5
+	jsr		_ST_FlushInput
+	jsr		_ST_DisableInput
+*-------------------------------------------------------*
+	or.w		#$0700,sr
+	move.l		savestate_restorepoint,a5
 *-------------------------------------------------------*
 *	MFP state
 *-------------------------------------------------------*
-	move.b		(a5)+,$fffffa15.w
-	move.b		(a5)+,$fffffa09.w
-	move.b		(a5)+,$fffffa13.w
-	move.b		(a5)+,$fffffa07.w
+	clr.b		iera.w
+	clr.b		ierb.w
+	move.b		(a5)+,tacr.w
+	move.b		(a5)+,tbcr.w
+	move.b		(a5)+,cdcr.w
+	move.b		(a5)+,imrb.w
+	move.b		(a5)+,ierb.w
+	move.b		(a5)+,imra.w
+	move.b		(a5)+,iera.w	
+	move.b		(a5)+,d0
 *-------------------------------------------------------*
 *	vectors
 *-------------------------------------------------------*
@@ -436,7 +434,7 @@ _SYS_Restore:
 .vecs:	move.l		(a5)+,(a0)+
 	dbra		d0,.vecs
 *-------------------------------------------------------*
-*	display basics
+*	video
 *-------------------------------------------------------*
 	move.b		(a5)+,$ffff8260.w
 	move.b		(a5)+,$ffff820a.w
@@ -444,12 +442,38 @@ _SYS_Restore:
 	bne.s		.nste
 	move.b		(a5)+,$ffff820e.w
 	move.b		(a5)+,$ffff8265.w
-.nste:	move.w		#-1,-(sp)
-	move.l		(a5)+,-(sp)			; phys
-	move.l		(a5)+,-(sp)			; log
-	move.w		#5,-(sp)
-	trap		#14
-	lea		12(sp),sp		
+.nste:
+*-------------------------------------------------------*
+*	blitter
+*-------------------------------------------------------*
+	tst.b		_bSTF
+	bne.s		.no_blit
+	lea		$ffff8a02.w,a0
+	moveq		#(($ff8a3c-$ff8a02)>>1)-1,d0
+.lblt:	move.w		(a5)+,(a0)+
+	dbra		d0,.lblt
+.no_blit:
+*-------------------------------------------------------*
+*	screenbase
+*-------------------------------------------------------*
+	move.l		(a5)+,d0
+	lsr.w		#8,d0
+	move.l		d0,$ffff8200.w
+	move.l		(a5)+,d0
+*-------------------------------------------------------*
+*	palette
+*-------------------------------------------------------*
+	lea		$ffff8240.w,a0
+	move.l		(a5)+,(a0)+
+	move.l		(a5)+,(a0)+
+	move.l		(a5)+,(a0)+
+	move.l		(a5)+,(a0)+
+	move.l		(a5)+,(a0)+
+	move.l		(a5)+,(a0)+
+	move.l		(a5)+,(a0)+
+	move.l		(a5)+,(a0)+
+*-------------------------------------------------------*
+	and.w		#$fbff,sr
 *-------------------------------------------------------*
 *	Resume input reporting via ACIA
 *-------------------------------------------------------*
@@ -489,7 +513,7 @@ cookie_search:
 	bra.s		.end
 .fail:	moveq		#-1,d0
 .end:	rts
-
+	
 *-------------------------------------------------------*
 	data
 *-------------------------------------------------------*
@@ -500,12 +524,17 @@ vbl_sema:		dc.w	-1
 	bss
 *-------------------------------------------------------*
 
-savestate_restore:
-			ds.b	4			; MFP
+savestate_restorepoint:	ds.l	1
+
+savestate_restore_max:	ds.l	2			; MFP
 			ds.l	(($140-$8)>>2)		; vectors
-			ds.l	1+1+1			; display
-savestate_store:
-			;ds.b	256
+			ds.l	1			; display
+			ds.w	29			; blitter
+			ds.l	2			; screen base
+			ds.l	8			; palette
+savestate_store:	xdef	savestate_store
+			ds.b	256
+			
 _bSTF:			ds.b	1	
 _bSTE:			ds.b	1	
 _bMegaSTE:		ds.b	1		
