@@ -132,7 +132,7 @@ _STE_InstallDisplayService:
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 *-------------------------------------------------------*
-	move.w		#$2700,sr
+	or.w		#$0700,sr
 *-------------------------------------------------------*
 	lea		savestate,a1
 	move.l		$68.w,(a1)+
@@ -154,7 +154,7 @@ _STE_InstallDisplayService:
 
 ;	jsr		_blackscreen
 *-------------------------------------------------------*
-	move.w		#$2300,sr
+	and.w		#$fbff,sr
 *-------------------------------------------------------*
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -177,13 +177,26 @@ _STE_RemoveDisplayService:
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 *-------------------------------------------------------*
-	move.w		#$2700,sr
+	; wait for vbl to elapse
+	; note: display timers will already be scheduled
+	move.w		$464.w,d0
+.wvb0:	cmp.w		$464.w,d0
+	beq.s		.wvb0
+*-------------------------------------------------------*
+	; turn off display timers and restore vectors
+	or.w		#$0700,sr
+	bclr.b		#5,imra.w
+	bclr.b		#0,imra.w
 	lea		savestate,a1
 	move.l		(a1)+,$68.w
 	move.l		(a1)+,$70.w
 	move.l		(a1)+,$120.w
 	move.l		(a1)+,$134.w
-	move.w		#$2300,sr
+	and.w		#$fbff,sr
+*-------------------------------------------------------*
+	move.w		$464.w,d0
+.wvb2:	cmp.w		$464.w,d0
+	beq.s		.wvb2
 *-------------------------------------------------------*
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -280,11 +293,11 @@ displayservice_ste_vbi:
 	tst.b		DMAFlag.w
 	bne		displayservice_ste_vbi_dmasafe
 	
-	clr.b		$fffffa19.w				; TimerA CTRL: halt
-	bset		#5,$fffffa07.w				; TimerA IE: enable
-	bset		#5,$fffffa13.w				; TimerA IM: enable
+	clr.b		tacr.w				; TimerA CTRL: halt
+	bset		#5,iera.w				; TimerA IE: enable
+	bset		#5,imra.w				; TimerA IM: enable
 	move.b		#displayservice_upper_delay-timecritical_pad_ta,$fffffa1f.w	; TimerA DATA: delay
-	move.b		#4,$fffffa19.w				; TimerA CTRL: start
+	move.b		#4,tacr.w				; TimerA CTRL: start
 
 	move.l		#displayservice_ste_upper_a,$134.w
 	
@@ -351,6 +364,7 @@ displayservice_ste_vbi:
 .nsvc:	subq.w		#1,vbl_sema
 
 	movem.l		(sp)+,d0-d7/a0-a6
+		
 	subq.w		#1,_g_vbl
 
 	addq.l		#1,$462.w	
@@ -477,13 +491,13 @@ displayservice_ste_upper_a:
 	
 	move.w		a1,(a1)	;$ffff820a.w
 
-	move.b		d0,$fffffa19.w
+	move.b		d0,tacr.w
 
-	clr.b		$fffffa1b.w				; TimerB CTRL: halt
-	bset.b		#0,$fffffa07.w				; TimerB IE: enable
-	bset.b		#0,$fffffa13.w				; TimerB IM: enable
-	move.b		#displayservice_first_delta_tb-timecritical_pad_tb,$fffffa21.w	; TimerB DATA: count
-	move.b		#8,$fffffa1b.w				; TimerB CTRL: start))
+	clr.b		tbcr.w				; TimerB CTRL: halt
+	bset.b		#0,iera.w				; TimerB IE: enable
+	bset.b		#0,imra.w				; TimerB IM: enable
+	move.b		#displayservice_first_delta_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
+	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
 	move.l		#displayservice_ste_first_b,$120.w
 
@@ -493,7 +507,7 @@ displayservice_ste_upper_a:
 	
 	.if		(0=use_auto_end_of_interrupt)
 ;	manual EOI
-	bclr.b		#5,$fffffa0f.w
+	bclr.b		#5,isra.w
 	.endif
 		
 	rte
@@ -515,7 +529,7 @@ displayservice_ste_first_b:
 
 	move.l		ste_palette,a0
 	
-	lea		$fffffa21.w,a1
+	lea		tbdr.w,a1
 .wl:	cmp.b		#displayservice_first_delta_tb-(timecritical_pad_tb*2),(a1)
 	bhi.s		.wl
 	
@@ -529,10 +543,10 @@ displayservice_ste_first_b:
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 
-	clr.b		$fffffa1b.w				; TimerB CTRL: halt
+	clr.b		tbcr.w				; TimerB CTRL: halt
 	
-	move.b		#displayservice_lower_delta_tb-timecritical_pad_tb,$fffffa21.w	; TimerB DATA: count
-	move.b		#8,$fffffa1b.w				; TimerB CTRL: start))
+	move.b		#displayservice_lower_delta_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
+	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
 	move.l		#displayservice_ste_lower_b,$120.w
 		
@@ -543,7 +557,7 @@ displayservice_ste_first_b:
 	
 	.if		(0=use_auto_end_of_interrupt)
 ;	manual EOI
-	bclr.b		#0,$fffffa0f.w
+	bclr.b		#0,isra.w
 	.endif
 	
 	rte
@@ -574,7 +588,7 @@ displayservice_ste_lower_b:
 ;	insert 'padding' scans to absorb short blitter jobs - 
 
 	moveq		#displayservice_lower_delta_tb-(timecritical_pad_tb*2),d0
-	lea		$fffffa21.w,a0
+	lea		tbdr.w,a0
 .wl:	cmp.b		(a0),d0
 	blo.s		.wl
 
@@ -617,12 +631,12 @@ displayservice_ste_lower_b:
 
 	.endif		; (use_blitter_compatibility)	
 
-	clr.b		$fffffa1b.w				; TimerB CTRL: halt
+	clr.b		tbcr.w				; TimerB CTRL: halt
 
 	.if		(use_lower_border)
 
-	move.b		#displayservice_final_delta_tb-1,$fffffa21.w	; TimerB DATA: count
-	move.b		#8,$fffffa1b.w				; TimerB CTRL: start))
+	move.b		#displayservice_final_delta_tb-1,tbdr.w	; TimerB DATA: count
+	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
 	move.l		#displayservice_ste_final_b,$120.w
 	
@@ -663,7 +677,7 @@ displayservice_ste_lower_b:
 	
 	.if		(0=use_auto_end_of_interrupt)
 ;	manual EOI
-	bclr.b		#0,$fffffa0f.w
+	bclr.b		#0,isra.w
 	.endif
 	
 	rte
@@ -696,7 +710,7 @@ displayservice_ste_lower_b:
 	
 	.if		(0=use_auto_end_of_interrupt)
 ;	manual EOI
-	bclr.b		#0,$fffffa0f.w
+	bclr.b		#0,isra.w
 	.endif
 	
 	rte
@@ -732,11 +746,11 @@ displayservice_ste_final_b:
 
 ;	no more scanline scheduling this frame - stop TimerB
 
-	move.b		d0,$fffffa1b.w
+	move.b		d0,tbcr.w
 
 	.if		(0=use_auto_end_of_interrupt)
 ;	manual EOI
-	bclr.b		#0,$fffffa0f.w
+	bclr.b		#0,isra.w
 	.endif
 	
 	move.l		(sp)+,a0
