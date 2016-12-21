@@ -46,6 +46,7 @@ configure_50hz		=	1
 	.globl	_SYS_Claim
 	.globl	_SYS_Restore
 	
+	.globl	_ST_FlushInput
 	.globl	_ST_ResetInput
 	.globl	_ST_DisableInput
 	
@@ -535,7 +536,7 @@ savestate_restore_max:	ds.l	2			; MFP
 			ds.w	29			; blitter
 			ds.l	2			; screen base
 			ds.l	8			; palette
-savestate_store:	xdef	savestate_store
+savestate_store:
 			ds.b	256
 			
 _bSTF:			ds.b	1	
