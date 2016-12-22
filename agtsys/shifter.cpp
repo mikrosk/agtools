@@ -52,8 +52,8 @@ void shifter_common::restore_common()
 	advance();
 	
 	// VSync
-	s16 field_index = g_vbl;
-	while (g_vbl == field_index) { }
+	s16 field_index = reg16(464);
+	while (reg16(464) == field_index) { }
 				
 	set_hwpalette(save_palette_);
 
