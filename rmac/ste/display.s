@@ -258,7 +258,7 @@ displayservice_ste_vbi_dmasafe:
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	
-	tst.w		VBServiceVec.w
+	tst.w		2+VBServiceVec.w
 	beq.s		.nsvc
 		
 	move.l		VBServiceVec.w,a0
@@ -354,7 +354,7 @@ displayservice_ste_vbi:
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	
-	tst.w		VBServiceVec.w
+	tst.w		2+VBServiceVec.w
 	beq.s		.nsvc
 	
 	move.l		VBServiceVec.w,a0
@@ -417,7 +417,7 @@ displayservice_f030_vbi:
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	
-	tst.w		VBServiceVec.w
+	tst.w		2+VBServiceVec.w
 	beq.s		.nsvc
 	
 	move.l		VBServiceVec.w,a0

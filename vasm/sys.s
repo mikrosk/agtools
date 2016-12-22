@@ -350,7 +350,7 @@ dvbl:	movem.l		d0-a6,-(sp)
 
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
-	tst.w		VBServiceVec.w
+	tst.w		2+VBServiceVec.w
 	beq.s		.nsvc
 
 	
