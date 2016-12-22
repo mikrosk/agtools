@@ -37,11 +37,11 @@ extern volatile s8 g_flushchannels;
 extern volatile s8 g_soundtick;
 
 // force single GM instrument on each MIDI channel, otherwise use programmed instruments
-u8 channel_gmi_overrides[16];
+u8 channel_gmi_overrides[16] __attribute__((aligned(2)));
 // select one GM instrument on each MIDI channel to override volume
-u8 channel_gmi_volume_overrides[16];
+u8 channel_gmi_volume_overrides[16] __attribute__((aligned(2)));
 // volume to use for instrument volume override
-u8 channel_gmi_volume_override_values[16];
+u8 channel_gmi_volume_override_values[16] __attribute__((aligned(2)));
 
 //----------------------------------------------------------------------------------------------------------------------
 // Start BMZ music track
@@ -90,7 +90,7 @@ void AGT_MusicLoad(const char* _name)
 	char name[128];
 	char loadname[128];
 
-	u8 gmi_map[gmi_NUM_];
+	u8 gmi_map[gmi_NUM_] __attribute__((aligned(2)));
 
 	FILE* fh;
 
