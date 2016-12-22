@@ -31,4 +31,6 @@ extern long nf_print(const char *text);
  */
 extern void nf_shutdown(void);
 
+extern short g_hnf_ok;
+
 #endif /* _NATFEAT_H */

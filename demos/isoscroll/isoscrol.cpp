@@ -136,6 +136,8 @@ machine machinestate;
 
 S_SUPER_SSP(AGT_CONFIG_STACK);
 
+AGT_MAIN;
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // in 8-way scrolling mode we need to keep a 16-pixel (1-tile) safety margin between the viewport and the map edges
@@ -234,30 +236,8 @@ static agt_inline void Iso3DFrom2D(const s32 _x, const s32 _y, s32 &r_wx, s32 &r
 //	program start
 // =====================================================================================================================
 
-int main(int argc, char **argv)
+int AGT_EntryPoint()
 {
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	MiNTlib builds switch to SUPERVISOR & switch stacks. otherwise, AGT does it during CRT startup.
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	S_SUPER;
-
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	we can detect Hatari via natfeats API for debug-printf routing, if Hatari started with '--natfeats yes'
-	// ---------------------------------------------------------------------------------------------------------------------
-#if defined(HATARI_NF_PRINTF)
-	int hatariflag = nf_init();
-
-	if (hatariflag)
-	{
-		printf("Hatari NATFEATS detected!\n");
-	}
-	else
-	{
-		printf("Hatari NATFEATS NOT detected... :(\n");
-	}
-#endif
-
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	locate the end of the program to help track memory usage, when USE_MEMTRACE is enabled
 
@@ -306,9 +286,6 @@ int main(int argc, char **argv)
 		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
-
-		// shut down printfs via BIOS, but continue redirecting to Hatari debugger (natfeats) if enabled
-		g_displaylocked = 1;
 
 		machinestate.save();
 
@@ -839,14 +816,11 @@ mainloop:
 	machinestate.restore();
 
 	// ---------------------------------------------------------------------------------------------------------------------
-	//	MiNTlib builds switch to USER & restore stacks. otherwise, AGT does it during CRT pulldown.
-	// ---------------------------------------------------------------------------------------------------------------------
+	// back to TOS
 
-	S_USER;
+	pprintf("terminate...\n");
 
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	printf("terminate...\n");
+	return 0;
 }
 
 

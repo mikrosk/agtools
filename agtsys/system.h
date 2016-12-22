@@ -47,7 +47,7 @@ static inline void halt() { while (1) { } }
 // A nonzero value signals the display is locked & owned by AGT, preventing any C printfs from reaching the screen. 
 // note: NATFEATS debugging continues to work in this mode!
 
-extern short g_displaylocked;
+extern "C" short g_displaylocked;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Hatari NATFEATS interface was detected if nonzero
@@ -79,21 +79,21 @@ extern "C"
 #if !defined(USE_TINY_CRT)
 #define S_SUPER_SSP(_sz_) \
 static const int ssp_size = _sz_; \
-u32 new_ssp[ssp_size]; \
-u32 old_ssp;
+u32 s_new_ssp[ssp_size]; \
+u32 s_old_ssp; \
+u32 s_old_usp;
 #else
 #define S_SUPER_SSP(_sz_)
 #endif
 
 #if !defined(USE_TINY_CRT)
 #define S_SUPER \
-	int old_usp; \
-	__asm__ __volatile__ ("move.l	sp,%0;" \
-		: "=g"(old_usp) \
+	__asm__ __volatile__ ("move.l	%%sp,%0;" \
+		: "=m"(s_old_usp) \
 		: \
 		: "cc" \
 	); \
-	old_ssp = Super(&new_ssp[ssp_size-256]);
+	s_old_ssp = Super(&s_new_ssp[ssp_size-256]);
 #else
 #define S_SUPER
 #endif
@@ -101,15 +101,81 @@ u32 old_ssp;
 #if !defined(USE_TINY_CRT)
 #define S_USER \
 	dprintf("usermode...\n"); \
-	Super(old_ssp); \
-	__asm__ __volatile__ ("move.l	%0,sp;" \
+	Super(s_old_ssp); \
+	__asm__ __volatile__ ("move.l	%0,%%sp;" \
 		: \
-		: "g"(old_usp) \
+		: "m"(s_old_usp) \
 		: "cc" \
 	);
 #else
 #define S_USER
 #endif
+
+// ---------------------------------------------------------------------------------------------------------------------
+// defines program entrypoint main(argc,argv) and executes AGT_EntryPoint in supervisor mode
+// ---------------------------------------------------------------------------------------------------------------------
+// notes:
+// ---------------------------------------------------------------------------------------------------------------------
+// - USE_TINY_CRT employs AGT's own thin CRT which selects supervisor mode early, so the super
+//   switch is omitted from this stage when using this mode. it is retained for compatibility
+//   with LIBC variants like MiNTlib.
+// - Supexec() is preferred because Super() changes the active stack pointer in the current
+//   context,  which in turn messes up the compiled C code's stack frame when combined with
+//   -fomit-frame-pointer.
+
+extern "C" int AGT_EntryPointPre();
+extern "C" int AGT_EntryPointPost();
+extern "C" int AGT_EntryPoint();
+
+#if !defined(USE_TINY_CRT)
+#define AGT_MAIN								\
+void AGT_SuperStart()							\
+{												\
+	__asm__ __volatile__						\
+	(											\
+		"										\
+		move.l		%0,%%a0;					\
+		move.l		%%a0,%%d0;					\
+		subq.l		#4,%%d0;					\
+		and.w		#-16,%%d0;					\
+		move.l		%%d0,%%a0;					\
+		move.l		%%sp,-(%%a0);				\
+		move.l		%%usp,%%a1;					\
+		move.l		%%a1,-(%%a0);				\
+		move.l		%%a0,%%sp;					\
+		movem.l		%%d1-%%d7/%%a2-%%a6,-(%%sp);	\
+		jsr			(%2);							\
+		movem.l		(%%sp)+,%%d1-%%d7/%%a2-%%a6;	\
+		movem.l		%%d1-%%d7/%%a2-%%a6,-(%%sp);	\
+		jsr			(%1);							\
+		movem.l		(%%sp)+,%%d1-%%d7/%%a2-%%a6;	\
+		movem.l		%%d1-%%d7/%%a2-%%a6,-(%%sp);	\
+		jsr			(%3);							\
+		movem.l		(%%sp)+,%%d1-%%d7/%%a2-%%a6;	\
+		move.l		(%%sp)+,%%a0;				\
+		move.l		%%a0,%%usp;					\
+		move.l		(%%sp)+,%%sp;				\
+		"										\
+		:										\
+		: "p"(&s_new_ssp[ssp_size-16]), "a"(&AGT_EntryPoint), "a"(&AGT_EntryPointPre), "a"(&AGT_EntryPointPost) \
+		: "%%d0", "%%a0", "%%a1", "cc"			\
+	);											\
+}												\
+int main(int argc, char **argv)					\
+{												\
+	Supexec(&AGT_SuperStart, 0,0,0,0,0);		\
+	return 0;									\
+}
+#else // !defined(USE_TINY_CRT)
+#define AGT_MAIN								\
+int main(int argc, char **argv)					\
+{												\
+	AGT_EntryPointPre();						\
+	int r = AGT_EntryPoint();					\
+	AGT_EntryPointPost();						\
+	return r;									\
+}
+#endif // !defined(USE_TINY_CRT)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // access to timing rasters from C code

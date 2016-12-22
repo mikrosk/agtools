@@ -4,8 +4,10 @@
 //	C++ startup code
 //----------------------------------------------------------------------------------------------------------------------
 //	Credits:
-//	- Originally sourced from Saulot/BusError as minimal C++ startup/crt
-//	- Modified & trimmed by dml for AGT
+//	- Based on mStartup.cpp sourced from sqward/saulot as minimal C++ startup/crt
+//	- Refactored into just libc parts unrelated to startup sequence
+//	- File I/O added
+//	- Minor changes, additions, fixes for use as minimal libc for AGT
 //----------------------------------------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -14,13 +16,8 @@
 #include <mint/sysbind.h>
 
 #include <memory.h>
-
-// ---------------------------------------------------------------------------------------------------------------------
-//	Our AGT headers
-
-#include "common_cpp.h"
-
-#include "ealloc.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 // ----------------------------------------------------------------------------------------
 
@@ -38,6 +35,23 @@ void __assert_fail(const char * assertion, const char * file, unsigned int line,
 
 void __main()
 {
+//	printf("___main()\n");
+}
+
+// ----------------------------------------------------------------------------------------
+
+int tolower (int c) {
+	if ('A' <= c && c <= 'Z') {
+		c += 'a' - 'A';
+	}
+	return c;
+}
+
+int toupper (int c) {
+	if ('a' <= c && c <= 'z') {
+		c -= 'a' - 'A';
+	}
+	return c;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -48,54 +62,6 @@ int puts( const char* pText )
 	Cconws ( "\r" );
 	
 	return 0;
-}
-
-// ----------------------------------------------------------------------------------------
-// proxy for std malloc(), routed through our ealloc system
-
-void * malloc ( size_t size )
-{
-	dprintf("::malloc!\n");
-	return (void*)ealloc( size );
-}
-
-// ----------------------------------------------------------------------------------------
-// proxy for std calloc(), routed through our ealloc system
-
-void * calloc ( size_t num, size_t size )
-{
-	dprintf("::calloc!\n");
-	// todo: long multiply
-	char *ptr = (char*) ealloc( size*num );
-	// todo: long multiply
-	qmemclr(ptr, size*num);
-	return ptr;
-}
-
-// ----------------------------------------------------------------------------------------
-// proxy for std free(), routed through our ealloc system
-
-void free ( void * ptr )
-{
-	dprintf("::free!\n");
-	if ( ptr )
-	{
-//		Mfree ( ptr );
-		efree(ptr);
-	}
-}
-
-// ----------------------------------------------------------------------------------------
-// proxy for std realloc(), routed through our ealloc system
-
-void * realloc ( void * ptr, size_t size )
-{
-	dprintf("::realloc!\n");
-	char *newptr = (char*) ealloc( size );
-	qmemcpy ( newptr, ptr, size );
-//	Mfree ( ptr );
-	efree(ptr);
-	return newptr;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -211,11 +177,6 @@ void bcopy(const void *_src, void *_dest, size_t _len)
 
 // ----------------------------------------------------------------------------------------
 
-char *strdup(const char *s) 
-{
-	return strcpy((char*)malloc(strlen(s)+1), s);
-}
-
 int stricmp(const char *s, const char *t) 
 {
 	int cc;
@@ -267,27 +228,6 @@ char *strcat(char *dest, const char *src)
 }
 
 
-/* from http://clc-wiki.net/wiki/strstr */
-/* uses memcmp, strlen */
-/* For 52 more bytes, an assembly optimized version is available in the .s file */
-char *strstr(const char *s1, const char *s2)
-{
-	size_t n = strlen(s2);
-	while(*s1)
-		if(!memcmp(s1++,s2,n))
-			return (char *) (s1-1);
-	return (char *)0;
-}
-
-/* from http://clc-wiki.net/wiki/C_standard_library:string.h:strchr */
-char *strchr(const char *s, int c)
-{
-	while (*s != (char)c)
-		if (!*s++)
-			return 0;
-	return (char *)s;
-}
-
 /* from http://clc-wiki.net/wiki/memcmp */
 int memcmp(const void* s1, const void* s2,size_t n)
 {
@@ -312,6 +252,27 @@ void *memchr(const void *s, int c, size_t n)
 	return 0;
 }
 
+/* from http://clc-wiki.net/wiki/strstr */
+/* uses memcmp, strlen */
+/* For 52 more bytes, an assembly optimized version is available in the .s file */
+char *strstr(const char *s1, const char *s2)
+{
+	size_t n = strlen(s2);
+	while(*s1)
+		if(!memcmp(s1++,s2,n))
+			return (char *) (s1-1);
+	return (char *)0;
+}
+
+/* from http://clc-wiki.net/wiki/C_standard_library:string.h:strchr */
+char *strchr(const char *s, int c)
+{
+	while (*s != (char)c)
+		if (!*s++)
+			return 0;
+	return (char *)s;
+}
+
 /* from http://code.google.com/p/embox/source/browse/trunk/embox/src/lib/string/strlwr.c?spec=svn3211&r=3211 */
 char *strlwr (char * string ) {
 	char * cp;
@@ -325,13 +286,6 @@ char *strlwr (char * string ) {
 	return(string);
 }
 
-int toupper (int c) {
-	if ('a' <= c && c <= 'z') {
-		c -= 'a' - 'A';
-	}
-	return c;
-}
-
 char *strupr(char* str)
 {
 	if (str)
@@ -342,11 +296,9 @@ char *strupr(char* str)
 	}
 }
 
-int tolower (int c) {
-	if ('A' <= c && c <= 'Z') {
-		c += 'a' - 'A';
-	}
-	return c;
+char *strdup(const char *s) 
+{
+	return strcpy((char*)malloc(strlen(s)+1), s);
 }
 
 /* Possible sources:
@@ -474,36 +426,6 @@ long int ftell(FILE * stream)
 }; //end extern "C"
 
 // ----------------------------------------------------------------------------------------
-
-void* operator new(size_t _size)
-{
-//	printf("::new!\n");
-	return ealloc(_size);
-}
-
-// ----------------------------------------------------------------------------------------
-
-void* operator new[](size_t _size)
-{
-//	printf("::new[]!\n");
-	return ealloc(_size);
-}
-
-// ----------------------------------------------------------------------------------------
-
-void operator delete(void* _ptr)
-{
-//	printf("::delete!\n");
-	efree(_ptr);
-}
-
-// ----------------------------------------------------------------------------------------
-
-void operator delete[](void* _ptr)
-{
-//	printf("::delete[]!\n");
-	efree(_ptr);
-}
 
 // ----------------------------------------------------------------------------------------
 // This is a dummy class to force a static initialisation and destruction lists

@@ -152,6 +152,8 @@ machine machinestate;
 
 S_SUPER_SSP(AGT_CONFIG_STACK);
 
+AGT_MAIN;
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // in 8-way scrolling mode we need to keep a 16-pixel (1-tile) safety margin between the viewport and the map edges
@@ -438,30 +440,8 @@ mainloop:
 //	program start
 // =====================================================================================================================
 
-int main(int argc, char **argv)
+int AGT_EntryPoint()
 {
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	MiNTlib builds switch to SUPERVISOR & switch stacks. otherwise, AGT does it during CRT startup.
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	S_SUPER;
-
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	we can detect Hatari via natfeats API for debug-printf routing, if Hatari started with '--natfeats yes'
-	// ---------------------------------------------------------------------------------------------------------------------
-#if defined(HATARI_NF_PRINTF)
-	int hatariflag = nf_init();
-
-	if (hatariflag)
-	{
-		printf("Hatari NATFEATS detected!\n");
-	}
-	else
-	{
-		printf("Hatari NATFEATS NOT detected... :(\n");
-	}
-#endif
-
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	locate the end of the program to help track memory usage, when USE_MEMTRACE is enabled
 
@@ -473,9 +453,8 @@ int main(int argc, char **argv)
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools\n");
+	printf("[A]tari [G]ame [T]ools / dml 2016\n");
 	printf("Boss Core (STE)\n");
-	printf("dml / 2016\n\n");
 
 	AGT_BLiT_SlabSetupOnce();
 
@@ -513,9 +492,6 @@ int main(int argc, char **argv)
 		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
-
-		// shut down printfs via BIOS, but continue redirecting to Hatari debugger (natfeats) if enabled
-		g_displaylocked = 1;
 
 		machinestate.save();
 
@@ -824,6 +800,9 @@ restart_game:
 		//	end mainloop
 		// =====================================================================================================================
 
+		AGT_RemoveInputService();
+		AGT_SoundClose();
+
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	restore primary display state
 
@@ -837,14 +816,11 @@ restart_game:
 	machinestate.restore();
 
 	// ---------------------------------------------------------------------------------------------------------------------
-	//	MiNTlib builds switch to USER & restore stacks. otherwise, AGT does it during CRT pulldown.
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	S_USER;
-
-	// ---------------------------------------------------------------------------------------------------------------------
+	// back to TOS
 
 	pprintf("terminate...\n");
+
+	return 0;
 }
 
 

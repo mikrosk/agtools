@@ -28,6 +28,95 @@ int g_temphead = 0;
 int g_tempstart = 0;
 int g_tempend = 0;
 
+#if defined(USE_TINY_CRT)
+
+extern "C"
+{
+
+	// ----------------------------------------------------------------------------------------
+	// proxy for std malloc(), routed through our ealloc system
+
+	void * malloc ( size_t size )
+	{
+		dprintf("::malloc!\n");
+		return (void*)ealloc( size );
+	}
+
+	// ----------------------------------------------------------------------------------------
+	// proxy for std calloc(), routed through our ealloc system
+
+	void * calloc ( size_t num, size_t size )
+	{
+		dprintf("::calloc!\n");
+		// todo: long multiply
+		char *ptr = (char*) ealloc( size*num );
+		// todo: long multiply
+		qmemclr(ptr, size*num);
+		return ptr;
+	}
+
+	// ----------------------------------------------------------------------------------------
+	// proxy for std free(), routed through our ealloc system
+
+	void free ( void * ptr )
+	{
+		dprintf("::free!\n");
+		if ( ptr )
+		{
+	//		Mfree ( ptr );
+			efree(ptr);
+		}
+	}
+
+	// ----------------------------------------------------------------------------------------
+	// proxy for std realloc(), routed through our ealloc system
+
+	void * realloc ( void * ptr, size_t size )
+	{
+		dprintf("::realloc!\n");
+		char *newptr = (char*) ealloc( size );
+		qmemcpy ( newptr, ptr, size );
+	//	Mfree ( ptr );
+		efree(ptr);
+		return newptr;
+	}
+
+}
+
+#endif
+
+// ----------------------------------------------------------------------------------------
+
+void* operator new(size_t _size)
+{
+//	printf("::new!\n");
+	return ealloc(_size);
+}
+
+// ----------------------------------------------------------------------------------------
+
+void* operator new[](size_t _size)
+{
+//	printf("::new[]!\n");
+	return ealloc(_size);
+}
+
+// ----------------------------------------------------------------------------------------
+
+void operator delete(void* _ptr)
+{
+//	printf("::delete!\n");
+	efree(_ptr);
+}
+
+// ----------------------------------------------------------------------------------------
+
+void operator delete[](void* _ptr)
+{
+//	printf("::delete[]!\n");
+	efree(_ptr);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 void* ealloc(int _s)
@@ -51,14 +140,22 @@ void* ealloc(int _s)
 
 	g_tracked_allocation_ += as;
 	
-#if defined(USE_MEMTRACE)
-	printf("ealloc: +[%d] = [%d] tracked\n", as, g_tracked_allocation_);
-#endif
 
 	va = (v + ((4*2) + 4)) & ~3;
 	pva = (int*)va;
 	*(pva-1) = v;
 	*(pva-2) = as;
+
+#if defined(USE_MEMTRACE)
+	printf("ealloc: +[%d] = [%d] tracked [OA=%x, IA=%x, [OA=%x,IS=%x]]\n", 
+		as, 
+		g_tracked_allocation_, 
+		v, 
+		(int)pva,
+		*(pva-1),
+		*(pva-2)
+	);
+#endif
 
 //	qmemclr(pva, _s);
 
