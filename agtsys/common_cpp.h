@@ -332,8 +332,13 @@ extern "C" int bmprintf(const char *pFormat, ...);
 
 // --------------------------------------------------------------------
 
+// just inline stuff - don't bother with heuristics & guesswork
 #define FORCEINLINE __attribute__((always_inline))
 
+// inhibit tranlation of normal code into memcpy/memset calls - e.g. within inner loops
+#define NO_INTRINSIC_MEMXXX __attribute__((optimize("-fno-tree-loop-distribute-patterns")))
+
+// fancy assert which invokes vector $1C with a message param
 #define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert failure @ "__FILE__" line __LINE__\n"; __asm__ __volatile__ ("trapt #%0;" : : "P"(__msg) : "cc"); } };
 
 // --------------------------------------------------------------------

@@ -96,7 +96,6 @@ extern "C" int STFM_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-//__attribute__((optimize("-fno-tree-loop-distribute-patterns")))
 static inline void lcopytorow(s32* _src, s32* _dst, s16 _count)
 {
 	s32 *s = _src;
@@ -110,7 +109,6 @@ static inline void lcopytorow(s32* _src, s32* _dst, s16 _count)
 	} while (--c != -1);
 }
 
-//__attribute__((optimize("-fno-tree-loop-distribute-patterns")))
 static inline void lcopytocolumn(s32* _src, s32* _dst, s16 _dy, s16 _stride)
 {
 	s32 *s = _src;
@@ -128,8 +126,6 @@ static inline void lcopytocolumn(s32* _src, s32* _dst, s16 _dy, s16 _stride)
 	} while (--yc != -1);
 }
 
-
-//__attribute__((optimize("-fno-tree-loop-distribute-patterns")))
 static inline void lcopytorect(s32* _src, s32* _dst, s16 _dx, s16 _dy, s16 _stride)
 {
 	s32 *s = _src;
@@ -3611,10 +3607,6 @@ void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
 {
 	if (c_dynamic_)
 	{
-		// update map
-		//s32 index = mul_map_x_[_y] + _x;
-		//lcopytorow(_source, &map_[index], _dx);
-
 		// find mask rectangle width
 		s16 bx1 = (_x & ~7);
 		s16 bx2 = (_x + _dx + 7) & ~7;
@@ -3659,10 +3651,6 @@ void multitouch_column(s16 _x, s16 _y, s16 _dy/*, s32 *_source*/)
 	// todo: prototype version - move this stuff to 68k
 	if (c_dynamic_)
 	{
-		// update map
-		//s32 index = mul_map_x_[_y] + _x;
-		//lcopytocolumn(_source, &map_[index], _dy, map_tiles_x_);
-
 		// update dirty mask
 		u16 pattern = 0x8000 >> (_x & 7);
 		s16 xoffset = (_x >> 3);
@@ -3683,10 +3671,6 @@ void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
 {
 	if (c_dynamic_)
 	{
-		// update map
-		//s32 index = mul_map_x_[_y] + _x;
-		//lcopytorect(_source, &map_[index], _dx, _dy, map_tiles_x_);
-
 		// find mask rectangle width
 		s16 bx1 = (_x & ~7);
 		s16 bx2 = (_x + _dx + 7) & ~7;

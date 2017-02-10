@@ -1,6 +1,6 @@
 platform=`uname -o`
 if [ $platform = "Cygwin" ]; then
-$AGTBIN/agtrip.exe "$@"
+agtrip.exe "$@"
 else
 wine $AGTBIN/agtrip.exe "$@"
 fi

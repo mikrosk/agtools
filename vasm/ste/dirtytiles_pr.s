@@ -3,11 +3,9 @@
 
 tile_pr		macro
 
-;	move.l	\1,\5
 	lea	\0*8(\1),\5
 
 	move.l	\2,\6
-;	lea	shit,\6
 	move.l	(\6)+,(\5)+
 	move.l	(\6)+,(\5)+
 	lea	dst_linewid-8(\5),\5
@@ -56,61 +54,56 @@ tile_pr		macro
 	move.l	(\6)+,(\5)+
 	move.l	(\6)+,(\5)+
 
-
-;	move.l	\1,\5
-;	add.l	\4,\5
 	lea	\0*8(\1,\4.l),\5
-	move.l	\2,\6
-;	lea	shit,\6
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
-	lea	dst_linewid-8(\5),\5
-	move.l	(\6)+,(\5)+
-	move.l	(\6)+,(\5)+
 
-;	addq.l	#8,\1
+	move.l	\2,\6
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
+	lea	dst_linewid-8(\5),\5
+	move.l	(\6)+,(\5)+
+	move.l	(\6)+,(\5)+
 
 	endm
 
