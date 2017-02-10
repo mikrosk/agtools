@@ -332,4 +332,10 @@ extern "C" int bmprintf(const char *pFormat, ...);
 
 // --------------------------------------------------------------------
 
+#define FORCEINLINE __attribute__((always_inline))
+
+#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert failure @ "__FILE__" line __LINE__\n"; __asm__ __volatile__ ("trapt #%0;" : : "P"(__msg) : "cc"); } };
+
+// --------------------------------------------------------------------
+
 #endif // common_h_
