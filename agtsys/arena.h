@@ -227,7 +227,159 @@ public:
 		if (dualfield_)
 			b.fields[1].setpreshift(_xps);
 	}
-	
+
+	//
+
+	// signal multiple map tiles modified before next refresh: single tile at a time
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multitouch(s16 _x, s16 _y)
+	{
+		// mark rectangle on all active fields
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch(_x, _y);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch(_x, _y);
+		} while (--b != -1);		
+	}
+
+	// signal multiple map tiles modified before next refresh: map row
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multitouch_row(s16 _x, s16 _y, s16 _dx)
+	{
+		// mark row on all active fields
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch_row(_x, _y, _dx);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch_row(_x, _y, _dx);
+		} while (--b != -1);
+	}
+
+	// signal multiple map tiles modified before next refresh: map column
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multitouch_column(s16 _x, s16 _y, s16 _dy, s32 *_source)
+	{
+		// mark column  on all active fields
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch_column(_x, _y, _dy);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch_column(_x, _y, _dy);
+		} while (--b != -1);
+	}
+
+	// signal multiple map tiles modified before next refresh: map rectangle
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
+	{
+		// mark rect on all active fields
+		// todo: 
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch_rect(_x, _y, _dx, _dy);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch_rect(_x, _y, _dx, _dy);
+		} while (--b != -1);
+	}
+
+	//
+
+	// modify multiple map tiles before next refresh: single tile at a time (using plain index, i.e. not pre-formatted for map)
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multimod_idx(s16 _x, s16 _y, s32 _i)
+	{
+		// update map tiles
+		s32 rawidx = _i << 7;
+		mapctx0_.multimod(_x, _y, rawidx);
+//		mapctx1_.multimod(_x, _y, rawidx); // todo: eliminate dualfield maps!
+
+		// mark element on all active fields
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch(_x, _y);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch(_x, _y);
+		} while (--b != -1);		
+	}
+
+	// modify multiple map tiles before next refresh: single tile at a time
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multimod(s16 _x, s16 _y, s32 _rawidx)
+	{
+		// update map tiles
+		mapctx0_.multimod(_x, _y, _rawidx);
+//		mapctx1_.multimod(_x, _y, _rawidx); // todo: eliminate dualfield maps!
+
+		// mark element on all active fields
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch(_x, _y);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch(_x, _y);
+		} while (--b != -1);
+	}
+
+	// modify multiple map tiles before next refresh: map row
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multimod_row(s16 _x, s16 _y, s16 _dx, s32 *_source)
+	{
+		// update map tiles
+		mapctx0_.multimod_row(_x, _y, _dx, _source);
+//		mapctx1_.multimod_row(_x, _y, _dx, _source); // todo: eliminate dualfield maps!
+
+		// mark row on all active fields
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch_row(_x, _y, _dx);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch_row(_x, _y, _dx);
+		} while (--b != -1);
+	}
+
+	// modify multiple map tiles before next refresh: map column
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multimod_column(s16 _x, s16 _y, s16 _dy, s32 *_source)
+	{
+		mapctx0_.multimod_column(_x, _y, _dy, _source);
+//		mapctx1_.multimod_column(_x, _y, _dy, _source); // todo: eliminate dualfield maps!
+
+		// mark column on all active fields
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch_column(_x, _y, _dy);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch_column(_x, _y, _dy);
+		} while (--b != -1);
+	}
+
+	// modify multiple map tiles before next refresh: map rectangle
+	// note: no dualfield support yet - will implement shared dualfield maps first
+	void multimod_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
+	{
+		mapctx0_.multimod_rect(_x, _y, _dx, _dy, _source);
+		//mapctx1_.multimod_rect(_x, _y, _dx, _dy, _source); // todo: eliminate dualfield maps!
+
+		// mark rect on all active fields
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].multitouch_rect(_x, _y, _dx, _dy);
+			//if (dualfield_)
+			//	rb.fields[1].multitouch_rect(_x, _y, _dx, _dy);
+		} while (--b != -1);
+	}
+
+	//
+
 	void fill_abs(bool _force)
 	{
 		buffer& b = *pactive_; //buffers_[buffer_index_];

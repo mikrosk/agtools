@@ -11,6 +11,25 @@
 
 #include "drawcontext.h"
 
+extern "C" s16 *dm_dirtymask;
+extern "C" s16 *dm_dstaddr;
+extern "C" s16 *dm_ptiles;
+extern "C" s32 *dm_pmap;
+extern "C" s32 dm_virtual_pagebytes;
+extern "C" s16 dm_visible_linebytes;
+extern "C" s16 dm_map_tiles_x;
+extern "C" s16 dm_pi;
+extern "C" s16 dm_pi2;
+extern "C" s16 dm_pj;
+extern "C" s16 dm_pj2;
+extern "C" s16 dm_maskstride;
+extern "C" s16 dm_lineskip;
+
+extern "C" void do_dirtyrect_pqrs();
+extern "C" void do_dirtyrect_pq();
+extern "C" void do_dirtyrect_pr();
+extern "C" void do_dirtyrect_p();
+
 //----------------------------------------------------------------------------------------------------------------------
 
 // scanwalk mode (consume padding scanlines instead of looping on h axis)
@@ -77,6 +96,59 @@ extern "C" int STFM_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+static inline void lcopytorow(s32* _src, s32* _dst, s16 _count)
+{
+	s32 *s = _src;
+	s32 *d = _dst;
+	s16 c = _count-1;
+	do
+	{
+//		*d++ = *s++;
+		__asm__ __volatile__
+		( "move.l (%0)+,(%1)+;" : "+a"(s), "+a"(d) : : );
+	} while (--c != -1);
+}
+
+static inline void lcopytocolumn(s32* _src, s32* _dst, s16 _dy, s16 _stride)
+{
+	s32 *s = _src;
+	s32 *d = _dst;
+
+	s16 yc = _dy-1;
+	do
+	{
+//		*d = *s++;
+    	__asm__ __volatile__
+	   	( "move.l (%0)+,(%1);" : "+a"(s) : "a"(d) : );
+
+		d += _stride;
+
+	} while (--yc != -1);
+}
+
+static inline void lcopytorect(s32* _src, s32* _dst, s16 _dx, s16 _dy, s16 _stride)
+{
+	s32 *s = _src;
+	s32 *d = _dst;
+
+	s16 xcc = _dx-1;
+	s16 yc = _dy-1;
+	do
+	{
+		s32 *dt = d; d += _stride;
+		s16 xc = xcc;
+		do
+		{
+//			*dt++ = *s++;
+    		__asm__ __volatile__
+	    	( "move.l (%0)+,(%1)+;" : "+a"(s), "+a"(dt) : : );
+
+		} while (--xc != -1);
+	} while (--yc != -1);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 #define SPECULATIVE_FILL_METHOD (0)
 //#define BLITTER_HOG
 //#define WRAPAROUND_MAPS
@@ -101,8 +173,10 @@ template
 	bool _ste_hwscroll,
 	// use LJBK 4- or 8-pixel sync shift
 	bool _stf_hsyncshift,
-	// use blitter (STE/MegaST)
-	bool _blitter
+	// use blitter (STE/MegaST) [deprecated]
+	//bool _blitter,
+	// configure support for dynamic tiles (editing tile indices while displaying them)
+	bool _dynamic
 >
 class playfield_template
 {
@@ -112,6 +186,8 @@ public:
 	// configure behaviour
 	// ---------------------------------------------------------------------------------------------------------------------
 
+	static const bool _blitter = false;
+
 	// TODO: mostly hardwired for now
 	static const int c_planes = 4;
 
@@ -119,6 +195,7 @@ public:
 	static const int c_preshift_step_ = 1<<c_preshift_stepshift_;
 
 	static const bool c_mapwrapping = false;
+	static const bool c_dynamic_ = _dynamic;
 
 	// buffer speculation is for writing tile slices to future buffers ahead of time
 	static const bool c_hbufferspeculation_ = false;//(!_ste);
@@ -135,6 +212,9 @@ public:
 	// only update tile rows if full vertical scrolling is possible
 	static const bool c_updaterows = (_vscroll != VScrollMode_NONE) && (_vscroll != VScrollMode_MARGIN);
 
+	static const bool c_hdynamic_ = _dynamic && c_updatecols;
+	static const bool c_vdynamic_ = _dynamic && c_updaterows;
+
 	// only speculate on H axis if there is offscreen margin (only possible on STE with hscroll+linewid)
 	static const bool c_hspeculative_ = _speculative && c_updatecols && _ste_hwscroll;
 	// only speculate via buffers if we're using them (STF preshifted framebuffers)
@@ -148,7 +228,6 @@ public:
 	static const bool c_ste_ = _ste_hwscroll;
 	static const bool c_hsoftscroll_ = !_ste_hwscroll;
 	static const bool c_blitter_ = _blitter;
-
 
 	static const bool c_hloop = (_hscroll == HScrollMode_LOOPBACK);
 	static const bool c_vloop = (_vscroll == VScrollMode_LOOPBACK);
@@ -250,6 +329,46 @@ public:
 			map_ = _map->get();
 
 			prepare();
+		}
+
+		FORCEINLINE void multimod(s16 _x, s16 _y, s32 _rawidx)
+		{
+			if (c_dynamic_)
+			{
+				s32 index = mul_map_x_[_y] + _x;
+				map_[index] = _rawidx;
+			}
+		}
+
+		void multimod_row(s16 _x, s16 _y, s16 _dx, s32 *_source)
+		{
+			if (c_dynamic_)
+			{
+				// update map
+				s32 index = mul_map_x_[_y] + _x;
+				lcopytorow(_source, &map_[index], _dx);
+			}
+		}
+
+		void multimod_column(s16 _x, s16 _y, s16 _dy, s32 *_source)
+		{
+			// todo: prototype version - move this stuff to 68k
+			if (c_dynamic_)
+			{
+				// update map
+				s32 index = mul_map_x_[_y] + _x;
+				lcopytocolumn(_source, &map_[index], _dy, map_tiles_x_);
+			}
+		}
+
+		void multimod_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
+		{
+			if (c_dynamic_)
+			{
+				// update map
+				s32 index = mul_map_x_[_y] + _x;
+				lcopytorect(_source, &map_[index], _dx, _dy, map_tiles_x_);
+			}
 		}
 
 		~mapcontext()
@@ -439,6 +558,13 @@ public:
 	s16 xpreshift_;
 	s16 last_slice_;
 	s16 slice_;
+
+	s32* dirtytiles_;
+	s16* dirtymask_;
+	s16 dirtynum_;
+	s16 dirtymaskwidth_;
+	s16 dirtymaskstride_;
+	s16** dirtymasklines_;
 
 	// ---------------------------------------------------------------------------------------------------------------------
 
@@ -699,6 +825,8 @@ public:
 	#include "pf_specshiftc.inl"		// shift speculative column slices
 	#include "pf_specshiftr.inl"		// shift speculative row slices
 
+	#include "pf_dirty.inl"				// refill dirty tiles
+
 	// =====================================================================================================================
 
 	// debugging only - fill block using individual tile calls
@@ -896,6 +1024,69 @@ public:
 				PQ_fill_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
 			else
 				P_fill_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
+		}
+	}
+
+	inline void dirty_block_vx_sane(s16 _mi, s16 _mj, s16 pi, s16 _vy1, s16 pi2, s16 _vy2)
+	{
+		if (_vy1 == _vy2)
+			return;
+
+		if (c_vloop)
+		{
+			// v-wrapping case
+
+			// start modulo virtual playfield dimensions
+			//s16 pj = xmod<s16>(_vy1, vpage_tiles_y_);
+			s16 pj = modulo_vpage_y(_vy1);
+
+			// end modulo virtual playfield dimensions
+			//s16 pj2 = xmod<s16>(_vy2-1, vpage_tiles_y_)+1;
+			s16 pj2 = modulo_vpage_y(_vy2-1)+1;
+					
+			// ordering faults indicate playfield wrap @ destination, so we split the fill
+			// into sub-blocks, potentially on both axes at once
+
+			if (pj2 <= pj)
+			{
+				// block straddles virtual y-wrap, so split in two										
+				s16 o = vpage_tiles_y_ - pj;
+				if (c_updateQ)
+				{
+					PQRS_dirty_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
+					PQRS_dirty_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
+				}
+				else
+				{
+					PR_dirty_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
+					PR_dirty_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
+				}
+			}
+			else		
+			{
+				// block entirely within virtual playfield			
+				if (c_updateQ)
+					PQRS_dirty_block_direct(_mi, _mj, pi, pj, pi2, pj2);
+				else
+					PR_dirty_block_direct(_mi, _mj, pi, pj, pi2, pj2);
+			}
+		}
+		else
+		if (c_updateR)
+		{
+			// non-v-wrapping case which still requires shadow vpage R (pagerestore mode)
+
+			if (c_updateQ)
+				PQRS_dirty_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
+			else
+				PR_dirty_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
+		}
+		else
+		{
+			if (c_updateQ)
+				PQ_dirty_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
+			else
+				P_dirty_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
 		}
 	}
 
@@ -1163,6 +1354,44 @@ public:
 		}
 	}
 
+	inline void dirty_block_virtual(s16 _mi, s16 _mj, s16 _vx1, s16 _vy1, s16 _vx2, s16 _vy2)
+	{
+		if (_vx1 == _vx2)
+			return;
+
+		if (!c_hloop)
+		{
+			// in this mode, rows are never clipped
+			dirty_block_vx_sane(_mi, _mj, _vx1, _vy1, _vx2, _vy2);
+		}
+		else
+		{
+			// start modulo virtual playfield dimensions
+			//s16 pi = xmod<s16>(_vx1, vpage_tiles_x_);
+			s16 pi = modulo_vpage_x(_vx1);
+			// end modulo virtual playfield dimensions
+			//s16 pi2 = xmod<s16>(_vx2-1, vpage_tiles_x_)+1;
+			s16 pi2 = modulo_vpage_x(_vx2-1)+1;
+			
+			// ordering faults indicate playfield wrap @ destination, so we split the fill
+			// into sub-blocks, potentially on both axes at once
+
+			if (pi2 <= pi)
+			{				
+				// block straddles virtual x-wrap, so split in two
+				s16 o = vpage_tiles_x_ - pi;				
+				dirty_block_vx_sane(_mi+o, _mj,  0, _vy1, pi2, 		   _vy2);
+				dirty_block_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_x_, _vy2);
+			}
+			else
+			{
+				// block entirely within virtual playfield
+				dirty_block_vx_sane(_mi, _mj, pi, _vy1, pi2, _vy2);
+			}
+		}
+	}
+
+
 	inline void shift_block_virtual(s16 _mi, s16 _mj, s16 _vx1, s16 _vy1, s16 _vx2, s16 _vy2)
 	{
 		if (_vx1 == _vx2)
@@ -1263,7 +1492,13 @@ playfield_template()
 	  modulo_map_x_(0), modulo_map_y_(0),
 	  mul_map_x_(0),
 	  xpreshift_(0), drawshift_(1), 
-	  slice_(0), last_slice_(0)
+	  slice_(0), last_slice_(0),
+	  dirtytiles_(0),
+	  dirtynum_(0),
+	  dirtymask_(0),
+	  dirtymasklines_(0),
+	  dirtymaskwidth_(0),
+	  dirtymaskstride_(0)
 {
 }
 
@@ -1271,6 +1506,13 @@ playfield_template()
 {
 	dprintf("destroy playfield\n");
 	delete[] display_alloc_;
+
+	if (c_dynamic_)
+	{
+		delete[] dirtytiles_;
+		delete[] dirtymask_;
+		delete[] dirtymasklines_;
+	}
 }
 
 void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 _x, s16 _y)
@@ -1313,7 +1555,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols &&*/ c_ste_) ? 1 : 0);  // keep horizontal margin for fixed 184 byte line
 	visible_tiles_y_ = ((display_height_ + (c_tilesize_-1)) / c_tilesize_) + (c_updaterows ? 1 : 0);
 
-	// dimensions for tiles potentially visible at any time - active display_ area only
+	// dimensions for virtual page size used for tile updating - larger than display area + scroll margin
 	vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0); // keep horizontal margin for fixed 184 byte line
 	vpage_tiles_y_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
 
@@ -1443,6 +1685,44 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	//		modulo_map_y_[n] = tmod16(v, map_tiles_y_);
 	//	}
 	//}
+
+	// dirty tile management: per-playfield state
+
+	if (c_dynamic_)
+	{
+		delete[] dirtytiles_;
+		dirtytiles_ = new s32[256];
+		dirtynum_ = 0;
+
+		// 1 word per 8 bits of mask (8 unused bits)
+		delete[] dirtymask_;
+		s32 dmsize = ((map_tiles_x_+7)>>3) * map_tiles_y_;
+		dirtymask_ = new s16[dmsize];
+//		qmemset(dirtymask_, 0xff, dmsize<<1);
+		qmemclr(dirtymask_, dmsize<<1);
+		dirtymaskwidth_ = ((map_tiles_x_+7)>>3);
+		dirtymaskstride_ = dirtymaskwidth_<<1;
+
+		delete[] dirtymasklines_; 
+		dirtymasklines_ = new s16*[map_tiles_y_];
+		for (s16 n = 0; n < map_tiles_y_; ++n)
+			dirtymasklines_[n] = &dirtymask_[n * dirtymaskwidth_];
+
+		//// test: checker pattern for mask
+		//for (s16 y = 0; y < map_tiles_y_; y++)
+		//{
+		//	for (s16 x = 0; x < map_tiles_x_/4; x++)
+		//	{
+		//		if (((x^y) & 1) || (x < 2) || (y < 2))
+		//		{
+		//			s16 xf = x & 7;
+		//			s16 xb = x >> 3;
+
+		//			dirtymask_[xb + (y*dirtymaskstride_>>1)] |= (0x8000 >> xf);
+		//		}
+		//	}
+		//}
+	}
 
 	delete[] display_alloc_;
 	int display_alloc_bytes = (bufferwords_<<1) + 256;
@@ -2370,11 +2650,11 @@ void hybrid_fill()
 	if ((dx == 0) && c_hbufferspeculation_)
 		dx = tsign16(last_slice_ - slice_);
 
-	if ((dx == 0) && 
-		(dy == 0))
-	{
-		return;
-	}
+	//if ((dx == 0) && 
+	//	(dy == 0))
+	//{
+	//	return;
+	//}
 
 	if (c_blitter_)
 		prepare_blitter();		
@@ -2398,6 +2678,31 @@ void hybrid_fill()
 	else
 		tdy = -(((-dy + (c_tilesize_ - 1)) & -c_tilesize_) >> 4);
 */			
+
+	// refresh dirty tiles before incremental updates
+	if (c_ste_ && c_dynamic_)
+	{
+		s16 txp = txpos_-c_hmargin_;
+		s16 typ = typos_-c_vmargin_;
+
+		if (c_scanwalk && txp < 0)
+			txp = 0;
+
+		dirty_block_virtual
+		(
+			txp, typ,
+			txp, typ, 
+			txpos_-(c_hmargin_) + vpage_tiles_x_, 
+			typos_-(c_vmargin_) + vpage_tiles_y_
+		);
+	}
+
+	// shortcut incremental if no movement
+	if ((dx == 0) && 
+		(dy == 0))
+	{
+		return;
+	}
 
 	// determine draw delta in terms of tile rows/columns
 	s16 tx = txpos_;
@@ -3259,6 +3564,165 @@ void hybrid_fill()
 	last_xpos_ = xpos_;
 	last_ypos_ = ypos_;
 	last_slice_ = slice_;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+
+//// signal tile @ (x,y) has been modified by editing map array directly
+//FORCEINLINE void touch(s16 _x, s16 _y)
+//{
+//	if (c_dynamic_)
+//	{
+//		s32 index = mul_map_x_[_y] + _x;
+//		xassert(dirtynum_ < 256);
+//		dirtytiles_[dirtynum_++] = index;
+//	}
+//}
+//
+//// set tile @ (x,y) by index
+//FORCEINLINE void mod(s16 _x, s16 _y, s32 _rawidx)
+//{
+//	if (c_dynamic_)
+//	{
+//		s32 index = mul_map_x_[_y] + _x;
+//		map_[index] = _rawidx;
+//		xassert(dirtynum_ < 256);
+//		dirtytiles_[dirtynum_++] = index;
+//	}
+//}
+
+FORCEINLINE void multitouch(s16 _x, s16 _y)
+{
+	if (c_dynamic_)
+	{
+		u16 pattern = 0x8000 >> (_x & 7);
+		s16 xoffset = (_x >> 3);
+		s16 *dirtyline = dirtymasklines_[_y];
+		dirtyline[xoffset] |= pattern;
+	}
+}
+
+void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
+{
+	if (c_dynamic_)
+	{
+		// find mask rectangle width
+		s16 bx1 = (_x & ~7);
+		s16 bx2 = (_x + _dx + 7) & ~7;
+		s16 bdx = (bx2 - bx1) >> 3;
+
+		// we can deal with 8,16,24-wide tile bitmasks
+		if ((bdx > 0) && (bdx < 4))
+		{				
+			// access mask buffer
+			s16 xoffset = (_x >> 3);
+			s16 *dirtyline = dirtymasklines_[_y];
+			dirtyline = &dirtyline[xoffset];
+			s16 stride = dirtymaskwidth_;
+
+			// generate endmasks for all cases
+			u16 em1 = (0xffff >> (_x & 7));
+			u16 em3 = (0xffff0000UL >> (((_x - 1) & 7) + 1));
+
+			switch (bdx)
+			{
+			case 1:
+				em1 |= em3;
+				dirtyline[0] |= em1;
+				break;
+			case 2:
+				dirtyline[0] |= em1;
+				dirtyline[1] |= em3;
+				break;
+			case 3:
+				dirtyline[0] |= em1;
+				dirtyline[1] = ~0;
+				dirtyline[2] |= em3;
+				break;
+			// no default:
+			}
+		}
+	}
+}
+
+void multitouch_column(s16 _x, s16 _y, s16 _dy/*, s32 *_source*/)
+{
+	// todo: prototype version - move this stuff to 68k
+	if (c_dynamic_)
+	{
+		// update dirty mask
+		u16 pattern = 0x8000 >> (_x & 7);
+		s16 xoffset = (_x >> 3);
+		s16 *dirtyline = dirtymasklines_[_y];
+		dirtyline = &dirtyline[xoffset];
+		s16 stride = dirtymaskwidth_;
+
+		s16 y = _dy-1;
+		do
+		{
+			*dirtyline |= pattern;
+			dirtyline += stride;
+		} while (--y != -1);
+	}
+}
+
+void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
+{
+	if (c_dynamic_)
+	{
+		// find mask rectangle width
+		s16 bx1 = (_x & ~7);
+		s16 bx2 = (_x + _dx + 7) & ~7;
+		s16 bdx = (bx2 - bx1) >> 3;
+
+		// we can deal with 8,16,24-wide tile bitmasks
+		if ((bdx > 0) && (bdx < 4))
+		{				
+			// access mask buffer
+			s16 xoffset = (_x >> 3);
+			s16 *dirtyline = dirtymasklines_[_y];
+			dirtyline = &dirtyline[xoffset];
+			s16 stride = dirtymaskwidth_;
+
+			// generate endmasks for all cases
+			u16 em1 = (0xffff >> (_x & 7));
+			u16 em3 = (0xffff0000UL >> (((_x - 1) & 7) + 1));
+
+			// loopsize for all cases
+			s16 y = _dy-1;
+
+			switch (bdx)
+			{
+			case 1:
+				em1 |= em3;
+				do
+				{
+					dirtyline[0] |= em1;
+					dirtyline += stride;
+				} while (--y != -1);
+				break;
+			case 2:
+				do
+				{
+					dirtyline[0] |= em1;
+					dirtyline[1] |= em3;
+					dirtyline += stride;
+				} while (--y != -1);
+				break;
+			case 3:
+				do
+				{
+					dirtyline[0] |= em1;
+					dirtyline[1] = ~0;
+					dirtyline[2] |= em3;
+					dirtyline += stride;
+				} while (--y != -1);
+				break;
+			// no default:
+			}
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -253,7 +253,7 @@ extern entity_t *g_pe_viewport;
 
 static agt_inline void EntityRemove(entity_t *_pent)
 {
-	if ((_pent->f_self & EntityFlags_KILL) == 0)
+	if (likely((_pent->f_self & EntityFlags_KILL) == 0))
 	{	
 		_pent->f_self |= EntityFlags_KILL;
 		s_entity_removes[s_entity_remove_count++] = _pent;

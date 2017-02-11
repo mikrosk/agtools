@@ -9,6 +9,12 @@
 //	- requires RMAC assembler V1.4.12  (or better) to post-process the frames
 //---------------------------------------------------------------------------------------------------------------------
 
+// 20 tiles / 320 pix
+// +1 for hscroll margin
+// +2 for speculative update margin
+
+#define DISPLAY_LINEWIDTH (8*(20+1+2))
+
 enum RegClass
 {
 	RegClass_Data,
@@ -300,7 +306,7 @@ public:
 		if (1 || !PREFER_TRANSFORMS)
 		{
 			if (srcww == 3)
-				registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true,	0xC0000000 | 184));
+				registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true,	0xC0000000 | DISPLAY_LINEWIDTH));
 			else
 				registers.push_back(dataregister("d0", r++, RegClass_Data));
 
@@ -357,7 +363,7 @@ public:
 			registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true,		0xffff8a2a));	// em2
 		}
 		else
-			registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true,		184));
+			registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true,		DISPLAY_LINEWIDTH));
 
 		if (srcww > 1)
 		{
@@ -398,7 +404,7 @@ public:
 
 //		blitter.xcount = srcww;
 
-		dstlinewid = 184;
+		dstlinewid = DISPLAY_LINEWIDTH;
 
 		//BLiTDST_name = "BLiTDST.w";
 		//BLiTCTRL_name = "BLiTCTRL.w";
