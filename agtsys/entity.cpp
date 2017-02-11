@@ -352,19 +352,19 @@ ysort_done:
 
 static void EntityLink(entity_t *_pent, entity_t *_near)
 {
-	if (_pent->f_self & EntityFlag_TICKED)
+	if (likely(_pent->f_self & EntityFlag_TICKED))
 		EntityLink_Tick(_pent, _near);
 
-	if (_pent->f_self & EntityFlag_SPATIAL)
+	if (likely(_pent->f_self & EntityFlag_SPATIAL))
 		EntityLink2D(_pent, _near);
 }
 
 static void EntityUnLink(entity_t *_pent)
 {
-	if (_pent->f_self & EntityFlag_TICKED)
+	if (likely(_pent->f_self & EntityFlag_TICKED))
 		EntityUnLink_Tick(_pent);
 
-	if (_pent->f_self & EntityFlag_SPATIAL)
+	if (likely(_pent->f_self & EntityFlag_SPATIAL))
 		EntityUnLink2D(_pent);
 }
 
@@ -384,8 +384,14 @@ static inline void EntityExecuteRemove(entity_t *_pent)
 
 void EntityExecuteAllRemoves()
 {
-	for (s16 p = 0; p < s_entity_remove_count; p++)
-		EntityExecuteRemove(s_entity_removes[p]);
+	if (s_entity_remove_count > 0)
+	{
+		entity_t **ppremoves = s_entity_removes;
+		s16 p = s_entity_remove_count-1;
+		do {
+			EntityExecuteRemove(*ppremoves++);
+		} while (--p != -1);
+	}
 
 	s_entity_remove_count = 0;
 }
@@ -397,12 +403,13 @@ void EntityExecuteAllLinks()
 		entity_t **pplinks = s_entity_links;
 
 		s16 c = s_entity_link_count>>1;
-		for (s16 p = 0; p < c; p++)
-		{
+		s16 p = c-1;
+
+		do {
 			entity_t *pe = *pplinks++;
 			entity_t *pp = *pplinks++;
 			EntityLink(pe, pp);
-		}
+		} while (--p != -1);
 
 		s_entity_link_count = 0;
 	}
