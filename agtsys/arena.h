@@ -260,7 +260,7 @@ public:
 
 	// signal multiple map tiles modified before next refresh: map column
 	// note: no dualfield support yet - will implement shared dualfield maps first
-	void multitouch_column(s16 _x, s16 _y, s16 _dy, s32 *_source)
+	void multitouch_column(s16 _x, s16 _y, s16 _dy)
 	{
 		// mark column  on all active fields
 		s16 b = c_num_buffers_-1;
@@ -274,7 +274,7 @@ public:
 
 	// signal multiple map tiles modified before next refresh: map rectangle
 	// note: no dualfield support yet - will implement shared dualfield maps first
-	void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
+	void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy)
 	{
 		// mark rect on all active fields
 		// todo: 
