@@ -531,7 +531,7 @@ void letter_fntick(entity_t *_pself)
 // empty entity dictionary (required)
 // =====================================================================================================================
 
-entitydef_t entity_dictionary[] =
+entitydef_t entity_dictionary[EntityType_MAX_] =
 {
 	// [functions]								[coords]						[control]		[tick state]		[rendering]			[classification properties]
 	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype			f_self,f_interactswith	

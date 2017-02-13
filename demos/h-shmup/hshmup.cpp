@@ -2830,7 +2830,7 @@ void laser_fncol(entity_t *_pself, entity_t *_pother)
 // fields in {0} braces are unions - usually a scalar value which has BOTH 16bit integer AND 32bit fixedpoint reps at
 // the same address. here, the initialized value is the integer part (but this can be changed by reordering the union).
 
-entitydef_t entity_dictionary[] =
+entitydef_t entity_dictionary[EntityType_MAX_] =
 {
 	// [functions]								[coords]						[control]		[tick state]		[rendering]			[classification properties]
 	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype			f_self,f_interactswith	
