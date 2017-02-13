@@ -95,7 +95,7 @@ typedef playfield_template
     /*speculative=*/true,
     /*ste_hwscroll=*/true,
     /*stf_hsyncshift=*/false,
-    /*blitter=*/false
+    /*dynamic=*/false
 > playfield_vscroll_ste;
 
 // define an arena (world) composed of 2 such playfields (double-buffered)
