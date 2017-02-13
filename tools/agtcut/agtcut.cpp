@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.35";
+static const char* const g_version_string = "v0.36";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -341,6 +341,7 @@ enum
 	OPT_VIS,
 	OPT_PREVIEW,
 	OPT_GENMASK,
+	OPT_NOGENMASK,
 	OPT_MASKLAYOUT,
 	OPT_SPROPT,
 	OPT_SPRXP,
@@ -381,6 +382,9 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_GENMASK,		_T("-gm"),	 			SO_NONE		},
 	{ OPT_GENMASK,		_T("--gen-mask"),		SO_NONE		},
+	//
+	{ OPT_NOGENMASK,	_T("-nogm"),	 		SO_NONE		},
+	{ OPT_NOGENMASK,	_T("--no-gen-mask"),	SO_NONE		},
 	//
 	{ OPT_MASKLAYOUT,	_T("-ml"),	 			SO_REQ_SEP	},
 	{ OPT_MASKLAYOUT,	_T("--mask-layout"),	SO_REQ_SEP	},
@@ -608,10 +612,11 @@ public:
 		  waitkey(false),
 		  spriteoptimize(true),
 		  preview(false),
-		  genmask(false),
+		  genmask(true),
 		  keyguard(false),
 		  quickcut(false),
 		  visual(false),
+		  keyrgb_specified(false),
 		  colrenorm(255),
 		  tolerance(0.0f),
 		  keytol(0.01f),
@@ -655,6 +660,7 @@ public:
 	bool keyguard;
 	bool quickcut;
 	bool visual;
+	bool keyrgb_specified;
 
 	ubyte_t keycol;
 	iRGB keyrgb;
@@ -728,6 +734,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_GENMASK) 
 			{
 				_args.genmask = true;
+			}
+			else if (args.OptionId() == OPT_NOGENMASK) 
+			{
+				_args.genmask = false;
 			}	
 			else if (args.OptionId() == OPT_KEYGUARD) 
 			{
@@ -948,6 +958,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			}
 			else if (args.OptionId() == OPT_KEYRGB)
 			{
+				_args.keyrgb_specified = true;
+
 				std::string s_arg = args.OptionArg();
 				
 				int r, g, b;
@@ -3278,9 +3290,9 @@ public:
 			int dst_wordwidth = (((w_ + s) + 15) & -16) >> 4;
 			int preshiftwords = h_ * dst_wordwidth;
 
-			//printf("shift: %d\n", s);
-			//printf("dst_wordwidth: %d\n", dst_wordwidth);
-			//printf("preshiftwords: %d\n", preshiftwords);
+//			printf("shift: %d\n", s);
+//			printf("dst_wordwidth: %d\n", dst_wordwidth);
+//			printf("preshiftwords: %d\n", preshiftwords);
 
 			uword_t *preshift = new uword_t[preshiftwords];
 			uword_t *pout = preshift;
@@ -3350,7 +3362,6 @@ void init_sprite_sequence(int _xs, int _ys, int _sw, int _sh)
 	g_sprite_bpwidth = (_xs + (16-1)) & -16;
 	g_sprite_width = _xs;
 	g_sprite_height = _ys;
-
 
 	// allocate sprite buffer for chunky processing (default to keycol)
 	delete[] g_colrbuffer8;
@@ -3481,6 +3492,22 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 	g_sprite_framewidth = cxmax - cxmin;
 	g_sprite_frameheight = cymax - cymin;
 	g_sprite_framebpwidth = (g_sprite_framewidth + (16-1)) & -16;
+
+	// guard against active sprite source widths > 32 pixels for EMS/EMX formats
+	if (
+		(g_allargs.cutmode == Cutmode_EMSPR) ||
+		(g_allargs.cutmode == Cutmode_EMXSPR)
+	)
+	{
+		if ((g_sprite_framebpwidth >> 4) > 2)
+		{
+			std::cerr << "error: max active source width for EMS/EMX sprite is 32 (2x words). this frame has a max source width of " << g_sprite_bpwidth
+				<< std::endl;
+			printf("press any key...\n");
+			getchar();
+			exit(1);
+		}
+	}
 
 	// cut chunky sprite to chunky colrbuffer & maskbuffer
 
@@ -5027,6 +5054,14 @@ bool do_sheet()
 
 			if (m_psourcecol)
 			{
+				if (g_allargs.keyrgb_specified)
+				{
+					std::cerr << "error: can't use -keyrgb <R:G:B> on indexed-colour spritesheet images - use -key <col> instead." << std::endl;
+					printf("press any key...\n");
+					getchar();	
+					exit(1);
+				}
+
 				std::cout << "adopting palette and colourmap provided by source image..." << std::endl;
 			}
 			else
