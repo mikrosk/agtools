@@ -129,7 +129,7 @@ typedef playfield_template
 	/*speculative=*/true,						// todo: force this as only available mode - others deprecated
 	/*ste_hwscroll=*/true,						// use STE HW scrolling
 	/*stf_hsyncshift=*/false,					// use STF 4pix syncscroll
-	/*blitter=*/false							// todo: force this as only available mode - blitter tiles redundant in speculative mode
+	/*dynamic=*/false							// enable support for runtime-refreshable map tiles
 > playfield_hscroll_ste;						// new name for our playfield definition
 
 // define an arena (world) composed of 2 such playfields (double-buffering on STE)
