@@ -19,13 +19,23 @@
 
 short g_displaylocked = 0;
 
-#if (0)
+#if (1)
 
-#include "common_c.h"
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned long u32;
+typedef signed char s8;
+typedef signed short s16;
+typedef signed long s32;
 
-char console_enabled = 1;
-short bytewidth = 320*2;
-extern char* bm_physbase;	
+extern int bmprintf(const char *pFormat, ...);
+
+
+//#include "common_c.h"
+
+//short bytewidth = 184;//320*2;
+char* console_base = 0;	
+char* show_console = 0;	
 extern void etext();
 
 /* used by bmengine.a */
@@ -34,24 +44,42 @@ extern void etext();
 //	return printf("%s", string);
 //}
 
-extern int AGT_ConsoleText(const char* text, void* fb, int c, int r);
+static __inline void AGT_ConsoleText(const char* text, void* fb, int c, int r)
+{
+	// minmal shim to 68k version
+	// todo: specify args as explicit registers instead of copying them
+	// todo: can just move the whole console update to 68k
+	__asm__ __volatile__
+	(
+	"	move.l %0,%%a0;"
+	"	move.l %1,%%a1;"
+	"	move.l %2,%%d0;"
+	"	move.l %3,%%d1;"
+	"	jsr _AGT_ConsoleText_68k;"
+		: 
+		: "g"(text), "g"(fb), "g"(c), "g"(r)
+		: "%%d0", "%%d1", "%%d2", "%%a0", "%%a1", "%%a2", 
+		  "cc"
+	);
+}
+
 //extern void AGT_ConsoleUpdate(void* fb1, void* fb2);
 
 void nf_print(const char *text);
 
-#define AGT_CONSOLE_ACTIVEROWS (12)
+#define AGT_CONSOLE_ACTIVEROWS (6)
 #define AGT_CONSOLE_ROWS (32)
-#define AGT_CONSOLE_COLUMNS (53)
+#define AGT_CONSOLE_COLUMNS (40)
 #define AGT_CONSOLE_COLUMN_STRIDE (AGT_CONSOLE_COLUMNS+1)
 
 s16 AGT_CONSOLE_activerows = AGT_CONSOLE_ACTIVEROWS;
 
-char AGT_CONSOLE_chars[AGT_CONSOLE_ROWS*AGT_CONSOLE_COLUMN_STRIDE];
+char AGT_CONSOLE_chars[AGT_CONSOLE_ROWS*AGT_CONSOLE_COLUMN_STRIDE] __attribute__((aligned(2)));
 s16 AGT_CONSOLE_head_row = 0;
 
 void program_base() { }
 
-void bmprintf_console(const char *text)
+void printf_console(const char *text)
 {
 	char* row = &AGT_CONSOLE_chars[AGT_CONSOLE_head_row * AGT_CONSOLE_COLUMN_STRIDE];
 
@@ -81,12 +109,17 @@ void bmprintf_console(const char *text)
 		AGT_CONSOLE_head_row -= AGT_CONSOLE_ROWS;
 
 	// force immediate update to physical fb, since next refresh could be some time away
-	if (g_displaylocked)
-		AGT_ConsoleUpdate(bm_physbase, 0);
+	// note: can output to console even if not displaying yet - keeps record of early prints during boot
+	if (/*g_displaylocked && */console_base)
+		AGT_ConsoleUpdate(console_base + 184);
 }
 
-void BM_E_ConsoleInit()
+#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+void SYS_ConsoleInit()
 {
+	console_base = malloc((184*(((AGT_CONSOLE_ACTIVEROWS+1)*6)+1))+256);
+	console_base = (char*)(((int)console_base + 255) & ~255);
+
 	s16 r = 0;
 	for (; r < AGT_CONSOLE_ROWS; ++r)
 	{
@@ -94,8 +127,9 @@ void BM_E_ConsoleInit()
 		memset(row, 0, AGT_CONSOLE_COLUMN_STRIDE);
 	}
 }
+#endif
 
-void AGT_ConsoleUpdate(void* fb1, void* fb2)
+void AGT_ConsoleUpdate(void* fb1)
 {
 	s16 r = 0;
 	s16 h = (AGT_CONSOLE_head_row + AGT_CONSOLE_ROWS) - AGT_CONSOLE_activerows;
@@ -106,10 +140,7 @@ void AGT_ConsoleUpdate(void* fb1, void* fb2)
 
 		char* row = &AGT_CONSOLE_chars[h * AGT_CONSOLE_COLUMN_STRIDE];
 
-		if (fb1)
-			AGT_ConsoleText(row, fb1, 0, r);
-//		if (fb2)
-//			AGT_ConsoleText(row, fb2, 0, r);
+		AGT_ConsoleText(row, fb1, 0, r);
 
 		h++;
 	}
@@ -320,17 +351,17 @@ void AGT_ExceptionHandler(exstackframe_t* _pstack)
 	psavedn = (u32*)0x384UL;
 	psavean = (u32*)0x3a4UL;
 
-	printf("d0:%08x a0:%08x\n", *psavedn++, *psavean++);	
-	printf("d1:%08x a1:%08x\n", *psavedn++, *psavean++);	
-	printf("d2:%08x a2:%08x\n", *psavedn++, *psavean++);	
-	printf("d3:%08x a3:%08x\n", *psavedn++, *psavean++);	
-	printf("d4:%08x a4:%08x\n", *psavedn++, *psavean++);	
-	printf("d5:%08x a5:%08x\n", *psavedn++, *psavean++);	
-	printf("d6:%08x a6:%08x\n", *psavedn++, *psavean++);	
-	printf("d7:%08x a7:%08x\n", *psavedn++, *psavean++);	
-	printf("usp: %08x\n", *(u32*)(0x3c8UL));	
-	printf("cacr:%08x\n", *(u32*)(0x3c4UL));	
-	printf("caar:%08x\n", *(u32*)(0x3ccUL));	
+	bmprintf("d0:%08x a0:%08x\n", *psavedn++, *psavean++);	
+	bmprintf("d1:%08x a1:%08x\n", *psavedn++, *psavean++);	
+	bmprintf("d2:%08x a2:%08x\n", *psavedn++, *psavean++);	
+	bmprintf("d3:%08x a3:%08x\n", *psavedn++, *psavean++);	
+	bmprintf("d4:%08x a4:%08x\n", *psavedn++, *psavean++);	
+	bmprintf("d5:%08x a5:%08x\n", *psavedn++, *psavean++);	
+	bmprintf("d6:%08x a6:%08x\n", *psavedn++, *psavean++);	
+	bmprintf("d7:%08x a7:%08x\n", *psavedn++, *psavean++);	
+	bmprintf("usp: %08x\n", *(u32*)(0x3c8UL));	
+//	bmprintf("cacr:%08x\n", *(u32*)(0x3c4UL));	
+//	bmprintf("caar:%08x\n", *(u32*)(0x3ccUL));	
 
 //	while (1) { }
 }
@@ -370,7 +401,7 @@ int bmprintf(const char *pFormat, ...)
 #endif
 
 	// always route to BM console
-//	bmprintf_console(buf);
+	printf_console(buf);
 
 #endif
 

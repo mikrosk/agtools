@@ -22,12 +22,18 @@ extern "C" void SYS_Configure();
 extern "C" void SYS_Save();
 extern "C" void SYS_Claim();
 extern "C" void SYS_Restore();
+#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+extern "C" void SYS_ConsoleInit();
+#endif
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 void machine::configure()
 {
 	SYS_Configure();
+#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+	SYS_ConsoleInit();
+#endif
 }
 
 void machine::save()

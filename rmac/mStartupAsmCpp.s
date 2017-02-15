@@ -189,24 +189,35 @@ static_init:
 .none:	rts
 
 
-	if		(1)
-	
 ; --------------------------------------------------------------
 _memcpy:	
 ; --------------------------------------------------------------
-	jmp		_qmemcpy
-
-	if		(0)
-		
-	move.l		4(sp),a0
-	move.l		8(sp),a1
-
-	move.l		12(sp),d1
-	lsr.l		#4,d1
+			.abs
+; --------------------------------------------------------------
+.sp_return:		ds.l	1
+.sp_pdst:		ds.l	1
+.sp_psrc:		ds.l	1
+.sp_size:		ds.l	1
+; --------------------------------------------------------------
+			.text
+; --------------------------------------------------------------
+;	move.l		.sp_pdst(sp),a0
+;	move.l		.sp_psrc(sp),a1
+	move.l		.sp_pdst(sp),d0
+	move.l		d0,a0
+	move.l		.sp_psrc(sp),d1
+	move.l		d1,a1
+	or.w		d0,d1
+	btst		#0,d1
+	bne.s		.memcpy_misaligned
+	
+	move.l		.sp_size(sp),d1
+	
+	lsr.l		#4,d1					; num 16-byte blocks total
 	move.l		d1,d0
-	swap		d0
-	subq.w		#1,d1	
-	bmi.s		.ev1mb
+	swap		d0					; num 1mb blocks (64k * 16bytes)
+	subq.w		#1,d1					; num 16-byte blocks remaining
+	bcs.s		.ev1mb
 
 .lp1mb:
 .lp16b:	move.l		(a1)+,(a0)+
@@ -219,7 +230,7 @@ _memcpy:
 	bpl.s		.lp1mb
 
 	moveq		#16-1,d1
-	and.w		12+2(sp),d1
+	and.w		.sp_size+2(sp),d1
 	lsl.b		#4+1,d1
 	bcc.s		.n8
 	move.l		(a1)+,(a0)+
@@ -234,33 +245,148 @@ _memcpy:
 	bcc.s		.n1
 	move.b		(a1)+,(a0)+
 .n1:
-	move.l		4(sp),d0
+	move.l		.sp_pdst(sp),d0
 	rts
 
-	endif
+.memcpy_misaligned:
+	move.w		a1,d1
+	eor.w		d0,d1
+	btst		#0,d1
+	bne		.memcpy_misaligned_sgl
+		
+.memcpy_misaligned_pair:		
+	move.l		.sp_size(sp),d1
+	
+	move.b		(a1)+,(a0)+
+	subq.l		#1,d1
+;	beq		.done		; we'll assume for now (!) nobody calls a 1-byte mem??? op
+	
+	lsr.l		#4,d1					; num 16-byte blocks total
+	move.l		d1,d0
+	swap		d0					; num 1mb blocks (64k * 16bytes)
+	subq.w		#1,d1					; num 16-byte blocks remaining
+	bcs.s		.ev1mc
+
+.lp1mc:
+.lp16c:	move.l		(a1)+,(a0)+
+	move.l		(a1)+,(a0)+
+	move.l		(a1)+,(a0)+
+	move.l		(a1)+,(a0)+
+	dbra		d1,.lp16c
+
+.ev1mc:	subq.w		#1,d0
+	bpl.s		.lp1mc
+
+	moveq		#16-1,d1
+	and.w		.sp_size+2(sp),d1
+	lsl.b		#4+1,d1
+	bcc.s		.n8c
+	move.l		(a1)+,(a0)+
+	move.l		(a1)+,(a0)+
+.n8c:	add.b		d1,d1
+	bcc.s		.n4c
+	move.l		(a1)+,(a0)+
+.n4c:	add.b		d1,d1
+	bcc.s		.n2c
+	move.w		(a1)+,(a0)+
+.n2c:	add.b		d1,d1
+	bcc.s		.n1c
+	move.b		(a1)+,(a0)+
+.n1c:
+.done:	move.l		.sp_pdst(sp),d0
+	rts
+
+.memcpy_misaligned_sgl:		
+	move.l		.sp_size(sp),d1
+	
+	lsr.l		#4,d1					; num 16-byte blocks total
+	move.l		d1,d0
+	swap		d0					; num 1mb blocks (64k * 16bytes)
+	subq.w		#1,d1					; num 16-byte blocks remaining
+	bcs.s		.ev1md
+
+.lp1md:
+.lp16d:	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	dbra		d1,.lp16d
+
+.ev1md:	subq.w		#1,d0
+	bpl.s		.lp1md
+
+;	copy remaining bytes, if any
+
+	moveq		#16-1,d1
+	and.w		.sp_size+2(sp),d1
+	add.w		d1,d1
+	neg.w		d1
+	jmp		.jtab(pc,d1.w)
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+	move.b		(a1)+,(a0)+
+.jtab:	
+	move.l		.sp_pdst(sp),d0
+	rts
 	
 ; --------------------------------------------------------------
 _memset:
-; --------------------------------------------------------------
-	jmp		_qmemset
-
-	if		(0)
-	
+; --------------------------------------------------------------	
+;	move.l		d2,-(sp)
 	move.l		d2,a1
-	move.l		4(sp),a0
-
-	move.w		8+3(sp),d1
-	move.b		8+3(sp),d1
+	
+	; value
+	move.b		0+8+3(sp),d0
+	move.b		d0,d1
+	lsl.w		#8,d1
+	move.b		d0,d1
 	move.w		d1,d2
 	swap		d2
 	move.w		d1,d2
+
+	; size
+	move.l		0+12(sp),d1
 	
-	move.l		12(sp),d1
+	; dest
+	move.l		0+4(sp),d0
+	move.l		d0,a0
+	and.w		#1,d0
+	beq.s		.aligned
+	move.b		d2,(a0)+
+	subq.l		#1,d1
+;	beq		.done		; we'll assume for now (!) nobody calls a 1-byte mem??? op
+.aligned:	
+	
 	lsr.l		#4,d1
 	move.l		d1,d0
 	swap		d0
-	subq.w		#1,d1	
-	bmi.s		.ev1mb
+	subq.w		#1,d1
+	bcs.s		.ev1mb
 
 .lp1mb:
 .lp16b:	move.l		d2,(a0)+
@@ -273,7 +399,7 @@ _memset:
 	bpl.s		.lp1mb
 
 	moveq		#16-1,d1
-	and.w		12+2(sp),d1
+	and.w		0+12+2(sp),d1
 	lsl.b		#4+1,d1
 	bcc.s		.n8
 	move.l		d2,(a0)+
@@ -288,57 +414,12 @@ _memset:
 	bcc.s		.n1
 	move.b		d2,(a0)+
 .n1:
+
+.done:	move.l		0+4(sp),d0
+
 	move.l		a1,d2
-	move.l		4(sp),d0
+;	move.l		(sp)+,d2
 	rts
-
-	endif	
-
-	if		(0)		
-; --------------------------------------------------------------
-_memclr:
-; --------------------------------------------------------------
-	move.l		4(sp),a0
-
-	move.l		8(sp),d1
-	lsr.l		#4,d1
-	move.l		d1,d0
-	swap		d0
-	subq.w		#1,d1	
-	bmi.s		.ev1mb
-
-.lp1mb:
-.lp16b:	clr.l		(a0)+
-	clr.l		(a0)+
-	clr.l		(a0)+
-	clr.l		(a0)+
-	dbra		d1,.lp16b
-
-.ev1mb:	subq.w		#1,d0
-	bpl.s		.lp1mb
-
-	moveq		#16-1,d1
-	and.w		8+2(sp),d1
-	
-	lsl.b		#4+1,d1
-	bcc.s		.n8
-	clr.l		(a0)+
-	clr.l		(a0)+
-.n8:	add.b		d1,d1
-	bcc.s		.n4
-	clr.l		(a0)+
-.n4:	add.b		d1,d1
-	bcc.s		.n2
-	clr.w		(a0)+
-.n2:	add.b		d1,d1
-	bcc.s		.n1
-	clr.b		(a0)+
-.n1:
-	;move.l		4(sp),d0
-	rts
-	endif
-	
-	endif
 	
 ; --------------------------------------------------------------
 
