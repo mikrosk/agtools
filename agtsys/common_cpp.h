@@ -338,8 +338,12 @@ extern "C" int bmprintf(const char *pFormat, ...);
 // inhibit tranlation of normal code into memcpy/memset calls - e.g. within inner loops
 #define NO_INTRINSIC_MEMXXX __attribute__((optimize("-fno-tree-loop-distribute-patterns")))
 
+#define AGT_STRINGIFY(x) #x
+#define AGT_TOSTRING(x) AGT_STRINGIFY(x)
+#define AGT_AT __FILE__ ":" AGT_TOSTRING(__LINE__)
+
 // fancy assert which invokes vector $1C with a message param
-#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert failure @ "__FILE__" line __LINE__\n"; __asm__ __volatile__ ("trapt #%0;" : : "P"(__msg) : "cc"); } };
+#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert @ "AGT_AT; __asm__ __volatile__ ("move.l %0,-(sp); jsr _SYS_Assert;" : : "p"(__msg) : "cc"); } };
 
 // --------------------------------------------------------------------
 

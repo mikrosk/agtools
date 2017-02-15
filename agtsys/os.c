@@ -114,6 +114,15 @@ void printf_console(const char *text)
 		AGT_ConsoleUpdate(console_base + 184);
 }
 
+void SYS_Assert(char *_msg)
+{
+	show_console = console_base;
+	bmprintf("%s\n", _msg);
+	while (1) { }
+	__builtin_unreachable;
+}
+//error: ent %d id %d frame %d > max %d
+
 #if defined(AGT_CONFIG_DEBUG_CONSOLE)
 void SYS_ConsoleInit()
 {
