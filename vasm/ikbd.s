@@ -30,10 +30,12 @@
 	XDEF		_mouse_dx
 	XDEF		_mouse_dy
 
+	XREF		_show_console
+	XREF		_console_base
+
 *-------------------------------------------------------*
-		
-use_unsafe_function_keys	=	1
-bldcfg_use_mouse		=	0
+	
+	include		"config.inc"
 
 *-------------------------------------------------------*
 	
@@ -274,6 +276,8 @@ i_primary:
 *-------------------------------------------------------*
 .table_start:
 *-------------------------------------------------------*
+	rept		2
+*-------------------------------------------------------*
 	bra.w		.unmapped	;00
 	bra.w		.keys		;01	ESC
 	bra.w		.keys		;02	1
@@ -289,7 +293,13 @@ i_primary:
 	bra.w		.keys		;0c	-
 	bra.w		.keys		;0d	+
 	bra.w		.keys		;0e	BS
+
+	ifne		(use_debugconsole)
+	bra.w		.console_key
+	else
 	bra.w		.keys		;0f	TAB
+	endc
+	
 	bra.w		.keys		;10	Q
 	bra.w		.keys		;11	W
 	bra.w		.keys		;12	E
@@ -333,7 +343,7 @@ i_primary:
 	bra.w		.keys		;38	ALT
 	bra.w		.keys		;39	SPACE
 	bra.w		.keys		;3a	CAPS
-	ifd			use_unsafe_function_keys
+	ifne		use_unsafe_function_keys
 	bra.w		.keys		;3b		(x)F1
 	bra.w		.keys		;3c		(x)F2
 	bra.w		.keys		;3d		(x)F3
@@ -401,14 +411,27 @@ i_primary:
 	bra.w		.unmapped	;76
 	bra.w		.unmapped	;77
 *-------------------------------------------------------*	
-	bra.w		.unmapped	;78
-	bra.w		.unmapped	;79
-	bra.w		.unmapped	;7a
-	bra.w		.unmapped	;7b
-	bra.w		.unmapped	;7c
-	bra.w		.unmapped	;7d
-	bra.w		.unmapped	;7e
-	bra.w		.unmapped	;7f
+	bra.w		.mouse		;78
+	bra.w		.mouse		;79
+	bra.w		.mouse		;7a
+	bra.w		.mouse		;7b
+	bra.w		.fault		;7c
+	bra.w		.fault		;7d
+	bra.w		.joy0		;7e
+	bra.w		.joy1		;7f
+*-------------------------------------------------------*	
+	endr
+*-------------------------------------------------------*
+	
+	ifne		(0)
+;	bra.w		.unmapped	;78
+;	bra.w		.unmapped	;79
+;	bra.w		.unmapped	;7a
+;	bra.w		.unmapped	;7b
+;	bra.w		.unmapped	;7c
+;	bra.w		.unmapped	;7d
+;	bra.w		.unmapped	;7e
+;	bra.w		.unmapped	;7f
 *-------------------------------------------------------*	
 	bra.w		.unmapped	;80
 	bra.w		.keys		;81
@@ -540,6 +563,37 @@ i_primary:
 	bra.w		.joy0		;fe
 	bra.w		.joy1		;ff
 *-------------------------------------------------------*	
+	endc
+	
+	ifne		(use_debugconsole)
+*-------------------------------------------------------*	
+*	special keys (TAB,SHIFT+TAB) activate debug-con
+*-------------------------------------------------------*	
+.console_key:
+*-------------------------------------------------------*	
+	btst		#7,d0
+	bne.s		.cc_up
+.cc_dn:
+	; if LSHFT held, do nothing on DOWN
+	tst.b		_key_states+$2a
+	bne		.keys
+.con_on:
+	move.l		_console_base,_show_console
+	; continue to process TAB key normally	
+	bra		.keys
+.cc_up:	
+	; if LSHFT up, disable console
+	tst.b		_key_states+$2a
+	beq.s		.con_off	
+.con_tog:
+	; if LSHFT held, toggle on UP
+	tst.l		_show_console
+	beq.s		.con_on
+.con_off:
+	; continue to process TAB key normally	
+	clr.l		_show_console
+	bra		.keys
+	endc		;(use_debugconsole)
 
 *-------------------------------------------------------*
 .fault:

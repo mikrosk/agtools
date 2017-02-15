@@ -11,6 +11,20 @@ use_blitter_nops	=	0			; insert nop before blitter restart as per Atari docs (!?
 use_sanity_checks	set	0
 use_rasters		set	0
 use_hog			set	0
+bldcfg_use_mouse	=	0
+use_unsafe_function_keys	=	1
+
+*-------------------------------------------------------*
+*	externally configured via CFLAGS
+*-------------------------------------------------------*
+
+			ifd	AGT_CONFIG_DEBUG_CONSOLE
+use_debugconsole	=	1
+			else
+use_debugconsole	=	0
+			endc
+			
+*-------------------------------------------------------*
 
 ; software breakpoint for Steem Boiler
 ; to continue... set V flag and trace
