@@ -27,9 +27,9 @@
 
 ### How do I get set up? ###
 
-* To set up a build environment you'll need Atari GCC 4.6.4 and some other prerequisites. See [this page](https://bitbucket.org/d_m_l/agtools/wiki/Host%20Development%20Environments) for details on different host platforms.
+* To set up a build environment you'll need Atari MiNT-GCC 4.6.4 (or BrownElf-GCC 6.2) and some other prerequisites. See [this page](https://bitbucket.org/d_m_l/agtools/wiki/Host%20Development%20Environments) for details on different host platforms.
 * The AGT tools are already provided in the project /bin directory. These should work on Windows, Ubuntu and MacOSX with a [suitably configured environment](https://bitbucket.org/d_m_l/agtools/wiki/Host%20Development%20Environments)
-* AGTBIN env var should point at AGT's `bin/` directory: `> export AGTBIN="$HOME/Projects/agtools/bin"`
+* On Linux/OSX systems, AGTBIN env var should point at AGT's `bin/` directory: `> export AGTBIN="$HOME/Projects/agtools/bin"`
 * An emulator will help (Hatari, STEEM, SainT) but nothing beats real hardware!
 * *   [Hatari - Windows nightly builds](http://antarctica.no/~hatari/)
 * *   [STEEM Engine](http://steem.atari.st/)
