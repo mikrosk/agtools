@@ -51,6 +51,10 @@
 	.globl		_drawcontext
 
 	.globl		slab_precalcs
+	
+	.if		^^defined AGT_CONFIG_DEBUGDRAW
+	.globl		_g_debugdraw
+	.endif
 
 *-------------------------------------------------------*
 

@@ -62,3 +62,4 @@ EntityDraw_EMSPR	=	2
 EntityDraw_EMXSPR	=	3
 EntityDraw_SLAB		=	4
 EntityDraw_CUSTOM	=	5
+EntityDraw_RFILL	=	6

@@ -40,6 +40,8 @@ enum EntityDraw
 	EntityDraw_EMSPR,		// blitter [E]nd[M]ask sprite up to 32pixels wide
 	EntityDraw_EMXSPR,		// blitter [E]nd[M]ask (extreme optimization) sprite up to 32pixels wide
 	EntityDraw_SLAB,		// blitter slab shape for large irregular fill areas
+	EntityDraw_CUSTOM,		// user-defined draw function
+	EntityDraw_RFILL		// rectangle fill
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -60,6 +62,9 @@ enum EntityFlags
 	EntityFlag_POWERUP		= 0x0008,		// identifies powerup goodies for collection
 	EntityFlag_NME			= 0x0010,		// identifies non-player AIs (typically interact with player-aligned entities)
 	EntityFlag_NMEBULLET	= 0x0020,		// identifies enemy bullets separately from player bullets
+
+
+	// CAUTION: do not change the following flags - 68k entity code uses them
 
 	// properties: 
 	EntityFlag_SPATIAL		= 0x0100,		// expects to be involved in proximity tests with other objects
@@ -380,6 +385,8 @@ static agt_inline void EntityWorldFromRelative(entity_t &ent, s16 _basisx, s16 _
 #define EntityDrawVisible BLiT_EntityDrawVisibleXM_68k
 #define EntityInteractVisible EntityInteractVisibleXM_68k
 #endif
+
+extern "C" s16 g_debugdraw;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
