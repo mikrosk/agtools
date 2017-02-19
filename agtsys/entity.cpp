@@ -108,6 +108,8 @@ static void nulltick(entity_t *) { }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+s16 g_debugdraw = 0;
+
 static entity_t s_entity_tick_head;
 static entity_t s_entity_tick_tail;
 static entity_t s_entity_tick_aftertail;
