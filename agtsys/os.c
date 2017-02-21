@@ -17,6 +17,8 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+#define reg32(_a_) *(volatile u32*)(0x##_a_)
+
 short g_displaylocked = 0;
 
 #if (1)
@@ -392,6 +394,10 @@ int bmprintf(const char *pFormat, ...)
 	// always route to Hatari NF console if enabled and detected
 	if (g_hnf)
 		nf_print(buf);
+#endif
+
+#ifdef AGT_CONFIG_STEEM_DEBUG
+	reg32(FFC1F0) = buf;
 #endif
 
 	// route to TOS console

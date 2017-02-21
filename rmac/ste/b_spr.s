@@ -7,14 +7,18 @@
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
 	
-	.if		(use_sanity_checks)
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
+	.if		(within_entitydraw)
+	bhs		_AGT_Exception_IMSFrame_68k
+	.else
 	blo.s		.ims_frameok
 .ims_framefault:
 	not.w		$ffff8240.w
 	bra.s		.ims_framefault
 .ims_frameok:
+	.endif
 	.endif
 	
 	add.w		d0,d0				; todo: game layer can prescale this

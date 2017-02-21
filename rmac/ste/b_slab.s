@@ -463,9 +463,11 @@ _use_slab_restore_	set	(use_slab_restore&(use_sprite_saverestore|use_sprite_page
 *	entrypoint
 *=======================================================*
 
-	.if		(use_sanity_checks)
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
+;	bhs		AGT_Exception_SlabFrame
+
 	blo.s		.slb_frameok
 .slb_framefault:
 	not.w		$ffff8240.w

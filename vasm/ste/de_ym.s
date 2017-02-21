@@ -51,7 +51,11 @@ _BLiT_EntityDrawVisibleYM_68k:
 *-------------------------------------------------------*
 .sp_frame_:		rs.b	0
 *-------------------------------------------------------*
-	
+	ifd		AGT_CONFIG_DEBUGDRAW
+	tst.w		_g_debugdraw
+	bne		_BLiT_EntityDebugVisibleYM_68k
+	endc
+*-------------------------------------------------------*
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
@@ -128,6 +132,10 @@ _BLiT_EntityDrawVisibleYM_68k:
 
 	; asset/framebuffer
 
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	endc
+
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
 	move.l		.sp_framebuf(sp),a1
@@ -156,11 +164,6 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
 	bra		.STE_EntityDrawVisibleYM_EMXSPR_go
-
-
-
-
-
 
 
 
@@ -201,6 +204,10 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; asset/framebuffer
 
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	endc
+
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
 	move.l		.sp_framebuf(sp),a1
@@ -229,8 +236,6 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
 	bra		.STE_EntityDrawVisibleYM_EMSPR_go
-
-
 
 
 
@@ -271,6 +276,10 @@ enable_clipping	set	1				; enable full xy clipping
 	
 	; asset/framebuffer
 
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	endc
+
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
 	move.l		.sp_framebuf(sp),a1
@@ -299,8 +308,6 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	jsr		_AGT_BLiT_IMSprInit			; todo: init type depends on platform & spr format
 	bra		.STE_EntityDrawVisibleYM_SPRITE_go
-
-
 
 
 
@@ -338,6 +345,10 @@ enable_clipping	set	1				; enable full xy clipping
 	add.w		d7,ent_draw_hitflash(a0)
 	
 	; asset/framebuffer
+
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	endc
 
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
@@ -399,6 +410,7 @@ preserve_usp		set	0
 	bra		.STE_EntityDrawVisibleYM_SLAB_go
 
 
+
 *=======================================================*
 *	dedicated iterator for [drawtype]=CUSTOM
 *-------------------------------------------------------*
@@ -410,6 +422,11 @@ preserve_usp		set	0
 *-------------------------------------------------------*
 .STE_EntityDrawVisibleYM_CUSTOM_go:
 *-------------------------------------------------------*
+
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	endc
+
 ;	move.l		ent_fndraw(a0),a6		; todo
 ;	jsr		(a6)
 *-------------------------------------------------------*
@@ -436,14 +453,89 @@ preserve_usp		set	0
 	add.w		d0,d0
 	add.w		d0,d0
 	jmp		.types(pc,d0.w)
-.types:	bra.w		.STE_EntityDrawVisibleYM_NONE_go
+.types:	bra.w		.STE_EntityDrawVisibleYM_NONE_setup
 	bra.w		.STE_EntityDrawVisibleYM_SPRITE_setup
 	bra.w		.STE_EntityDrawVisibleYM_EMSPR_setup
 	bra.w		.STE_EntityDrawVisibleYM_EMXSPR_setup
 	bra.w		.STE_EntityDrawVisibleYM_SLAB_setup
 	bra.w		.STE_EntityDrawVisibleYM_CUSTOM_setup
+	bra.w		.STE_EntityDrawVisibleYM_RFILL_setup
 
 
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=RFILL
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_RFILL_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityDrawVisibleYM_evaluate
+	
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_RFILL_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1
+;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
+	
+	; compensate for loopback buffer
+	
+;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; use frame number as colour
+	
+	move.w		ent_frame(a0),d5
+	
+	move.w		ent_sx(a0),d3
+	move.w		ent_sy(a0),d4
+	
+	; decrement 'hitflash' counter on this object
+	
+	clr.w		d7
+	sub.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	subx.w		d7,d7				; $0000 / $FFFF
+	add.w		d7,ent_draw_hitflash(a0)
+	
+	; asset/framebuffer
+
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	endc
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+	move.l		.sp_framebuf(sp),a1
+		
+	; include raw drawing function here (configure it first)
+	
+enable_restore	set	1				; enable sprite-restore
+enable_clipping	set	1				; enable full xy clipping
+
+	include		"ste/b_rfill.s"			; body for normal blitter sprites
+
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_RFILL_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pymax(sp),d2
+	blt		.STE_EntityDrawVisibleYM_RFILL_next
+	bra		.STE_EntityDrawVisibleYM_complete
+*-------------------------------------------------------*
+*	[drawtype] has suddenly changed to RFILL
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_RFILL_setup:
+*-------------------------------------------------------*
+	jsr		_AGT_BLiT_IMSprInit			; todo: init type depends on platform & spr format
+	bra		.STE_EntityDrawVisibleYM_RFILL_go
+
+	
 *=======================================================*
 *	dedicated iterator for [drawtype]=NONE
 *-------------------------------------------------------*
@@ -451,8 +543,9 @@ preserve_usp		set	0
 *-------------------------------------------------------*
 	move.w		ent_drawtype(a0),d0
 	cmp.w		.sp_drawtype(sp),d0
-	bne.s		.STE_EntityDrawVisibleYM_evaluate
+	bne		.STE_EntityDrawVisibleYM_evaluate
 *-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_NONE_setup:
 .STE_EntityDrawVisibleYM_NONE_go:
 *-------------------------------------------------------*
 	; nothing todo here - skip!
@@ -487,6 +580,178 @@ preserve_usp		set	0
 *-------------------------------------------------------*
 	rts
 	
+
+	ifd		AGT_CONFIG_DEBUGDRAW
+
+*-------------------------------------------------------*
+_BLiT_EntityDebugVisibleYM_68k:
+*-------------------------------------------------------*
+			rsreset
+*-------------------------------------------------------*
+.savea6:		rs.l	1
+.save:			rs.l	10
+.return:		rs.l	1
+*-------------------------------------------------------*
+.pctx:			rs.l	1
+*-------------------------------------------------------*
+.frame_:		rs.b	0
+*-------------------------------------------------------*
+			rsreset
+*-------------------------------------------------------*
+*	locals: used by sprite routines
+*-------------------------------------------------------*
+.sp_skew:		rs.w	1			; don't move this one
+.sp_maskwidth:		rs.w	1
+.sp_yoff:		rs.w	1
+.sp_yrem:		rs.w	1
+.sp_save_usp:		rs.l	1
+.sp_linetable:		rs.l	1
+*-------------------------------------------------------*
+*	locals: shadow function arguments
+*-------------------------------------------------------*
+.sp_framebuf:		rs.l	1
+.sp_snapx:		rs.w	1
+.sp_snapy:		rs.w	1
+*-------------------------------------------------------*
+*	locals: used by algorithm
+*-------------------------------------------------------*
+.sp_asset:		rs.l	1
+.sp_pymax:		rs.l	1
+.sp_savea0:		rs.l	1
+.sp_drawtype:		rs.w	1
+*-------------------------------------------------------*
+.sp_frame_:		rs.b	0
+*-------------------------------------------------------*
+	movem.l		d2-d7/a2-a5,-(sp)
+	link		a6,#-.frame_
+	move.l		a6,-(sp)
+	lea		-.sp_frame_(sp),sp
+*-------------------------------------------------------*
+*	load C args to local frame
+*-------------------------------------------------------*
+	move.l		.pctx(a6),a4
+	move.l		dctx_framebuffer(a4),.sp_framebuf(sp)
+	move.l		dctx_lineidx(a4),.sp_linetable(sp)
+	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
+	move.w		dctx_snapadjy(a4),.sp_snapy(sp)	
+;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
+;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
+;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto
+;	move.l		.plinetable(a6),.sp_linetable(sp)
+*-------------------------------------------------------*
+*	load display chain terminating condition
+*-------------------------------------------------------*
+	move.l		_g_pe_viewport,a0
+	move.w		ent_fry(a0),d0
+	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+	move.w		d0,.sp_pymax(sp)
+*-------------------------------------------------------*
+*	initial conditions
+*-------------------------------------------------------*
+
+	move.l		dctx_clearstack_tide(a4),a5
+	move.l		a5,usp
+
+*-------------------------------------------------------*
+	
+	; important to begin with invalid drawtype
+	; so the first drawtype will call init first
+
+	jsr		_AGT_BLiT_IMSprInit
+
+	bra		.STE_EntityDebugVisibleYM_RDEBUG_done
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=RFILL
+*-------------------------------------------------------*
+.STE_EntityDebugVisibleYM_RDEBUG_next:
+*-------------------------------------------------------*	
+*-------------------------------------------------------*
+.STE_EntityDebugVisibleYM_RDEBUG_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1
+;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
+	
+	; compensate for loopback buffer
+	
+;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; use frame number as colour
+	
+	move.w		ent_frame(a0),d5
+	add.w		ent_id(a0),d5
+	
+	move.w		ent_sx(a0),d3
+	move.w		ent_sy(a0),d4
+	
+	; decrement 'hitflash' counter on this object
+	
+	clr.w		d7
+	sub.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	subx.w		d7,d7				; $0000 / $FFFF
+	add.w		d7,ent_draw_hitflash(a0)
+	
+	; asset/framebuffer
+
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	endc
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+	move.l		.sp_framebuf(sp),a1
+		
+	; include raw drawing function here (configure it first)
+	
+enable_restore	set	1				; enable sprite-restore
+enable_clipping	set	1				; enable full xy clipping
+
+	include		"ste/b_rfill.s"			; body for normal blitter sprites
+
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityDebugVisibleYM_RDEBUG_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pymax(sp),d2
+	blt		.STE_EntityDebugVisibleYM_RDEBUG_next
+	bra		.STE_EntityDebugVisibleYM_complete
+*-------------------------------------------------------*
+*	[drawtype] has suddenly changed to RFILL
+*-------------------------------------------------------*
+.STE_EntityDebugVisibleYM_RDEBUG_setup:
+*-------------------------------------------------------*
+	jsr		_AGT_BLiT_IMSprInit			; todo: init type depends on platform & spr format
+	bra		.STE_EntityDebugVisibleYM_RDEBUG_go
+
+*=======================================================*
+.STE_EntityDebugVisibleYM_complete:
+*-------------------------------------------------------*
+
+;	move.l		usp,a5
+;	move.l		a5,_drawcontext+dctx_clearstack_tide
+
+*-------------------------------------------------------*
+
+	lea		.sp_frame_(sp),sp
+	move.l		(sp)+,a6
+
+	move.l		.pctx(a6),a4
+	move.l		usp,a5
+	move.l		a5,dctx_clearstack_tide(a4)
+	
+	unlk		a6
+	movem.l		(sp)+,d2-d7/a2-a5
+*-------------------------------------------------------*
+	rts
+
+	endc		;AGT_CONFIG_DEBUGDRAW	
 
 
 *-------------------------------------------------------*

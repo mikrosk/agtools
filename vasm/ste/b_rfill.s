@@ -1,0 +1,362 @@
+*=======================================================*
+*	[A]tari [G]ame [T]ools / dml 2016
+*=======================================================*
+* 	RFill blitter rectangle fill implementation
+*-------------------------------------------------------*
+*	max source xsize: viewport clipper xsize
+*	max source ysize: viewport clipper ysize
+*-------------------------------------------------------*
+
+;	use provided rectangle dimensions, ignore sprite frame info
+	
+	; sprite clipping window
+	lea		_g_spr_window,a2
+	
+	; initial dst skip
+	
+	move.w		_g_linebytes,a4
+		
+	; constants
+	moveq		#16-1,d6
+	moveq		#-16,d7
+		
+	ifne		(enable_clipping)
+		
+*-------------------------------------------------------*
+*	top edge
+*-------------------------------------------------------*
+	cmp.w		clip_y1(a2),d2
+	bpl.s		.rfill_clip_safe_top
+*-------------------------------------------------------*
+*	top clipped
+*-------------------------------------------------------*
+	; relative to clipwindow
+	sub.w		clip_y1(a2),d2
+	; crop lines
+	add.w		d2,d4
+	ble		.AGT_BLiT_RFillDrawUnClipped_end
+		
+	; relative to world
+	move.w		clip_y1(a2),d2
+	; ASSUMPTION: sprite is not big enough to cross top+bottom
+	bra.s		.rfill_clip_safe_bot
+*-------------------------------------------------------*
+.rfill_clip_safe_top:
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+*	bottom edge
+*-------------------------------------------------------*
+	move.w		d2,d0
+	add.w		d4,d0				; xr	
+	sub.w		clip_y2(a2),d0			; xr - cx2
+	ble.s		.rfill_clip_safe_bot
+*-------------------------------------------------------*
+*	bottom clipped	
+*-------------------------------------------------------*
+	sub.w		d0,d4
+	ble		.AGT_BLiT_RFillDrawUnClipped_end
+*-------------------------------------------------------*
+.rfill_clip_safe_bot:
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+*	left edge
+*-------------------------------------------------------*
+	; NISR: no initial source read (i.e. shiftregisters preloaded with 0)
+	cmp.w		clip_x1(a2),d1
+	bpl.s		.rfill_clip_safe_left
+*-------------------------------------------------------*
+*	left clipped
+*-------------------------------------------------------*
+
+	; relative to clipwindow
+	sub.w		clip_x1(a2),d1
+
+	add.w		d1,d3
+	ble		.AGT_BLiT_RFillDrawUnClipped_end
+	
+	; relative to world
+	move.w		clip_x1(a2),d1	
+	; ASSUMPTION: sprite is not big enough to cross left+right
+;	bra		.rfill_clip_safe_right
+	bra		.rfill_clip_unsafe_left
+	
+*-------------------------------------------------------*
+.rfill_clip_safe_left:
+*-------------------------------------------------------*
+
+
+*-------------------------------------------------------*
+*	right edge
+*-------------------------------------------------------*
+	move.w		d1,d0
+	add.w		d3,d0				; xr	
+	sub.w		clip_x2(a2),d0			; xr - cx2
+	ble		.AGT_BLiT_RFillDrawUnClipped_go	;.rfill_clip_safe_right
+*-------------------------------------------------------*
+*	right clipped
+*-------------------------------------------------------*
+
+	; adjust pixel width
+	sub.w		d0,d3
+	ble		.AGT_BLiT_RFillDrawUnClipped_end
+
+	bra		.AGT_BLiT_RFillDrawUnClipped_go
+
+*-------------------------------------------------------*
+.rfill_clip_safe_right:
+*-------------------------------------------------------*
+;	bra		AGT_BLiT_RFillDrawUnClipped_go
+	
+*-------------------------------------------------------*
+.rfill_clip_unsafe_left:
+*-------------------------------------------------------*
+
+	endc		; (enable_cliping)
+
+
+*-------------------------------------------------------*
+*	common impl. for general paths
+*-------------------------------------------------------*
+.AGT_BLiT_RFillDrawUnClipped_go:
+*-------------------------------------------------------*
+
+	ifne		(enable_restore)
+	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
+;	move.l		_drawcontext+dctx_clearstack_tide,a5
+	move.l		usp,a5
+	move.l		a5,a6
+	endc
+	endc
+
+	; constants
+	moveq		#16-1,d6
+	moveq		#-16,d7
+	
+	; dst pixelword xoffset
+	moveq		#-16,d0
+	and.w		d1,d0
+	lsr.w		#1,d0
+	
+	ifne		(enable_restore)
+	ifne		(use_sprite_pagerestore)	
+	move.w		d2,(a5)+
+	move.w		d0,(a5)+
+	endc	
+	endc
+
+	add.w		d0,a1
+	
+	; dst yoffset (line)
+;	mulu.w		#linebytes,d2
+	mulu.w		_g_linebytes,d2
+	add.l		d2,a1
+	
+	; find destination word width of shifted sprite
+;	moveq		#16-1,d6
+	move.w		d6,d7
+
+	and.w		d1,d6				; rshift
+	move.l		d6,d1
+
+	add.w		d3,d7				; w+round
+
+	moveq		#-16,d0	
+	add.w		d7,d6				; rshift+w+round
+	and.w		d0,d6				; wceil(rshift+w)
+
+*-------------------------------------------------------*
+
+	; dst skip adjust by dst width	
+	lsr.w		#1,d6
+	sub.w		d6,a4
+
+	; shifted left-edge mask
+	moveq		#-1,d0
+	lsr.w		d1,d0
+
+	; shifted right-edge mask	
+	add.w		d1,d3
+	subq.w		#1,d3
+	and.w		#16-1,d3
+	addq.w		#1,d3
+	moveq		#-1,d2
+	lsr.w		d3,d2
+	not.w		d2
+
+	; word-width				
+	lsr.w		#(4-1),d6			; >>4 *2
+	move.w		d6,BLiTXC.w			; BLIT: width
+
+	cmp.w		#1,d6
+	bne.s		.rfmulti
+	and.w		d2,d0
+.rfmulti:
+	move.w		d0,BLiTEM1.w	
+	move.w		d2,BLiTEM3.w
+	
+	ifne		(enable_restore)
+	ifne		(use_sprite_pagerestore)
+
+	add.w		d6,d6
+
+	; clearing record
+;	move.l		a5,a6
+	
+	move.l		a1,(a5)+			; clear addr
+	move.w		a4,(a5)+			; dst skip
+	move.w		d6,(a5)+			; word width*2
+	move.w		d4,(a5)+			; lines
+
+	endc
+	
+	ifne		(use_sprite_saverestore)
+	
+	add.w		d6,d6
+	
+	; clearing record
+;	move.l		a5,a6
+	move.l		a1,(a5)+			; clear addr
+	move.w		a4,(a5)+			; dst skip
+	move.w		d6,(a5)+			; word width*2
+	move.w		d4,(a5)+			; lines
+
+	move.l		a1,a3
+	moveq		#-1,d1
+	add.w		d4,d1
+
+	add.w		d6,d6
+	neg.w		d6
+;	todo: optimize this
+.rfill_r_sylp:
+	jmp		.rfill_r_jt(pc,d6.w)
+	rept		9
+	move.l		(a3)+,(a5)+
+	move.l		(a3)+,(a5)+
+	endr
+.rfill_r_jt:
+	add.w		a4,a3
+	dbra		d1,.rfill_r_sylp
+
+	endc
+	endc
+
+*-------------------------------------------------------*
+
+	ifne		(enable_restore)
+	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
+	move.l		a6,(a5)+
+;	move.l		a5,_drawcontext+dctx_clearstack_tide
+	move.l		a5,usp
+	endc
+	endc
+
+*-------------------------------------------------------*
+*	common to mask and colour
+*-------------------------------------------------------*
+
+	addq.l		#8,a4
+	move.w		a4,BLiTDYI.w			; dst yinc
+
+	lea		BLiTDST.w,a6
+	lea		BLiTCTRL.w,a2
+	lea		BLiTYC.w,a5
+
+	ifne		(use_hog)
+	moveq		#192,d0
+	else
+	moveq		#128,d0
+	moveq		#7,d1
+	endc
+
+*-------------------------------------------------------*
+*	mask
+*-------------------------------------------------------*
+	lea		BLiTLOP.w,a0
+
+;	move.b		#0,BLiTHOP.w
+;	move.b		#6,BLiTLOP.w			; LOP = 1's
+
+	lsr.b		d5
+	scs		(a0)
+	
+;	move.b		#15,BLiTLOP.w			; LOP = 1's
+	
+;	plane #0
+
+	move.w		d4,(a5)				; BLIT: lines
+	move.l		a1,(a6)				; dst
+	move.b		d0,(a2)
+
+	ifne		(use_hog=0)
+.rmlp0:	bset.b		d1,(a2)
+	ifne		(use_blitter_nops)
+	nop
+	endc
+	bne.s		.rmlp0
+	endc
+
+	lsr.b		d5
+	scs		(a0)
+
+;	plane #1
+
+	addq.l		#2,a1
+	
+	move.w		d4,(a5)				; BLIT: lines
+	move.l		a1,(a6)				; dst	
+	move.b		d0,(a2)
+	ifne		(use_hog=0)
+.rmlp1:	bset.b		d1,(a2)
+	ifne		(use_blitter_nops)
+	nop
+	endc
+	bne.s		.rmlp1
+	endc
+
+	lsr.b		d5
+	scs		(a0)
+
+;	plane #2
+
+	addq.l		#2,a1
+	
+	move.w		d4,(a5)				; BLIT: lines
+	move.l		a1,(a6)				; dst	
+	move.b		d0,(a2)
+	ifne		(use_hog=0)
+.rmlp2:	bset.b		d1,(a2)
+	ifne		(use_blitter_nops)
+	nop
+	endC
+	bne.s		.rmlp2
+	endc
+
+	lsr.b		d5
+	scs		(a0)
+
+;	plane #3
+
+	addq.l		#2,a1
+	
+	move.w		d4,(a5)				; BLIT: lines
+	move.l		a1,(a6)				; dst	
+	move.b		d0,(a2)
+	ifne		(use_hog=0)
+.rmlp3:	bset.b		d1,(a2)
+	ifne		(use_blitter_nops)
+	nop
+	endc
+	bne.s		.rmlp3
+	endc
+		
+;	subq.l		#6,a1
+
+	
+
+*-------------------------------------------------------*
+.rfill_clip_out:
+*-------------------------------------------------------*
+.AGT_BLiT_RFillDrawUnClipped_end:
+*-------------------------------------------------------*

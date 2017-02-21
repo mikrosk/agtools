@@ -134,6 +134,10 @@ _BLiT_EntityDrawVisibleYM_68k:
 
 	; asset/framebuffer
 
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
 	move.l		.sp_framebuf(sp),a1
@@ -201,6 +205,10 @@ enable_clipping	set	1				; enable full xy clipping
 	add.w		d7,ent_draw_hitflash(a0)
 
 	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
 
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
@@ -270,6 +278,10 @@ enable_clipping	set	1				; enable full xy clipping
 	
 	; asset/framebuffer
 
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
 	move.l		.sp_framebuf(sp),a1
@@ -335,6 +347,10 @@ enable_clipping	set	1				; enable full xy clipping
 	add.w		d7,ent_draw_hitflash(a0)
 	
 	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
 
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
@@ -408,6 +424,11 @@ preserve_usp		set	0
 *-------------------------------------------------------*
 .STE_EntityDrawVisibleYM_CUSTOM_go:
 *-------------------------------------------------------*
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
 ;	move.l		ent_fndraw(a0),a6		; todo
 ;	jsr		(a6)
 *-------------------------------------------------------*
@@ -482,6 +503,10 @@ preserve_usp		set	0
 	add.w		d7,ent_draw_hitflash(a0)
 	
 	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
 
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0
@@ -675,6 +700,10 @@ _BLiT_EntityDebugVisibleYM_68k:
 	add.w		d7,ent_draw_hitflash(a0)
 	
 	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
 
 	move.l		a0,.sp_savea0(sp)
 	move.l		ent_passet(a0),a0

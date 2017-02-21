@@ -50,8 +50,8 @@ imrb		=	$fffffa15
 isra		=	$fffffa0f
 isrb		=	$fffffa11
 
-VBServiceVec			=	$a0
-DMAFlag				=	$a4
+;VBServiceVec			=	$a0
+;DMAFlag				=	$a4
 
 *-------------------------------------------------------*
 highlight_statusbar		=	0
