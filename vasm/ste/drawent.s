@@ -18,6 +18,10 @@
 	include		"drawctx.inc"
 
 *-------------------------------------------------------*
+
+within_entitydraw	set	1
+
+*-------------------------------------------------------*
 	text
 *-------------------------------------------------------*
 
@@ -39,6 +43,16 @@
 	XREF		_AGT_BLiT_IMSprInit
 	XREF		_AGT_SlabDirtyRegion
 	XREF		_AGT_BLiT_SlabInit
+
+;	safety checks
+
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+	XREF		_AGT_Exception_IMSFrame
+	XREF		_AGT_Exception_EMSFrame
+	XREF		_AGT_Exception_EMXFrame
+	XREF		_AGT_Exception_SLSFrame
+	XREF		_AGT_Exception_SLRFrame
+	endc
 	
 ;	clipping window
 
@@ -51,6 +65,10 @@
 	XREF		_drawcontext
 	
 	XREF		slab_precalcs
+
+	ifd		AGT_CONFIG_DEBUGDRAW
+	XREF		_g_debugdraw
+	endc
 	
 *-------------------------------------------------------*
 
@@ -64,4 +82,34 @@
 	
 *-------------------------------------------------------*
 			text
+*-------------------------------------------------------*
+
+	ifd		AGT_CONFIG_SAFETY_CHECKS
+_AGT_Exception_IMSFrame_68k:
+	move.l		a0,-(sp)
+	move.l		d0,-(sp)
+	jsr		_AGT_Exception_IMSFrame
+	; noreturn
+_AGT_Exception_EMSFrame_68k:
+	move.l		a0,-(sp)
+	move.l		d0,-(sp)
+	jsr		_AGT_Exception_EMSFrame
+	; noreturn
+_AGT_Exception_EMXFrame_68k:
+	move.l		a0,-(sp)
+	move.l		d0,-(sp)
+	jsr		_AGT_Exception_EMXFrame
+	; noreturn
+_AGT_Exception_SLSFrame_68k:
+	move.l		a0,-(sp)
+	move.l		d0,-(sp)
+	jsr		_AGT_Exception_SLSFrame
+	; noreturn
+_AGT_Exception_SLRFrame_68k:
+	move.l		a0,-(sp)
+	move.l		d0,-(sp)
+	jsr		_AGT_Exception_SLRFrame
+	; noreturn
+	endc
+
 *-------------------------------------------------------*

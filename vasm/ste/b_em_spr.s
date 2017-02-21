@@ -7,14 +7,18 @@
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
 
-	ifne		(use_sanity_checks)
+	ifd		AGT_CONFIG_SAFETY_CHECKS
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
+	ifne		(within_entitydraw)
+	bhs		_AGT_Exception_EMSFrame_68k
+	else
 	blo.s		.ems_frameok
 .ems_framefault:
 	not.w		$ffff8240.w
 	bra.s		.ems_framefault
 .ems_frameok:
+	endc
 	endc
 
 

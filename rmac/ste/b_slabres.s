@@ -282,14 +282,18 @@ _use_slab_restore_	set	(use_sprite_saverestore|use_sprite_pagerestore)
 *	entrypoint
 *=======================================================*
 
-	.if		(use_sanity_checks)
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
+	.if		(within_entitydraw)
+	bhs		_AGT_Exception_SLRFrame_68k
+	.else
 	blo.s		.slr_frameok
 .slr_framefault:
 	not.w		$ffff8240.w
 	bra.s		.slr_framefault
 .slr_frameok:
+	.endif
 	.endif
 	
 	; access sprite frame table

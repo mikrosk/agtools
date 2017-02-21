@@ -21,6 +21,8 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+#define reg32(_a_) *(volatile u32*)(0x##_a_)
+
 short g_hnf_ok = 0;
 short g_displaylocked = 0;
 
@@ -169,7 +171,7 @@ void AGT_ConsoleUpdate(void* fb1)
 
 		char* row = &AGT_CONSOLE_chars[h * AGT_CONSOLE_COLUMN_STRIDE];
 
-			AGT_ConsoleText(row, fb1, 0, r);
+		AGT_ConsoleText(row, fb1, 0, r);
 
 		h++;
 	}
@@ -414,6 +416,10 @@ int bmprintf(const char *pFormat, ...)
 		nf_print(buf);
 #endif
 
+#ifdef AGT_CONFIG_STEEM_DEBUG
+	reg32(FFC1F0) = buf;
+#endif
+
 	// route to TOS console if display is not locked for graphics
 	if (!g_displaylocked)
 	{
@@ -433,7 +439,7 @@ int bmprintf(const char *pFormat, ...)
 			Bconout(2, c);
 		}
 #if defined(HATARI_NF_PRINTF)
-		}
+	}
 #endif
 	}
 

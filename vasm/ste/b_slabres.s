@@ -282,14 +282,18 @@ doregions		macro
 *	entrypoint
 *=======================================================*
 
-	ifne		(use_sanity_checks)
+	ifd		AGT_CONFIG_SAFETY_CHECKS
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
+	ifne		(within_entitydraw)
+	bhs		_AGT_Exception_SLRFrame_68k
+	else
 	blo.s		.slr_frameok
 .slr_framefault:
 	not.w		$ffff8240.w
 	bra.s		.slr_framefault
 .slr_frameok:
+	endc
 	endc
 	
 	; access sprite frame table

@@ -9,6 +9,12 @@
 	OPT		W+
 	OPT		O-
 
+*-------------------------------------------------------*
+	
+	include		"config.inc"
+
+*-------------------------------------------------------*
+
 timera		=	$134
 timerb		=	$120
 timerc		=	$114
@@ -29,8 +35,6 @@ isrb		=	$fffffa11
 
 cookie_jar	=	$5a0
 
-VBServiceVec	=	$a0
-DMAFlag		=	$a4
 
 			ifd	AGT_CONFIG_AUDIO_200HZ
 configure_50hz		=	0

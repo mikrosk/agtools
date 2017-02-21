@@ -52,8 +52,8 @@ imrb		=	$fffffa15
 isra		=	$fffffa0f
 isrb		=	$fffffa11
 
-VBServiceVec			=	$a0
-DMAFlag				=	$a4
+;VBServiceVec			=	$a0
+;DMAFlag				=	$a4
 	
 *-------------------------------------------------------*
 highlight_statusbar		=	0
@@ -304,8 +304,7 @@ displayservice_ste_vbi:
 
 	move.l		#displayservice_ste_upper_a,$134.w
 	
-	endc
-	
+	endc	
 
 	movem.l		d0-d7/a0-a6,-(sp)
 	move.l		_gp_active_group,d0

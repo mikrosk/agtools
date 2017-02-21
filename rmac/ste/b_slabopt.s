@@ -243,14 +243,18 @@
 *	entrypoint
 *=======================================================*
 
-	.if		(use_sanity_checks)
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
+	.if		(within_entitydraw)
+	bhs		_AGT_Exception_SLSFrame_68k
+	.else
 	blo.s		.slb_frameok
 .slb_framefault:
 	not.w		$ffff8240.w
 	bra.s		.slb_framefault
 .slb_frameok:
+	.endif
 	.endif
 
 	; 'hitflash' for strobing shape to single colour on damage etc.

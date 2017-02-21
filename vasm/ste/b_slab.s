@@ -463,9 +463,11 @@ dospans	macro
 *	entrypoint
 *=======================================================*
 
-	ifne		(use_sanity_checks)
+	ifd		AGT_CONFIG_SAFETY_CHECKS
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
+;	bhs		AGT_Exception_SlabFrame
+
 	blo.s		.slb_frameok
 .slb_framefault:
 	not.w		$ffff8240.w
