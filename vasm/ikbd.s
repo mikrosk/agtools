@@ -18,10 +18,13 @@
 	XDEF		_key_eventtail
 	XDEF		_key_eventring
 	XDEF		_msclick_eventhead
+	XDEF		_msclick_eventtail
 	XDEF		_msclick_eventring
 	XDEF		_joy0_eventhead
+	XDEF		_joy0_eventtail
 	XDEF		_joy0_eventring
 	XDEF		_joy1_eventhead
+	XDEF		_joy1_eventtail
 	XDEF		_joy1_eventring
 
 	XDEF		_joy0
@@ -91,6 +94,11 @@ _AGT_InstallInputService:
 	clr.w		_msclick_eventhead
 	clr.w		_joy0_eventhead
 	clr.w		_joy1_eventhead
+
+	clr.w		_key_eventtail
+	clr.w		_msclick_eventtail
+	clr.w		_joy0_eventtail
+	clr.w		_joy1_eventtail
 
 	move.w		#34,-(a7)
 	trap		#14
@@ -830,10 +838,14 @@ empty_buffer:
 *-------------------------------------------------------*
 
 _key_eventhead:		dc.w	0
-_key_eventtail:		dc.w	255
 _msclick_eventhead:	dc.w	0
 _joy0_eventhead:	dc.w	0
 _joy1_eventhead:	dc.w	0
+
+_key_eventtail:		dc.w	0
+_msclick_eventtail:	dc.w	0
+_joy0_eventtail:	dc.w	0
+_joy1_eventtail:	dc.w	0
 
 *-------------------------------------------------------*
 			bss
@@ -846,6 +858,7 @@ sys_mouse:		ds.l	1
 *-------------------------------------------------------*
 
 _key_states:		ds.b	128			; key press/release states
+
 _key_eventring:		ds.b	256			; key press/release events in sequence
 _msclick_eventring:	ds.b	256			; mouse click/release events in sequence
 _joy0_eventring:	ds.b	256			; joy0 events in sequence
