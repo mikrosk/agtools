@@ -18,10 +18,13 @@
 	.globl		_key_eventtail
 	.globl		_key_eventring
 	.globl		_msclick_eventhead
+	.globl		_msclick_eventtail
 	.globl		_msclick_eventring
 	.globl		_joy0_eventhead
+	.globl		_joy0_eventtail
 	.globl		_joy0_eventring
 	.globl		_joy1_eventhead
+	.globl		_joy1_eventtail
 	.globl		_joy1_eventring
 
 	.globl		_joy0
@@ -84,7 +87,7 @@ _AGT_InstallInputService:
 	link		a6,#-.frame_
 *-------------------------------------------------------*
 	tst.b		ikbd_on
-	bne.s		.done
+	bne		.done
 	
 	lea		_key_states,a0
 	moveq		#128/4-1,d7
@@ -96,6 +99,11 @@ _AGT_InstallInputService:
 	clr.w		_msclick_eventhead
 	clr.w		_joy0_eventhead
 	clr.w		_joy1_eventhead
+
+	clr.w		_key_eventtail
+	clr.w		_msclick_eventtail
+	clr.w		_joy0_eventtail
+	clr.w		_joy1_eventtail
 
 	move.w		#34,-(a7)
 	trap		#14
@@ -837,10 +845,14 @@ empty_buffer:
 *-------------------------------------------------------*
 
 _key_eventhead:		dc.w	0
-_key_eventtail:		dc.w	255
 _msclick_eventhead:	dc.w	0
 _joy0_eventhead:	dc.w	0
 _joy1_eventhead:	dc.w	0
+
+_key_eventtail:		dc.w	0
+_msclick_eventtail:	dc.w	0
+_joy0_eventtail:	dc.w	0
+_joy1_eventtail:	dc.w	0
 
 *-------------------------------------------------------*
 			.bss
@@ -853,6 +865,7 @@ sys_mouse:		ds.l	1
 *-------------------------------------------------------*
 
 _key_states:		ds.b	128			; key press/release states
+
 _key_eventring:		ds.b	256			; key press/release events in sequence
 _msclick_eventring:	ds.b	256			; mouse click/release events in sequence
 _joy0_eventring:	ds.b	256			; joy0 events in sequence

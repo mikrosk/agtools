@@ -139,7 +139,133 @@ extern "C" u8 key_eventring[256];
 // write position of eventring (written by IKBD interupt)
 extern "C" volatile s16 key_eventhead;
 // read position of eventring (read by game input services)
-extern "C" volatile s16 key_eventtail;
+extern "C" s16 key_eventtail;
+
+// mousebutton state
+extern "C" s16 buttons;
+// ringbuffer of mousebutton events
+extern "C" u8 msclick_eventring[256];
+// write position of eventring (written by IKBD interupt)
+extern "C" volatile s16 msclick_eventhead;
+// read position of eventring (read by game input services)
+extern "C" s16 msclick_eventtail;
+
+// joystick 0 state
+extern "C" u8 joy0;
+// ringbuffer of joy events
+extern "C" u8 joy0_eventring[256];
+// write position of eventring (written by IKBD interupt)
+extern "C" volatile s16 joy0_eventhead;
+// read position of eventring (read by game input services)
+extern "C" s16 joy0_eventtail;
+
+// joystick 1 state
+extern "C" u8 joy1;
+// ringbuffer of joy events
+extern "C" u8 joy1_eventring[256];
+// write position of eventring (written by IKBD interupt)
+extern "C" volatile s16 joy1_eventhead;
+// read position of eventring (read by game input services)
+extern "C" s16 joy1_eventtail;
+
+// ---------------------------------------------------------------------------------------------------------------------
+// here is some example code to read & flush all pending events from rings
+//
+//{
+//	s16 tail = key_eventtail;
+//	while (tail != key_eventhead)
+//	{
+//		u8 kcode = (u8)(key_eventring[tail]);
+//		tail = (tail + 1) & 255;
+//
+//		dosomething(kcode);
+//	}
+//	key_eventtail = tail;
+//}
+
+// check if key event is waiting
+static FORCEINLINE bool AGT_isKey()
+{
+	return (key_eventtail != key_eventhead);
+}
+
+// pop waiting key (returns scancode: bit 7 = release/press)
+static FORCEINLINE u8 AGT_popKey()
+{
+	u8 kcode = 0;
+	s16 tail = key_eventtail;
+	if (tail != key_eventhead)
+	{
+		kcode = (u8)(key_eventring[tail]);
+		tail = (tail + 1) & 255;
+	}
+	key_eventtail = tail;
+
+	return kcode;
+}
+
+// check if mousebutton event is waiting
+static FORCEINLINE bool AGT_isMouseClick()
+{
+	return (msclick_eventtail != msclick_eventhead);
+}
+
+// pop waiting mousebutton
+static FORCEINLINE u8 AGT_popMouseClick()
+{
+	u8 kcode = 0;
+	s16 tail = msclick_eventtail;
+	if (tail != msclick_eventhead)
+	{
+		kcode = (u8)(msclick_eventring[tail]);
+		tail = (tail + 1) & 255;
+	}
+	msclick_eventtail = tail;
+
+	return kcode;
+}
+
+// check if joy0 event is waiting
+static FORCEINLINE bool AGT_isJoy0()
+{
+	return (joy0_eventtail != joy0_eventhead);
+}
+
+// pop waiting joy0 event
+static FORCEINLINE u8 AGT_popJoy0()
+{
+	u8 kcode = 0;
+	s16 tail = joy0_eventtail;
+	if (tail != joy0_eventhead)
+	{
+		kcode = (u8)(joy0_eventring[tail]);
+		tail = (tail + 1) & 255;
+	}
+	joy0_eventtail = tail;
+
+	return kcode;
+}
+
+// check if joy1 event is waiting
+static FORCEINLINE bool AGT_isJoy1()
+{
+	return (joy1_eventtail != joy1_eventhead);
+}
+
+// pop waiting joy1 event
+static FORCEINLINE u8 AGT_popJoy1()
+{
+	u8 kcode = 0;
+	s16 tail = joy1_eventtail;
+	if (tail != joy1_eventhead)
+	{
+		kcode = (u8)(joy1_eventring[tail]);
+		tail = (tail + 1) & 255;
+	}
+	joy1_eventtail = tail;
+
+	return kcode;
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // install keyboard & joystick services
