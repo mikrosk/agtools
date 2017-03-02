@@ -124,7 +124,7 @@ _AGT_InstallInputService:
 
 	andi.w		#$fbff,sr
 
-	bsr		_ST_ResetInput
+;	bsr		_ST_ResetInput
 	bsr		_ST_EnableInput
 	
 	st		ikbd_on
