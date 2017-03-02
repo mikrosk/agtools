@@ -7,10 +7,11 @@
 	XDEF		_AGT_InstallInputService
 	XDEF		_AGT_RemoveInputService
 	
-	XDEF		_ST_FlushInput
-	XDEF		_ST_EnableInput
-	XDEF		_ST_DisableInput
-	XDEF		_ST_ResetInput
+	XDEF		_ST_FlushInput			; empty ikbd hw buffer
+	XDEF		_ST_EnableInput			; enable just keyboard and mouse
+	XDEF		_ST_DisableInput		; disable all input
+	XDEF		_ST_ResumeInput			; restore ikbd, joy and mouse reporting
+	XDEF		_ST_ResetInput			; restore to power-up state
 
 	XDEF		_key_states
 
@@ -215,6 +216,22 @@ _ST_ResetInput:
 	bmi.s		.end
 	bsr		write_acia
 	bra.s		.next
+.end:	; wait 300ms+ after reset
+	moveq		#64,d0
+	add.w		$4bc.w,d0
+.wt:	cmp.w		$4bc.w,d0
+	bpl.s		.wt
+	rts
+
+*-------------------------------------------------------*
+_ST_ResumeInput:
+*-------------------------------------------------------*
+	bsr		_ST_FlushInput
+	lea		resume_ikbd_seq(pc),a0
+.next:	move.b		(a0)+,d0
+	bmi.s		.end
+	bsr		write_acia
+	bra.s		.next
 .end:	bsr		_ST_FlushInput
 	rts
 
@@ -230,7 +247,8 @@ write_acia:
 
 disable_ikbd_seq:	dc.b	$13,$1a,$12,-1			; reporting off, joystick events off, mouse events off 
 enable_ikbd_seq:	dc.b	$11,$14,$12,-1			; resume reporting, joystick events on, mouse events off
-reset_ikbd_seq:		dc.b	$80,$1,$11,$8,-1
+resume_ikbd_seq:	dc.b	$11,$14,$08,-1			; resume reporting, joystick events on, mouse events on
+reset_ikbd_seq:		dc.b	$80,$01,-1
 			even
 
 	
