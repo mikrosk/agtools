@@ -53,6 +53,7 @@ configure_50hz		=	1
 	.globl	_ST_FlushInput
 	.globl	_ST_ResetInput
 	.globl	_ST_DisableInput
+	.globl	_ST_ResumeInput
 	
 	.globl	_YMSYS_Callback
 	.globl	_YMSYS_VBCallback
@@ -485,7 +486,8 @@ _SYS_Restore:
 *-------------------------------------------------------*
 *	Resume input reporting via ACIA
 *-------------------------------------------------------*
-	jsr		_ST_ResetInput
+;	jsr		_ST_ResetInput
+	jsr		_ST_ResumeInput
 *-------------------------------------------------------*
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5

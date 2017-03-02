@@ -58,6 +58,7 @@ configure_50hz		=	1
 	XREF	_ST_FlushInput
 	XREF	_ST_ResetInput
 	XREF	_ST_DisableInput
+	XREF	_ST_ResumeInput
 	
 	XREF	_YMSYS_Callback
 	XREF	_YMSYS_VBCallback
@@ -482,7 +483,8 @@ _SYS_Restore:
 *-------------------------------------------------------*
 *	Resume input reporting via ACIA
 *-------------------------------------------------------*
-	jsr		_ST_ResetInput
+;	jsr		_ST_ResetInput
+	jsr		_ST_ResumeInput
 *-------------------------------------------------------*
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
