@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.361";
+static const char* const g_version_string = "v0.37";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -335,6 +335,7 @@ enum
 	OPT_CUTMODE,
 	OPT_CCFIELDS,
 	OPT_CCREMAP,
+	OPT_MAPRECT,
 	// sprites
 	OPT_SPRITEGUIDE,
 	OPT_QUICKCUT,
@@ -414,6 +415,9 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_SPRITEGUIDE,	_T("-sg"),	 			SO_REQ_SEP	},
 	{ OPT_SPRITEGUIDE,	_T("--sprguide"), 		SO_REQ_SEP	},
+	//
+	{ OPT_MAPRECT,		_T("-mr"),	 			SO_REQ_SEP	},
+	{ OPT_MAPRECT,		_T("--maprect"), 		SO_REQ_SEP	},
 	//
 	{ OPT_QUICKCUT,		_T("-qc"),	 			SO_NONE	},
 	{ OPT_QUICKCUT,		_T("--quickcut"), 		SO_NONE	},
@@ -515,6 +519,7 @@ static void usage(int level)
 	std::cout << " -keyrgb, --key-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
 	std::cout << " -kg, --key-guard     > guard against reducing colours to key colour" << std::endl;
 	std::cout << " -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
+	std::cout << " -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
 	std::cout << std::endl;
 	std::cout << "sprite cutting mode:" << std::endl;
 	std::cout << " -sxp, --sprxpos      > first frame xpos: 0+" << std::endl;
@@ -620,11 +625,11 @@ public:
 		  colrenorm(255),
 		  tolerance(0.0f),
 		  keytol(0.01f),
-		  sourcefile(""),
-		  outfile(""),
-		  tiletags(""),
+		  //sourcefile(""),
+		  //outfile(""),
+		  //tiletags(""),
 		  palettefile("palette.pi1"),
-		  spriteguidefile(""),
+		  //spriteguidefile(""),
 		  ccfields(1),
 		  ccremap(CCRemap_BOTH),
 		  masklayout(Masklayout_INTERLEAVED),
@@ -643,6 +648,10 @@ public:
 		  cut_xcount(0),
 		  cut_ycount(0),
 		  cut_count(0),
+		  maprect_xpos(0),
+		  maprect_ypos(0),
+		  maprect_xsize(0x7fffffff),
+		  maprect_ysize(0x7fffffff),
 		  //
 		  use_solutionpair_reduction_(false)
 	{
@@ -674,6 +683,10 @@ public:
 	int cut_xcount;
 	int cut_ycount;
 	int cut_count;
+	int maprect_xpos;
+	int maprect_ypos;
+	int maprect_xsize;
+	int maprect_ysize;
 
 	float tolerance;
 	float keytol;
@@ -1080,6 +1093,46 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					getchar();
 					exit(1);
 				}
+			}
+			else if (args.OptionId() == OPT_MAPRECT)
+			{
+				std::string s_arg = args.OptionArg();
+				
+				// try extracting all 4 fields of cutting rectangle
+				int mx = 0, my = 0, mw = 0x7fffffff, mh = 0x7fffffff;
+				int count = sscanf(s_arg.c_str(), "%d:%d:%d:%d", &mx, &my, &mw, &mh);
+				if (count < 4)
+				{
+					// otherwise try just x,y
+					mw = 0x7fffffff;
+					mh = 0x7fffffff;
+					count = sscanf(s_arg.c_str(), "%d:%d", &mx, &my);
+				}
+
+				if ((count < 2) ||
+					(mx < 0) || 
+					(my < 0) ||
+					(mw < 0) ||
+					(mh < 0))
+				{
+					printf("error: invalid map cutting rectangle: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
+					exit(1);
+				}
+
+				if (count == 2)
+					printf("cutting map sub-rectangle from tilemap (dimensions in tiles): x(%d):y(%d)\n",
+						mx, my);
+				else
+					printf("cutting map sub-rectangle from tilemap (dimensions in tiles): x(%d):y(%d):w(%d):h(%d)\n",
+						mx, my, mw, mh);
+			
+
+				_args.maprect_xpos = mx;
+				_args.maprect_ypos = my;
+				_args.maprect_xsize = mw;
+				_args.maprect_ysize = mh;
 			}
 			else if (args.OptionId() == OPT_BITPLANES)
 			{
@@ -2083,8 +2136,9 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 //	process all map tiles from source image
 // --------------------------------------------------------------------
 
-static void process_image
+static void process_tilemap
 (
+	int &r_tilesrcw, int &r_tilesrch,
 	long_t *&r_ptilemap, int &r_tilemapw, int &r_tilemaph, 
 	RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew, ulong_t _sourceh
 )
@@ -2094,22 +2148,34 @@ static void process_image
 	s_tileplanardictionary.clear();
 
 	// find source dimensions in terms of tiles
-	int tilew = _sourcew / g_allargs.tilesize;
-	int tileh = _sourceh / g_allargs.tilesize;
+	int tilesrcw = (_sourcew / g_allargs.tilesize);
+	int tilesrch = (_sourceh / g_allargs.tilesize);
+	r_tilesrcw = tilesrcw;
+	r_tilesrch = tilesrch;
 
-	r_tilemapw = tilew;
-	r_tilemaph = tileh;
-	r_ptilemap = new long_t[tilew*tileh];
+	// find map dimensions in terms of tiles
+	int mapw = xmin(tilesrcw - g_allargs.maprect_xpos, g_allargs.maprect_xsize);
+	int maph = xmin(tilesrch - g_allargs.maprect_ypos, g_allargs.maprect_ysize);
+	r_tilemapw = mapw;
+	r_tilemaph = maph;
+	r_ptilemap = new long_t[mapw*maph];
 
 	long_t *ptilemap = r_ptilemap;
 
 	// iterate over source tiles, left-to-right, top-to-bottom
-	for (int ty = 0; ty < tileh; ty++)
+	for (int ty = 0; ty < tilesrch; ty++)
 	{
-		for (int tx = 0; tx < tilew; tx++)
+		for (int tx = 0; tx < tilesrcw; tx++)
 		{
 			int tilemapindex = process_tile(_psourcergb, _psourcecol, _sourcew, tx, ty);
-			*ptilemap++ = tilemapindex;
+
+			// update map only within cutting rectangle
+			int mx = tx - g_allargs.maprect_xpos;
+			int my = ty - g_allargs.maprect_ypos;
+			if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+			{
+				ptilemap[(my * mapw) + mx] = tilemapindex;
+			}
 
 			if ((s_progress & 0x1F) == 0)
 			{
@@ -2888,7 +2954,7 @@ void emit_tga(const char* const _name, RGB *data, int _w, int _h)
 	}
 }
 
-bool do_tiles()
+bool do_tilemap()
 {
 	ulong_t sourcew = 0;
 	ulong_t sourceh = 0;
@@ -2899,6 +2965,8 @@ bool do_tiles()
 	ubyte_t *m_psourcecol2 = 0;
 	ubyte_t *m_poriginalsrccol = 0;
 
+	int tilesrcw = 0;
+	int tilesrch = 0;
 	long_t *ptilemap = 0;
 	int tilemapw = 0;
 	int tilemaph = 0;
@@ -2958,13 +3026,13 @@ bool do_tiles()
 
 				// generate tile dictionary from image
 				if (ccf == 0)
-					process_image(ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol, sourcew, sourceh);
+					process_tilemap(tilesrcw, tilesrch, ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol, sourcew, sourceh);
 				else
-					process_image(ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol2, sourcew, sourceh);
+					process_tilemap(tilesrcw, tilesrch, ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol2, sourcew, sourceh);
 
 				std::cout << "...done" << std::endl;
 				// calculate compressed footprint
-				float footprint = (float)s_tile8dictionary.size() / float(tilemapw*tilemaph);
+				float footprint = (float)s_tile8dictionary.size() / float(tilesrcw*tilesrch);
 				std::cout << "final dictionary contains " << s_tile8dictionary.size() << " unique tiles with footprint @ " << footprint << " of original image." << std::endl;
 
 				if (ccf == 0)
@@ -3046,26 +3114,49 @@ bool do_tiles()
 				if (g_allargs.visual)
 				{
 					// rebuild source from tiles
-					for (int yy = 0; yy < tilemaph; yy++)
+					for (int yy = 0; yy < tilesrch; yy++)
 					{
-						for (int xx = 0; xx < tilemapw; xx++)
+						for (int xx = 0; xx < tilesrcw; xx++)
 						{
 							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
 
-							int index = ptilemap[(yy * tilemapw) + xx];
+							int index = -1;
+
+							int mx = xx - g_allargs.maprect_xpos;
+							int my = yy - g_allargs.maprect_ypos;
+							if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+							{
+								index = ptilemap[(my * tilemapw) + mx];
+							}
+
+							//int index = ptilemap[(yy * tilemapw) + xx];
 
 							// unfortunately we're storing the tiles in a list - better change this
 							tile8dictionary_t::iterator it8 = s_tile8dictionary.begin();
 							for (int i = 0; i < index; i++, it8++);
 
-							u8 *psrc = *it8;
-
-							for (int py = 0; py < tilesize; py++)
+							if (index >= 0)
 							{
-								for (int px = 0; px < tilesize; px++)
+								// valid index, part of the map - fill with tile
+								u8 *psrc = *it8;
+								for (int py = 0; py < tilesize; py++)
 								{
-									u8 c = psrc[(py * tilesize) + px];
-									pdst[(py * sourcew) + px] = m_ppalettergb[c];
+									for (int px = 0; px < tilesize; px++)
+									{
+										u8 c = psrc[(py * tilesize) + px];
+										pdst[(py * sourcew) + px] = m_ppalettergb[c];
+									}
+								}
+							}
+							else
+							{
+								// not part of the map - fill with colour 0
+								for (int py = 0; py < tilesize; py++)
+								{
+									for (int px = 0; px < tilesize; px++)
+									{
+										pdst[(py * sourcew) + px] = m_ppalettergb[0];
+									}
 								}
 							}
 						}
@@ -3083,27 +3174,50 @@ bool do_tiles()
 				if (g_allargs.visual)
 				{
 					// rebuild source from tiles
-					for (int yy = 0; yy < tilemaph; yy++)
+					for (int yy = 0; yy < tilesrch; yy++)
 					{
-						for (int xx = 0; xx < tilemapw; xx++)
+						for (int xx = 0; xx < tilesrcw; xx++)
 						{
 							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
 
-							int index = ptilemap[(yy * tilemapw) + xx];
+							int index = -1;
+
+							int mx = xx - g_allargs.maprect_xpos;
+							int my = yy - g_allargs.maprect_ypos;
+							if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+							{
+								index = ptilemap[(my * tilemapw) + mx];
+							}
+
+							//int index = ptilemap[(yy * tilemapw) + xx];
 
 							// unfortunately we're storing the tiles in a list - better change this
 							tile24dictionary_t::iterator it24 = s_tile24dictionary.begin();
 							for (int i = 0; i < index; i++, it24++);
 
-							RGB *psrc = *it24;
-
-							for (int py = 0; py < tilesize; py++)
+							if (index >= 0)
 							{
-								for (int px = 0; px < tilesize; px++)
+								// valid index, part of the map - fill with tile
+								RGB *psrc = *it24;
+								for (int py = 0; py < tilesize; py++)
 								{
-									pdst[(py * sourcew) + px] = psrc[(py * tilesize) + px];
+									for (int px = 0; px < tilesize; px++)
+									{
+										pdst[(py * sourcew) + px] = psrc[(py * tilesize) + px];
 
-									plot6x6hex3(pdst, sourcew, index, 1, 1);
+										plot6x6hex3(pdst, sourcew, index, 1, 1);
+									}
+								}
+							}
+							else
+							{
+								// not part of the map - fill with colour 0
+								for (int py = 0; py < tilesize; py++)
+								{
+									for (int px = 0; px < tilesize; px++)
+									{
+										pdst[(py * sourcew) + px] = m_ppalettergb[0];
+									}
 								}
 							}
 						}
@@ -3152,8 +3266,7 @@ bool do_tiles()
 								int column_index = 0;
 
 								std::cout << "reading tiletags: ";
-
-								// <width>		
+		
 								std::string colval = r[column_index++];
 								std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
 								char *pend = 0;
@@ -3177,23 +3290,35 @@ bool do_tiles()
 					}
 
 					// rebuild source from tiles
-					for (int yy = 0; yy < tilemaph; yy++)
+					for (int yy = 0; yy < tilesrch; yy++)
 					{
-						for (int xx = 0; xx < tilemapw; xx++)
+						for (int xx = 0; xx < tilesrcw; xx++)
 						{
 							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
 
-							int index = ptilemap[(yy * tilemapw) + xx];
+							int index = -1;
 
-							if (pmaskindex[index])
+							int mx = xx - g_allargs.maprect_xpos;
+							int my = yy - g_allargs.maprect_ypos;
+							if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
 							{
-								for (int py = 0; py < tilesize; py++)
+								index = ptilemap[(my * tilemapw) + mx];
+							}
+
+							//int index = ptilemap[(yy * tilemapw) + xx];
+
+							if (index >= 0)
+							{
+								if (pmaskindex[index])
 								{
-									for (int px = 0; px < tilesize; px++)
+									for (int py = 0; py < tilesize; py++)
 									{
-										pdst[(py * sourcew) + px].red =		~(pdst[(py * sourcew) + px].red>>1);
-										pdst[(py * sourcew) + px].green =	~(pdst[(py * sourcew) + px].green>>1);
-										pdst[(py * sourcew) + px].blue =	~(pdst[(py * sourcew) + px].blue>>1);
+										for (int px = 0; px < tilesize; px++)
+										{
+											pdst[(py * sourcew) + px].red = ~(pdst[(py * sourcew) + px].red >> 1);
+											pdst[(py * sourcew) + px].green = ~(pdst[(py * sourcew) + px].green >> 1);
+											pdst[(py * sourcew) + px].blue = ~(pdst[(py * sourcew) + px].blue >> 1);
+										}
 									}
 								}
 							}
@@ -5388,7 +5513,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (g_allargs.cutmode == Cutmode_TILES)
-		do_tiles();
+		do_tilemap();
 	else
 	if (g_allargs.cutmode == Cutmode_SPRITES ||
 		g_allargs.cutmode == Cutmode_EMSPR ||
