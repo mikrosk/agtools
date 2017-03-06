@@ -535,27 +535,49 @@ public:
 	int register_count_srcrefs(std::list<Operation*>::iterator _start, int _reg, OpSize _sz);
 	std::list<Operation*>::iterator register_last_written(std::list<Operation*>::iterator _start, int _reg, OpSize _sz);
 
-	void assemble(ubyte_t *&r_p68kbin, size_t &r_size68kbin)
+	void assemble(ubyte_t *&r_p68kbin, size_t &r_size68kbin, std::string &_tmpfile)
 	{
 //		ubyte_t *p68kbin = 0;
+		std::string tmp_lst = _tmpfile + ".lst";
+		std::string tmp_bin = _tmpfile + ".bin";
+		std::string tmp_src = _tmpfile + ".s";
 
 		const std::string& str = genout.str();
 		std::ofstream cfile;
-		cfile.open("tmp68k.s");  
+		cfile.open(tmp_src);  
 		cfile << str;  
 		cfile.close();
-
+		
 #if defined(_MSC_VER)
 		// execute assembler, turning our temporary .s into binary 68k
 		//		ShellExecute(NULL, "open", "rmac.exe", "-n -o tmp68k.bin tmp68k.s", NULL, SW_HIDE);
 		{
+			// aout format
+			std::string tmpargs = "-fa ";
+
+			// emit .lst files only in verbose mode
+			if (g_allargs.verbose)
+			{
+				tmpargs += "-l";
+				tmpargs += tmp_lst;
+				tmpargs += " ";
+			}
+
+			// output binary 68k
+			tmpargs += "-o ";
+			tmpargs += tmp_bin;
+
+			// input temporary src file
+			tmpargs += " ";
+			tmpargs += tmp_src;
+
 			SHELLEXECUTEINFO ShExecInfo = { 0 };
 			ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 			ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
 			ShExecInfo.hwnd = NULL;
 			ShExecInfo.lpVerb = NULL;
 			ShExecInfo.lpFile = "rmac.exe";
-			ShExecInfo.lpParameters = "-fa -ltmp68k.lst -o tmp68k.bin tmp68k.s";
+			ShExecInfo.lpParameters = tmpargs.c_str(); // "-fa -ltmp68k.lst -o tmp68k.bin tmp68k.s";
 			ShExecInfo.lpDirectory = NULL;
 			ShExecInfo.nShow = SW_HIDE;
 			ShExecInfo.hInstApp = NULL;
@@ -573,13 +595,13 @@ public:
 				exit(-1);
 			}
 
-			DeleteFileA("tmp68k.s");
+			DeleteFileA(tmp_src.c_str()/*"tmp68k.s"*/);
 		}
 #endif
         
 		// read code back in
 		{
-			FILE *h = fopen("tmp68k.bin", "rb");
+			FILE *h = fopen(tmp_bin.c_str()/*"tmp68k.bin"*/, "rb");
 			if (h)
 			{
 				fseek(h, 0, SEEK_END);
@@ -645,7 +667,7 @@ public:
 				fclose(h);
 
 #if defined(_MSC_VER)
-				DeleteFileA("tmp68k.bin");
+				DeleteFileA(tmp_bin.c_str()/*"tmp68k.bin"*/);
 #endif
             }
 			else
@@ -1400,13 +1422,14 @@ void Context::try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsi
 			{
 				if (data16 == uword_t(imm))
 				{
-					printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x]\n",
-						data16,
-						registers[_rold].name.c_str(),
-						imm,
-						registers[_rold].name.c_str(),
-						registers[_rold].L
-						);
+					if (g_allargs.verbose)
+						printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x]\n",
+							data16,
+							registers[_rold].name.c_str(),
+							imm,
+							registers[_rold].name.c_str(),
+							registers[_rold].L
+							);
 
 					curr = operations.erase(curr);
 					curr = operations.insert(curr, new DR_MoveQ32(*this, imm, _rold));
@@ -1495,7 +1518,9 @@ void Context::transform_pass()
 
 	register_sweep();
 
-	printf("transform pass: replace word #immediate register loads with derived register values\n");
+	if (!g_allargs.quickcut)
+		if (g_allargs.verbose)
+			printf("transform pass: replace word #immediate register loads with derived register values\n");
 
 	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end();)
 	{
@@ -1562,11 +1587,11 @@ void Context::cleanup_pass()
 				{
 					if (g_allargs.verbose)
 						printf("transform: lea.w %d(%s),%s -> adda.w %s,%s [$%04x]\n",
-						pactual->delta * dstlinewid,
-						registers[SCRLINE_reg].name.c_str(), registers[SCRLINE_reg].name.c_str(),
-						registers[rnew].name.c_str(),
-						registers[SCRLINE_reg].name.c_str(),
-						registers[rnew].L
+							pactual->delta * dstlinewid,
+							registers[SCRLINE_reg].name.c_str(), registers[SCRLINE_reg].name.c_str(),
+							registers[rnew].name.c_str(),
+							registers[SCRLINE_reg].name.c_str(),
+							registers[rnew].L
 						);
 					curr = operations.erase(curr);
 					curr = operations.insert(curr, new DST_AddaR16(*this, rnew, SCRLINE_reg));
@@ -1577,13 +1602,13 @@ void Context::cleanup_pass()
 					(word_t(pactual->delta * dstlinewid) == -word_t(it->L)))
 				{
 					if (g_allargs.verbose)
-					printf("transform: lea.w %d(%s),%s -> suba.w %s,%s [$%04x]\n",
-						pactual->delta * dstlinewid,
-						registers[SCRLINE_reg].name.c_str(), registers[SCRLINE_reg].name.c_str(),
-						registers[rnew].name.c_str(),
-						registers[SCRLINE_reg].name.c_str(),
-						registers[rnew].L
-						);
+						printf("transform: lea.w %d(%s),%s -> suba.w %s,%s [$%04x]\n",
+							pactual->delta * dstlinewid,
+							registers[SCRLINE_reg].name.c_str(), registers[SCRLINE_reg].name.c_str(),
+							registers[rnew].name.c_str(),
+							registers[SCRLINE_reg].name.c_str(),
+							registers[rnew].L
+							);
 					curr = operations.erase(curr);
 					curr = operations.insert(curr, new DST_SubaR16(*this, rnew, SCRLINE_reg));
 					goto terminate;
@@ -1607,13 +1632,13 @@ void Context::cleanup_pass()
 						(pactual->data == (it->L)))
 					{
 						if (g_allargs.verbose)
-						printf("transform: move.w #$%04x,%s -> move.w %s,%s [$%04x]\n", 
-							pactual->data, 
-							BLiTEM_names[emold].c_str(),
-							registers[rnew].name.c_str(),
-							BLiTEM_names[emold].c_str(),
-							registers[rnew].L
-						);
+							printf("transform: move.w #$%04x,%s -> move.w %s,%s [$%04x]\n", 
+								pactual->data, 
+								BLiTEM_names[emold].c_str(),
+								registers[rnew].name.c_str(),
+								BLiTEM_names[emold].c_str(),
+								registers[rnew].L
+							);
 						curr = operations.erase(curr);
 						curr = operations.insert(curr, new EM_MoveR16(*this, emold, rnew, arold));
 						goto terminate;
@@ -1639,14 +1664,14 @@ void Context::cleanup_pass()
 					)
 					{
 						if (g_allargs.verbose)
-						printf("transform: move.l #$%04x%04x,%s -> move.l %s,%s [$%04x%04x]\n", 
-							pactual->dataH, pactual->dataL, 
-							BLiTEM_names[emold].c_str(),
-							registers[rnew].name.c_str(),
-							BLiTEM_names[emold].c_str(),
-							registers[rnew].H,
-							registers[rnew].L
-						);
+							printf("transform: move.l #$%04x%04x,%s -> move.l %s,%s [$%04x%04x]\n", 
+								pactual->dataH, pactual->dataL, 
+								BLiTEM_names[emold].c_str(),
+								registers[rnew].name.c_str(),
+								BLiTEM_names[emold].c_str(),
+								registers[rnew].H,
+								registers[rnew].L
+							);
 						curr = operations.erase(curr);
 						assert(arold < 256);
 						curr = operations.insert(curr, new EM_MoveR32(*this, emold, rnew, arold));
@@ -1930,7 +1955,9 @@ void Context::tail_pass()
 	
 	register_sweep();
 
-	printf("tail optimization: move BLiT operations to hide long tails...\n");
+	if (!g_allargs.quickcut)
+		if (g_allargs.verbose)
+			printf("tail optimization pass: move BLiT operations to hide long tails...\n");
 
 	// start with last operation, walk backwards using forward iterator in order to fork sub-search
 	std::list<Operation*>::iterator it = operations.end(); it--;
@@ -1983,7 +2010,8 @@ void Context::tail_pass()
 			// if we found a better position, move the blit
 			if (best_tailop != curr)
 			{
-				printf("relocating blit to hide tail=%d cycles\n", best_tailval);
+				if (g_allargs.verbose)
+					printf("relocating blit to hide tail=%d cycles\n", best_tailval);
 				operations.erase(curr);
 				operations.insert(best_tailop, pop);
 			}
@@ -2135,17 +2163,19 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				}
 			}
 
-			printf("\nconverged or exhausted at %d trials @ loadcost=%d (totalcost=%d)\n", last_improvement, best_cost, best_loadcost);
-
-			// output the best pattern
 			if (g_allargs.verbose)
-			for (int v = 0; v < spr.h_; v++)
 			{
-				int y = best_pattern[v];
-				print_dataword(buffer[(y * 3) + 0]);
-				print_dataword(buffer[(y * 3) + 1]);
-				print_dataword(buffer[(y * 3) + 2]);
-				printf("\n");
+				printf("\nconverged or exhausted at %d trials @ loadcost=%d (totalcost=%d)\n", last_improvement, best_cost, best_loadcost);
+
+				// output the best pattern
+				for (int v = 0; v < spr.h_; v++)
+				{
+					int y = best_pattern[v];
+					print_dataword(buffer[(y * 3) + 0]);
+					print_dataword(buffer[(y * 3) + 1]);
+					print_dataword(buffer[(y * 3) + 2]);
+					printf("\n");
+				}
 			}
 		}
 
@@ -2186,7 +2216,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		Context context(shift.wordwidth_, shift.height_);
 
 		if (!g_allargs.quickcut)
-		printf("\n\npreshift %d preview:\n", pi);
+			if (g_allargs.verbose)
+				printf("\n\npreshift %d preview:\n", pi);
 
 		// output the source image pattern
 		if (!g_allargs.quickcut)
@@ -2326,17 +2357,19 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					}
 				}
 
-				printf("\nconverged or exhausted at %d trials @ loadcost=%d (totalcost=%d)\n", last_improvement, best_cost, best_loadcost);
-
-				// output the best pattern
 				if (g_allargs.verbose)
-				for (int v = 0; v < shift.height_; v++)
 				{
-					int y = best_pattern[v];
-					print_dataword(buffer[(y * 3) + 0]);
-					print_dataword(buffer[(y * 3) + 1]);
-					print_dataword(buffer[(y * 3) + 2]);
-					printf("\n");
+					printf("\nconverged or exhausted at %d trials @ loadcost=%d (totalcost=%d)\n", last_improvement, best_cost, best_loadcost);
+
+					// output the best pattern
+					for (int v = 0; v < shift.height_; v++)
+					{
+						int y = best_pattern[v];
+						print_dataword(buffer[(y * 3) + 0]);
+						print_dataword(buffer[(y * 3) + 1]);
+						print_dataword(buffer[(y * 3) + 2]);
+						printf("\n");
+					}
 				}
 			}
 		}
@@ -2406,7 +2439,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		bool em_dirty[3];
 
 		if (!g_allargs.quickcut)
-		printf("deltas...\n");
+			if (g_allargs.verbose)
+				printf("deltas...\n");
 
 		// reset dirty EM registers for this blit width
 		em_dirty[0] = true;
@@ -2480,7 +2514,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		std::vector<lineout> active_lines;
 
 		if (!g_allargs.quickcut)
-			printf("\nsurviving datawords...\n");
+			if (g_allargs.verbose)
+				printf("\nsurviving datawords...\n");
 
 		// reset dirty EM registers for this blit width
 		em_dirty[0] = true;
@@ -2586,10 +2621,12 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		}
 
 		if (!g_allargs.quickcut)
-			printf("total surviving = %d\n", context.metrics.size());
+			if (g_allargs.verbose)
+				printf("total surviving = %d\n", context.metrics.size());
 
 		if (!g_allargs.quickcut)
-			printf("\nscoring:\n");
+			if (g_allargs.verbose)
+				printf("\nscoring:\n");
 
 		// globally score each data word according to metrics
 		int assigned_registers = 0;
@@ -3403,7 +3440,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		ubyte_t *p68kbin = 0;
 		size_t size68kbin = 0;
 		
-		context.assemble(p68kbin, size68kbin);
+		context.assemble(p68kbin, size68kbin, g_allargs.mactmp);
 
 		if (p68kbin)
 		{

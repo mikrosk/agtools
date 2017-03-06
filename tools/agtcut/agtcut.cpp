@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.36";
+static const char* const g_version_string = "v0.361";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -690,6 +690,8 @@ public:
 	std::string palettefile;
 	int planes;
 	int tilesize;
+	std::string invokehash;
+	std::string mactmp;
 
 	std::list<guideevent> guideeventseq;
 
@@ -701,10 +703,45 @@ public:
 
 Arguments g_allargs;
 
+static ulong_t strqhash(ulong_t _h, char* _str)
+{
+	ulong_t h = _h;
+
+	int p = 0;
+	ubyte_t c = 0;
+	while (c = _str[p])
+	{
+		h -= rofl32(h, 7);
+		h *= 0x12967ad1;
+		h += rofl32(h, 17);
+		h = (h + 0x3869b5a2) * 0x72b1d643;
+		p++;
+	}
+
+	return h;
+}
+
 static void GetArguments(int _argc, char **_argv, Arguments& _args)
 {
     CSimpleOpt args(_argc, _argv, g_Options);
-    std::string s_outfile;
+	std::string s_outfile;
+
+	// create a hash of all arguments e.g. for tempfile specialization in parallel builds
+	// this is more stable/repeatable for debugging vs using time or PID or some other flaky source
+	{
+		char buf[16];
+		ulong_t h = 0x194bca85;
+		for (int a = 0; a < _argc; a++)
+		{
+			if (_argv[a])
+				h = strqhash(h, _argv[a]);
+		}
+		sprintf(buf, "%08x", h);
+		_args.invokehash = buf;
+	}
+
+	_args.mactmp = "tmp68k_";
+	_args.mactmp += _args.invokehash;
 
     // while there are arguments left to process
     while (args.Next()) 
