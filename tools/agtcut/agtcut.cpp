@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.37";
+static const char* const g_version_string = "v0.371";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -335,7 +335,8 @@ enum
 	OPT_CUTMODE,
 	OPT_CCFIELDS,
 	OPT_CCREMAP,
-	OPT_MAPRECT,
+	OPT_NOREMAP,
+	OPT_FORCEREMAP,
 	// sprites
 	OPT_SPRITEGUIDE,
 	OPT_QUICKCUT,
@@ -357,6 +358,7 @@ enum
 	OPT_SPRMAP,
 //	OPT_SLAB,
 	// tiles
+	OPT_MAPRECT,
 	OPT_TILESIZE,
 	OPT_TOLERANCE, 
 	OPT_OUTMODE
@@ -412,6 +414,12 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_CCFIELDS,		_T("--ccfields"), 		SO_REQ_SEP	},
 	//
 	{ OPT_CCREMAP,		_T("-ccr"),	 			SO_REQ_SEP	},
+	//
+	{ OPT_NOREMAP,		_T("-nr"),	 			SO_NONE		},
+	{ OPT_NOREMAP,		_T("--no-remap"),		SO_NONE		},
+	//
+	{ OPT_FORCEREMAP,	_T("-fr"),	 			SO_NONE		},
+	{ OPT_FORCEREMAP,	_T("--force-remap"),	SO_NONE		},
 	//
 	{ OPT_SPRITEGUIDE,	_T("-sg"),	 			SO_REQ_SEP	},
 	{ OPT_SPRITEGUIDE,	_T("--sprguide"), 		SO_REQ_SEP	},
@@ -519,7 +527,7 @@ static void usage(int level)
 	std::cout << " -keyrgb, --key-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
 	std::cout << " -kg, --key-guard     > guard against reducing colours to key colour" << std::endl;
 	std::cout << " -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
-	std::cout << " -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
+	std::cout << " -nr, --no-remap      > prevent remapping of 8bit images (to 4bit), use first 16 colours only" << std::endl;
 	std::cout << std::endl;
 	std::cout << "sprite cutting mode:" << std::endl;
 	std::cout << " -sxp, --sprxpos      > first frame xpos: 0+" << std::endl;
@@ -545,6 +553,7 @@ static void usage(int level)
 	std::cout << " -ts, --tilesize      > tile size (rbplus mode only): 16,32" << std::endl;
 	std::cout << " -ttags, --tiletags   > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
 	std::cout << " -t, --tol            > tile matching tolerance: 0.0+" << std::endl;
+	std::cout << " -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
 	std::cout << " -om, --outmode       > tile library output mode: direct,degas,rbplus" << std::endl;
 	std::cout << std::endl;
 	std::cout << "press any key..." << std::endl;
@@ -635,6 +644,8 @@ public:
 		  masklayout(Masklayout_INTERLEAVED),
 		  cutmode(Cutmode_TILES),
 		  outmode(Outmode_DEGAS),
+		  noremap(false),
+		  forceremap(false),
 		  masklayout_lock(false),
 		  planes(4),
 		  tilesize(16),
@@ -705,6 +716,8 @@ public:
 	int tilesize;
 	std::string invokehash;
 	std::string mactmp;
+	bool noremap;
+	bool forceremap;
 
 	std::list<guideevent> guideeventseq;
 
@@ -1093,6 +1106,14 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					getchar();
 					exit(1);
 				}
+			}
+			else if (args.OptionId() == OPT_NOREMAP)
+			{
+				_args.noremap = true;
+			}
+			else if (args.OptionId() == OPT_FORCEREMAP)
+			{
+				_args.forceremap = true;
 			}
 			else if (args.OptionId() == OPT_MAPRECT)
 			{
@@ -2989,6 +3010,62 @@ bool do_tilemap()
 
 			if (m_psourcecol)
 			{
+				bool doremap = true;
+
+				if (sourced > g_allargs.planes)
+				{
+					if (g_allargs.noremap)
+					{
+						std::cout << "warning: source image is indexed and > " << g_allargs.planes << " index bits - will use first 16 colours only (--no-remap)" << std::endl;
+						doremap = false;
+					}
+					else
+					{
+						std::cout << "warning: source image is indexed and > " << g_allargs.planes << " index bits - will be remapped to external palette" << std::endl;
+					}
+				}
+				else
+				{
+					if (g_allargs.forceremap)
+					{
+						std::cout << "warning: source image is indexed and <= " << g_allargs.planes << " index bits - but will remap anyway (--force-remap)" << std::endl;
+					}
+					else
+					{
+						std::cout << "warning: source image is indexed and <= " << g_allargs.planes << " index bits - will pass through without remapping" << std::endl;
+						doremap = false;
+					}
+				}
+
+				if (doremap)
+				{
+					m_poriginalsrccol = m_psourcecol;
+					m_psourcecol = 0;
+				}
+				else
+				{
+					// check that indexed colours are now in range for bitplanes specified
+					int maxcolidx = 1 << g_allargs.planes;
+					int highest = 0;
+					for (size_t p = 0; p < sourcew*sourceh; p++)
+					{
+						if ((m_psourcecol[p] >= maxcolidx) && (m_psourcecol[p] != g_allargs.keycol))
+						{
+							highest = xmax(highest, m_psourcecol[p]);
+							m_psourcecol[p] = g_allargs.keycol;
+							break;
+						}
+					}
+
+					if (highest)
+					{
+						std::cout << "warning: --no-remap was specified, but source colour indices exceed target bitplane count!" << std::endl;
+						std::cout << "highest usable index = " << maxcolidx - 1 << ", highest index encountered = " << highest << std::endl;
+						std::cout << "all illegal colours have been converted to --key-colour..." << std::endl;
+					}
+				}
+
+/*
 				int maxcolidx = 1 << g_allargs.planes;
 				// check that indexed colours are in range for bitplanes specified
 				for (size_t p = 0; p < sourcew*sourceh; p++)
@@ -3004,11 +3081,12 @@ bool do_tilemap()
 				}
 
 				std::cout << "adopting palette and colourmap provided by source image..." << std::endl;
+*/
 			}
 
 			if (m_psourcecol)
 			{
-				std::cout << "adopting palette and colourmap provided by source image..." << std::endl;
+				std::cout << "using palette and colourmap provided by source image..." << std::endl;
 			}
 			else
 			{
@@ -5197,9 +5275,66 @@ bool do_sheet()
 		{
 			std::cout << "read [" << g_allargs.sourcefile.c_str() << "] with colour depth " << sourced << " and dimensions " << sourcew << " x " << sourceh << std::endl;
 
+			bool doremap = true;
+
 			if (m_psourcecol)
 			{
+				if (sourced > g_allargs.planes)
+				{
+					if (g_allargs.noremap)
+					{
+						std::cout << "warning: source image is indexed and > " << g_allargs.planes << " index bits - will use first 16 colours only (--no-remap)" << std::endl;
+						doremap = false;
+					}
+					else
+					{
+						std::cout << "warning: source image is indexed and > " << g_allargs.planes << " index bits - will be remapped to external palette" << std::endl;
+					}
+				}
+				else
+				{
+					if (g_allargs.forceremap)
+					{
+						std::cout << "warning: source image is indexed and <= " << g_allargs.planes << " index bits - but will remap anyway (--force-remap)" << std::endl;
+					}
+					else
+					{
+						std::cout << "warning: source image is indexed and <= " << g_allargs.planes << " index bits - will pass through without remapping" << std::endl;
+						doremap = false;
+					}
+				}
+
+				if (doremap)
+				{
+					m_poriginalsrccol = m_psourcecol;
+					m_psourcecol = 0;
+				}
+				else
+				{
+					// check that indexed colours are now in range for bitplanes specified
+					int maxcolidx = 1 << g_allargs.planes;
+					int highest = 0;
+					for (size_t p = 0; p < sourcew*sourceh; p++)
+					{
+						if ((m_psourcecol[p] >= maxcolidx) && (m_psourcecol[p] != g_allargs.keycol))
+						{
+							highest = xmax(highest, m_psourcecol[p]);
+							m_psourcecol[p] = g_allargs.keycol;
+							break;
+						}
+					}
+
+					if (highest)
+					{
+						std::cout << "warning: --no-remap was specified, but source colour indices exceed target bitplane count!" << std::endl;
+						std::cout << "highest usable index = " << maxcolidx - 1 << ", highest index encountered = " << highest << std::endl;
+						std::cout << "all illegal colours have been converted to --key-colour..." << std::endl;
+					}
+				}
+
+/*
 				int maxcolidx = 1 << g_allargs.planes;
+
 				// check that indexed colours are in range for bitplanes specified
 				for (size_t p = 0; p < sourcew*sourceh; p++)
 				{
@@ -5212,19 +5347,20 @@ bool do_sheet()
 						break;
 					}
 				}
+*/
 			}
 
 			if (m_psourcecol)
 			{
 				if (g_allargs.keyrgb_specified)
 				{
-					std::cerr << "error: can't use -keyrgb <R:G:B> on indexed-colour spritesheet images - use -key <col> instead." << std::endl;
+					std::cerr << "error: can't use -keyrgb <R:G:B> on non-remapped spritesheet images - use -key <col> instead." << std::endl;
 					printf("press any key...\n");
 					getchar();	
 					exit(1);
 				}
 
-				std::cout << "adopting palette and colourmap provided by source image..." << std::endl;
+				std::cout << "using palette and colourmap provided by source image..." << std::endl;
 			}
 			else
 			{
