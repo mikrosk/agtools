@@ -20,6 +20,10 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
+extern "C" void EntitySpatial_68k();
+
+//----------------------------------------------------------------------------------------------------------------------
+
 template<int c_size>
 inline void copy(void *const _dst, void *const _src)
 {
@@ -242,7 +246,7 @@ void EntitySetup(int _numtypes)
 // ---------------------------------------------------------------------------------------------------------------------
 //	link entity into the list of instances to be ticked (i.e. those which can change state on each game cycle)
 
-extern "C" void EntityLink_Tick_Ext(entity_t *_pent, entity_t *_pnear)
+static inline void EntityLink_Tick_(entity_t *_pent, entity_t *_pnear)
 {
 	entity_t *pcurr = _pent;
 
@@ -276,70 +280,17 @@ tsort_done:
 	pcurr->pprev_tick = psort;
 	psortnext->pprev_tick = pcurr;
 	psort->pnext_tick = pcurr;	
-
-/*	pcurr->pnext_tick = psort->pnext_tick;
-	pcurr->pprev_tick = psort;
-	pcurr->pnext_tick->pprev_tick = pcurr;
-	psort->pnext_tick = pcurr;	
-*/
 }
 
-static inline void EntityLink_Tick(entity_t *_pent, entity_t *_pnear)
-{
-	entity_t *pcurr = _pent;
-
-	// find the insert position
-	//entity_t *psort = _near ? _near : &s_entity_tick_tail;
-	//while (psort->tick_priority > pcurr->tick_priority)
-	//	psort = psort->pprev_tick;
-
-	entity_t *psort = _pnear;
-	if (!psort || !(psort->f_self & EntityFlag_TICKED))
+void EntityLink_Tick(entity_t *_pent, entity_t *_pnear)
 	{
-		psort = &s_entity_tick_tail;
-		goto tsort_left;
-	}
-	else
-	if (psort->tick_priority < pcurr->tick_priority)
-	{
-		while (psort->pnext_tick->tick_priority < pcurr->tick_priority)
-			psort = psort->pnext_tick;
-		goto tsort_done;
-	}
-tsort_left:
-	while (psort->tick_priority > pcurr->tick_priority)
-		psort = psort->pprev_tick;
-tsort_done:
-
-
-	// insert
-	entity_t *psortnext = psort->pnext_tick;
-	pcurr->pnext_tick = psortnext;
-	pcurr->pprev_tick = psort;
-	psortnext->pprev_tick = pcurr;
-	psort->pnext_tick = pcurr;	
-
-	//pcurr->pnext_tick = psort->pnext_tick;
-	//pcurr->pprev_tick = psort;
-	//pcurr->pnext_tick->pprev_tick = pcurr;
-	//psort->pnext_tick = pcurr;	
-}
-
-static inline void EntityUnLink_Tick(entity_t *_pent)
-{
-	entity_t *pcurr = _pent;
-
-	entity_t *pnext = pcurr->pnext_tick;
-	entity_t *pprev = pcurr->pprev_tick;
-
-	pnext->pprev_tick = pprev;
-	pprev->pnext_tick = pnext;
+	EntityLink_Tick_(_pent, _pnear);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	link entity into the 2D spatial world (i.e. those which have a position and may move or subject to proximity tests)
 
-static inline void EntityLink2D(entity_t *_pent, entity_t *_pnear)
+static inline void EntityLink2D_(entity_t *_pent, entity_t *_pnear)
 {
 	entity_t *pcurr = _pent;
 
@@ -374,11 +325,6 @@ xsort_done:
 		pcurr->pprev_x = psort;
 		psortnext->pprev_x = pcurr;
 		psort->pnext_x = pcurr;	
-
-		//pcurr->pnext_x = psort->pnext_x;
-		//pcurr->pprev_x = psort;
-		//pcurr->pnext_x->pprev_x = pcurr;
-		//psort->pnext_x = pcurr;	
 	}
 #endif
 
@@ -413,37 +359,33 @@ ysort_done:
 		pcurr->pprev_y = psort;
 		psortnext->pprev_y = pcurr;
 		psort->pnext_y = pcurr;		
-
-		//pcurr->pnext_y = psort->pnext_y;
-		//pcurr->pprev_y = psort;
-		//pcurr->pnext_y->pprev_y = pcurr;
-		//psort->pnext_y = pcurr;		
 	}
 #endif
+}
+
+void EntityLink2D(entity_t *_pent, entity_t *_pnear)
+{
+	EntityLink2D_(_pent, _pnear);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	link entity into all relevant lists
 
-static void EntityLink(entity_t *_pent, entity_t *_near)
+static void EntityLink_(entity_t *_pent, entity_t *_pnear)
 {
 	if (likely(_pent->f_self & EntityFlag_TICKED))
-		EntityLink_Tick(_pent, _near);
+		EntityLink_Tick_(_pent, _pnear);
 
 	if (likely(_pent->f_self & EntityFlag_SPATIAL))
-		EntityLink2D(_pent, _near);
+		EntityLink2D_(_pent, _pnear);
 }
 
-static void EntityUnLink(entity_t *_pent)
+void EntityLink(entity_t *_pent, entity_t *_pnear)
 {
-	if (likely(_pent->f_self & EntityFlag_TICKED))
-		EntityUnLink_Tick(_pent);
-
-	if (likely(_pent->f_self & EntityFlag_SPATIAL))
-		EntityUnLink2D(_pent);
+	EntityLink_(_pent, _pnear);
 }
 
-static inline void EntityExecuteRemove(entity_t *_pent)
+static agt_inline void EntityExecuteRemove_(entity_t *_pent)
 {
 	EntityUnLink(_pent);
 	entities_freelist[entities_freelist_count++] = _pent;
@@ -464,7 +406,7 @@ void EntityExecuteAllRemoves()
 		entity_t **ppremoves = s_entity_removes;
 		s16 p = s_entity_remove_count-1;
 		do {
-			EntityExecuteRemove(*ppremoves++);
+			EntityExecuteRemove_(*ppremoves++);
 		} while (--p != -1);
 	}
 
@@ -483,7 +425,7 @@ void EntityExecuteAllLinks()
 		do {
 			entity_t *pe = *pplinks++;
 			entity_t *pp = *pplinks++;
-			EntityLink(pe, pp);
+			EntityLink_(pe, pp);
 		} while (--p != -1);
 
 		s_entity_link_count = 0;
@@ -1197,7 +1139,7 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox,
 		palloc->ry = _pparent->ry + _pparent->oy - palloc->oy + _oy;
 
 		// link entity into world near its parent (much cheaper than a full search-insert on the world)
-		EntityLink(palloc, _pparent);
+		EntityLink_(palloc, _pparent);
 
 #if defined(ENTITY_TRACKING)
 		entity_histogram[_etype]++;

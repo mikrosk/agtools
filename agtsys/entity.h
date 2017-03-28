@@ -151,28 +151,13 @@ struct entity_t
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
-// internal functions
-
-// link entity into all relevant chains (SPATIAL,TICKED)	
-static void EntityLink(entity_t *_pent, entity_t *_near);
-
-// schedule entity to be linked into all relevant chains (SPATIAL,TICKED)	
-static inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent);
-
-// unlink entity into all relevant chains (SPATIAL,TICKED)	
-static void EntityUnLink(entity_t *_pent, entity_t *_near);
-
-// maintain 2D coherence in SPATIAL chain
-static inline void EntitySort2D(entity_t *pcurr);
+// public interface
 
 // ---------------------------------------------------------------------------------------------------------------------
-// public interface
+// entity processes
 
 // initialise/reset the entity chain and set up some optional entity tracking/debugging services
 void EntitySetup(int _numtypes);
-
-// schedule entity for kill/removal - typically used by AI functions
-static inline void EntityRemove(entity_t *_pent);
 
 // execute any scheduled kills before next tick - called by mainloop
 void EntityExecuteAllRemoves();
@@ -193,13 +178,8 @@ extern "C" void BLiT_EntityDrawVisibleYM_68k(drawcontext_t *_pctx);
 extern "C" void EntityInteractVisibleXM_68k();
 extern "C" void EntityInteractVisibleYM_68k();
 
-extern "C" void EntitySpatial_68k();
-
-// attach sprite asset to entity
-void EntityDefAsset_Sprite(EntityType _etype, spritesheet *_passet);
-
-// attach slab 'pair' (draw+restore shapes) to entity
-void EntityDefAsset_Slab(EntityType _etype, sls_pair *_passet);
+// ---------------------------------------------------------------------------------------------------------------------
+// spawning
 
 // spawn new entity at arbitrary world position
 entity_t * EntitySpawn(EntityType _etype, s16 px, s16 py);
@@ -222,6 +202,48 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t *_pparent, s16 _ox, 
 // entity is created but not linked into relevant chains. the link step must be performed manually at some future date.
 // note: advanced usage - chance of obscure bugs, so be careful
 entity_t * EntityCreateUnlinked(EntityType _etype);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// entity linkage
+
+// link/unlink entity into all relevant chains (SPATIAL,TICKED)	
+void EntityLink(entity_t *_pent, entity_t *_near);
+static inline void EntityUnLink(entity_t *_pent);
+
+// link/unlink entity only to TICKED chain
+void EntityLink_Tick(entity_t *_pent, entity_t *_pnear);
+static agt_inline void EntityUnLink_Tick(entity_t *_pent);
+
+// link/unlink entity only to SPATIAL chain
+void EntityLink2D(entity_t *_pent, entity_t *_pnear);
+static agt_inline void EntityUnLink2D(entity_t *_pent);
+
+// schedule entity for linking to world on next EntityExecuteAllLinks()
+static agt_inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent);
+// schedule entity for removal from world on next EntityExecuteAllRemoves()
+static agt_inline void EntityRemove(entity_t *_pent);
+
+// todo: deprecate, no longer necessary!
+// sort individual object after tick
+static agt_inline void EntitySort2D(entity_t *pcurr);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// space transformations
+
+static agt_inline void EntityMakeRelative(entity_t *_pent, s16 _basisx, s16 _basisy);
+static agt_inline void EntityMakeRelative(entity_t *_pent, s32 _basisfx, s32 _basisfy);
+static agt_inline void EntityWorldFromRelative(entity_t *_pent, s16 _basisx, s16 _basisy);
+static agt_inline void EntityWorldFromRelative(entity_t &ent, s16 _basisx, s16 _basisy);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// assets
+
+// attach sprite asset to entity
+void EntityDefAsset_Sprite(EntityType _etype, spritesheet *_passet);
+
+// attach slab 'pair' (draw+restore shapes) to entity
+void EntityDefAsset_Slab(EntityType _etype, sls_pair *_passet);
+
 
 // ---------------------------------------------------------------------------------------------------------------------
 // entity freelist - new spawns are issued from this pool
@@ -258,6 +280,7 @@ extern entity_t *g_pe_viewport;
 // ---------------------------------------------------------------------------------------------------------------------
 // internal functions
 
+// schedule entity for kill/removal - typically used by AI functions
 static agt_inline void EntityRemove(entity_t *_pent)
 {
 	if (likely((_pent->f_self & EntityFlags_KILL) == 0))
@@ -267,6 +290,7 @@ static agt_inline void EntityRemove(entity_t *_pent)
 	}
 }
 
+// schedule entity to be linked into all relevant chains (SPATIAL,TICKED)	
 static agt_inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent)
 {
 	s16 c = s_entity_link_count;
@@ -276,6 +300,7 @@ static agt_inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// maintain 2D coherence in SPATIAL chain
 
 static agt_inline void EntitySort2D(entity_t *pcurr)
 {
@@ -332,6 +357,17 @@ static agt_inline void EntitySort2D(entity_t *pcurr)
 #endif
 }
 
+static agt_inline void EntityUnLink_Tick(entity_t *_pent)
+{
+	entity_t *pcurr = _pent;
+
+	entity_t *pnext = pcurr->pnext_tick;
+	entity_t *pprev = pcurr->pprev_tick;
+
+	pnext->pprev_tick = pprev;
+	pprev->pnext_tick = pnext;
+}
+
 static agt_inline void EntityUnLink2D(entity_t *_pent)
 {
 	entity_t *pcurr = _pent;
@@ -351,6 +387,15 @@ static agt_inline void EntityUnLink2D(entity_t *_pent)
 	pnexty->pprev_y = pprevy;
 	pprevy->pnext_y = pnexty;
 #endif
+}
+
+static inline void EntityUnLink(entity_t *_pent)
+{
+	if (likely(_pent->f_self & EntityFlag_TICKED))
+		EntityUnLink_Tick(_pent);
+
+	if (likely(_pent->f_self & EntityFlag_SPATIAL))
+		EntityUnLink2D(_pent);
 }
 
 static agt_inline void EntityMakeRelative(entity_t *_pent, s16 _basisx, s16 _basisy)
