@@ -809,8 +809,9 @@ _EntityInteractVisibleXM_68k:
 *-------------------------------------------------------*
 	move.w		ent_self(a0),d7
 	bmi.s		.term_inner
-
-	.if		(0)
+*-------------------------------------------------------*
+	.if		^^defined AGT_CONFIG_VISTRIGGER
+*-------------------------------------------------------*
 
 	btst		#10,d7
 	beq.s		.no_vistrig
@@ -818,19 +819,18 @@ _EntityInteractVisibleXM_68k:
 	eor.w		#($0400|$0200),d7		; & (~EntityFlag_VISTRIG) | EntityFlag_TICKED
 	move.w		d7,ent_self(a0)
 
-	; todo: opt	
-	movem.l		a0/d1/d2,-(sp)
+	; todo: could optimise this (slightly) with inlined version
+	; but it's an infrequent trigger event so not much gain...
+	;
+	; d0: *
+	; a0: pself
+	; a1: pnear
+	; a3: *
 	
-	; todo: opt	
-	pea		(a0)
-	move.l		_g_pe_viewport,a2
-	move.l		ent_pnext_x(a2),-(sp)	
-;	jsr		_EntityLink_Tick
-	addq.l		#8,sp
+	move.l		_g_pe_viewport,a1
+	jsr		EntityLink_Tick_68k
 
-	; todo: opt	
-	movem.l		(sp)+,a0/d1/d2
-	
+*-------------------------------------------------------*
 	.endif
 	
 *-------------------------------------------------------*

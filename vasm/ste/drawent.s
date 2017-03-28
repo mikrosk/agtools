@@ -28,12 +28,20 @@ within_entitydraw	set	1
 	ifd		AGT_CONFIG_WORLD_XMAJOR
 	XDEF		_BLiT_EntityDrawVisibleXM_68k
 	XDEF		_EntityInteractVisibleXM_68k
+	XREF		_gp_entity_x_head
+	XREF		_gp_entity_x_aftertail
 	endc
 	
 	ifd		AGT_CONFIG_WORLD_YMAJOR
 	XDEF		_BLiT_EntityDrawVisibleYM_68k
 	XDEF		_EntityInteractVisibleYM_68k
+	XREF		_gp_entity_y_head
+	XREF		_gp_entity_y_aftertail
 	endc
+
+	XDEF		_EntitySpatial_68k
+	XREF		_gp_entity_tick_tail
+;	XREF		_EntityLink_Tick_Ext
 
 ;	EM-optimized (but not code-generated) blitter sprite routines for <= 32-wide sprites
 
@@ -70,6 +78,203 @@ within_entitydraw	set	1
 	XREF		_g_debugdraw
 	endc
 	
+*-------------------------------------------------------*
+
+
+*-------------------------------------------------------*
+*	Direct 68k version to support VISTRIG links
+*-------------------------------------------------------*
+EntityLink_Tick_68k:
+*-------------------------------------------------------*
+*	a0		pentity/pcurr
+*	a1		pnear/psort
+*	a3		*
+*-------------------------------------------------------*
+*	if (!psort || !(psort->f_self & EntityFlag_TICKED))
+*-------------------------------------------------------*
+	move.l		a1,d0
+	beq.s		.not_near
+.is_near:
+	btst.b		#1,ent_self(a1)
+	beq.s		.not_near
+*-------------------------------------------------------*
+.dir_tsort:
+*-------------------------------------------------------*
+*	if (psort->tick_priority < pcurr->tick_priority)
+*-------------------------------------------------------*
+	move.w		ent_tick_priority(a0),d0
+	cmp.w		ent_tick_priority(a1),d0	; if (psort->tick_priority < pcurr->tick_priority)
+	blt.s		.tsort_left
+*-------------------------------------------------------*
+.tsort_right:
+*-------------------------------------------------------*
+*	while (psort->pnext_tick->tick_priority < pcurr->tick_priority)
+*		psort = psort->pnext_tick;	
+*-------------------------------------------------------*
+	move.l		a1,a3
+.search_r:
+	move.l		a3,a1				; psort = psort->pnext_tick;
+	move.l		ent_pnext_tick(a1),a3
+	cmp.w		ent_tick_priority(a3),d0
+	bgt.s		.search_r
+*-------------------------------------------------------*
+*	// insert
+*	pcurr->pnext_tick = psort->pnext_tick;
+*	pcurr->pprev_tick = psort;
+*	pcurr->pnext_tick->pprev_tick = pcurr;
+*	psort->pnext_tick = pcurr;	
+*-------------------------------------------------------*
+	move.l		ent_pnext_tick(a1),a3
+	move.l		a3,ent_pnext_tick(a0)
+	move.l		a1,ent_pprev_tick(a0)
+	move.l		a0,ent_pprev_tick(a3)
+	move.l		a0,ent_pnext_tick(a1)
+	rts
+*-------------------------------------------------------*
+.not_near:
+*-------------------------------------------------------*
+*	just link to end of entity chain
+*-------------------------------------------------------*
+	move.l		_gp_entity_tick_tail,a1
+	move.w		ent_tick_priority(a0),d0
+	bra.s		.tsort_left
+*-------------------------------------------------------*
+*	while (psort->tick_priority > pcurr->tick_priority)
+*		psort = psort->pprev_tick;
+*-------------------------------------------------------*
+.search_l:
+	move.l		ent_pprev_tick(a1),a1		; psort->pprev_tick;
+.tsort_left:
+	cmp.w		ent_tick_priority(a1),d0
+	blt.s		.search_l
+*-------------------------------------------------------*
+*	// insert
+*	pcurr->pnext_tick = psort->pnext_tick;
+*	pcurr->pprev_tick = psort;
+*	pcurr->pnext_tick->pprev_tick = pcurr;
+*	psort->pnext_tick = pcurr;	
+*-------------------------------------------------------*
+	move.l		ent_pnext_tick(a1),a3
+	move.l		a3,ent_pnext_tick(a0)
+	move.l		a1,ent_pprev_tick(a0)
+	move.l		a0,ent_pprev_tick(a3)
+	move.l		a0,ent_pnext_tick(a1)
+	rts
+	
+
+*-------------------------------------------------------*
+_EntitySpatial_68k:
+*-------------------------------------------------------*
+			rsreset
+*-------------------------------------------------------*
+.savea6:		rs.l	1
+.save:			rs.l	2
+.return:		rs.l	1
+*-------------------------------------------------------*
+.frame_:		rs.b	0
+*-------------------------------------------------------*
+			rsreset
+*-------------------------------------------------------*
+*	locals:
+*-------------------------------------------------------*
+*-------------------------------------------------------*
+.sp_frame_:		rs.b	0
+*-------------------------------------------------------*	
+	movem.l		a2-a3,-(sp)
+*-------------------------------------------------------*
+	ifd		AGT_CONFIG_WORLD_XMAJOR	
+*-------------------------------------------------------*
+	move.l		_gp_entity_x_head,a0
+*-------------------------------------------------------*
+.xnext:
+*-------------------------------------------------------*
+	move.l		a0,a1				; pcurr->pprev_x
+	move.l		ent_pnext_x(a0),a0		; pcurr
+*-------------------------------------------------------*
+.xresume:
+*-------------------------------------------------------*
+	move.w		ent_frx(a0),d0
+	cmp.w		ent_frx(a1),d0
+	bge.s		.xnext
+*-------------------------------------------------------*
+.xpushback:
+*-------------------------------------------------------*
+	cmp.l		_gp_entity_x_aftertail,a0
+	beq.s		.xend
+*-------------------------------------------------------*
+	move.l		ent_pprev_x(a0),a1
+	move.l		ent_pnext_x(a0),a2
+	move.l		a1,ent_pprev_x(a2)
+	move.l		a2,ent_pnext_x(a1)
+*-------------------------------------------------------*
+;	move.w		ent_rx(a0),d0
+.xscan:	move.l		ent_pprev_x(a1),a1
+	cmp.w		ent_frx(a1),d0
+	blt.s		.xscan
+*-------------------------------------------------------*
+	move.l		ent_pnext_x(a1),a3
+	move.l		a3,ent_pnext_x(a0)
+	move.l		a1,ent_pprev_x(a0)
+	move.l		a0,ent_pprev_x(a3)
+	move.l		a0,ent_pnext_x(a1)
+*-------------------------------------------------------*
+	move.l		a2,a0
+	move.l		ent_pprev_x(a0),a1
+	bra.s		.xresume
+*-------------------------------------------------------*
+.xend:
+*-------------------------------------------------------*
+	endc
+*-------------------------------------------------------*
+	ifd		AGT_CONFIG_WORLD_YMAJOR	
+*-------------------------------------------------------*
+	move.l		_gp_entity_y_head,a0
+*-------------------------------------------------------*
+.ynext:
+*-------------------------------------------------------*
+	move.l		a0,a1				; pcurr->pprev_x
+	move.l		ent_pnext_y(a0),a0		; pcurr
+*-------------------------------------------------------*
+.yresume:
+*-------------------------------------------------------*
+	move.w		ent_fry(a0),d0
+	cmp.w		ent_fry(a1),d0
+	bge.s		.ynext
+*-------------------------------------------------------*
+.ypushback:
+*-------------------------------------------------------*
+	cmp.l		_gp_entity_y_aftertail,a0
+	beq.s		.yend
+*-------------------------------------------------------*
+	move.l		ent_pprev_y(a0),a1
+	move.l		ent_pnext_y(a0),a2
+	move.l		a1,ent_pprev_y(a2)
+	move.l		a2,ent_pnext_y(a1)
+*-------------------------------------------------------*
+;	move.w		ent_ry(a0),d0
+.yscan:	move.l		ent_pprev_y(a1),a1
+	cmp.w		ent_fry(a1),d0
+	blt.s		.yscan
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a1),a3
+	move.l		a3,ent_pnext_y(a0)
+	move.l		a1,ent_pprev_y(a0)
+	move.l		a0,ent_pprev_y(a3)
+	move.l		a0,ent_pnext_y(a1)
+*-------------------------------------------------------*
+	move.l		a2,a0
+	move.l		ent_pprev_y(a0),a1
+	bra.s		.yresume
+*-------------------------------------------------------*
+.yend:
+*-------------------------------------------------------*
+	endc
+*-------------------------------------------------------*
+	movem.l		(sp)+,a2-a3
+*-------------------------------------------------------*
+	rts
+
+
 *-------------------------------------------------------*
 
 	ifd		AGT_CONFIG_WORLD_XMAJOR	

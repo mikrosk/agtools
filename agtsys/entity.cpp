@@ -110,20 +110,27 @@ static void nulltick(entity_t *) { }
 
 s16 g_debugdraw = 0;
 
+
+static entity_t s_entity_tick_beforehead;
 static entity_t s_entity_tick_head;
 static entity_t s_entity_tick_tail;
 static entity_t s_entity_tick_aftertail;
+entity_t *gp_entity_tick_tail = &s_entity_tick_tail;
 
 #if defined(ENABLE_SPATIAL_X)
 static entity_t s_entity_x_head;
 static entity_t s_entity_x_tail;
 static entity_t s_entity_x_aftertail;
+entity_t *gp_entity_x_head = &s_entity_x_head;
+entity_t *gp_entity_x_aftertail = &s_entity_x_aftertail;
 #endif
 
 #if defined(ENABLE_SPATIAL_Y)
 static entity_t s_entity_y_head;
 static entity_t s_entity_y_tail;
 static entity_t s_entity_y_aftertail;
+entity_t *gp_entity_y_head = &s_entity_y_head;
+entity_t *gp_entity_y_aftertail = &s_entity_y_aftertail;
 #endif
 
 s16 s_entity_remove_count = 0;
@@ -173,9 +180,15 @@ void EntitySetup(int _numtypes)
 	entities_freelist_count = c_max_entities;
 	s_entity_remove_count = 0;
 
+	// list beforehead shelves priorities < 0
+	s_entity_tick_beforehead.tick_priority = -256;
+	s_entity_tick_beforehead.pprev_tick = NULL;
+	s_entity_tick_beforehead.pnext_tick = &s_entity_tick_head;
+	s_entity_tick_beforehead.fntick = &nulltick;
+
 	// list head should always sort before real entities
 	s_entity_tick_head.tick_priority = -1;
-	s_entity_tick_head.pprev_tick = NULL;
+	s_entity_tick_head.pprev_tick = &s_entity_tick_beforehead;
 	s_entity_tick_head.pnext_tick = &s_entity_tick_tail;
 	s_entity_tick_head.fntick = &nulltick;
 	
@@ -229,6 +242,48 @@ void EntitySetup(int _numtypes)
 // ---------------------------------------------------------------------------------------------------------------------
 //	link entity into the list of instances to be ticked (i.e. those which can change state on each game cycle)
 
+extern "C" void EntityLink_Tick_Ext(entity_t *_pent, entity_t *_pnear)
+{
+	entity_t *pcurr = _pent;
+
+	// find the insert position
+	//entity_t *psort = _near ? _near : &s_entity_tick_tail;
+	//while (psort->tick_priority > pcurr->tick_priority)
+	//	psort = psort->pprev_tick;
+
+	entity_t *psort = _pnear;
+	if (!psort || !(psort->f_self & EntityFlag_TICKED))
+	{
+		psort = &s_entity_tick_tail;
+		goto tsort_left;
+	}
+	else
+	if (psort->tick_priority < pcurr->tick_priority)
+	{
+		while (psort->pnext_tick->tick_priority < pcurr->tick_priority)
+			psort = psort->pnext_tick;
+		goto tsort_done;
+	}
+tsort_left:
+	while (psort->tick_priority > pcurr->tick_priority)
+		psort = psort->pprev_tick;
+tsort_done:
+
+
+	// insert
+	entity_t *psortnext = psort->pnext_tick;
+	pcurr->pnext_tick = psortnext;
+	pcurr->pprev_tick = psort;
+	psortnext->pprev_tick = pcurr;
+	psort->pnext_tick = pcurr;	
+
+/*	pcurr->pnext_tick = psort->pnext_tick;
+	pcurr->pprev_tick = psort;
+	pcurr->pnext_tick->pprev_tick = pcurr;
+	psort->pnext_tick = pcurr;	
+*/
+}
+
 static inline void EntityLink_Tick(entity_t *_pent, entity_t *_pnear)
 {
 	entity_t *pcurr = _pent;
@@ -258,10 +313,16 @@ tsort_done:
 
 
 	// insert
-	pcurr->pnext_tick = psort->pnext_tick;
+	entity_t *psortnext = psort->pnext_tick;
+	pcurr->pnext_tick = psortnext;
 	pcurr->pprev_tick = psort;
-	pcurr->pnext_tick->pprev_tick = pcurr;
+	psortnext->pprev_tick = pcurr;
 	psort->pnext_tick = pcurr;	
+
+	//pcurr->pnext_tick = psort->pnext_tick;
+	//pcurr->pprev_tick = psort;
+	//pcurr->pnext_tick->pprev_tick = pcurr;
+	//psort->pnext_tick = pcurr;	
 }
 
 static inline void EntityUnLink_Tick(entity_t *_pent)
@@ -308,10 +369,16 @@ xsort_left:
 xsort_done:
 
 		// insert
-		pcurr->pnext_x = psort->pnext_x;
+		entity_t *psortnext = psort->pnext_x;
+		pcurr->pnext_x = psortnext;
 		pcurr->pprev_x = psort;
-		pcurr->pnext_x->pprev_x = pcurr;
+		psortnext->pprev_x = pcurr;
 		psort->pnext_x = pcurr;	
+
+		//pcurr->pnext_x = psort->pnext_x;
+		//pcurr->pprev_x = psort;
+		//pcurr->pnext_x->pprev_x = pcurr;
+		//psort->pnext_x = pcurr;	
 	}
 #endif
 
@@ -341,10 +408,16 @@ ysort_left:
 ysort_done:
 
 		// insert
-		pcurr->pnext_y = psort->pnext_y;
+		entity_t *psortnext = psort->pnext_y;
+		pcurr->pnext_y = psortnext;
 		pcurr->pprev_y = psort;
-		pcurr->pnext_y->pprev_y = pcurr;
+		psortnext->pprev_y = pcurr;
 		psort->pnext_y = pcurr;		
+
+		//pcurr->pnext_y = psort->pnext_y;
+		//pcurr->pprev_y = psort;
+		//pcurr->pnext_y->pprev_y = pcurr;
+		//psort->pnext_y = pcurr;		
 	}
 #endif
 }
@@ -419,6 +492,142 @@ void EntityExecuteAllLinks()
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+#if (0)
+static void EntitySpatial()
+{
+#if defined(ENABLE_SPATIAL_X)
+	{
+		//// first entity is pointed by list head
+		//entity_t *pcurr = s_entity_x_head.pnext_x;
+
+		//// one-time check for empty list (head->[nothing]->tail)
+		//if (pcurr == &s_entity_x_tail)
+		//	return;
+
+		//// iterate until we hit the sentinel
+		//s16 maxx = s_entity_x_tail.rx;
+		//while (pcurr->rx < maxx)
+		//{
+		//	EntitySort2D(pcurr);
+
+		//	pcurr = pcurr->pnext_x;
+		//}
+
+		entity_t *pnext, *pprev, *pwe;
+		entity_t *pcurr = s_entity_x_head.pnext_x;
+
+		while (1)
+		{
+nextent:
+			if (pcurr->rx < pcurr->pprev_x->rx)
+				goto pushback;
+			pcurr = pcurr->pnext_x;
+								
+			goto nextent;		
+			
+pushback:
+			// first chance to terminate
+			if (pcurr == &s_entity_x_aftertail)
+				return;
+				
+			// push it back to keep it sorted		
+			pprev = pcurr->pprev_x;
+			pnext = pcurr->pnext_x;
+
+			// pull the edge out of the edge list
+			pnext->pprev_x = pprev;
+			pprev->pnext_x = pnext;
+
+			// find out where the edge goes in the edge list
+			pwe = pprev->pprev_x;
+
+			while (pwe->rx > pcurr->rx)
+				pwe = pwe->pprev_x;
+
+			// put the edge back into the edge list
+			pcurr->pnext_x = pwe->pnext_x;
+			pcurr->pprev_x = pwe;
+			pcurr->pnext_x->pprev_x = pcurr;
+			pwe->pnext_x = pcurr;
+
+			// advance
+			pcurr = pnext;
+
+			// last chance to terminate
+			//if (pcurr == &s_entity_x_tail)
+			//	return;
+		}
+	}
+#endif
+
+#if defined(ENABLE_SPATIAL_Y)
+	{
+		//// first entity is pointed by list head
+		//entity_t *pcurr = s_entity_y_head.pnext_y;
+
+		//// one-time check for empty list (head->[nothing]->tail)
+		//if (pcurr == &s_entity_y_tail)
+		//	return;
+
+		//// iterate until we hit the sentinel
+		//s16 maxy = s_entity_y_tail.ry;
+		//while (pcurr->ry < maxy)
+		//{
+		//	EntitySort2D(pcurr);
+
+		//	pcurr = pcurr->pnext_y;
+		//}
+
+
+		entity_t *pnext, *pprev, *pwe;
+		entity_t *pcurr = s_entity_y_head.pnext_y;
+
+		while (1)
+		{
+nextent:
+			if (pcurr->ry < pcurr->pprev_y->ry)
+				goto pushback;
+			pcurr = pcurr->pnext_y;
+								
+			goto nextent;		
+			
+pushback:
+			// first chance to terminate
+			if (pcurr == &s_entity_y_aftertail)
+				return;
+				
+			// push it back to keep it sorted		
+			pprev = pcurr->pprev_y;
+			pnext = pcurr->pnext_y;
+
+			// pull the edge out of the edge list
+			pnext->pprev_y = pprev;
+			pprev->pnext_y = pnext;
+
+			// find out where the edge goes in the edge list
+			pwe = pprev->pprev_y;
+
+			while (pwe->ry > pcurr->ry)
+				pwe = pwe->pprev_y;
+
+			// put the edge back into the edge list
+			pcurr->pnext_y = pwe->pnext_y;
+			pcurr->pprev_y = pwe;
+			pcurr->pnext_y->pprev_y = pcurr;
+			pwe->pnext_y = pcurr;
+
+			// advance
+			pcurr = pnext;
+
+			// last chance to terminate
+			//if (pcurr == &s_entity_y_tail)
+			//	return;
+		}
+	}
+#endif
+}
+#endif
+
 void EntityTickAll()
 {
 	// first entity is pointed by list head
@@ -426,7 +635,7 @@ void EntityTickAll()
 
 	// one-time check for empty list (head->[nothing]->tail)
 	if (pcurr == &s_entity_tick_tail)
-		return;
+		goto complete;
 
 	// iterate until we hit the sentinel
 	while (1)
@@ -446,9 +655,9 @@ next_entity:
 		{
 			// we arranged the termination test to occur in the [unlikely] codepath. amortize!
 			if (pcurr == &s_entity_tick_aftertail)
-				return;
+				goto complete;
 
-#if defined(USE_DYNAMIC_TICKPRIORITY)
+#if defined(AGT_CONFIG_DYNAMIC_TICKPRIO)
 			entity_t *pnext = curr.pnext_tick;
 			//entity_t *pprev = curr.pprev_tick;
 
@@ -478,19 +687,27 @@ next_entity:
 
 			// opportunity to escape
 			if (pcurr = &s_entity_tick_tail)
-				return;
+				goto complete;
 
 			goto next_entity;
 #endif
 		}
 
+		// deprecated - single optimised pass favoured over piecewise testing. majority of objects get ticked.
 		// the object's world sort position may be invalid so correct that here
-		if (curr.f_self & EntityFlag_SPATIAL)
-			EntitySort2D(pcurr);
+		//if (curr.f_self & EntityFlag_SPATIAL)
+		//	EntitySort2D(pcurr);
 
 		// the [likely] codepath just advances to the next entity ASAP (forever)
 		pcurr = curr.pnext_tick;
 	}
+
+complete:
+
+	// spatial coherence update pass
+	EntitySpatial_68k();
+
+	return;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

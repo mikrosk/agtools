@@ -502,23 +502,23 @@ _do_dirtyrect_pqrs:	.globl	_do_dirtyrect_pqrs
 ; d3.l,	a4.l,	d0.l,	d7.w,	d6.l,	a3,	a5,	a0,	a2
 ; flags	dst	src	dstpgw	dstpgh	tmp	tmp	mapsrc	tilesrc
 
-.macro	ctile_pqrs	offs,flags,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
-
-	; test dirty flag
-
-	add.b		\flags,\flags
-	bcc		.fclr\~
-
-	; address tile source
-
-	move.l		\tilesrc,\src		; tile library
-	add.l		\offs*4(\mapsrc),\src	; map index
-
-	; plot tile to relevant vpage(s)
-
-	tile_pqrs	\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
-.fclr\~:
-	.endm	
+;.macro	ctile_pqrs	offs,flags,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
+;
+;	; test dirty flag
+;
+;	add.b		\flags,\flags
+;	bcc		.fclr\~
+;
+;	; address tile source
+;
+;	move.l		\tilesrc,\src		; tile library
+;	add.l		\offs*4(\mapsrc),\src	; map index
+;
+;	; plot tile to relevant vpage(s)
+;
+;	tile_pqrs	\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
+;.fclr\~:
+;	.endm	
 
 *------------------------------------------------------------------------------*
 *	emit up to 8 tiles, left-to-right, one per set bit in d0
@@ -530,21 +530,135 @@ _do_dirtyrect_pqrs:	.globl	_do_dirtyrect_pqrs
 *	todo: break 8 tests into 2x nibble patterns for quicker sub-rejection
 *	todo: turn each nibble into a jmptab with dedicated code per pattern
 *------------------------------------------------------------------------------*
+;.do_block_pqrs_:
+*------------------------------------------------------------------------------*
+;	ctile_pqrs	-8,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-7,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-6,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-5,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-4,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-3,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-2,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-1,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;
+;;	now move 8 tiles to the left for the next block
+;
+;	lea		-8*4(a0),a0
+;	lea		-8*8(a4),a4
+;
+;	rts
+
+
+
+*------------------------------------------------------------------------------*
+
+.macro	jtile_pqrs	offs,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
+
+	; address tile source
+
+	move.l		\tilesrc,\src		; tile library
+	add.l		\offs*4(\mapsrc),\src	; map index
+
+	; plot tile to relevant vpage(s)
+
+	tile_pqrs	\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
+
+	.endm
+	
+*------------------------------------------------------------------------------*
 .do_block_pqrs:
 *------------------------------------------------------------------------------*
-	ctile_pqrs	-8,d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pqrs	-7,d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pqrs	-6,d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pqrs	-5,d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pqrs	-4,d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pqrs	-3,d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pqrs	-2,d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pqrs	-1,d3,a4,d0,d7,d6,a3,a5,a0,a2
+*	schedule 2 patterns of 4 bits & execute
+*------------------------------------------------------------------------------*
+	clr.w		d0
+	move.b		d3,d0
+	add.w		d0,d0
+	add.w		d0,d0
+	move.l		.jt_pqrs(pc,d0.w),-(sp)
+	lsr.w		#4,d0
+	and.w		#-4,d0
+	move.l		.jt_pqrs(pc,d0.w),a3
+	jmp		(a3)
 
-;	now move 8 tiles to the left for the next block
+.jt_pqrs:
+	.rept		16
+	dc.l		.do_block_pqrs_0000
+	dc.l		.do_block_pqrs_0001
+	dc.l		.do_block_pqrs_0010
+	dc.l		.do_block_pqrs_0011
+	dc.l		.do_block_pqrs_0100
+	dc.l		.do_block_pqrs_0101
+	dc.l		.do_block_pqrs_0110
+	dc.l		.do_block_pqrs_0111
+	dc.l		.do_block_pqrs_1000
+	dc.l		.do_block_pqrs_1001
+	dc.l		.do_block_pqrs_1010
+	dc.l		.do_block_pqrs_1011
+	dc.l		.do_block_pqrs_1100
+	dc.l		.do_block_pqrs_1101
+	dc.l		.do_block_pqrs_1110
+	dc.l		.do_block_pqrs_1111
+	.endr
 
-	lea		-8*4(a0),a0
-	lea		-8*8(a4),a4
+*------------------------------------------------------------------------------*
+*	cascade tiles into patterns of 4 bits
+*------------------------------------------------------------------------------*
 
+.do_block_pqrs_1111:
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_0111:
+	jtile_pqrs	-3,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_0011:
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_0001:
+	jtile_pqrs	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
 	rts
 
+.do_block_pqrs_1110:
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_1100:
+	jtile_pqrs	-3,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_1000:
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_0000:
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+
+.do_block_pqrs_0110:
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_0100:
+	jtile_pqrs	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+	
+.do_block_pqrs_1011:
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_1001:
+	jtile_pqrs	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+		
+.do_block_pqrs_1101:
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_0101:
+	jtile_pqrs	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+	
+.do_block_pqrs_1010:
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pqrs_0010:
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+	
+*------------------------------------------------------------------------------*

@@ -28,6 +28,9 @@ syntax: glob
 *.dsym
 *.map
 *.tmp
+*.objbkp
+* - Copy*
+*.tga
 
 *.gif
 *.pcx

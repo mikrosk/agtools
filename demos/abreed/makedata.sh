@@ -6,7 +6,7 @@
 
 # cut background map & tiles
 
-../../bin/agtcut -cm tiles -t 0.25 -ccf 2 -bp 4 -om direct -s ab1x.png -ttags solidtiles.csv -o abreed.cct -p chunky8.ccs
+../../bin/agtcut -vis -cm tiles -t 0.25 -ccf 2 -bp 4 -om direct -s ab1x.png -ttags solidtiles.csv -o abreed.cct -p chunky8.ccs
 
 
 # cut the monster sprite: 8 rotation frames x 4 animation frames = 32 cuts

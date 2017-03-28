@@ -9,10 +9,16 @@ dst_linewid	set	184
 *	R|S
 *------------------------------------------------------------------------------*
 
+	ifd		AGT_CONFIG_PFLAYOUT_PQRS
 	include		ste/dirtytiles_pqrs.s
+	endc
+	ifd		AGT_CONFIG_PFLAYOUT_PQ
 	include		ste/dirtytiles_pq.s
+	endc
 	include		ste/dirtytiles_pr.s
+	ifd		AGT_CONFIG_PFLAYOUT_P
 	include		ste/dirtytiles_p.s
+	endc
 	
 *------------------------------------------------------------------------------*
 	data
