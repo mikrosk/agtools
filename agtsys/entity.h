@@ -23,7 +23,7 @@
 #define ENABLE_SPATIAL_Y
 #endif
 
-//#define USE_DYNAMIC_TICKPRIORITY
+//#define AGT_CONFIG_DYNAMIC_TICKPRIO
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -193,6 +193,8 @@ extern "C" void BLiT_EntityDrawVisibleYM_68k(drawcontext_t *_pctx);
 extern "C" void EntityInteractVisibleXM_68k();
 extern "C" void EntityInteractVisibleYM_68k();
 
+extern "C" void EntitySpatial_68k();
+
 // attach sprite asset to entity
 void EntityDefAsset_Sprite(EntityType _etype, spritesheet *_passet);
 
@@ -234,7 +236,7 @@ extern entitydef_t entity_dictionary[];
 // ---------------------------------------------------------------------------------------------------------------------
 // maximum entities allowed in world at any time
 // todo: this should be configured via Makefile
-static const s16 c_max_entities = 64;
+static const s16 c_max_entities = 128;
 
 static const s16 c_entity_max_removes = c_max_entities;
 static const s16 c_entity_max_links = c_max_entities<<1;

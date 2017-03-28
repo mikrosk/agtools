@@ -321,42 +321,10 @@ static s16 *s_pmaplineindex = 0;
 static u8 s_psolidmap[(1920*1536)>>(4+4)];	// space for 8bit solid tile queries
 static u8* s_solidmaplines[1536>>4];
 
-// non-accelerated version of solid tile test for 32x32 shape (used to build accelerated map for quicker lookups)
-static inline __attribute__((always_inline)) int is_solidarea32_base_68k(s16 _x, s16 _y)
-{
-	u8* parea = s_solidmaplines[_y >> 4] + (_x >> 4);
+// ---------------------------------------------------------------------------------------------------------------------
+// plain, non-accelerated version of solid tile test for 32x32 shape
 
-	int solid;
-
-	__asm__ ("							\
-		moveq	#0,%0;					\
-										\
-		move.b	(%1)+,%0;				\
-		or.b	(%1)+,%0;				\
-		or.b	(%1)+,%0;				\
-										\
-		add.w	%2,%1;					\
-										\
-		or.b	(%1)+,%0;				\
-		or.b	(%1)+,%0;				\
-		or.b	(%1)+,%0;				\
-										\
-		add.w	%2,%1;					\
-										\
-		or.b	(%1)+,%0;				\
-		or.b	(%1)+,%0;				\
-		or.b	(%1)+,%0;				\
-	"
-		: "=d"(solid), "+a"(parea)
-		: "r"(s_mapw-3)
-		: "cc"
-	);
-
-	return (solid);
-}
-
-/*
-static inline u8 is_solidarea32(s16 _x, s16 _y)
+static inline u8 is_solidarea32_base(s16 _x, s16 _y)
 {
 	s32 *parea = &s_pmap[(s_pmaplineindex[(_y >> 4)]) + (_x >> 4)];
 
@@ -374,7 +342,6 @@ static inline u8 is_solidarea32(s16 _x, s16 _y)
 
 	return (solid);
 }
-*/
 
 // ---------------------------------------------------------------------------------------------------------------------
 // returns (!=0) if 32x32 shape at (x,y) contacts a solid tile
@@ -391,15 +358,16 @@ static __attribute__((always_inline)) u8 is_solidarea32(s16 _x, s16 _y)
 void prepare_solidmap(s32 *_pmap, s16 _mw, s16 _mh)
 {
 	// mark 1 byte per recognized solid tile
+	s32 *pmap = _pmap;
 	for (s16 y = 0; y < _mh; y++)
 	{
-		s32 *pmap = _pmap; _pmap += _mw;
+		s32 *pmapline = pmap; pmap += _mw;
 
 		s_solidmaplines[y] = &s_psolidmap[(y * s_mapw)];
 
 		for (s16 x = 0; x < _mw; x++)
 		{
-			s32 tileidx = pmap[x] >> 7;
+			s32 tileidx = pmapline[x] >> 7;
 
 			if (s_solidindex[tileidx])
 				s_psolidmap[(y * s_mapw) + x] = 1;
@@ -753,8 +721,8 @@ restart_game:
 		g_player_viewy = 100;
 
 		// viewport coords within world - centre of map
-		g_fscrollx = map_xsize<<(16-1);
-		g_fscrolly = map_ysize<<(16-1);
+		g_fscrollx = (map_xsize<<(16-1)) - (160<<16);
+		g_fscrolly = (map_ysize<<(16-1)) - (120<<16);
 
 		// convert fixedpoint to screen coords
 		g_viewport_worldx = g_fscrollx>>16;
@@ -778,7 +746,7 @@ restart_game:
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	fill the map with alien monsters
 
-		for (int e = 0; e < 40; e++)
+		for (int e = 0; e < 50; e++)
 		{
 			// repeatedly generate random 2D coordinates and keep only those 
 			// with a position that lands safely inside the non-solid map tiles
@@ -829,7 +797,7 @@ restart_game:
 			}
 			while ((x < c_scroll_safety_margin) || (fx > g_map_fxlimit) || 
 				   (y < c_scroll_safety_margin) || (fy > g_map_fylimit) ||
-				   is_solidarea32_base_68k(x, y)
+				   is_solidarea32_base(x, y)
 			);
 
 			// place the entity on the map

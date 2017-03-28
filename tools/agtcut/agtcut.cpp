@@ -542,6 +542,7 @@ static void usage(int level)
 	std::cout << " -sc, --sprcount      > total frames to cut, if stopping early: 0+, where 0=ignore" << std::endl;
 	std::cout << " -sm, --sprmap        > map sprite frame from another: -sm new:existing:flipflags" << std::endl;
 	std::cout << " -gm, --gen-mask      > generate 1bpl mask data along with colour data" << std::endl;
+	std::cout << " -nogm, --no-gen-mask > don't generate 1bpl mask data - only colour data (STF)" << std::endl;
 	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar,preshift" << std::endl;
 	std::cout << " -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
 	std::cout << " -qc, --quickcut      > improve cutting speed (reduce optimization) for quicker test/debug turnaround" << std::endl;

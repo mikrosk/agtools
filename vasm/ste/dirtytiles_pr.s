@@ -114,7 +114,6 @@ tile_pr		macro
 _do_dirtyrect_pr:	xdef	_do_dirtyrect_pr
 *------------------------------------------------------------------------------*
 
-;	not.w		$ffff8240.w
 	movem.l		d0-a6,-(sp)
 	
 ;	bra		.done
@@ -252,7 +251,6 @@ _do_dirtyrect_pr:	xdef	_do_dirtyrect_pr
 
 .done:
 	movem.l		(sp)+,d0-a6
-;	not.w		$ffff8240.w
 	rts
 
 *------------------------------------------------------------------------------*
@@ -400,23 +398,23 @@ _do_dirtyrect_pr:	xdef	_do_dirtyrect_pr
 ; d3.l,	a4.l,	d0.l,	d7.w,	d6.l,	a3,	a5,	a0,	a2
 ; flags	dst	src	dstpgw	dstpgh	tmp	tmp	mapsrc	tilesrc
 
-ctile_pr		macro
-
-	; test dirty flag
-
-	add.b		\1,\1
-	bcc		.fclr\@
-
-	; address tile source
-
-	move.l		\9,\3			; tile library
-	add.l		\0*4(\8),\3		; map index
-
-	; plot tile to relevant vpage(s)
-
-	tile_pr.\0	\2,\3,\4,\5,\6,\7
-.fclr\@:
-	endm
+;ctile_pr		macro
+;
+;	; test dirty flag
+;
+;	add.b		\1,\1
+;	bcc		.fclr\@
+;
+;	; address tile source
+;
+;	move.l		\9,\3			; tile library
+;	add.l		\0*4(\8),\3		; map index
+;
+;	; plot tile to relevant vpage(s)
+;
+;	tile_pr.\0	\2,\3,\4,\5,\6,\7
+;.fclr\@:
+;	endm
 		
 *------------------------------------------------------------------------------*
 *	emit up to 8 tiles, left-to-right, one per set bit in d0
@@ -428,21 +426,169 @@ ctile_pr		macro
 *	todo: break 8 tests into 2x nibble patterns for quicker sub-rejection
 *	todo: turn each nibble into a jmptab with dedicated code per pattern
 *------------------------------------------------------------------------------*
+;.do_block_pr_:
+*------------------------------------------------------------------------------*
+;	ctile_pr.-8	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-7	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-6	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-5	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-4	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-3	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-2	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-1	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;
+;;	now move 8 tiles to the left for the next block
+;
+;	lea		-8*4(a0),a0
+;	lea		-8*8(a4),a4
+;
+;	rts
+
+
+
+*------------------------------------------------------------------------------*
+
+jtile_pr		macro
+
+	; address tile source
+
+	move.l		\8,\2			; tile library
+	add.l		\0*4(\7),\2		; map index
+
+	; plot tile to relevant vpage(s)
+
+	tile_pr.\0	\1,\2,\3,\4,\5,\6
+
+	endm
+	
+*------------------------------------------------------------------------------*
 .do_block_pr:
 *------------------------------------------------------------------------------*
-	ctile_pr.-8	d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pr.-7	d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pr.-6	d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pr.-5	d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pr.-4	d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pr.-3	d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pr.-2	d3,a4,d0,d7,d6,a3,a5,a0,a2
-	ctile_pr.-1	d3,a4,d0,d7,d6,a3,a5,a0,a2
+*	schedule 2 patterns of 4 bits & execute
+*------------------------------------------------------------------------------*
+	clr.w		d0
+	move.b		d3,d0
+	add.w		d0,d0
+	add.w		d0,d0
+	move.l		.jt_pr(pc,d0.w),-(sp)
+	lsr.w		#4,d0
+	and.w		#-4,d0
+	move.l		.jt_pr(pc,d0.w),a3
+	jmp		(a3)
 
-;	now move 8 tiles to the left for the next block
 
-	lea		-8*4(a0),a0
-	lea		-8*8(a4),a4
+;	clr.w		d0
+;	move.b		d3,d0
+;	add.w		d0,d0
+;	move.w		.jt_pr(pc,d0.w),d0
+;	jsr		.jt_pr(pc,d0.w)
+;
+;	lsr.b		#4,d3
+;
+;	clr.w		d0
+;	move.b		d3,d0
+;	add.w		d0,d0
+;	move.w		.jt_pr(pc,d0.w),d0
+;	jmp		.jt_pr(pc,d0.w)
 
+.jt_pr:
+	rept		16
+	dc.l		.do_block_pr_0000
+	dc.l		.do_block_pr_0001
+	dc.l		.do_block_pr_0010
+	dc.l		.do_block_pr_0011
+	dc.l		.do_block_pr_0100
+	dc.l		.do_block_pr_0101
+	dc.l		.do_block_pr_0110
+	dc.l		.do_block_pr_0111
+	dc.l		.do_block_pr_1000
+	dc.l		.do_block_pr_1001
+	dc.l		.do_block_pr_1010
+	dc.l		.do_block_pr_1011
+	dc.l		.do_block_pr_1100
+	dc.l		.do_block_pr_1101
+	dc.l		.do_block_pr_1110
+	dc.l		.do_block_pr_1111
+	endr
+
+	rept		0
+	dc.w		.do_block_pr_0000-.jt_pr
+	dc.w		.do_block_pr_0001-.jt_pr
+	dc.w		.do_block_pr_0010-.jt_pr
+	dc.w		.do_block_pr_0011-.jt_pr
+	dc.w		.do_block_pr_0100-.jt_pr
+	dc.w		.do_block_pr_0101-.jt_pr
+	dc.w		.do_block_pr_0110-.jt_pr
+	dc.w		.do_block_pr_0111-.jt_pr
+	dc.w		.do_block_pr_1000-.jt_pr
+	dc.w		.do_block_pr_1001-.jt_pr
+	dc.w		.do_block_pr_1010-.jt_pr
+	dc.w		.do_block_pr_1011-.jt_pr
+	dc.w		.do_block_pr_1100-.jt_pr
+	dc.w		.do_block_pr_1101-.jt_pr
+	dc.w		.do_block_pr_1110-.jt_pr
+	dc.w		.do_block_pr_1111-.jt_pr
+	endr
+
+*------------------------------------------------------------------------------*
+*	cascade tiles into patterns of 4 bits
+*------------------------------------------------------------------------------*
+
+.do_block_pr_1111:
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_0111:
+	jtile_pr.-3	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_0011:
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_0001:
+	jtile_pr.-1	a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
 	rts
 
+.do_block_pr_1110:
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_1100:
+	jtile_pr.-3	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_1000:
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_0000:
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+
+.do_block_pr_0110:
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_0100:
+	jtile_pr.-3	a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+	
+.do_block_pr_1011:
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_1001:
+	jtile_pr.-1	a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+		
+.do_block_pr_1101:
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_0101:
+	jtile_pr.-3	a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-1	a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+	
+.do_block_pr_1010:
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
+.do_block_pr_0010:
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
+	lea		-4*4(a0),a0
+	lea		-4*8(a4),a4	
+	rts
+	
+*------------------------------------------------------------------------------*
