@@ -300,17 +300,18 @@ _do_dirtyrect_pq:	xdef	_do_dirtyrect_pq
 	movep.l		-2(a1),d3		; xx:AA:BB:CC <-[AA:BB:CC:xx]
 	move.l		d3,d0
 	and.l		d5,d3
-	beq		.next3
+	beq.s		.next3
 	eor.l		d3,d0
 	movep.l		d0,-2(a1)
 
 	; dirty row
 
-	bsr		.do_block_pq
+	lsl.l		#3,d3
+	bsr		.do_block
 	lsr.l		#8,d3			; 00:xx:AA:BB
-	bsr		.do_block_pq
-	lsr.w		#8,d3			; 00:00:xx:AA
-	bsr		.do_block_pq
+	bsr		.do_block
+	lsr.l		#8,d3			; 00:00:xx:AA
+	bsr		.do_block
 
 .next3:
 
@@ -339,15 +340,16 @@ _do_dirtyrect_pq:	xdef	_do_dirtyrect_pq
 	movep.w		0(a1),d3		; xx:xx:BB:CC
 	move.w		d3,d0
 	and.w		d5,d3
-	beq		.next2
+	beq.s		.next2
 	eor.w		d3,d0
 	movep.w		d0,0(a1)
 
 	; dirty row
 
-	bsr		.do_block_pq
-	lsr.w		#8,d3			; xx:xx:00:BB
-	bsr		.do_block_pq
+	lsl.l		#3,d3
+	bsr		.do_block
+	lsr.l		#8,d3			; xx:xx:00:BB
+	bsr		.do_block
 
 .next2:
 
@@ -376,13 +378,14 @@ _do_dirtyrect_pq:	xdef	_do_dirtyrect_pq
 	move.b		(a1),d3			; xx:xx:xx:CC
 	move.b		d3,d0
 	and.b		d5,d3
-	beq		.next1
+	beq.s		.next1
 	eor.b		d3,d0
 	move.b		d0,(a1)
 
 	; dirty row
 
-	bsr		.do_block_pq
+	lsl.w		#3,d3
+	bsr		.do_block
 
 .next1:
 
@@ -429,7 +432,7 @@ _do_dirtyrect_pq:	xdef	_do_dirtyrect_pq
 *	todo: break 8 tests into 2x nibble patterns for quicker sub-rejection
 *	todo: turn each nibble into a jmptab with dedicated code per pattern
 *------------------------------------------------------------------------------*
-;.do_block_pq_:
+;.do_block_:
 *------------------------------------------------------------------------------*
 ;	ctile_pq.-8	d3,a4,d0,d7,d6,a3,a5,a0,a2
 ;	ctile_pq.-7	d3,a4,d0,d7,d6,a3,a5,a0,a2
@@ -465,99 +468,106 @@ jtile_pq		macro
 	endm
 	
 *------------------------------------------------------------------------------*
-.do_block_pq:
+.do_block:
 *------------------------------------------------------------------------------*
 *	schedule 2 patterns of 4 bits & execute
 *------------------------------------------------------------------------------*
-	clr.w		d0
-	move.b		d3,d0
-	add.w		d0,d0
-	add.w		d0,d0
-	move.l		.jt_pq(pc,d0.w),-(sp)
-	lsr.w		#4,d0
-	and.w		#-4,d0
-	move.l		.jt_pq(pc,d0.w),a3
+	move.w		#$07f8,d0
+	and.w		d3,d0
+	lea		.jt(pc,d0.w),a5
+	move.l		(a5)+,-(sp)
+	move.l		(a5),a3
 	jmp		(a3)
 
-.jt_pq:
+.jt:
 	rept		16
-	dc.l		.do_block_pq_0000
-	dc.l		.do_block_pq_0001
-	dc.l		.do_block_pq_0010
-	dc.l		.do_block_pq_0011
-	dc.l		.do_block_pq_0100
-	dc.l		.do_block_pq_0101
-	dc.l		.do_block_pq_0110
-	dc.l		.do_block_pq_0111
-	dc.l		.do_block_pq_1000
-	dc.l		.do_block_pq_1001
-	dc.l		.do_block_pq_1010
-	dc.l		.do_block_pq_1011
-	dc.l		.do_block_pq_1100
-	dc.l		.do_block_pq_1101
-	dc.l		.do_block_pq_1110
-	dc.l		.do_block_pq_1111
+	dc.l		.do_block_0000,.do_block_0000
+	dc.l		.do_block_0000,.do_block_0001
+	dc.l		.do_block_0000,.do_block_0010
+	dc.l		.do_block_0000,.do_block_0011
+	dc.l		.do_block_0000,.do_block_0100
+	dc.l		.do_block_0000,.do_block_0101
+	dc.l		.do_block_0000,.do_block_0110
+	dc.l		.do_block_0000,.do_block_0111
+	dc.l		.do_block_0000,.do_block_1000
+	dc.l		.do_block_0000,.do_block_1001
+	dc.l		.do_block_0000,.do_block_1010
+	dc.l		.do_block_0000,.do_block_1011
+	dc.l		.do_block_0000,.do_block_1100
+	dc.l		.do_block_0000,.do_block_1101
+	dc.l		.do_block_0000,.do_block_1110
+	dc.l		.do_block_0000,.do_block_1111
 	endr
 
 *------------------------------------------------------------------------------*
 *	cascade tiles into patterns of 4 bits
 *------------------------------------------------------------------------------*
 
-.do_block_pq_1111:
+.do_block_1111:
 	jtile_pq.-4	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_0111:
+.do_block_0111:
 	jtile_pq.-3	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_0011:
+.do_block_0011:
 	jtile_pq.-2	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_0001:
+.do_block_0001:
 	jtile_pq.-1	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 
-.do_block_pq_1110:
+.do_block_1110:
 	jtile_pq.-2	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_1100:
+.do_block_1100:
 	jtile_pq.-3	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_1000:
+.do_block_1000:
 	jtile_pq.-4	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_0000:
+.do_block_0000:
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 
-.do_block_pq_0110:
+.do_block_0110:
 	jtile_pq.-2	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_0100:
+.do_block_0100:
 	jtile_pq.-3	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 	
-.do_block_pq_1011:
+.do_block_1011:
 	jtile_pq.-2	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_1001:
+.do_block_1001:
 	jtile_pq.-1	a4,d0,d7,d6,a3,a5,a0,a2
 	jtile_pq.-4	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 		
-.do_block_pq_1101:
+.do_block_1101:
 	jtile_pq.-4	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_0101:
+.do_block_0101:
 	jtile_pq.-3	a4,d0,d7,d6,a3,a5,a0,a2
 	jtile_pq.-1	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 	
-.do_block_pq_1010:
+.do_block_1010:
 	jtile_pq.-4	a4,d0,d7,d6,a3,a5,a0,a2
-.do_block_pq_0010:
+.do_block_0010:
 	jtile_pq.-2	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
+	
+*------------------------------------------------------------------------------*
+
+pairtable_pq		=	.jt
+
+*------------------------------------------------------------------------------*
+dirtytile_setup_pq:
+*------------------------------------------------------------------------------*
+	lea		pairtable_pq,a0
+	bra		dirtytile_setup
 	
 *------------------------------------------------------------------------------*

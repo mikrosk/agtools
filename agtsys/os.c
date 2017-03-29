@@ -17,7 +17,9 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+// todo: provide common_c.h
 #define reg32(_a_) *(volatile u32*)(0x##_a_)
+#define agt_used __attribute__((used))
 
 short g_displaylocked = 0;
 
@@ -116,7 +118,7 @@ void printf_console(const char *text)
 		AGT_ConsoleUpdate(console_base + 184);
 }
 
-void SYS_Assert(char *_msg)
+agt_used void SYS_Assert(char *_msg)
 {
 	show_console = console_base;
 	bmprintf("%s\n", _msg);

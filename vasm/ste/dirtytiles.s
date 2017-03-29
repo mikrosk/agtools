@@ -1,6 +1,8 @@
 
 dst_linewid	set	184
 
+	XDEF		_SYS_DirtyTileInit
+
 *------------------------------------------------------------------------------*
 *	tile macros for writing different vpage layouts:
 *
@@ -19,6 +21,37 @@ dst_linewid	set	184
 	ifd		AGT_CONFIG_PFLAYOUT_P
 	include		ste/dirtytiles_p.s
 	endc
+	
+*------------------------------------------------------------------------------*
+_SYS_DirtyTileInit:
+*------------------------------------------------------------------------------*
+	ifd		AGT_CONFIG_PFLAYOUT_PQRS
+	jsr		dirtytile_setup_pr
+	endc
+	ifd		AGT_CONFIG_PFLAYOUT_PQ
+	jsr		dirtytile_setup_pq
+	endc	
+	jsr		dirtytile_setup_pr
+	ifd		AGT_CONFIG_PFLAYOUT_P
+	jsr		dirtytile_setup_p
+	endc
+	rts
+	
+*------------------------------------------------------------------------------*
+dirtytile_setup:	
+*------------------------------------------------------------------------------*
+	move.l		d2,-(sp)
+	move.l		a0,a1
+	moveq		#16-1,d2
+.ol:	moveq		#16-1,d1
+	move.l		4(a0),d0
+	addq.l		#8,a0
+.il:	move.l		d0,(a1)
+	addq.l		#8,a1
+	dbra		d1,.il
+	dbra		d2,.ol
+	move.l		(sp)+,d2
+	rts
 	
 *------------------------------------------------------------------------------*
 	data

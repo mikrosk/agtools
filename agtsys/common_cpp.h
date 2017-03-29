@@ -294,6 +294,8 @@ inline void endianswap16(word_t* _data, datasize_t _num)
 // inhibit inlining for big functions (or for easier debugging)
 #define agt_outline __attribute__((noinline))
 
+#define agt_used __attribute__((used))
+
 // ---------------------------------------------------------------------------------------------------------------------
 //	quick alternatives to common mem ops
 // ---------------------------------------------------------------------------------------------------------------------
@@ -342,8 +344,10 @@ extern "C" int bmprintf(const char *pFormat, ...);
 #define AGT_TOSTRING(x) AGT_STRINGIFY(x)
 #define AGT_AT __FILE__ ":" AGT_TOSTRING(__LINE__)
 
+extern "C" void SYS_Assert();
+
 // fancy assert which invokes vector $1C with a message param
-#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert @ "AGT_AT; __asm__ __volatile__ ("move.l %0,-(sp); jsr _SYS_Assert;" : : "p"(__msg) : "cc"); } };
+#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert @ "AGT_AT; __asm__ __volatile__ ("move.l %0,-(%%sp); jsr _SYS_Assert;" : : "p"(__msg) : "cc"); } };
 
 // --------------------------------------------------------------------
 
