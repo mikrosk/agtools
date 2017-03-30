@@ -5004,6 +5004,7 @@ g_stbi_colourmap[cmz++] = v;
          }
       }
 
+	  if (g_stbi_colourmap)
       for (j=0; j < (int) s->img_y>>1; ++j) 
 	  {
          stbi_uc *p1 = g_stbi_colourmap +      j     *s->img_x;
