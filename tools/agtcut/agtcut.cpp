@@ -113,7 +113,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.373";
+static const char* const g_version_string = "v0.374";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -2400,27 +2400,53 @@ static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 //	reduce TC image to indexed colour using fixed palette
 // --------------------------------------------------------------------
 
-static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstcol0, ubyte_t *_pdstcol1, ulong_t _sourcew, ulong_t _sourceh, RGB *&r_ppal)
+void review_palettes(RGB *pspal, RGB *pdpal, int _sourced)
+{
+	for (int c = 0; c < (1 << _sourced); c++)
+	{
+		if (pdpal)
+		{
+			// index remapping case
+			printf("index: %03d  src: $%02x:$%02x:$%02x  dst: $%02x:$%02x:$%02x\n",
+				c,
+				(int)pspal[c].red, (int)pspal[c].green, (int)pspal[c].blue,
+				(int)pdpal[c].red, (int)pdpal[c].green, (int)pdpal[c].blue
+				);
+		}
+		else
+		{
+			// direct translation case
+			printf("index: %03d  rgb: $%02x:$%02x:$%02x\n",
+				c,
+				(int)pspal[c].red, (int)pspal[c].green, (int)pspal[c].blue
+				);
+		}
+	}
+}
+
+static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstcol0, ubyte_t *_pdstcol1, ulong_t _sourcew, ulong_t _sourceh, ulong_t _sourced, RGB *&r_ppal)
 {
 	unsigned short r_numcolours = 0;
 	unsigned short r_numuniquecolours = 0;
 	bool success = false;
 
+	RGB* ppal = 0;
+
 	// Degas as container for a palette
 	if (g_allargs.palettefile.find(".pi1") != std::string::npos)
-		success = read_pal_pi1(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+		success = read_pal_pi1(g_allargs.palettefile.c_str(), ppal, r_numcolours, r_numuniquecolours);
 	else
 	// RIFF format palettes
 	if (g_allargs.palettefile.find(".pal") != std::string::npos)
-		success = read_pal24(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+		success = read_pal24(g_allargs.palettefile.c_str(), ppal, r_numcolours, r_numuniquecolours);
 	else
 	// PhotoChrome-generated .cct tile libraries carry the palette as the first part of the header
 	if (g_allargs.palettefile.find(".cct") != std::string::npos)
-		success = read_pal_cct(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+		success = read_pal_cct(g_allargs.palettefile.c_str(), ppal, r_numcolours, r_numuniquecolours);
 	else
 	// a lone .ccp is raw palette data, same as header for .cct, so just reuse that reader for now
 	if (g_allargs.palettefile.find(".ccp") != std::string::npos)
-		success = read_pal_cct(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+		success = read_pal_cct(g_allargs.palettefile.c_str(), ppal, r_numcolours, r_numuniquecolours);
 	else
 	{
 		// The .ccs format infers the existence of: .ccs (solutionpairs) + .ccr (RGB->solutionpair reduction map) + .ccp (palette)
@@ -2428,13 +2454,13 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 		// This format also enables a different remapping method in order to apply complementary field dithering.
 		if (g_allargs.palettefile.find(".ccs") != std::string::npos)
 		{
-			success = read_pal_ccs(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+			success = read_pal_ccs(g_allargs.palettefile.c_str(), ppal, r_numcolours, r_numuniquecolours);
 			g_allargs.use_solutionpair_reduction_ = true;
 		}
 		else
 		{
 			std::cout << " unrecognized palette format [" << g_allargs.palettefile.c_str() << "] so trying image handlers..." << std::endl;
-			success = palette_load(g_allargs.palettefile.c_str(), r_ppal, r_numcolours, r_numuniquecolours);
+			success = palette_load(g_allargs.palettefile.c_str(), ppal, r_numcolours, r_numuniquecolours);
 			if (!success)
 				std::cerr << "warning: this image format can't be used to supply palettes currently" << std::endl;
 		}
@@ -2442,6 +2468,16 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 
 	if (success)
 	{
+		// review palettes if source image is indexed
+		if ((_sourced > 0) && (_sourced < 16) && 
+			!g_allargs.quickcut && !g_allargs.quiet)
+		{
+			std::cout << "summary of source->desintation palettes for indexed source image being remapped" << std::endl;
+			review_palettes(r_ppal, ppal, _sourced);
+		}
+
+		r_ppal = ppal;
+
 		std::cout << " size of palette: " << r_numcolours << std::endl;
 		std::cout << " unique 24bit colours available in palette: " << r_numuniquecolours << std::endl;
 		if (r_numuniquecolours > (1 << g_allargs.planes))
@@ -3095,15 +3131,22 @@ bool do_tilemap()
 			if (m_psourcecol)
 			{
 				std::cout << "using palette and colourmap provided by source image..." << std::endl;
+
+				if (!g_allargs.quickcut && !g_allargs.quiet)
+				{
+					// review palette
+					std::cout << "summary of source palette for indexed source image being remapped" << std::endl;
+					review_palettes(m_ppalettergb, NULL, sourced);
+				}
 			}
 			else
 			{
-				std::cout << "reducing 24bit image to external fixed palette..." << std::endl;
+				std::cout << "reducing " << ((sourced > 0) ? sourced : 24) << "-bit image to external fixed palette..." << std::endl;
 				m_psourcecol = new ubyte_t[sourcew * sourceh]; // (ubyte_t*)malloc(sourcew * sourceh);
 				if (g_allargs.ccfields == 2)
 					m_psourcecol2 = new ubyte_t[sourcew * sourceh]; // (ubyte_t*)malloc(sourcew * sourceh);
 				// reduce source image to indexed colour with fixed palette
-				reduce_image24(m_psourcergb, 0, m_psourcecol, m_psourcecol2, sourcew, sourceh, m_ppalettergb);
+				reduce_image24(m_psourcergb, 0, m_psourcecol, m_psourcecol2, sourcew, sourceh, sourced, m_ppalettergb);
 			}
 
 			for (int ccf = 0; ccf < g_allargs.ccfields; ccf++)
@@ -5412,10 +5455,10 @@ bool do_sheet()
 			}
 			else
 			{
-				std::cout << "reducing 24bit image to external fixed palette..." << std::endl;
+				std::cout << "reducing " << ((sourced > 0) ? sourced : 24) << "-bit image to external fixed palette..." << std::endl;
 				m_psourcecol = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
 				// reduce source image to indexed colour with fixed palette
-				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol, 0, sourcew, sourceh, m_ppalettergb);
+				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol, 0, sourcew, sourceh, sourced, m_ppalettergb);
 			}
 
 			// sprite cutting loop
