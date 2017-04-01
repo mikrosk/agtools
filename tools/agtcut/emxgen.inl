@@ -9,6 +9,8 @@
 //	- requires RMAC assembler V1.4.12  (or better) to post-process the frames
 //---------------------------------------------------------------------------------------------------------------------
 
+#define DEBUG_REGISTER_TAGS (0)
+
 // 20 tiles / 320 pix
 // +1 for hscroll margin
 // +2 for speculative update margin
@@ -916,9 +918,15 @@ DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _in
 			{
 				if (g_allargs.verbose)
 					printf("> replaced value [$%04x] with [$%04x] at register [%s]L\n", r.L, _data, r.name.c_str());
-				r.L = _data;
+//				r.L = _data;
 				// allows future choices to acknowledge the reuse incidence looks different from now on
 //				metrics[_data].incidence = metrics[_data].references;
+
+				operations.push_back(new DR_LoadI16(*this, best_reg, _data));
+
+				r.L = _data;
+
+				operations.back()->execute();
 			}
 			r_reg_index = r.index;
 
@@ -1140,6 +1148,10 @@ void Context::register_sweep()
 	tags.resize(registers.size(), std::pair<int,int>(-1,-1));
 	int newtag = 0;
 
+#if (DEBUG_REGISTER_TAGS)
+	printf("\nregister sweep...\n");
+#endif
+
 	for (std::list<Operation*>::reverse_iterator rit = operations.rbegin(); rit != operations.rend(); rit++)
 	{
 		Operation *poper = *rit;
@@ -1169,22 +1181,31 @@ void Context::register_sweep()
 			if (optag.first < 0)
 			{
 				optag.first = newtag++;
+			}
 
 				if (poper->opsize == OpSize_32)
 				{
 					if (optag.second < 0)
 						optag.second = optag.first;
 				}
-			}
 
 			poper->stagH = optag.second;
 			poper->stagL = optag.first;
 
-			//printf("referenced: %s (%d:%d)\n", 
-			//	registers[poper->sreg].name.c_str(), 
-			//	poper->stagH, 
-			//	poper->stagL
-			//	);
+#if (DEBUG_REGISTER_TAGS)
+			if (poper->opsize == OpSize_32)
+			printf("referenced: %s (%02d:%02d) [32]\n", 
+				registers[poper->sreg].name.c_str(), 
+				poper->stagH, 
+				poper->stagL
+				);
+			else
+			printf("referenced: %s (%02d:%02d) [16]\n", 
+				registers[poper->sreg].name.c_str(), 
+				poper->stagH, 
+				poper->stagL
+				);
+#endif
 		}
 
 		// address source
@@ -1204,10 +1225,12 @@ void Context::register_sweep()
 
 			poper->atag = optag.first;
 
-			//printf("referenced: %s (%d)\n", 
-			//	registers[poper->areg].name.c_str(), 
-			//	poper->atag 
-			//	);
+#if (DEBUG_REGISTER_TAGS)
+			printf("referenced: %s (%02d)\n", 
+				registers[poper->areg].name.c_str(), 
+				poper->atag 
+				);
+#endif
 		}
 
 		// destination as source
@@ -1226,22 +1249,59 @@ void Context::register_sweep()
 			if (optag.first < 0)
 			{
 				optag.first = newtag++;
+			}
 
 				if (poper->opsize == OpSize_32)
 				{
 					if (optag.second < 0)
 						optag.second = optag.first;
 				}
-			}
 
 			poper->dtagH = optag.second;
 			poper->dtagL = optag.first;
 
-			//printf("modified: %s (%d:%d)\n", 
-			//	registers[poper->dreg].name.c_str(), 
-			//	poper->dtagH, 
-			//	poper->dtagL
-			//	);
+#if (DEBUG_REGISTER_TAGS)
+			if (poper->opwr == OpWrite_Combine)
+			printf("combined: %s (%02d:%02d)\n", 
+				registers[poper->dreg].name.c_str(), 
+				poper->dtagH, 
+				poper->dtagL
+				);
+			else
+			if (poper->opwr == OpWrite_Replace && poper->opsize == OpSize_32)
+			printf("replaced: %s (%02d:%02d) [32]\n", 
+				registers[poper->dreg].name.c_str(), 
+				poper->dtagH, 
+				poper->dtagL
+				);
+			else
+			if (poper->opwr == OpWrite_Replace && poper->opsize == OpSize_16)
+			printf("replaced: %s (%02d:%02d) [16]\n", 
+				registers[poper->dreg].name.c_str(), 
+				poper->dtagH, 
+				poper->dtagL
+				);
+			else
+			if (poper->opwr == OpWrite_ReplaceHCombineL)
+			printf("repHcmbL: %s (%02d:%02d)\n", 
+				registers[poper->dreg].name.c_str(), 
+				poper->dtagH, 
+				poper->dtagL
+				);
+			else
+			if (poper->opsize == OpSize_32)
+			printf("modified: %s (%02d:%02d) [32]\n", 
+				registers[poper->dreg].name.c_str(), 
+				poper->dtagH, 
+				poper->dtagL
+				);
+			else
+			printf("modified: %s (%02d:%02d) [16]\n", 
+				registers[poper->dreg].name.c_str(), 
+				poper->dtagH, 
+				poper->dtagL
+				);
+#endif
 		}
 
 		//// destination replaced (rename)
@@ -1295,10 +1355,12 @@ void Context::register_sweep()
 			poper->alltagsH[r] = tag.second;
 			poper->alltagsL[r] = tag.first;
 
-			//if (tag.first >= 0)
-			//	printf("%d ", tag.first);
-			//else
-			//	printf(". ", tag.first);
+#if (DEBUG_REGISTER_TAGS)
+			if (tag.first >= 0)
+				printf("%02d:%02d ", tag.second, tag.first);
+			else
+				printf("--:-- ");
+#endif
 		}
 
 		// reset tags for replaced register BEFORE replace op (running backwards)
@@ -1313,7 +1375,9 @@ void Context::register_sweep()
 			tags[replacedH].second = -1;
 		}
 
-		//printf("\n");
+#if (DEBUG_REGISTER_TAGS)
+		printf("\n");
+#endif
 	}
 }
 
@@ -1744,7 +1808,26 @@ std::list<Operation*>::iterator Context::register_last_written(std::list<Operati
 			(pop->opwr != OpWrite_None)
 			)
 		{
-			bool matchH = (pop->alltagsH[pop->dreg] == tagH) && (tagH >= 0) && (pop->alltagsH[pop->dreg] >= 0);
+			bool matchH = (tagH >= 0) && ((pop->alltagsH[pop->dreg] == tagH) || (pop->alltagsL[pop->dreg] == tagH));
+			bool matchL = (tagL >= 0) && ((pop->alltagsH[pop->dreg] == tagL) || (pop->alltagsL[pop->dreg] == tagL));
+
+			// only care about tagL
+			if (_sz == OpSize_32)
+			{
+				if (matchH || matchL)
+				{
+					itlast = it;
+				}
+			}
+			else
+			{
+				if (matchL)
+				{
+					itlast = it;
+				}
+			}
+
+/*			bool matchH = (pop->alltagsH[pop->dreg] == tagH) && (tagH >= 0) && (pop->alltagsH[pop->dreg] >= 0);
 			bool matchL = (pop->alltagsL[pop->dreg] == tagL) && (tagL >= 0) && (pop->alltagsL[pop->dreg] >= 0);
 
 			// only care about current tag
@@ -1762,6 +1845,7 @@ std::list<Operation*>::iterator Context::register_last_written(std::list<Operati
 					itlast = it;
 				}
 			}
+*/
 		}
 	}
 
@@ -1863,8 +1947,6 @@ int Context::register_count_srcrefs(std::list<Operation*>::iterator _start, int 
 void Context::reduce_pass()
 {
 	reset_sim(true);
-
-//	return;
 
 	register_sweep();
 
@@ -2046,6 +2128,10 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		// make copy of data in terms of 3*y EM words
 		uword_t *buffer = new uword_t[3 * spr.h_ * shiftcount];
 		memset(buffer, 0, sizeof(uword_t) * 3 * spr.h_ * shiftcount);
+
+		ubyte_t *livelines = new ubyte_t[spr.h_];
+		memset(livelines, 0, spr.h_);
+
 		{
 			int si = 0;
 			preshiftlist_t::iterator pit = spr.psmask_frames_.begin();
@@ -2071,11 +2157,60 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						sbuffer[(v * 3) + 1] = shift.data_[(v * shift.wordwidth_) + 1];
 						sbuffer[(v * 3) + 2] = shift.data_[(v * shift.wordwidth_) + 2];
 					}
+
+					// track all non-empty lines in any preshift
+					// note: any one preshift should do really...
+					if (USE_EMPTYLINE_OPTIMIZATION)
+					{
+						if (sbuffer[(v * 3) + 0] || sbuffer[(v * 3) + 1] || sbuffer[(v * 3) + 2])
+							livelines[v] = 1;
+					}
+					else
+						livelines[v] = 1;
+
 				}
 			}
 		}
 
-		// optimize the line order to minimize changes to EM registers
+		// force empty lines to end of pattern
+		{
+			bool busy;
+			do
+			{
+				busy = false;
+
+				for (int v = 0; v < (spr.h_ - 1); v++)
+				{
+					int v0 = best_pattern[v + 0];
+					int v1 = best_pattern[v + 1];
+
+					if (!livelines[v0] && livelines[v1])
+					{
+						best_pattern[v + 0] = v1;
+						best_pattern[v + 1] = v0;
+						busy = true;
+						break;
+					}
+				}
+
+			} while (busy);
+		}
+
+		// find active region
+		int live_line_count = best_pattern.size();
+		for (int v = 0; v < best_pattern.size(); v++)
+		{
+			if (0 == livelines[best_pattern[v]])
+			{
+				live_line_count = v;
+				break;
+			}
+		}
+
+		printf("live lines = %d\n", live_line_count);
+
+		// optimize the line order for NON EMPTY LINES to minimize changes to EM registers
+		// the empty lines are already at the end of the sequence so optimization works on a shorter sequence (up to live_line_count)
 		{
 			mersenne_twister twist;
 
@@ -2085,7 +2220,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			int last_improvement = 0;
 
 			// optimize line pattern by reordering
-			for (int trial = 0; trial < (1 << DARWIN_DEPTH); trial++)
+			int darwin_limit = 1 << INITIAL_DARWIN_DEPTH;
+			for (int trial = 0; trial < darwin_limit; trial++)
 			{
 				std::vector<int> trial_pattern(best_pattern);
 
@@ -2096,10 +2232,10 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				for (int mut = 0; mut < mutrate; mut++)
 				{
 					// select pair to exchange
-					int choice1 = (twist.genS32() >> 4) % trial_pattern.size();
-					int choice2 = (twist.genS32() >> 4) % trial_pattern.size();
+					int choice1 = (twist.genU32() >> 4) % live_line_count;
+					int choice2 = (twist.genU32() >> 4) % live_line_count;
 					while (choice1 == choice2)
-						choice2 = (twist.genS32() >> 4) % trial_pattern.size();
+						choice2 = (twist.genU32() >> 4) % live_line_count;
 
 					// reorder
 					int tmp = trial_pattern[choice1];
@@ -2142,6 +2278,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 							// - some chance this could prevent a difficult-to-reach optimization via small incremental mutations
 							// - perhaps a bit more likely to result in extra LEA at start, to reach first block of contiguous lines 
 
+							{
 							// cost is same for forward or reverse ordering - delta value will be the same even if instruction isn't
 							int dycost = (v1 - v0);
 							if (dycost < 0)
@@ -2152,9 +2289,14 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 							totalcost += dycost;
 						}
 					}
+					}
 
-					if (totalcost < best_cost)
+					// include benign changes (cost delta == 0) to assist Darwin...
+					if (totalcost <= best_cost)
 					{
+						if ((totalcost < best_cost) && (darwin_limit < (1<<DARWIN_SATURATION)))
+							darwin_limit += 1<<DARWIN_INCREMENT;
+
 						best_cost = totalcost;
 						best_loadcost = loadcost;
 						best_pattern = trial_pattern;
@@ -2170,16 +2312,19 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				// output the best pattern
 				for (int v = 0; v < spr.h_; v++)
 				{
-					int y = best_pattern[v];
-					print_dataword(buffer[(y * 3) + 0]);
-					print_dataword(buffer[(y * 3) + 1]);
-					print_dataword(buffer[(y * 3) + 2]);
+					int dsty = best_pattern[v];
+					print_dataword(buffer[(dsty * 3) + 0]);
+					print_dataword(buffer[(dsty * 3) + 1]);
+					print_dataword(buffer[(dsty * 3) + 2]);
+					if (livelines[dsty])
+						printf(" L");
 					printf("\n");
 				}
 			}
 		}
 
 		delete[] buffer;
+		delete[] livelines;
 	}
 
 	spr.lineorder = best_pattern;
@@ -2239,6 +2384,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		byte_t *changes = new byte_t[3 * shift.height_];
 		memset(changes, 0, 3 * shift.height_);
 
+		byte_t *livelines = new byte_t[shift.height_];
+		memset(livelines, 0, shift.height_);
+
 		// make copy of data in terms of 3*y EM words
 		uword_t *buffer = new uword_t[3 * shift.height_];
 		memset(buffer, 0, 2 * 3 * shift.height_);
@@ -2266,6 +2414,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			}
 		}
 
+#if (0)
 		if (!g_allargs.quickcut)
 		if (USE_PERSHIFT_LINEORDER_OPTIMIZATION && (shift.height_ > 1))
 		{
@@ -2364,16 +2513,41 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					// output the best pattern
 					for (int v = 0; v < shift.height_; v++)
 					{
-						int y = best_pattern[v];
-						print_dataword(buffer[(y * 3) + 0]);
-						print_dataword(buffer[(y * 3) + 1]);
-						print_dataword(buffer[(y * 3) + 2]);
+						int dsty = best_pattern[v];
+						print_dataword(buffer[(dsty * 3) + 0]);
+						print_dataword(buffer[(dsty * 3) + 1]);
+						print_dataword(buffer[(dsty * 3) + 2]);
 						printf("\n");
 					}
 				}
 			}
 		}
+#endif
 
+		// find nonempty lines
+		for (int y = 0; y < shift.height_; y++)
+		{
+			int dsty = best_pattern[y];
+
+			if (USE_EMPTYLINE_OPTIMIZATION)
+			{
+				uword_t *srcdata = &buffer[dsty * 3];
+
+				// look for empty blits (all EMs == 0)
+				u64 line = 0;
+				for (int x = 0; x < 3; x++)
+				{
+					line <<= 16;
+					line |= srcdata[x];
+				}
+
+				livelines[dsty] = (line != 0);
+			}
+			else
+			{
+				livelines[dsty] = 1;
+			}
+		}
 
 		// generate map for only changing EM registers 
 		// (excluding first output line - this is handled as dirty registers to minimize initial setup if the first line is empty)
@@ -2393,32 +2567,36 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 			for (int v = 0; v < shift.height_; v++)
 			{
+				int dsty = best_pattern[v];
+
 				// generate deltas for all but 1st line
-				int yn = best_pattern[v + 0] * 3;
-				int yp = yn;
+				int yn3 = dsty * 3;
+				int yp3 = yn3;
 				if (v > 0)
-					yp = best_pattern[v - 1] * 3;
+					yp3 = best_pattern[v - 1] * 3;
 
 				// is this a real line?
-				uword_t m = buffer[yn + 0];
-				if (shift.wordwidth_ >= 2)
-					m |= buffer[yn + 2];
-				if (shift.wordwidth_ == 3)
-					m |= buffer[yn + 1];
+				//uword_t m = buffer[yn + 0];
+				//if (shift.wordwidth_ >= 2)
+				//	m |= buffer[yn + 2];
+				//if (shift.wordwidth_ == 3)
+				//	m |= buffer[yn + 1];
 
 				// generate deltas for only real lines
-				if (m)
+				//if (m)
+				if (livelines[dsty])
 				{
-					changes[yn + 0] = (dirtyline || (lastchanges[0] != buffer[yn + 0])) ? 1 : 0;
+					if (1)
+						changes[yn3 + 0] = (dirtyline || (lastchanges[0] != buffer[yn3 + 0])) ? 1 : 0;
 					if (shift.wordwidth_ == 3)
-						changes[yn + 1] = (dirtyline || (lastchanges[1] != buffer[yn + 1])) ? 1 : 0;
+						changes[yn3 + 1] = (dirtyline || (lastchanges[1] != buffer[yn3 + 1])) ? 1 : 0;
 					if (shift.wordwidth_ >= 2)
-						changes[yn + 2] = (dirtyline || (lastchanges[2] != buffer[yn + 2])) ? 1 : 0;
+						changes[yn3 + 2] = (dirtyline || (lastchanges[2] != buffer[yn3 + 2])) ? 1 : 0;
 
 					// accept new data for non-empty lines
-					lastchanges[0] = buffer[yn + 0];
-					lastchanges[1] = buffer[yn + 1];
-					lastchanges[2] = buffer[yn + 2];
+					lastchanges[0] = buffer[yn3 + 0];
+					lastchanges[1] = buffer[yn3 + 1];
+					lastchanges[2] = buffer[yn3 + 2];
 				}
 
 				dirtyline = false;
@@ -2426,37 +2604,44 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		}
 		else
 		{
-			for (int v = 1; v < shift.height_; v++)
+			for (int v = 0; v < shift.height_; v++)
 			{
-				int y = best_pattern[v] * 3;
+				int dsty = best_pattern[v];
 
-				changes[y + 0] = true;
-				changes[y + 1] = (shift.wordwidth_ == 3);
-				changes[y + 2] = (shift.wordwidth_ >= 2);
+				if (livelines[dsty])
+				{
+					int dsty3 = dsty * 3;
+					changes[dsty3 + 0] = true;
+					changes[dsty3 + 1] = (shift.wordwidth_ == 3);
+					changes[dsty3 + 2] = (shift.wordwidth_ >= 2);
+				}
 			}
 		}
 
-		bool em_dirty[3];
+
+		// by this point, changes[y:x] marks all dirty EM registers
+
+		//bool em_dirty[3];
 
 		if (!g_allargs.quickcut)
 			if (g_allargs.verbose)
 				printf("deltas...\n");
 
 		// reset dirty EM registers for this blit width
-		em_dirty[0] = true;
-		em_dirty[1] = (shift.wordwidth_ > 2);
-		em_dirty[2] = (shift.wordwidth_ > 1);
+		//em_dirty[0] = true;
+		//em_dirty[1] = (shift.wordwidth_ > 2);
+		//em_dirty[2] = (shift.wordwidth_ > 1);
 
 		for (int v = 0; v < shift.height_; v++)
 		{
-			int y = best_pattern[v] * 3;
+			int dsty3 = best_pattern[v] * 3;
 
-			if (changes[y + 0] || em_dirty[0])
+			if (changes[dsty3 + 0]/* || em_dirty[0]*/)
 			{
-				em_dirty[0] = false;
+				//em_dirty[0] = false;
 				if (!g_allargs.quickcut)
 					if (g_allargs.verbose)
-						print_dataword(buffer[y + 0]);
+						print_dataword(buffer[dsty3 + 0]);
 			}
 			else
 			{
@@ -2465,12 +2650,12 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						printf("................");
 			}
 
-			if (changes[y + 1] || em_dirty[1])
+			if (changes[dsty3 + 1]/* || em_dirty[1]*/)
 			{
-				em_dirty[1] = false;
+				//em_dirty[1] = false;
 				if (!g_allargs.quickcut)
 					if (g_allargs.verbose)
-						print_dataword(buffer[y + 1]);
+						print_dataword(buffer[dsty3 + 1]);
 			}
 			else
 			{
@@ -2479,12 +2664,13 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						printf("................");
 			}
 
-			if (changes[y + 2] || em_dirty[2])
+			
+			if (changes[dsty3 + 2]/* || em_dirty[2]*/)
 			{
-				em_dirty[2] = false;
+				//em_dirty[2] = false;
 				if (!g_allargs.quickcut)
 					if (g_allargs.verbose)
-						print_dataword(buffer[y + 2]);
+						print_dataword(buffer[dsty3 + 2]);
 			}
 			else
 			{
@@ -2518,41 +2704,29 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				printf("\nsurviving datawords...\n");
 
 		// reset dirty EM registers for this blit width
-		em_dirty[0] = true;
-		em_dirty[1] = (shift.wordwidth_ > 2);
-		em_dirty[2] = (shift.wordwidth_ > 1);
+		//em_dirty[0] = true;
+		//em_dirty[1] = (shift.wordwidth_ > 2);
+		//em_dirty[2] = (shift.wordwidth_ > 1);
 
 //		int unique_datawords = 0; // each unique dataword has a uid so it can be reused
 		{
-//			linemap lines;
-			for (int y = 0; y < shift.height_; y++)
+			for (int v = 0; v < shift.height_; v++)
 			{
-				uword_t *srcdata = &buffer[best_pattern[y] * 3];
-				byte_t *linechanges = &changes[best_pattern[y] * 3];
+				int dsty = best_pattern[v];
 
-				// identify duplicate lines in terms of complete EM state
-				u64 line = 0;
+				if (!livelines[dsty])
+					continue;
+
+				uword_t *srcdata = &buffer[dsty * 3];
+				byte_t *linechanges = &changes[dsty * 3];
+				// generate metrics for nonempty, unique lines only - lines where 1 or more EM registers must change
+				if (linechanges[0] || linechanges[1] || linechanges[2])
+				{
+					// gather metrics for datawords on this line
+					bool line_changed = false;
 				for (int x = 0; x < 3; x++)
 				{
-					line <<= 16;
-					line |= srcdata[x];
-				}
-
-				// generate metrics for nonempty, unique lines only - lines where 1 or more EM registers must change
-				if ((em_dirty[0] || em_dirty[1] || em_dirty[2]) /*|| 
-					(line && (lines.find(line) == lines.end())*/
-				)
-				{
-
-					// mark this line configuration as encountered
-//					if (USE_LINEDUPE_OPTIMIZATION)
-//						lines[line] = 1;
-
-					// gather metrics for datawords on this line
-					bool changed = false;
-					for (int x = 0; x < 3; x++)
-					{
-						if (!linechanges[x] && !em_dirty[x])
+						if (!linechanges[x])
 						{
 							if (!g_allargs.quickcut)
 								if (g_allargs.verbose)
@@ -2560,7 +2734,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 							continue;
 						}
 
-						changed = true;
+						line_changed = true;
 
 						uword_t dataword = srcdata[x];
 						emx_metric_t &m = context.metrics[dataword];
@@ -2589,7 +2763,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						// incidence of this word relative to other words
 						for (int lna = 0; lna < 3; lna++)
 						{
-							if ((x != lna) && (linechanges[lna]||em_dirty[lna]))
+							if ((x != lna) && (linechanges[lna]))
 							{
 								uword_t lnaword = srcdata[lna];
 
@@ -2607,11 +2781,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					}
 
 					// track this as a live line which changes
-					if (changed)
-						active_lines.push_back(lineout(y, best_pattern[y]));
-
-					// all EM words on this line have been dealt with one way or another
-					em_dirty[0] = em_dirty[1] = em_dirty[2] = false;
+					if (line_changed)
+						active_lines.push_back(lineout(v, dsty));
 
 					if (!g_allargs.quickcut)
 						if (g_allargs.verbose)
@@ -2827,9 +2998,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		// to be reallocated if registers become exhausted - so we do a full register rename and reduce.
 
 		// reset dirty EM registers for this blit width
-		em_dirty[0] = true;
-		em_dirty[1] = (shift.wordwidth_ > 2);
-		em_dirty[2] = (shift.wordwidth_ > 1);
+		//em_dirty[0] = true;
+		//em_dirty[1] = (shift.wordwidth_ > 2);
+		//em_dirty[2] = (shift.wordwidth_ > 1);
 
 		std::vector<int> blits;
 
@@ -2840,16 +3011,18 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		for (std::vector<lineout>::iterator lit = active_lines.begin(); lit != active_lines.end(); lit++, job++)
 		{
 			lineout &lo = *lit;
-			int y = lo.dline;
+			int dsty = lo.dline;
 
-			uword_t *srcdata = &buffer[y * 3];
-			byte_t *linechanges = &changes[y * 3];
+			// only live lines in active_lines table
+
+			uword_t *srcdata = &buffer[dsty * 3];
+			byte_t *linechanges = &changes[dsty * 3];
 
 			blits.push_back(deps.size());
 
 			for (int x = 0; x < 3; x++)
 			{
-				if (!(linechanges[x]||em_dirty[x]))
+				if (!(linechanges[x]/*||em_dirty[x]*/))
 					continue;
 
 				uword_t dataword = srcdata[x];
@@ -2872,7 +3045,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				lifespans.push_back(lifebits);
 				stage++;
 
-				em_dirty[x] = false;
+				//em_dirty[x] = false;
 			}
 		}
 
@@ -2983,9 +3156,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		context.reset_sim(true);
 
 		// reset dirty EM registers for this blit width
-		em_dirty[0] = true;
-		em_dirty[1] = (shift.wordwidth_ > 2);
-		em_dirty[2] = (shift.wordwidth_ > 1);
+		//em_dirty[0] = true;
+		//em_dirty[1] = (shift.wordwidth_ > 2);
+		//em_dirty[2] = (shift.wordwidth_ > 1);
 
 		// generate operations
 		int current_line = 0;
@@ -3041,15 +3214,16 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				byte_t *linechanges = &changes[dsty * 3];
 
 				// bypass empty blits (all EMs == 0)
-				u64 line = 0;
-				for (int x = 0; x < 3; x++)
-				{
-					line <<= 16;
-					line |= srcdata[x];
-				}
+				//u64 line = 0;
+				//for (int x = 0; x < 3; x++)
+				//{
+				//	line <<= 16;
+				//	line |= srcdata[x];
+				//}
 
 				// is the blit going to output something?
-				if (line)
+				//if (line)
+				if (livelines[dsty])
 				{
 					// line hop +/-
 					int linejump = dsty - current_line;
@@ -3063,9 +3237,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					}
 
 					// check for all 3 changing
-					if ((linechanges[0] || em_dirty[0]) &&
-						(linechanges[1] || em_dirty[1]) &&
-						(linechanges[2] || em_dirty[2]))
+					if ((linechanges[0]/* || em_dirty[0]*/) &&
+						(linechanges[1]/* || em_dirty[1]*/) &&
+						(linechanges[2]/* || em_dirty[2]*/))
 					{
 						int sumA = 0, sumB = 0;
 
@@ -3213,11 +3387,11 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						//context.sim_track_datarefs(srcdata[1]);
 						//context.sim_track_datarefs(srcdata[2]);
 
-						em_dirty[0] = em_dirty[1] = em_dirty[2] = false;
+						//em_dirty[0] = em_dirty[1] = em_dirty[2] = false;
 					}
 					else
-					if ((linechanges[0] || em_dirty[0]) && 
-						(linechanges[1] || em_dirty[1]))
+					if ((linechanges[0]/* || em_dirty[0]*/) && 
+						(linechanges[1]/* || em_dirty[1]*/))
 					{
 //						context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1]));
 						DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
@@ -3243,7 +3417,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						//context.sim_track_datarefs(srcdata[0]);
 						//context.sim_track_datarefs(srcdata[1]);
 
-						em_dirty[0] = em_dirty[1] = false;
+						//em_dirty[0] = em_dirty[1] = false;
 
 //						if (linechanges[2] || em_dirty[2])
 //						{
@@ -3259,8 +3433,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 //						}
 					}
 					else
-					if ((linechanges[1] || em_dirty[1]) && 
-						(linechanges[2] || em_dirty[2]))
+					if ((linechanges[1]/* || em_dirty[1]*/) && 
+						(linechanges[2]/* || em_dirty[2]*/))
 					{
 						// longword to EM2
 //						context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2]));
@@ -3294,7 +3468,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						//context.sim_track_datarefs(srcdata[0]);
 						//context.sim_track_datarefs(srcdata[1]);
 
-						em_dirty[1] = em_dirty[2] = false;
+						//em_dirty[1] = em_dirty[2] = false;
 					}
 					else
 					{
@@ -3310,7 +3484,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 							if (x == 2)
 								EM_reg = context.EM3_reg;
 
-							if (linechanges[x] || em_dirty[x])
+							if (linechanges[x]/* || em_dirty[x]*/)
 							{
 								if (context.sim_resolve_data16(srcdata[x], reg_index, true) == DataSource_RegisterL)
 								{
@@ -3325,7 +3499,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 								//context.sim_track_datarefs(srcdata[x]);
 
-								em_dirty[x] = false;
+								//em_dirty[x] = false;
 							}
 						}
 					}
@@ -3399,9 +3573,11 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			for (int v = 0; v < context.srch; v++)
 			{
 				// detect empty lines
-				uword_t m = 0;
-				for (int h = 0; h < shift.wordwidth_; h++)
-					m |= shift.data_[(v * shift.wordwidth_) + h];
+				//uword_t m = 0;
+				//for (int h = 0; h < shift.wordwidth_; h++)
+				//	m |= shift.data_[(v * shift.wordwidth_) + h];
+
+				ubyte_t m = livelines[v];
 
 				for (int h = 0; h < shift.wordwidth_; h++)
 				{
@@ -3431,9 +3607,11 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 			if (errors > 0)
 			{
+				std::cerr << "*************************************************" << std::endl;
 				std::cerr << "error: simulation failed on frame " << _frame << " preshift " << pi << std::endl;
-				//while (1) {};
-				//exit(1);
+				printf("press any key...\n");
+				getchar();
+				exit(1);			
 			}
 		}
 
@@ -3455,6 +3633,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		}
 
 		delete[] changes; changes = 0;
+		delete[] livelines; livelines = 0;
 		delete[] buffer; buffer = 0;
 	}
 

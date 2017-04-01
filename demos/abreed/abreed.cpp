@@ -1101,7 +1101,7 @@ void alien_fntick(entity_t *_pself)
 			s16 atancode = ((((self.fvx>>14) & 0xf) << 4) | ((self.fvy>>14) & 0xf));
 
 			// todo: (+4 & 15) can be baked into table but only if all sprites use the same frame mapping
-			self.frame = (self.frame & 0xFFF8) | ((6-((s_atan2_16frames[atancode]+1) >> 1)) & 7);
+			self.frame = (self.frame & 0xFFF8) | ((6-((s_atan2_16frames[atancode]) >> 1)) & 7);
 		}
 
 		// padding counter prevents re-collision with other monsters for a short period

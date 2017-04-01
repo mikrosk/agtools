@@ -40,7 +40,7 @@
 # specify palette source (chunky8.ccs from PCS)
 # specify cutting coordinates & frame count
 
-../../bin/agtcut -v -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s player.png -o vicviper.spe -p chunky8.ccs -sxp 46 -syp 2 -sxs 23 -sys 16 -syi 18 -sc 9
+../../bin/agtcut -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s player.png -o vicviper.spe -p chunky8.ccs -sxp 46 -syp 2 -sxs 23 -sys 16 -syi 18 -sc 9
 
 
 # cut options sprite animation
@@ -98,11 +98,11 @@
 ../../bin/agtcut -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o cylon.spe -p chunky8.ccs -sxp 205 -syp 83 -sxs 16 -sys 16 -sxi 19 -sc 8 -sm 5:3:y -sm 6:2:y -sm 7:1:y
 
 # nme: bee-ish fighter (x-rotating)
-../../bin/agtcut -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o bee.spe -p chunky8.ccs -sxp 300 -syp 83 -sxs 16 -sys 16 -sxi 19 -sc 7 -sm 5:2:y -sm 6:1:y
+../../bin/agtcut -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o bee.spe -p chunky8.ccs -sxp 300 -syp 83 -sxs 16 -sys 16 -sxi 19 -sc 6 -sm 4:2:y -sm 5:1:y
 
 # nme: fly (seeking)
 # the spritesheet provides 1 rotation quadrant of 4 needed, so we map the rest as x/y flips
-../../bin/agtcut -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o fly.spe -p chunky8.ccs -sxp 6 -syp 105 -sxs 17 -sys 16 -sxi 19 -sc 16 -sm 5:3:x -sm 6:2:x -sm 7:1:x -sm 8:0:x -sm 9:1:xy -sm 10:2:xy -sm 11:3:xy -sm 12:4:xy -sm 13:3:y -sm 14:2:y -sm 15:1:y
+../../bin/agtcut -cm emxspr -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o fly.spe -p chunky8.ccs -sxp 6 -syp 105 -sxs 17 -sys 17 -sxi 19 -sc 16 -sm 5:3:x -sm 6:2:x -sm 7:1:x -sm 8:0:x -sm 9:1:xy -sm 10:2:xy -sm 11:3:xy -sm 12:4:xy -sm 13:3:y -sm 14:2:y -sm 15:1:y
 
 # nme: fly2 (seeking)
 # the spritesheet provides 1 rotation quadrant of 4 needed, so we map the rest as x/y flips

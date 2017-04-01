@@ -47,10 +47,22 @@
 
 //static const int USE_LINEDUPE_OPTIMIZATION = 1;
 static const int USE_DELTA_OPTIMIZATION = 1;
-static const int USE_COMMON_LINEORDER_OPTIMIZATION = 1;
-static const int USE_PERSHIFT_LINEORDER_OPTIMIZATION = 0;
 
-static const int DARWIN_DEPTH = 20;
+// single/common optimized line ordering shared by all preshifts of a given frame
+static const int USE_COMMON_LINEORDER_OPTIMIZATION = 1;
+
+// USE_EMPTYLINE_OPTIMIZATION can *only* work properly with USE_COMMON_LINEORDER_OPTIMIZATION for sprites which can be clipped,
+// since there's no code provision for skipping of source data lines and all lines get emitted for indexed EMS clipping case.
+// the USE_COMMON_LINEORDER_OPTIMIZATION phase will move any empty lines to the end of the render to avert the need to skip them.
+static const int USE_EMPTYLINE_OPTIMIZATION = 1;
+
+// per-preshift line ordering - implies per-preshift colourdata ordering as well (too much bloat)
+//static const int USE_PERSHIFT_LINEORDER_OPTIMIZATION = 0;
+
+//static const int DARWIN_DEPTH = 20;
+static const int INITIAL_DARWIN_DEPTH = 18;
+static const int DARWIN_INCREMENT = 18;
+static const int DARWIN_SATURATION = DARWIN_INCREMENT+3;
 
 #define USE_NOP_BINARY_VALIDATION (0)
 
@@ -113,7 +125,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.374";
+static const char* const g_version_string = "v0.376";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -2402,21 +2414,42 @@ static inline ubyte_t match_colour(const RGB &rgb, RGB *_ppal, int _ncols)
 
 void review_palettes(RGB *pspal, RGB *pdpal, int _sourced)
 {
+	memset(s_colours_matched, 0, 256);
+	if (_sourced == 0)
+		_sourced = 24;
+
+	int ncols = 1 << _sourced;
+
 	for (int c = 0; c < (1 << _sourced); c++)
 	{
-		if (pdpal)
+		if (pspal && pdpal && (c < 16))
 		{
-			// index remapping case
-			printf("index: %03d  src: $%02x:$%02x:$%02x  dst: $%02x:$%02x:$%02x\n",
+			int m = match_colour(pspal[c], pdpal, ncols);
+
+			// index-index remapping case
+			printf("src: [%03d] $%02x:$%02x:$%02x  mapto: [%02d] $%02x:$%02x:$%02x  target: [%02d] $%02x:$%02x:$%02x\n",
 				c,
 				(int)pspal[c].red, (int)pspal[c].green, (int)pspal[c].blue,
+				m,
+				(int)pdpal[m].red, (int)pdpal[m].green, (int)pdpal[m].blue,
+				c,
 				(int)pdpal[c].red, (int)pdpal[c].green, (int)pdpal[c].blue
 				);
 		}
 		else
+		if (pdpal && (c < 16))
 		{
-			// direct translation case
-			printf("index: %03d  rgb: $%02x:$%02x:$%02x\n",
+			// 24bit reduction case
+			printf("src: target: [%02d] $%02x:$%02x:$%02x\n",
+				c,
+				(int)pdpal[c].red, (int)pdpal[c].green, (int)pdpal[c].blue
+				);
+		}
+		else
+		if (pspal)
+		{
+			// direct index translation case
+			printf("src: [%03d] $%02x:$%02x:$%02x\n",
 				c,
 				(int)pspal[c].red, (int)pspal[c].green, (int)pspal[c].blue
 				);
@@ -2482,6 +2515,8 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 		std::cout << " unique 24bit colours available in palette: " << r_numuniquecolours << std::endl;
 		if (r_numuniquecolours > (1 << g_allargs.planes))
 			std::cout << " warning: target palette contains more colours than " << g_allargs.planes << " bitplanes can encode!" << std::endl;
+
+		int num_unique = 16;
 
 		if (g_allargs.use_solutionpair_reduction_)
 		{
@@ -2555,21 +2590,37 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 			// use average-joe palette, with mundane nearest-match thingy. zzzzz...
 
 			memset(s_colours_matched, 0, 256);
-
+			num_unique = 0;
 			{
+				char unique[256];
+				memset(unique, 0, 256);
 				RGB *psrc = _psourcergb;
 				ubyte_t *pdst = _pdstcol0;
 				for (int py = 0; py < (int)_sourceh; py++)
 				{
 					for (int px = 0; px < (int)_sourcew; px++)
 					{
-						*pdst++ = match_colour(*psrc++, r_ppal, r_numcolours);
+						ubyte_t m = match_colour(*psrc++, r_ppal, r_numcolours);
+						*pdst++ = m;
+						if (unique[m] == 0)
+						{
+							unique[m] = 1;
+							num_unique++;
+						}
 					}
 				}
 			}
 		}
 
-		std::cout << " indexed colours used in final image: " << s_num_colours_matched << std::endl;	
+		std::cout << " indexed colours used in final image: " << num_unique << std::endl;
+
+		if ((_sourced == 0) || (_sourced >= 16) && 
+			!g_allargs.quickcut && !g_allargs.quiet)
+		{
+			std::cout << "summary of destination palette for " << ((_sourced > 0) ? _sourced : 24) << "-bit source image being remapped" << std::endl;
+			review_palettes(NULL, r_ppal, _sourced);
+		}
+
 	}
 	else
 	{
@@ -3844,11 +3895,13 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 
 	for (int psy = cymin, py = 0; psy < cymax; psy++, py++)
 	{
-		int psyr = _yflip ? ((g_sprite_height - 1) - psy) : psy;
+		//int psyr = _yflip ? ((g_sprite_height - 1) - psy) : psy;
+		int psyr = _yflip ? ((cymax - 1) - py) : (cymin + py);
 
 		for (int psx = cxmin, px = 0; psx < cxmax; psx++, px++)
 		{
-			int psxr = _xflip ? ((g_sprite_width - 1) - psx) : psx;
+			//int psxr = _xflip ? ((g_sprite_width - 1) - psx) : psx;
+			int psxr = _xflip ? ((cxmax - 1) - px) : (cxmin + px);
 
 			ubyte_t c = _psource8[((psyr + _y) * g_spritesource_w) + (psxr + _x)];
 
