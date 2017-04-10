@@ -115,6 +115,15 @@ int strcmp(const char *s1, const char *s2)
     return *(--s1) - *(--s2);
 }
 
+int strncmp(const char *s, const char *t, size_t n)
+{
+	int cc;
+	if (n==0) return 0;
+	do { cc = (*s++ - *t++); }
+		while (!cc && s[-1] && --n>0);
+	return cc;
+}
+
 // ----------------------------------------------------------------------------------------
 
 void* memmove(void *destination, const void *source, size_t n)
@@ -237,7 +246,7 @@ int strnicmp(const char *s, const char *t, size_t n)
 char *strcpy(char *dest, const char* src)
 {
     char *ret = dest;
-    while ((*dest++) = (*src++))
+	while (!!((*dest++) = (*src++)))
         ;
     return ret;
 }
@@ -249,7 +258,7 @@ char *strncpy(char *dest, const char *src, size_t n)
     do {
         if (!n--)
             return ret;
-    } while ((*dest++) = (*src++));
+    } while (!!((*dest++) = (*src++)));
     while (n--)
         *dest++ = 0;
     return ret;
@@ -261,7 +270,7 @@ char *strcat(char *dest, const char *src)
     char *ret = dest;
     while (*dest)
         dest++;
-    while ((*dest++) = (*src++))
+    while (!!((*dest++) = (*src++)))
         ;
     return ret;
 }
@@ -332,14 +341,16 @@ int toupper (int c) {
 	return c;
 }
 
-char *strupr(char* str)
+char *strupr(char* _str)
 {
+	char *str = _str;
 	if (str)
 	while (*str)
 	{
 		*str = toupper(*str);
 		str++;
 	}
+	return _str;
 }
 
 int tolower (int c) {
@@ -370,7 +381,7 @@ FILE * fopen(const char * filename, const char * mode)
 
 	pmode = mode;
 
-	while (c = (*pmode++))
+	while (!!(c = (*pmode++)))
 	{
 		if (c == '+')
 			update = 1;
@@ -467,6 +478,17 @@ long int ftell(FILE * stream)
 		return pos;
 
 	return -1;
+}
+
+int fgetc(FILE * stream)
+{
+	int r;
+	char c = EOF;
+	r = Fread((short)(int)stream, 1, &c);
+	if (r > 0)
+		return (int)c;
+
+	return EOF;
 }
 
 // ----------------------------------------------------------------------------------------

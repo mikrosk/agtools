@@ -11,6 +11,7 @@
 #include <mint/sysbind.h>
 
 #include <stdarg.h>
+#include <string.h>
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	Our AGT headers
@@ -20,6 +21,8 @@
 // todo: provide common_c.h
 #define reg32(_a_) *(volatile u32*)(0x##_a_)
 #define agt_used __attribute__((used))
+
+int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
 
 short g_displaylocked = 0;
 
@@ -67,7 +70,7 @@ static __inline void AGT_ConsoleText(const char* text, void* fb, int c, int r)
 	);
 }
 
-//extern void AGT_ConsoleUpdate(void* fb1, void* fb2);
+void AGT_ConsoleUpdate(void* fb1);
 
 void nf_print(const char *text);
 
@@ -123,7 +126,7 @@ agt_used void SYS_Assert(char *_msg)
 	show_console = console_base;
 	bmprintf("%s\n", _msg);
 	while (1) { }
-	__builtin_unreachable;
+	//__builtin_unreachable;
 }
 //error: ent %d id %d frame %d > max %d
 
@@ -323,7 +326,7 @@ void AGT_ExceptionHandler_1011(exstackframe1011_t* _pstack)
 
 	return;
 
-	u16* pcallstack = ((u8*)_pstack)+sizeof(exstackframe1011_t);
+	u16* pcallstack = (u16*)(((u8*)_pstack)+sizeof(exstackframe1011_t));
 
 	for (i = 0; i < 4; ++i)
 	{

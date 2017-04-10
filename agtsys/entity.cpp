@@ -583,7 +583,9 @@ void EntityTickAll()
 	while (1)
 	{
 
+#if defined(AGT_CONFIG_DYNAMIC_TICKPRIO)
 next_entity:
+#endif
 		entity_t &curr = *pcurr;
 
 		// perform the instance-specific tick

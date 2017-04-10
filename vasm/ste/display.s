@@ -255,6 +255,10 @@ displayservice_ste_vbi_dmasafe:
 	movem.l		(a0)+,d0-d7
 	movem.l		d0-d7,$ffff8240.w
 
+	ifd		TIMING_RASTERS
+	move.w		$64.w,$ffff8240.w
+	endc
+
 .skip:
 	jsr		_YMSYS_VBCallback
 	
@@ -336,7 +340,14 @@ displayservice_ste_vbi:
 	
 	moveq		#0,d0
 	lea		$ffff8240.w,a0
+
+	ifd		TIMING_RASTERS
+	move.w		$64.w,(a0)+
+	move.w		d0,(a0)+
+	else
 	move.l		d0,(a0)+
+	endc
+
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
@@ -349,6 +360,10 @@ displayservice_ste_vbi:
 ;	otherwise load palette immediately
 	movem.l		(a0)+,d0-d7
 	movem.l		d0-d7,$ffff8240.w
+	endc
+
+	ifd		TIMING_RASTERS
+	move.w		$64.w,$ffff8240.w
 	endc
 
 .skip:
@@ -413,6 +428,9 @@ displayservice_f030_vbi:
 	movem.l		(a0)+,d0-d7
 	movem.l		d0-d7,$ffff8240.w
 
+	ifd		TIMING_RASTERS
+	move.w		$64.w,$ffff8240.w
+	endc
 
 .skip:
 	jsr		_YMSYS_VBCallback
@@ -539,7 +557,13 @@ displayservice_ste_first_b:
 	bhi.s		.wl
 	
 	lea		$ffff8240.w,a1	
+	ifd		TIMING_RASTERS
+	move.w		$64.w,(a1)+
+	addq		#2,a0
+	move.w		(a0)+,(a1)+
+	else
 	move.l		(a0)+,(a1)+
+	endc
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
@@ -687,7 +711,12 @@ displayservice_ste_lower_b:
 	clr.b		tbcr.w				; TimerB CTRL: halt
 	moveq		#0,d0
 	lea		$ffff8240.w,a0
+	ifd		TIMING_RASTERS
+	move.w		$64.w,(a0)+
+	move.w		d0,(a0)+
+	else
 	move.l		d0,(a0)+
+	endc
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
@@ -736,7 +765,12 @@ displayservice_ste_lower_b:
 
 	moveq		#0,d0
 	lea		$ffff8240.w,a0
+	ifd		TIMING_RASTERS
+	move.w		$64.w,(a0)+
+	move.w		d0,(a0)+
+	else
 	move.l		d0,(a0)+
+	endc
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
@@ -785,7 +819,13 @@ displayservice_ste_final_b:
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
 	move.w		d0,(a0)+
+
+	ifd		TIMING_RASTERS
+	move.w		$64.w,$ffff8240.w
+	else
 	move.w		d0,$ffff8240.w
+	endc
+
 
 ;	no more scanline scheduling this frame - stop TimerB
 

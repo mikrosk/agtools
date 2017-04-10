@@ -271,8 +271,8 @@ public:
 				mul_map_x_[n] = n * map_tiles_x_;
 
 			{
-				s16 xo = c_max_vt_ / map_tiles_x_;
-				s16 yo = c_max_vt_ / map_tiles_y_;
+				//s16 xo = c_max_vt_ / map_tiles_x_;
+				//s16 yo = c_max_vt_ / map_tiles_y_;
 					
 				delete[] modulo_map_x_; 
 				delete[] modulo_map_y_; 
@@ -2887,9 +2887,7 @@ void hybrid_fill()
 	}
 */
 
-	if (c_ste_ || drawshift_)
-	if (c_updaterows)
-	if (c_vspeculative_)
+	if (c_updaterows && c_vspeculative_ && (c_ste_ || drawshift_))
 	{
 	if (dy > 0)
 	{	
@@ -2998,6 +2996,7 @@ void hybrid_fill()
 		else
 		{		
 			if (lyf < c_tilesize_)
+				{
 			if (c_ste_)
 			fill_specrow_virtual(
 				vs_fill_x1, y2 - 1,
@@ -3012,8 +3011,10 @@ void hybrid_fill()
 				vs_fill_x2, 
 				lyf, c_tilesize_
 			);
+				}
 
 			if (yf > 0)	
+				{
 			if (c_ste_)
 			fill_specrow_virtual(
 				vs_fill_x1, y2,
@@ -3030,6 +3031,7 @@ void hybrid_fill()
 			);	
 		}		
 	}
+		}
 	else if (dy < 0)
 	{
 #if !(SPECULATIVE_FILL_METHOD-1)
@@ -3133,6 +3135,7 @@ void hybrid_fill()
 		else
 		{		
 			if (lyf > 0)	
+				{
 			if (c_ste_)
 			fill_specrow_virtual(
 				vs_fill_x1, y1,
@@ -3147,8 +3150,10 @@ void hybrid_fill()
 				vs_fill_x2, 
 				0, lyf
 			);
+				}
 
 			if (yf < c_tilesize_)	
+				{
 			if (c_ste_)
 			fill_specrow_virtual(
 				vs_fill_x1, y1 - 1,
@@ -3164,6 +3169,7 @@ void hybrid_fill()
 				yf, c_tilesize_
 			);		
 		}		
+	}
 	}
 	}
 	else
@@ -3202,9 +3208,7 @@ void hybrid_fill()
 		}
 	}
 
-	if (c_ste_ || drawshift_)
-	if (c_updatecols)
-	if (c_hspeculative_ /*|| c_hbufferspeculation_*/)
+	if (c_updatecols && (c_hspeculative_ /*|| c_hbufferspeculation_*/) && (c_ste_ || drawshift_))
 	{
 	if (dx > 0)
 	{		

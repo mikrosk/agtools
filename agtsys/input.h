@@ -133,7 +133,8 @@ enum ScanCode
 // table for translating scancodes into ASCII and special key enums
 extern u8 scantokey[128];
 // buffer holding instantaneous down/up state of every key (0 or nonzero)
-extern "C" u8 key_states[256];
+extern "C" u8 key_states[128];
+extern "C" u8 debounced_key_states[128*2];
 // ringbuffer of key events
 extern "C" u8 key_eventring[256];
 // write position of eventring (written by IKBD interupt)
@@ -183,10 +184,117 @@ extern "C" s16 joy1_eventtail;
 //	key_eventtail = tail;
 //}
 
+template<int c_size>
+inline void clear(void *const _dst)
+{
+	int remaining = c_size;
+
+	void *dst = _dst;
+
+	s32 zero = 0;
+
+	if (remaining & -4)
+	{
+		s32 *dst32 = (s32*)dst;
+
+		while (remaining & -4)
+		{
+			__asm __volatile__
+			(
+				"move.l %1,(%0)+;"
+				: "+a"(dst32)
+				: "r"(zero)
+				:
+			);
+
+			remaining -= 4;
+		}
+
+		dst = dst32;
+	}
+
+	if (remaining & -2)
+	{
+		s16 *dst16 = (s16*)dst;
+
+		while (remaining & -2)
+		{
+			__asm __volatile__
+			(
+				"move.w %1,(%0)+;"
+				: "+a"(dst16)
+				: "r"(zero)
+				:
+			);
+
+			remaining -= 2;
+		}
+
+		dst = dst16;
+	}
+
+	if (remaining)
+	{
+		s8 *dst8 = (s8*)dst;
+
+		while (remaining)
+		{
+			__asm __volatile__
+			(
+				"move.b %1,(%0)+;"
+				: "+a"(dst8)
+				: "r"(zero)
+				:
+			);
+
+			remaining--;
+		}
+
+		dst = dst8;
+	}
+}
+
 // check if key event is waiting
 static FORCEINLINE bool AGT_isKey()
 {
 	return (key_eventtail != key_eventhead);
+}
+
+static FORCEINLINE void AGT_debouncedKeyClearAll()
+{
+	clear<256>(debounced_key_states);
+}
+
+// debounced check if key release occurred since last test
+static FORCEINLINE u8 AGT_debouncedKeyPressed(s16 _scancode)
+{
+	return (debounced_key_states[_scancode]);
+}
+
+// debounced check if key release occurred since last test
+static FORCEINLINE u8 AGT_debouncedKeyReleased(s16 _scancode)
+{
+	return (debounced_key_states[_scancode + s16(128)]);
+}
+
+// debounced check if key press occurred since last test
+static FORCEINLINE u8 AGT_debouncedKeyPressedClear(s16 _scancode)
+{
+	u8 &ref = debounced_key_states[s16(_scancode)];
+	u8 s = ref;
+	ref = 0;
+	return  s;
+}
+
+// debounced check if key release occurred since last test
+static FORCEINLINE u8 AGT_debouncedKeyReleasedClear(s16 _scancode)
+{
+	u8 &ref = debounced_key_states[s16(_scancode + s16(128))];
+	u8 s = ref;
+	ref = 0;
+	return  s;
+
+//	debounced_key_states[s16(_scancode + s16(128))] = 0;
 }
 
 // pop waiting key (returns scancode: bit 7 = release/press)

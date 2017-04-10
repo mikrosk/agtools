@@ -44,6 +44,12 @@ static const int pbend_renorm = 12;	//2
 
 //-----------------------------------------------------------------------------
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
+//-----------------------------------------------------------------------------
+
 extern "C" void STE_WriteLMC1992(int data);
 
 volatile s16 g_looped = 0;
@@ -157,8 +163,6 @@ void AGT_SoundClose(void)
 
 void AGT_SoundOpen(void)
 {
-	int i;
-
 	// Initialize external data (all sounds) at start, keep static.
 	dprintf( "AGT_SoundOpen: begin...\n");
 
@@ -206,7 +210,7 @@ void assign_channel(virtual_channel_t * __restrict _virt_channel, virtual_channe
 {
 	s16 handle;
 	u16 note;
-	u32 active_length;
+//	u32 active_length;
 
 	_virt_channel->chn = -1;
 
@@ -777,9 +781,9 @@ extern "C" void assign_bmm_channel_68k(virtual_channel_t *_virt_channel, s16 _bm
 
 agt_outline void assign_bmm_channel(virtual_channel_t *_virt_channel, s16 _bmmchannel, s16 _mpmap, u8 _instrument, u8 _volume, u8 _note/*, s32 _step*/)
 {
-	u32 active_length;
-	s32 step;
-	s16 note, pbnote, pitchcode;
+	//u32 active_length;
+	//s32 step;
+	s16 note, pbnote;//, pitchcode;
 	s16 ymi;
 
 	// midi channel #
@@ -965,7 +969,7 @@ extern "C" int bmm_event_feeder_68k();
 PRFINLINE int bmm_event_feeder(void)
 {
 	virtual_channel_t *curr, *channel;
-	s16 _dbg_counter_ = 0;
+	//s16 _dbg_counter_ = 0;
 
 //	*** todo *** predict points during mux where frame events are expected next! in most cases 1 or 2 mux parts should be enough
 
@@ -979,7 +983,7 @@ PRFINLINE int bmm_event_feeder(void)
 		(g_bmmstate_duration == 0)
 	)
 	{
-		u32* pbmm32;
+		//u32* pbmm32;
 		u16* pbmm16;
 		u8* pbmm8;
 		s16 mc;
@@ -1769,7 +1773,7 @@ PRFINLINE void output()
 			if (curr)
 			{
 				s32 fn = g_ym_freqtable[((s16)(curr->note) << pbend_bits) + curr->pbend];
-				u8 vel = curr->evol;
+				//u8 vel = curr->evol;
 
 				s32 en = fn >> 3;
 
@@ -1997,7 +2001,7 @@ PRFINLINE void frame_event(void)
 	{
 
 
-	s16 _dbg_counter_ = 0;
+	//s16 _dbg_counter_ = 0;
 
 
 
@@ -2733,7 +2737,7 @@ char *load_sample(int id, void* own)
 //	char* filename = l->filename;
 
 	yminstrument_t *pymi = &g_yminstrument_dict[id];
-	char* filename = pymi->p_samplename;
+	const char* filename = pymi->p_samplename;
 
 	if (!filename)
 		return NULL;
@@ -2804,7 +2808,8 @@ char *load_sample(int id, void* own)
 			pymi->p_wav = (s8*)src;
 
 			// copy/convert data
-			for (s16 p = 0; p < len; ++p)
+			s16 slen = (s16)len;
+			for (s16 p = 0; p < slen; ++p)
 			{
 				*src = g_sampletranslation[*((u8*)src)];
 				src++;
@@ -3017,3 +3022,4 @@ extern u32 raster_callback_ptr;
 
 //-----------------------------------------------------------------------------
 
+#pragma GCC diagnostic pop

@@ -31,6 +31,12 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
+//----------------------------------------------------------------------------------------------------------------------
+
 // force flush of active channels
 extern volatile s8 g_flushchannels;
 
@@ -420,3 +426,5 @@ void AGT_MusicFixupCallback(const char* const _name, remap_ft &remap_func)
 {
 }
 #endif // defined(ENABLE_AGT_AUDIO)
+
+#pragma GCC diagnostic pop

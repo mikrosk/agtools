@@ -14,6 +14,14 @@
 #ifndef sounds_h_
 #define sounds_h_
 
+//-----------------------------------------------------------------------------
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
+//-----------------------------------------------------------------------------
+
 // 1 = force to 25khz (currently breaks ingame sfx, but will be used for titles)
 #ifdef USE_HQ_AUDIO
 #define dma_hq (1)
@@ -458,7 +466,7 @@ typedef struct yminstrument_s
 	u8 *p_envseq;					// software envelope
 	s16 env_rel;
 
-	char *p_samplename;
+	const char *p_samplename;
 	u8 *p_wavalloc;
 	s8 *p_wav;
 	s16 samplelen;
@@ -804,6 +812,12 @@ typedef enum
 
 #define midi_mperc_start_ (gmp_kick_drum_2)	// Bass drum 2
 #define midi_mperc_end_ (gmp_shaker)		// Shaker (first not present)
+
+//-----------------------------------------------------------------------------
+
+#pragma GCC diagnostic pop
+
+//-----------------------------------------------------------------------------
 
 #endif // sounds_h_
 

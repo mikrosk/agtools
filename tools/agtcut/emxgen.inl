@@ -591,7 +591,7 @@ public:
 
 			if (exitcode != 0)
 			{
-				std::cerr << "error assembling intedmediate code!" << std::endl;
+				std::cerr << "error assembling intermediate code using RMAC!" << std::endl;
 				getchar();
 
 				exit(-1);
@@ -2220,8 +2220,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			int last_improvement = 0;
 
 			// optimize line pattern by reordering
-			int darwin_limit = 1 << INITIAL_DARWIN_DEPTH;
-			for (int trial = 0; trial < darwin_limit; trial++)
+			int darwin_limit = 1 << g_allargs.emxoptlevel;
+			for (int trial = 0, depth = 0; depth < darwin_limit; trial++, depth++)
 			{
 				std::vector<int> trial_pattern(best_pattern);
 
@@ -2294,8 +2294,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					// include benign changes (cost delta == 0) to assist Darwin...
 					if (totalcost <= best_cost)
 					{
-						if ((totalcost < best_cost) && (darwin_limit < (1<<DARWIN_SATURATION)))
-							darwin_limit += 1<<DARWIN_INCREMENT;
+						// reset the search depth on any 'real' improvement
+						if (totalcost < best_cost)
+							depth = 0;
 
 						best_cost = totalcost;
 						best_loadcost = loadcost;
@@ -3609,6 +3610,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			{
 				std::cerr << "*************************************************" << std::endl;
 				std::cerr << "error: simulation failed on frame " << _frame << " preshift " << pi << std::endl;
+				std::cerr << "this is a bug in agtcut! contact the dml with your datas..." << std::endl;
+				std::cerr << "quickfix: play with -emxopt <level>, or switch to EMS format for this file" << std::endl;
 				printf("press any key...\n");
 				getchar();
 				exit(1);			

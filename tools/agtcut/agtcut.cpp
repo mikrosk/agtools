@@ -60,9 +60,7 @@ static const int USE_EMPTYLINE_OPTIMIZATION = 1;
 //static const int USE_PERSHIFT_LINEORDER_OPTIMIZATION = 0;
 
 //static const int DARWIN_DEPTH = 20;
-static const int INITIAL_DARWIN_DEPTH = 18;
-static const int DARWIN_INCREMENT = 18;
-static const int DARWIN_SATURATION = DARWIN_INCREMENT+3;
+static const int DEFAULT_EMX_OPTLEVEL = 20;
 
 #define USE_NOP_BINARY_VALIDATION (0)
 
@@ -125,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.376";
+static const char* const g_version_string = "v0.377";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -350,6 +348,7 @@ enum
 	OPT_NOREMAP,
 	OPT_FORCEREMAP,
 	// sprites
+	OPT_EMXOPT,
 	OPT_SPRITEGUIDE,
 	OPT_QUICKCUT,
 	OPT_VIS,
@@ -403,6 +402,9 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_MASKLAYOUT,	_T("-ml"),	 			SO_REQ_SEP	},
 	{ OPT_MASKLAYOUT,	_T("--mask-layout"),	SO_REQ_SEP	},
+	//
+	{ OPT_EMXOPT,		_T("-emxopt"),	 		SO_REQ_SEP	},
+	{ OPT_EMXOPT,		_T("--emx-opt-level"),	SO_REQ_SEP	},
 	//
 	{ OPT_KEYCOL,		_T("-key"),	 			SO_REQ_SEP	},
 	{ OPT_KEYCOL,		_T("--key-colour"),		SO_REQ_SEP	},
@@ -562,6 +564,7 @@ static void usage(int level)
 	std::cout << " -ccr                 > cryptochrome colour field remapping: both,high,low" << std::endl;
 	std::cout << " -prv, --preview      > show ASCII preview of extracted colours + masking" << std::endl;
 	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;
+	std::cout << " -emxopt, --emx-opt   > optimization level for EMX mask delta elimination" << std::endl;
 	std::cout << std::endl;
 	std::cout << "map & tile cutting mode:" << std::endl;
 	std::cout << " -ts, --tilesize      > tile size (rbplus mode only): 16,32" << std::endl;
@@ -663,6 +666,7 @@ public:
 		  masklayout_lock(false),
 		  planes(4),
 		  tilesize(16),
+		  emxoptlevel(DEFAULT_EMX_OPTLEVEL),
 		  keycol(255),
 		  cut_xpos(0),
 		  cut_ypos(0),
@@ -712,6 +716,7 @@ public:
 	int maprect_ypos;
 	int maprect_xsize;
 	int maprect_ysize;
+	int emxoptlevel;
 
 	float tolerance;
 	float keytol;
@@ -1019,6 +1024,19 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					exit(1);
 				}
 				_args.colrenorm = iarg;	
+			}
+			else if (args.OptionId() == OPT_EMXOPT)
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if (iarg < 0 || iarg > 31)
+				{
+					printf("error: invalid arg for emxopt: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
+					exit(1);
+				}
+				_args.emxoptlevel = iarg;	
 			}
 			else if (args.OptionId() == OPT_KEYCOL)
 			{
