@@ -16,6 +16,12 @@
 
 //-----------------------------------------------------------------------------
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
+//-----------------------------------------------------------------------------
+
 // these do not change
 #define max_midi_channels (16)
 #define max_midi_notes (128)
@@ -92,6 +98,9 @@ extern "C" void AGT_MusicFixupCallback(const char* const _name, remap_ft &remap_
 
 extern "C" void set_channel_routing(const s8 *_routing);
 
+//-----------------------------------------------------------------------------
+
+#pragma GCC diagnostic pop
 
 //-----------------------------------------------------------------------------
 

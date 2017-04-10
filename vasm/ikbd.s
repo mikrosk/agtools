@@ -14,6 +14,7 @@
 	XDEF		_ST_ResetInput			; restore to power-up state
 
 	XDEF		_key_states
+	XDEF		_debounced_key_states
 
 	XDEF		_key_eventhead
 	XDEF		_key_eventtail
@@ -83,12 +84,15 @@ _AGT_InstallInputService:
 	link		a6,#-.frame_
 *-------------------------------------------------------*
 	tst.b		ikbd_on
-	bne.s		.done
+	bne		.done
 	
 	lea		_key_states,a0
+	lea		_debounced_key_states,a1
 	moveq		#128/4-1,d7
 .clear_states:
 	clr.l		(a0)+
+	clr.l		(a1)+
+	clr.l		(a1)+
 	dbra		d7,.clear_states
 
 	clr.w		_key_eventhead
@@ -658,10 +662,13 @@ i_primary:
 
 	; also track press/release state separately
 	
-	lea		_key_states,a0
 	and.w		#$ff,d0
+	lea		_debounced_key_states,a0
+	st		(a0,d0.w)	
+;	lea		_key_states,a0
 	bclr		#7,d0
-	seq		(a0,d0.w)
+	seq		-128(a0,d0.w)
+
 
 	move.l		(sp)+,a0
 *-------------------------------------------------------*
@@ -876,6 +883,7 @@ sys_mouse:		ds.l	1
 *-------------------------------------------------------*
 
 _key_states:		ds.b	128			; key press/release states
+_debounced_key_states:	ds.b	256			; separated key press/release states
 
 _key_eventring:		ds.b	256			; key press/release events in sequence
 _msclick_eventring:	ds.b	256			; mouse click/release events in sequence

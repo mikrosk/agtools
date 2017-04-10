@@ -10,7 +10,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 
 // return size of existing file
-size_t fsize(char* file);
+size_t fsize(const char* file);
 
 // save file to disk
 void fsave(char* name, char* data, int bytes);

@@ -295,6 +295,19 @@ inline void endianswap16(word_t* _data, datasize_t _num)
 #define agt_outline __attribute__((noinline))
 
 #define agt_used __attribute__((used))
+#define agt_unused __attribute__((unused))
+
+#define agt_hotcode __attribute__((hot))
+#define agt_coldcode __attribute__((cold))
+#define agt_argnonnull __attribute__((nonnull))
+#define agt_retnonnull __attribute__((returns_nonnull))
+#define agt_noreturn __attribute__((noreturn))
+#define agt_pure __attribute__((pure))
+#define agt_malloc __attribute__((malloc))
+#define agt_cconstexpr __attribute__((const))
+#define agt_flatten __attribute__((agt_flatten))
+#define agt_optnone __attribute__((optimize("O0"))
+#define agt_assumealigned(_a_) __attribute__((assume_aligned(_a_))
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	quick alternatives to common mem ops
@@ -335,7 +348,7 @@ extern "C" int bmprintf(const char *pFormat, ...);
 // --------------------------------------------------------------------
 
 // just inline stuff - don't bother with heuristics & guesswork
-#define FORCEINLINE __attribute__((always_inline))
+#define FORCEINLINE inline __attribute__((always_inline))
 
 // inhibit tranlation of normal code into memcpy/memset calls - e.g. within inner loops
 #define NO_INTRINSIC_MEMXXX __attribute__((optimize("-fno-tree-loop-distribute-patterns")))
@@ -347,7 +360,7 @@ extern "C" int bmprintf(const char *pFormat, ...);
 extern "C" void SYS_Assert();
 
 // fancy assert which invokes vector $1C with a message param
-#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert @ "AGT_AT; __asm__ __volatile__ ("move.l %0,-(%%sp); jsr _SYS_Assert;" : : "p"(__msg) : "cc"); } };
+#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert @ " AGT_AT; __asm__ __volatile__ ("move.l %0,-(%%sp); jsr _SYS_Assert;" : : "p"(__msg) : "cc"); } };
 
 // --------------------------------------------------------------------
 

@@ -1,109 +1,47 @@
 
 *------------------------------------------------------------------------------*
 
+; a4,d0,d7,d6,a3,a5,a0,a2
+
 .macro	tile_pr	offs,dst,src,dstpgw,dstpgh,tdst,tsrc
 
 	lea		\offs*8(\dst),\tdst
+	lea		\offs*8(\dst,\dstpgh.l),a6
 
+	move.l		\src,\tsrc
+	
+	rept	16
+	move.l	(\tsrc)+,\src
+	move.l	\src,(\tdst)+
+	move.l	\src,(a6)+
+	move.l	(\tsrc)+,\src
+	move.l	\src,(\tdst)+
+	move.l	\src,(a6)+
+	lea	dst_linewid-8(\tdst),\tdst
+	lea	dst_linewid-8(a6),a6
+	endr
+
+	.if		(0)
+
+	lea		\offs*8(\dst),\tdst
+
+	.rept		16
 	move.l		\src,\tsrc
 	move.l		(\tsrc)+,(\tdst)+
 	move.l		(\tsrc)+,(\tdst)+
 	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
+	.endr
 
 	lea		\offs*8(\dst,\dstpgh.l),\tdst
 
+	.rept		16
 	move.l		\src,\tsrc
 	move.l		(\tsrc)+,(\tdst)+
 	move.l		(\tsrc)+,(\tdst)+
 	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
+	.endr
+
+	.endif		;qqqq
 
 	.endm
 
@@ -124,7 +62,7 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 *********************************************************
 
 	move.l		_dm_dirtymask,a1
-	move.l		_dm_dstaddr,a6
+	move.l		_dm_dstaddr,a4
 	move.l		_dm_ptiles,a2
 	move.l		_dm_pmap,d1
 	move.w		_dm_visible_linebytes,d7
@@ -251,6 +189,12 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 	dc.w		.start3-.jtab
 
 .done:
+	.if		^^defined TIMING_RASTERS
+	move.w		#$777,d0
+	move.w		d0,$ffff8240.w
+	move.w		d0,$64.w
+	.endif
+
 	movem.l		(sp)+,d0-a6
 	rts
 
@@ -287,9 +231,6 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 .ylp3:
 	; advance Y
 	
-	move.l		a6,a4	
-.smc3d:	lea		1234(a6),a6
-	
 	move.l		d1,a0
 	add.l		d2,d1
 
@@ -304,6 +245,12 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	; dirty row
 
+	.if		^^defined TIMING_RASTERS
+	move.w		#$707,d0
+	move.w		d0,$ffff8240.w
+	move.w		d0,$64.w
+	.endif
+
 	lsl.l		#3,d3
 	bsr		.do_block
 	lsr.l		#8,d3			; 00:xx:AA:BB
@@ -311,7 +258,17 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 	lsr.l		#8,d3			; 00:00:xx:AA
 	bsr		.do_block
 
+	lea		8*8*3(a4),a4
+
+	.if		^^defined TIMING_RASTERS
+	move.w		#$753,d0
+	move.w		d0,$ffff8240.w
+	move.w		d0,$64.w
+	.endif
+
 .next3:
+
+.smc3d:	lea		1234(a4),a4
 
 	; next Y
 
@@ -327,9 +284,6 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 .ylp2:
 	; advance Y
 	
-	move.l		a6,a4	
-.smc2d:	lea		1234(a6),a6
-
 	move.l		d1,a0
 	add.l		d2,d1
 
@@ -344,12 +298,28 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	; dirty row
 
+	.if		^^defined TIMING_RASTERS
+	move.w		#$707,d0
+	move.w		d0,$ffff8240.w
+	move.w		d0,$64.w
+	.endif
+
 	lsl.l		#3,d3
 	bsr		.do_block
 	lsr.l		#8,d3			; xx:xx:00:BB
 	bsr		.do_block
 
+	lea		8*8*2(a4),a4
+
+	.if		^^defined TIMING_RASTERS
+	move.w		#$753,d0
+	move.w		d0,$ffff8240.w
+	move.w		d0,$64.w
+	.endif
+
 .next2:
+
+.smc2d:	lea		1234(a4),a4
 
 	; next Y
 
@@ -365,9 +335,6 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 .ylp1:
 	; advance Y
 
-	move.l		a6,a4	
-.smc1d:	lea		1234(a6),a6
-
 	move.l		d1,a0
 	add.l		d2,d1
 
@@ -382,10 +349,26 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	; dirty row
 
+	.if		^^defined TIMING_RASTERS
+	move.w		#$707,d0
+	move.w		d0,$ffff8240.w
+	move.w		d0,$64.w
+	.endif
+
 	lsl.w		#3,d3
 	bsr		.do_block
 
+	lea		8*8*1(a4),a4
+
+	.if		^^defined TIMING_RASTERS
+	move.w		#$753,d0
+	move.w		d0,$ffff8240.w
+	move.w		d0,$64.w
+	.endif
+	
 .next1:
+
+.smc1d:	lea		1234(a4),a4
 
 	; next Y
 

@@ -62,6 +62,7 @@ enum EntityFlags
 	EntityFlag_POWERUP		= 0x0008,		// identifies powerup goodies for collection
 	EntityFlag_NME			= 0x0010,		// identifies non-player AIs (typically interact with player-aligned entities)
 	EntityFlag_NMEBULLET	= 0x0020,		// identifies enemy bullets separately from player bullets
+	EntityFlag_NMEAVOID		= 0x0040,		// identifies enemies as testable against each other for bounce/avoidance
 
 
 	// CAUTION: do not change the following flags - 68k entity code uses them
@@ -420,6 +421,18 @@ static agt_inline void EntityWorldFromRelative(entity_t &ent, s16 _basisx, s16 _
 {
 	ent.rx = ent.wx + _basisx;
 	ent.ry = ent.wy + _basisy;
+}
+
+static inline void EntitySwitchAsset_Sprite(entity_t *_pent, spritesheet *_passet)
+{
+	spritesheet::sps_header *pspr = _passet->get();
+
+	_pent->passet = pspr;
+	_pent->sx = pspr->srcwidth;
+	_pent->sy = pspr->srcheight;
+	// todo: origin should also be stored/retrieved via spritesheet
+	_pent->ox = pspr->srcwidth>>1;
+	_pent->oy = pspr->srcheight>>1;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

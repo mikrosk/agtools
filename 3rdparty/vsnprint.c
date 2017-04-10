@@ -53,6 +53,9 @@
 
 //#include "config.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 #if !defined(HAVE_SNPRINTF) || !defined(HAVE_VSNPRINTF)
 
 // dml: pull in some TOS bindings
@@ -157,7 +160,9 @@ static void dopr (char *buffer, size_t maxlen, const char *format, va_list args)
 {
   char ch;
   long value;
+#ifdef VSN_FLOAT
   LDOUBLE fvalue;
+#endif
   char *strvalue;
   int min;
   int max;
@@ -333,18 +338,22 @@ static void dopr (char *buffer, size_t maxlen, const char *format, va_list args)
       case 'E':
 	flags |= DP_F_UP;
       case 'e':
+#ifdef VSN_FLOAT
 	if (cflags == DP_C_LDOUBLE)
 	  fvalue = va_arg (args, LDOUBLE);
 	else
 	  fvalue = va_arg (args, double);
+#endif
 	break;
       case 'G':
 	flags |= DP_F_UP;
       case 'g':
+#ifdef VSN_FLOAT
 	if (cflags == DP_C_LDOUBLE)
 	  fvalue = va_arg (args, LDOUBLE);
 	else
 	  fvalue = va_arg (args, double);
+#endif
 	break;
       case 'c':
 	dopr_outch (buffer, &currlen, maxlen, va_arg (args, int));
