@@ -29,6 +29,7 @@
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0xf00,0xffff8240.w;	\
+			move.w	#0xf00,0x64.w;			\
 "										
 #endif
 "											\
@@ -56,6 +57,7 @@
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0x000,0xffff8240.w;	\
+			move.w	#0x000,0x64.w;			\
 "										
 #endif
 	     	: 
@@ -97,6 +99,7 @@
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0xf00,0xffff8240.w;	\
+			move.w	#0xf00,0x64.w;			\
 "										
 #endif
 "											\
@@ -121,6 +124,7 @@
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0x000,0xffff8240.w;	\
+			move.w	#0x000,0x64.w;			\
 "										
 #endif
 	     	: 

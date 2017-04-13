@@ -767,6 +767,7 @@ public:
 		// blitter version...
 #ifdef TIMING_RASTERS		
 		reg16(ffff8240) = 0x00f;
+		reg16(00000064) = 0x00f;
 #endif
 		reg32(ffff8a24) = (u32)srcaddr;		// sa
 		reg32(ffff8a32) = (u32)dstaddr;		// da
@@ -775,6 +776,7 @@ public:
 		reg8(ffff8a3c) = 0xc0;				// hog & go
 #ifdef TIMING_RASTERS		
 		reg16(ffff8240) = 0x000;
+		reg16(00000064) = 0x000;
 #endif
 /*		
 		// clunky C version...
@@ -1832,6 +1834,7 @@ void fill()
 	{
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0x400;
+		reg16(00000064) = 0x400;
 #endif		
 
 #if (1)
@@ -1869,6 +1872,7 @@ void fill()
 
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0xf00;
+		reg16(00000064) = 0xf00;
 #endif		
 
 		last_txpos_ = txpos_;
@@ -2033,6 +2037,7 @@ void speculative_fill()
 	{
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0x400;
+		reg16(00000064) = 0x400;
 #endif		
 //		prepare_blitter();
 
@@ -2061,6 +2066,7 @@ void speculative_fill()
 
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0xf00;
+		reg16(00000064) = 0xf00;
 #endif		
 
 		last_txpos_ = txpos_;
@@ -2414,6 +2420,7 @@ void speculative_fill()
 		{
 #ifdef TIMING_RASTERS_MAIN
 			reg16(ffff8240) = 0x0ff;
+			reg16(00000064) = 0x0ff;
 #endif		
 			fill_speccolumn_virtual(
 				x2, hs_fill_y1, 
@@ -2426,6 +2433,7 @@ void speculative_fill()
 
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0xfff;
+			reg16(00000064) = 0xfff;
 #endif		
 			if (lxf < c_tilesize_)	
 			fill_speccolumn_virtual(
@@ -2436,6 +2444,7 @@ void speculative_fill()
 
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0x444;
+			reg16(00000064) = 0x444;
 #endif		
 			if (xf > 0)	
 			fill_speccolumn_virtual(
@@ -2522,6 +2531,7 @@ void speculative_fill()
 		{
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0xff0;
+			reg16(00000064) = 0xff0;
 #endif		
 			fill_speccolumn_virtual(
 				x1 - 1, hs_fill_y1, 
@@ -2533,6 +2543,7 @@ void speculative_fill()
 		{
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0xff0;
+			reg16(00000064) = 0xff0;
 #endif		
 			if (lxf > 0)	
 			fill_speccolumn_virtual(
@@ -2543,6 +2554,7 @@ void speculative_fill()
 
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0x440;
+			reg16(00000064) = 0x440;
 #endif		
 			if (xf < c_tilesize_)	
 			fill_speccolumn_virtual(
@@ -2723,6 +2735,7 @@ void hybrid_fill()
 	{
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0x400;
+		reg16(00000064) = 0x400;
 #endif		
 
 		// prefill all buffers, prepared for wrap
@@ -2754,6 +2767,7 @@ void hybrid_fill()
 #endif
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0xf00;
+		reg16(00000064) = 0xf00;
 #endif		
 
 		if (c_hsyncshift_ && c_updatecols)
@@ -3294,6 +3308,7 @@ void hybrid_fill()
 		{
 #ifdef TIMING_RASTERS_MAIN
 			reg16(ffff8240) = 0x0ff;
+			reg16(00000064) = 0x0ff;
 #endif		
 			//if (c_hbufferspeculation_)
 			//shift_speccolumn_virtual(
@@ -3313,6 +3328,7 @@ void hybrid_fill()
 
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0xfff;
+			reg16(00000064) = 0xfff;
 #endif		
 			if (lxf < c_tilesize_)	
 			//if (c_hbufferspeculation_)
@@ -3330,6 +3346,7 @@ void hybrid_fill()
 
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0x444;
+			reg16(00000064) = 0x444;
 #endif		
 			if (xf > 0)	
 			//if (c_hbufferspeculation_)
@@ -3430,6 +3447,7 @@ void hybrid_fill()
 		{
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0xff0;
+			reg16(00000064) = 0xff0;
 #endif		
 			//if (c_hbufferspeculation_)
 			//shift_speccolumn_virtual(
@@ -3448,6 +3466,7 @@ void hybrid_fill()
 		{
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0xff0;
+			reg16(00000064) = 0xff0;
 #endif		
 			if (lxf > 0)	
 			//if (c_hbufferspeculation_)
@@ -3465,6 +3484,7 @@ void hybrid_fill()
 
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0x440;
+			reg16(00000064) = 0x440;
 #endif		
 			if (xf < c_tilesize_)
 			//if (c_hbufferspeculation_)

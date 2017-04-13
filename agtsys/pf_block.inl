@@ -990,6 +990,7 @@ syl%=:		dbra	%%d4,yl%=; 				\
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0xf00,0xffff8240.w;	\
+			move.w	#0xf00,0x64.w;			\
 "										
 #endif
 "											\
@@ -1130,6 +1131,7 @@ syl%=:		dbra	%%d4,yl%=; 				\
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0x000,0xffff8240.w;	\
+			move.w	#0x000,0x64.w;			\
 "										
 #endif
 	     	: 
@@ -1151,187 +1153,227 @@ syl%=:		dbra	%%d4,yl%=; 				\
 
 		__asm__ __volatile__ (
 #ifdef TIMING_RASTERS
-"											\
-			move.w	#0xf00,0xffff8240.w;	\
+"												\
+			move.w	#0xf00,0xffff8240.w;		\
+			move.w	#0xf00,0x64.w;				\
 "										
 #endif
-"											\
+"												\
 			move.l	%12,%%a4;				 	\
 			move.l	%11,%%a2;				 	\
 			move.l	%10,%%d1;				 	\
-			move.w	%16,%%d7;					\
 			move.l	%17,%%d6;					\
 			moveq	#0,%%d2;					\
 			move.w	%8,%%d2;					\
 			lsl.l	#2,%%d2;					\
 "
 #ifdef WRAPAROUND_MAPS
-"											\
+"												\
 			move.w	%7,%%d4;			 		\
 			swap	%%d4;				 		\
 "										
 #endif
-"											\
+"												\
 			move.w	%4,%%d5; 					\
 			sub.w	%2,%%d5;		 			\
-											\
+												\
 			move.w	%5,%%d4; 					\
 			sub.w	%3,%%d4; 					\
-			bra		syl%=; 					\
-yl%=:										\
+												\
+			move.w	%13,smc%=+2;				\
+			move.l	%%a1,%%usp;					\
+			bra		syl%=; 						\
+yl%=:											\
 "
 #ifdef WRAPAROUND_MAPS
-"											\
+"												\
 			move.w	%6,%%d3; 					\
-			swap 	%%d3; 					\
+			swap 	%%d3; 						\
 "										
 #endif
-"											\
+"												\
+			move.w	#184-8,%%d7;				\
+												\
 			move.w	%%d5,%%d3; 					\
 			move.l	%%d1,%%a0;					\
 			add.l	%%d2,%%d1;					\
-			bra		sxl%=; 					\
-xl%=:										\
-			move.l	%%a2,%%d0;					\
-			add.l	(%%a0)+,%%d0;				\
-											\
+			bra		sxl%=; 						\
+xl%=:											\
+			move.l	%%a2,%%a5;					\
+			add.l	(%%a0)+,%%a5;				\
+												\
 			move.l	%%a4,%%a3;					\
-			move.l	%%d0,%%a5;					\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-											\
-			move.l	%%a4,%%a3;					\
-			add.l	%%d6,%%a3;					\
-			move.l	%%d0,%%a5;					\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-			move.l	(%%a5)+,(%%a3)+;			\
-											\
+			move.l	%%a4,%%a1;					\
+			add.l	%%d6,%%a1;					\
+												\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			move.l	%%d0,(%%a1)+;				\
+			move.l	(%%a5)+,%%d0;				\
+			move.l	%%d0,(%%a3)+;				\
+			adda.w	%%d7,%%a3;					\
+			move.l	%%d0,(%%a1)+;				\
+			adda.w	%%d7,%%a1;					\
+												\
 			addq.l	#8,%%a4;					\
 "
 #ifdef WRAPAROUND_MAPS
-"											\
+"												\
 			swap	%%d3;						\
 			addq.w	#1,%%d3;					\
 			cmp.w	%8,%%d3;					\
-			bne.s	nxl%=;					\
+			bne.s	nxl%=;						\
 			sub.w	%%d3,%%d3;					\
 			sub.l	%%d2,%%a0;					\
 nxl%=:		swap	%%d3;						\
 "										
 #endif
-"											\
-sxl%=:		dbra	%%d3,xl%=; 				\
-											\
-			adda.w	%13,%%a4;					\
+"												\
+sxl%=:		dbra	%%d3,xl%=; 					\
+												\
+smc%=:		lea		0x1234(%%a4),%%a4;			\
 "
 #ifdef WRAPAROUND_MAPS
-"											\
+"												\
 			swap	%%d4;						\
 			addq.w	#1,%%d4;					\
 			cmp.w	%9,%%d4;					\
-			bne.s	nyl%=;					\
+			bne.s	nyl%=;						\
 			sub.w	%%d4,%%d4;					\
 			sub.l	%14,%%d1;					\
 nyl%=:		swap	%%d4;						\
 "										
 #endif
-"											\
-syl%=:		dbra	%%d4,yl%=; 				\
-											\
+"												\
+syl%=:		dbra	%%d4,yl%=; 					\
+												\
+			move.l	%%usp,%%a1;					\
+												\
 "
 #ifdef TIMING_RASTERS
-"											\
-			move.w	#0x000,0xffff8240.w;	\
+"												\
+			move.w	#0x000,0xffff8240.w;		\
+			move.w	#0x000,0x64.w;				\
 "										
 #endif
 	     	: 
@@ -1383,6 +1425,7 @@ syl%=:		dbra	%%d4,yl%=; 				\
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0xf00,0xffff8240.w;	\
+			move.w	#0xf00,0x64.w;			\
 "										
 #endif
 "											\
@@ -1496,6 +1539,7 @@ syl%=:		dbra	%%d4,yl%=; 				\
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0x000,0xffff8240.w;	\
+			move.w	#0x000,0x64.w;			\
 "										
 #endif
 	     	: 
@@ -1518,6 +1562,7 @@ syl%=:		dbra	%%d4,yl%=; 				\
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0xf00,0xffff8240.w;	\
+			move.w	#0xf00,0x64.w;			\
 "										
 #endif
 "											\
@@ -1646,6 +1691,7 @@ syl%=:		dbra	%%d4,yl%=; 				\
 #ifdef TIMING_RASTERS
 "											\
 			move.w	#0x000,0xffff8240.w;	\
+			move.w	#0x000,0x64.w;			\
 "										
 #endif
 	     	: 
