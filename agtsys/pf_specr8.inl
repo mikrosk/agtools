@@ -61,7 +61,7 @@ inline void PR8_fill_specrow_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, s
 											\
 		moveq	#1,%%d7;					\
 		and.w	%2,%%d7;					\
-		add.w	%%d7,a4;					\
+		add.w	%%d7,%%a4;					\
 		move.b	.tbl%=(%%pc,%%d7.w),%%d7;	\
 											\
 		lea		xl%=(%%pc,%%d4.w),%%a0;		\
