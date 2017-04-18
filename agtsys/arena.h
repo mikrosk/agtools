@@ -106,12 +106,12 @@ public:
 		playfield_type& pf = b.fields[0];
 
 		// generate loopback snapping adjustments
-		if (pf.c_hloop)
+		if (pf.c_hloop_)
 			r_ctx.pfsnapadjx = pf.xpos_ - tmod16(pf.xpos_, pf.wrap_width_>>0);
 		else
 			r_ctx.pfsnapadjx = 0;
 
-		if (pf.c_vloop)
+		if (pf.c_vloop_)
 			r_ctx.pfsnapadjy = pf.ypos_ - tmod16(pf.ypos_, pf.wrap_height_>>0);
 		else
 			r_ctx.pfsnapadjy = 0;
@@ -174,9 +174,9 @@ public:
 		buffer& b = *pactive_;
 		playfield_type& pf = b.fields[0];
 
-		if (pf.c_hloop)
+		if (pf.c_hloop_)
 			r_x = tmod16(pf.xpos_, pf.wrap_width_>>0);
-		if (pf.c_vloop)
+		if (pf.c_vloop_)
 			r_y = tmod16(pf.ypos_, pf.wrap_height_>>0);
 	}
 
@@ -294,7 +294,8 @@ public:
 	void multimod_idx(s16 _x, s16 _y, s32 _i)
 	{
 		// update map tiles
-		s32 rawidx = _i << 7;
+		s32 rawidx = _i << playfield_type::c_tileshift_b_;
+
 		mapctx0_.multimod(_x, _y, rawidx);
 //		mapctx1_.multimod(_x, _y, rawidx); // todo: eliminate dualfield maps!
 

@@ -10,7 +10,7 @@
 
 	move.l		\src,\tsrc
 	
-	rept	16
+	.rept	16
 	move.l	(\tsrc)+,\src
 	move.l	\src,(\tdst)+
 	move.l	\src,(a6)+
@@ -19,29 +19,7 @@
 	move.l	\src,(a6)+
 	lea	dst_linewid-8(\tdst),\tdst
 	lea	dst_linewid-8(a6),a6
-	endr
-
-	.if		(0)
-
-	lea		\offs*8(\dst),\tdst
-
-	.rept		16
-	move.l		\src,\tsrc
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
 	.endr
-
-	lea		\offs*8(\dst,\dstpgh.l),\tdst
-
-	.rept		16
-	move.l		\src,\tsrc
-	move.l		(\tsrc)+,(\tdst)+
-	move.l		(\tsrc)+,(\tdst)+
-	lea		dst_linewid-8(\tdst),\tdst
-	.endr
-
-	.endif		;qqqq
 
 	.endm
 
@@ -54,6 +32,12 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 *------------------------------------------------------------------------------*
 
 	movem.l		d0-a6,-(sp)
+
+	.if		^^defined TIMING_RASTERS
+	move.w		#$753,d0
+	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
+	.endif
 	
 ;	bra		.done
 
@@ -146,7 +130,6 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 	lsr.l		d4,d5
 
 ;	combine masks       e.g. 0007FF80
-;	note: only LS 24bits used
 
 	and.l		d0,d5
 
@@ -177,22 +160,19 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	lsr.w		#3,d3
 	add.w		d3,d3
-;	bra		*
 	
-;	move.w		rectblocks,d0
 	move.w		.jtab-2(pc,d3.w),d0
-	; dirty mask buffer stride, in bytes (8bit blocks*2)
-;	move.w		_dm_maskstride,d3
 	jmp		.jtab(pc,d0.w)
 .jtab:	dc.w		.start1-.jtab
 	dc.w		.start2-.jtab
 	dc.w		.start3-.jtab
+	dc.w		.start4-.jtab
 
 .done:
 	.if		^^defined TIMING_RASTERS
 	move.w		#$777,d0
-	move.w		d0,$ffff8240.w
 	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
 	.endif
 
 	movem.l		(sp)+,d0-a6
@@ -221,6 +201,60 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 ;	a5 : *
 ;	a6 : dst base
 
+*------------------------------------------------------------------------------*
+
+.start4:
+	move.w		_dm_lineskip,.smc4d+2
+	move.w		_dm_maskstride,.smc4+2
+
+.ylp4:
+	; advance Y
+	
+	move.l		d1,a0
+	add.l		d2,d1
+
+	; check row
+
+	movep.l		0(a1),d3			; AA:BB:CC:DD <-[AA:BB:CC:DD]
+	move.l		d3,d0
+	and.l		d5,d3
+	beq.s		.next4
+	eor.l		d3,d0
+	movep.l		d0,0(a1)
+
+	; dirty row
+
+	.if		^^defined TIMING_RASTERS
+	move.w		#$707,d0
+	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
+	.endif
+
+	rol.l		#3,d3			; AB:BC:CD:DA
+	bsr		.do_block
+	ror.l		#8,d3			; DA:AB:BC:CD
+	bsr		.do_block
+	lsr.l		#8,d3			; 00:DA:AB:BC
+	bsr		.do_block
+	lsr.l		#8,d3			; 00:00:DA:AB
+	bsr		.do_block
+
+	lea		8*8*4(a4),a4
+
+	.if		^^defined TIMING_RASTERS
+	move.w		#$753,d0
+	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
+	.endif
+
+.next4:
+
+	; next Y
+
+.smc4d:	lea		1234(a4),a4
+.smc4:	lea		1234(a1),a1
+	dbra		d4,.ylp4
+	bra		.done
 
 *------------------------------------------------------------------------------*
 
@@ -247,8 +281,8 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$707,d0
-	move.w		d0,$ffff8240.w
 	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
 	.endif
 
 	lsl.l		#3,d3
@@ -262,16 +296,15 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
-	move.w		d0,$ffff8240.w
 	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
 	.endif
 
 .next3:
 
-.smc3d:	lea		1234(a4),a4
-
 	; next Y
 
+.smc3d:	lea		1234(a4),a4
 .smc3:	lea		1234(a1),a1
 	dbra		d4,.ylp3
 	bra		.done
@@ -300,8 +333,8 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$707,d0
-	move.w		d0,$ffff8240.w
 	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
 	.endif
 
 	lsl.l		#3,d3
@@ -313,16 +346,15 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
-	move.w		d0,$ffff8240.w
 	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
 	.endif
 
 .next2:
 
-.smc2d:	lea		1234(a4),a4
-
 	; next Y
 
+.smc2d:	lea		1234(a4),a4
 .smc2:	lea		1234(a1),a1
 	dbra		d4,.ylp2
 	bra		.done
@@ -351,8 +383,8 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$707,d0
-	move.w		d0,$ffff8240.w
 	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
 	.endif
 
 	lsl.w		#3,d3
@@ -362,16 +394,15 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
-	move.w		d0,$ffff8240.w
 	move.w		d0,$64.w
+	move.w		d0,$ffff8240.w
 	.endif
 	
 .next1:
 
-.smc1d:	lea		1234(a4),a4
-
 	; next Y
 
+.smc1d:	lea		1234(a4),a4
 .smc1:	lea		1234(a1),a1
 	dbra		d4,.ylp1
 	bra		.done

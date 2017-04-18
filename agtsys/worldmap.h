@@ -30,8 +30,11 @@ public:
 
 	struct ccm_header
 	{
-		s32 width;
-		s32 height;
+		s8 flags;
+		s8 tilestep;
+		s16 width;
+		s16 _unused_;
+		s16 height;
 	};
 
 	// ---------------------------------------------------------------------------------------------------------------------
@@ -49,6 +52,8 @@ private:
 	void purge()
 	{
 		delete[] map_; map_ = 0;
+		header_.tilestep = 0;
+		header_.flags = 0;
 		header_.width = 0;
 		header_.height = 0;
 	}
@@ -80,10 +85,16 @@ private:
 	// specific step to prepare map for playfield tile engine. not required for collision maps etc.
 	void prepare_playfield(s32 _mapspace)
 	{
+		int tilestep = header_.tilestep;
+		if (tilestep == 0)
+			tilestep = 4;
+
+		int preshift = (tilestep + tilestep + 2) - 3;
+
 		// we now preshift for 16x16 tiles since other bits are unused (so far - can be masked later)
 		for (s32 m = 0; m < _mapspace; m++)
 		{
-			map_[m] <<= 7;	// todo: support different tile sizes, although 16 is optimal for ST/e
+			map_[m] <<= preshift;
 		}
 
 		// fill additional rows with copy of map data, to catch map indexing overruns when 
@@ -111,8 +122,9 @@ public:
 	inline s32* get32() const { return map_; }	
 	inline s16* get16() const { return (s16*)map_; }	
 	inline s8* get8() const { return (s8*)map_; }	
-	inline s32 getwidth() const { return header_.width; }	
-	inline s32 getheight() const { return header_.height; }	
+	inline s16 getwidth() const { return header_.width; }	
+	inline s16 getheight() const { return header_.height; }	
+	inline s16 gettilestep() const { return (s16)header_.tilestep; }	
 			
 	void load_ccm(const char* const _filename)
 	{
@@ -127,16 +139,16 @@ public:
 			// older format was emitted little-endian, so we just detect it
 			// and reformat if needed
 			// todo: deprecate the old format, remove the swappage
-			bool le = (header_.width & 0xFFFF0000);
-			if (le)
-			{
-				endianswap32((u32*)&header_.width, 1); 
-				endianswap32((u32*)&header_.height, 1); 
-			}
+			//bool le = (header_.width & 0xFFFF0000);
+			//if (le)
+			//{
+			//	endianswap32((u32*)&header_.width, 1); 
+			//	endianswap32((u32*)&header_.height, 1); 
+			//}
 
 			s32 mapspace = allocate(MapFormat_PLAYFIELD);
 									
-			pprintf("created ccm worldmap: %dx%d tiles\n", (int)header_.width, (int)header_.height);
+			printf("created ccm worldmap: %dx%d tiles\n", (int)header_.width, (int)header_.height);
 
 			// read main part of the file
 			fread(map_, 1, mapspace * sizeof(s32), h);
@@ -144,12 +156,12 @@ public:
 			fclose(h);
 
 			// older format was emitted little-endian, so this is retained
-			if (le)
-				endianswap32((u32*)map_, mapspace); 
+			//if (le)
+			//	endianswap32((u32*)map_, mapspace); 
 
 			prepare_playfield(mapspace);
 		}
-			}
+	}
 
 	void load_csv(const char* const _filename, s16 _w, s16 _h, MapFormat _format)
 	{
@@ -170,8 +182,8 @@ public:
 
 				char *rawdata = (char*)ealloc(rawsize);
 				fread(rawdata, 1, rawsize, h);
-			// done
-			fclose(h);
+				// done
+				fclose(h);
 				{
 					int i, j;
 
