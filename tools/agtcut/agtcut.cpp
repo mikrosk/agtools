@@ -123,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.377";
+static const char* const g_version_string = "v0.4";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -567,7 +567,7 @@ static void usage(int level)
 	std::cout << " -emxopt, --emx-opt   > optimization level for EMX mask delta elimination" << std::endl;
 	std::cout << std::endl;
 	std::cout << "map & tile cutting mode:" << std::endl;
-	std::cout << " -ts, --tilesize      > tile size (rbplus mode only): 16,32" << std::endl;
+	std::cout << " -ts, --tilesize      > tile size (rbplus mode only): 8,16,32" << std::endl;
 	std::cout << " -ttags, --tiletags   > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
 	std::cout << " -t, --tol            > tile matching tolerance: 0.0+" << std::endl;
 	std::cout << " -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
@@ -1091,7 +1091,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			{
 				std::string s_arg = args.OptionArg();
 				int iarg = atoi(s_arg.c_str());
-				if ((iarg != 16) && (iarg != 32))
+				if ((iarg != 8) && (iarg != 16) && (iarg != 32))
 				{
 					printf("error: invalid arg for tile size: %s\n", s_arg.c_str());
 					printf("press any key...\n");
@@ -1596,31 +1596,67 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 //	chunky (8bit) to N-planar conversion
 // --------------------------------------------------------------------
 
-static void c2p
+static void c2pw
 (
 	ubyte_t* _csrc, uword_t* _pdst, 
-	signed short _w, signed short _h,
-	signed short _sstride, signed short _dstride,
-	signed short _nplanes
+	int _w, int _h,
+	int _sstride, int _dstride,
+	int _nplanes
 )
 {	
 	// v line loop
-	for (signed short yc = 0; yc < _h; ++yc)
+	for (int yc = 0; yc < _h; ++yc)
 	{
 		ubyte_t* src = &_csrc[yc * _sstride];
 		uword_t* dst = &_pdst[yc * _dstride];
 		
 		// h word loop
-		for (signed short xc = (_w >> 4) - 1; xc >= 0; --xc)
+		for (int xc = (_w >> 4) - 1; xc >= 0; --xc)
 		{
 			// h pixel loop				
-			for (signed short xbc = 16-1; xbc >= 0; --xbc)
+			for (int xbc = 16-1; xbc >= 0; --xbc)
 			{
 				ubyte_t val = *(src++);
 					
 				// plane loop
 				uword_t* o = dst;
-				for (signed short p = _nplanes - 1; p >= 0; --p)
+				for (int p = _nplanes - 1; p >= 0; --p)
+				{
+					*(o) = (*(o) << 1) | (val & 1); val >>= 1; o++;
+				}
+			}
+				
+			// advance per word
+			dst += _nplanes;
+		}
+	}
+}	
+
+static void c2pb
+(
+	ubyte_t* _csrc, ubyte_t* _pdst, 
+	int _w, int _h,
+	int _sstride, int _dstride,
+	int _nplanes
+)
+{	
+	// v line loop
+	for (int yc = 0; yc < _h; ++yc)
+	{
+		ubyte_t* src = &_csrc[yc * _sstride];
+		ubyte_t* dst = &_pdst[yc * _dstride];
+		
+		// h word loop
+		for (int xc = (_w >> 3) - 1; xc >= 0; --xc)
+		{
+			// h pixel loop				
+			for (int xbc = 8-1; xbc >= 0; --xbc)
+			{
+				ubyte_t val = *(src++);
+					
+				// plane loop
+				ubyte_t* o = dst;
+				for (int p = _nplanes - 1; p >= 0; --p)
 				{
 					*(o) = (*(o) << 1) | (val & 1); val >>= 1; o++;
 				}
@@ -2274,16 +2310,47 @@ static void remap_dictionary_tiles()
 			}
 		}
 */
-		uword_t *ptileplanar = new uword_t[16*8];
+		// operate on 8 planes for intermediate steps, then save only required planes later
+		int planes = 8;
+		uword_t *ptileplanar = 0;
 
-		// convert chunk 8-bit tiles into 8-planar format
-		c2p
-		(
-			/*src=*/ptile8, /*dst*/ptileplanar,
-			/*w=*/16, /*h=*/16,
-			/*bytes_per_src_line=*/16, /*words_per_dst_line=*/8,
-			/*planes=*/8
-		);
+		// handle 8x8 a bit differently so we can use word-based c2p on it
+		if (g_allargs.tilesize == 8)
+		{
+			// emit 8x8 to 16x8 buffer for c2p
+			int bytes_per_dst_line = planes;
+
+			int bytes_per_tile = g_allargs.tilesize*bytes_per_dst_line;
+			ptileplanar = new uword_t[bytes_per_tile>>1];
+			memset(ptileplanar, 0, bytes_per_tile);
+
+			// convert chunk 8-bit tiles into 8-planar format...
+			c2pb
+			(
+				/*src=*/ptile8, /*dst*/(ubyte_t*)ptileplanar,
+				/*w=*/g_allargs.tilesize, /*h=*/g_allargs.tilesize,
+				/*bytes_per_src_line=*/g_allargs.tilesize, /*bytes_per_dst_line=*/bytes_per_dst_line,
+				/*planes=*/planes
+			);
+		}
+		else
+		{
+			// all other sizes go to normal buffer
+			int words_per_dst_line = (planes * (g_allargs.tilesize >> 4));
+
+			int words_per_tile = g_allargs.tilesize*words_per_dst_line;
+			ptileplanar = new uword_t[words_per_tile];
+			memset(ptileplanar, 0, words_per_tile<<1);
+
+			// convert chunk 8-bit tiles into 8-planar format
+			c2pw
+			(
+				/*src=*/ptile8, /*dst*/ptileplanar,
+				/*w=*/g_allargs.tilesize, /*h=*/g_allargs.tilesize,
+				/*bytes_per_src_line=*/g_allargs.tilesize, /*words_per_dst_line=*/words_per_dst_line,
+				/*planes=*/planes
+			);
+		}
 
 		s_tileplanardictionary.push_back(ptileplanar);
 	}
@@ -2295,7 +2362,7 @@ static void remap_dictionary_tiles()
 //	emit .PI1 from 4-plane buffer & palette data
 // --------------------------------------------------------------------
 
-static void emit_pi1(std::string outfile, uword_t *buffer4plane, RGB *_ppal24, int pi1_index)
+static void emit_pi1(std::string outfile, uword_t *buffer4plane, RGB *_ppal24, bool _fromwords, int pi1_index)
 {
 	// t<N><outfile>.pi1
 	std::string fname("t");
@@ -2326,10 +2393,11 @@ static void emit_pi1(std::string outfile, uword_t *buffer4plane, RGB *_ppal24, i
 		}
 
 		// reformat image to bigendian for intel->motorola
-		for (int i = 0; i < 16000; i++)
-		{
-			buffer4plane[i] = endianswap16(buffer4plane[i]);
-		}
+		if (_fromwords)
+			for (int i = 0; i < 16000; i++)
+			{
+				buffer4plane[i] = endianswap16(buffer4plane[i]);
+			}
 
 		// write header
 		unsigned short v = 0;
@@ -2654,9 +2722,11 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 //	emit map data file indicating where tiles go in original image
 // --------------------------------------------------------------------
 
-static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilemapw, int _tilemaph)
+static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilemapw, int _tilemaph, int _tilestep)
 {
 	long_t v;
+	word_t vw;
+	byte_t vb;
 
 	replace_extension(outfile, "ccm");
 
@@ -2669,10 +2739,21 @@ static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilema
 
 	FILE *hmap = fopen(outfile.c_str(), "wb");
 
-	v = endianswap32(_tilemapw);
-	fwrite(&v, 1, sizeof(v), hmap);
-	v = endianswap32(_tilemaph);
-	fwrite(&v, 1, sizeof(v), hmap);
+	// flags
+	vb = 0;
+	fwrite(&vb, 1, sizeof(vb), hmap);
+	// tilestep
+	vb = (byte_t)_tilestep;
+	fwrite(&vb, 1, sizeof(vb), hmap);
+	// width
+	vw = endianswap16((s16)_tilemapw);
+	fwrite(&vw, 1, sizeof(vw), hmap);
+	// unused
+	vw = 0;
+	fwrite(&vw, 1, sizeof(vw), hmap);
+	// height
+	vw = endianswap16((s16)_tilemaph);
+	fwrite(&vw, 1, sizeof(vw), hmap);
 
 	fwrite(be_tilemap, sizeof(long_t), mapentries, hmap);
 
@@ -2702,32 +2783,70 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
 		// copy 4 least significant planes to PI1 buffer
 		uword_t *pin = s_tileplanardictionary.front();
 		// find output tile address in 4-plane output buffer
-		uword_t *pout = &buffer4plane[(otx<<2) + ((oty<<4) * (320>>(4-2)))];
+		uword_t *pout = &buffer4plane[((otx & -16)>>(4-2)) + (oty * (320>>(4-2)))];
 
-		for (int ty = 0; ty < 16; ty++)
+		// special handling of 8x8 tiles. note this produces motorola/bigendian ordering. other sizes produce intel words.
+		if (g_allargs.tilesize == 8)
 		{
-			// record 4 planes
-			*pout++ = *pin++;
-			*pout++ = *pin++;
-			*pout++ = *pin++;
-			*pout++ = *pin++;
-			// next line of PI1
-			pout += (320>>(4-2)) - 4;
-			// skip 4 planes of 8-plane tile
-			pin += 4;
+			ubyte_t *pinb = (ubyte_t*)pin;
+			for (int ty = 0; ty < g_allargs.tilesize; ty++)
+			{
+				ubyte_t *poutb = (ubyte_t *)pout;
+				{
+					if (otx & 8)
+					{
+						// record 4 planes
+						poutb[0+1] = *pinb++;
+						poutb[2+1] = *pinb++;
+						poutb[4+1] = *pinb++;
+						poutb[6+1] = *pinb++;
+					}
+					else
+					{
+						// record 4 planes
+						poutb[0+0] = *pinb++;
+						poutb[2+0] = *pinb++;
+						poutb[4+0] = *pinb++;
+						poutb[6+0] = *pinb++;
+					}
+					// skip 4 planes of 8-plane tile
+					pinb += 4;
+				}
+				// next line of PI1
+				pout += (320 >> (4-2));
+			}
+		}
+		else
+		{
+			for (int ty = 0; ty < g_allargs.tilesize; ty++)
+			{
+				uword_t *poutw = pout;
+				for (int tx = 0; tx < (g_allargs.tilesize >> 4); tx++)
+				{
+					// record 4 planes
+					*poutw++ = *pin++;
+					*poutw++ = *pin++;
+					*poutw++ = *pin++;
+					*poutw++ = *pin++;
+					// skip 4 planes of 8-plane tile
+					pin += 4;
+				}
+				// next line of PI1
+				pout += (320 >> (4-2));
+			}
 		}
 
-		otx++;
-		if (otx >= (320 / 16))
+		otx += g_allargs.tilesize;
+		if ((otx + g_allargs.tilesize) > 320)
 		{
 			otx = 0;
-			oty++;
-			if (oty >= (200 / 16))
+			oty += g_allargs.tilesize;
+			if ((oty + g_allargs.tilesize) > 200)
 			{
 				oty = 0;
 
 				// flush image
-				emit_pi1(outfile, buffer4plane, _ppalettergb, pi1_index++);
+				emit_pi1(outfile, buffer4plane, _ppalettergb, /*fromwords=*/(g_allargs.tilesize!=8), pi1_index++);
 				memset(buffer4plane, 0, 32000);
 			}
 		}
@@ -2737,7 +2856,7 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
 
 	// if some tiles are still pending, flush remainder
 	if (otx > 0 || oty > 0)
-		emit_pi1(outfile, buffer4plane, _ppalettergb, pi1_index++);
+		emit_pi1(outfile, buffer4plane, _ppalettergb, /*fromwords=*/(g_allargs.tilesize!=8), pi1_index++);
 
 	delete[] buffer4plane;
 }
@@ -2793,12 +2912,20 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 
 		// write flags (1)
 		{
-			byte_t flags = 0;
+			// interpretation:
+			// 0=16x16 (legacy)
+			// 3=8x8
+			// 4=16x16
+			// 5=32x32
+
+			ubyte_t flags = 0;
+			flags = log2<ubyte_t>((ubyte_t)g_allargs.tilesize);
 			fwrite(&flags, 1, sizeof(flags), h);
 		}
+
 		// write #bitplanes (1)
 		{
-			byte_t count = g_allargs.planes;
+			ubyte_t count = g_allargs.planes;
 			fwrite(&count, 1, sizeof(count), h);
 		}
 
@@ -2811,29 +2938,50 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 
 		// write tiles (n)
 		{
-			uword_t tilespace[16*8];
+			uword_t tilespace[32*(8*(32>>4))]; // worst: 32x32x8
 
 			int tileplanes = g_allargs.planes;
-			const int tilewords = tileplanes * 1 * 16;
+
 
 			for (tileplanardictionary_t::iterator it = s_tileplanardictionary.begin(); it != s_tileplanardictionary.end(); it++)
 			{
-				uword_t *tile = *it;
 
 				// extract planes
-				uword_t *ptilespace = tilespace;
-				for (int y = 0; y < 16; y++)
+				if (g_allargs.tilesize == 8)
 				{
-					for (int p = 0; p < tileplanes; p++)
-						*ptilespace++ = *tile++;
-					tile += (8 - tileplanes);
+					// 8x8 mode encoded differently for movep
+					const int tilebytes = tileplanes * g_allargs.tilesize * (g_allargs.tilesize>>3);
+					uword_t *tilew = *it;
+					ubyte_t *tileb = (ubyte_t *)tilew;
+					ubyte_t *ptilespaceb = (ubyte_t *)tilespace;
+					for (int y = 0; y < 8; y++)
+					{
+						for (int p = 0; p < tileplanes; p++)
+							*ptilespaceb++ = *tileb++;
+						tileb += (8 - tileplanes);
+					}
+
+					fwrite(tilespace, 1, tilebytes, h);
 				}
+				else
+				{
+					// any other size
+					const int tilewords = tileplanes * g_allargs.tilesize * (g_allargs.tilesize>>4);
+					uword_t *tile = *it;
+					uword_t *ptilespace = tilespace;
+					for (int y = 0; y < 16; y++)
+					{
+						for (int p = 0; p < tileplanes; p++)
+							*ptilespace++ = *tile++;
+						tile += (8 - tileplanes);
+					}
 
-				// reformat image to bigendian for intel->motorola
-				for (int i = 0; i < tilewords; i++)
-					tilespace[i] = endianswap16(tilespace[i]);
+					// reformat image to bigendian for intel->motorola
+					for (int i = 0; i < tilewords; i++)
+						tilespace[i] = endianswap16(tilespace[i]);
 
-				fwrite(tilespace, 1, (tilewords * 2), h);
+					fwrite(tilespace, 1, (tilewords * 2), h);
+				}
 			}
 		}
 
@@ -3249,7 +3397,7 @@ bool do_tilemap()
 						std::cout << " tile reuse is good! > l33t mapping 5ki11z <" << std::endl;
 				}
 
-				// convert 8bit indexed tiles into 4-plane graphics
+				// convert 8bit indexed tiles into 8-plane graphics
 				remap_dictionary_tiles();
 
 				// construct output filename: [infile]
@@ -3298,7 +3446,8 @@ bool do_tilemap()
 					}
 					else
 					{
-						emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+						int tilestep = log2<int>(g_allargs.tilesize);
+						emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph, tilestep);
 					}
 				}
 
@@ -3316,7 +3465,7 @@ bool do_tilemap()
 					{
 						for (int xx = 0; xx < tilesrcw; xx++)
 						{
-							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
+							RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
 
 							//int index = -1;
 							//
@@ -3391,7 +3540,7 @@ bool do_tilemap()
 					{
 						for (int xx = 0; xx < tilesrcw; xx++)
 						{
-							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
+							RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
 
 							//int index = -1;
 
@@ -3523,7 +3672,7 @@ bool do_tilemap()
 					{
 						for (int xx = 0; xx < tilesrcw; xx++)
 						{
-							RGB *pdst = &m_psourcergb[((yy << 4) * sourcew) + (xx << 4)];
+							RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
 
 							//int index = -1;
 
@@ -3933,7 +4082,7 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 	// chunky buffer -> planar buffer
 
 	// colour component
-	c2p
+	c2pw
 	(
 		/*src=*/g_colrbuffer8, /*dst*/g_colrbufferbpl,
 		/*w=*/g_sprite_framebpwidth, /*h=*/g_sprite_frameheight,
@@ -3942,7 +4091,7 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 	);
 
 	// mask component
-	c2p
+	c2pw
 	(
 		/*src=*/g_maskbuffer8, /*dst*/g_maskbufferbpl,
 		/*w=*/g_sprite_framebpwidth, /*h=*/g_sprite_frameheight,
@@ -4526,7 +4675,7 @@ void extract_spanblock(slabframe_t &slab, int _spanblock_firstx, int _spanblock_
 	}
 
 	// chunky -> planar
-	c2p
+	c2pw
 	(
 		/*src=*/&g_workbuffer8[_spanblock_firsty * g_sprite_framebpwidth], /*dst*/&g_workbufferbpl[(_spanblock_firsty * g_sprite_framebpwidth) >> 1],
 		/*w=*/g_sprite_framebpwidth, /*h=*/spanblock_lines,
@@ -5800,14 +5949,36 @@ int main(int argc, char* argv[])
 
 	GetArguments(argc, argv, g_allargs);
 
-	if (g_allargs.cutmode == Cutmode_TILES &&
-		g_allargs.outmode != Outmode_RBPLUS &&
-		g_allargs.tilesize != 16)
+	// degas mode supports 8x8, 16x16, 32x32...
+	// rb+ mode supports 16x16, 32x32...
+	// direct mode supports 8x8, 16x16 only
+
+	if (g_allargs.cutmode == Cutmode_TILES)
 	{
-		std::cerr << "error: only 16x16 tile size is supported in degas/direct mode. other sizes are for rbplus only" << std::endl;
-		printf("press any key...\n");
-		getchar();	
-		exit(1);
+		switch (g_allargs.outmode)
+		{
+		case Outmode_DEGAS:
+			// degas mode supports all sizes
+			break;
+		case Outmode_RBPLUS:
+			if (g_allargs.tilesize < 16)
+			{
+				std::cerr << "error: rbplus mode only supports tilesize 16x16 or larger" << std::endl;
+				printf("press any key...\n");
+				getchar();	
+				exit(1);
+			}
+			break;
+		case Outmode_DIRECT:
+			if (g_allargs.tilesize > 16)
+			{
+				std::cerr << "error: direct mode only supports tilesizes 8x8 or 16x16." << std::endl;
+				printf("press any key...\n");
+				getchar();	
+				exit(1);
+			}
+			break;
+		}
 	}
 
 	if (g_allargs.cutmode == Cutmode_TILES)

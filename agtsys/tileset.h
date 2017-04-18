@@ -29,7 +29,9 @@ public:
 
 	u16* tiles_;
 	u16* tiles_alloc_;
-	u16 numtiles_;
+	s16 numtiles_;
+	s16 tilesize_;
+	s16 bitplanes_;
 	u16 palette_[16];
 
 	// ---------------------------------------------------------------------------------------------------------------------
@@ -49,7 +51,10 @@ public:
 
 	tileset()
 		: tiles_(0),
-		  tiles_alloc_(0)
+		  tiles_alloc_(0),
+		  numtiles_(0),
+		  bitplanes_(0),
+		  tilesize_(0)
 	{
 	}
 
@@ -61,8 +66,10 @@ public:
 	
 	// access tiledata
 	inline const u16* get() const { return tiles_; }	
+	inline const u8* get8() const { return (u8*)tiles_; }	
 	// access tiledata for single tile
-	inline const u16* get(s16 _t) const { return &tiles_[_t << 6]; }
+	//inline const u16* get(s16 _t) const { return &tiles_[_t << (7-1)]; }	// 16x16 tiles
+	//inline const u8* get8(s16 _t) const { return (u8*)(&tiles_[_t << (5-1)]); }	// 8x8 tiles
 	
 	// access individual palette entries
 	inline u16 getcol(s16 _c) { return palette_[_c]; }
@@ -80,8 +87,12 @@ public:
 			fread(&header, 1, sizeof(cct_header), h);
 			
 			// hackety hack - cope with earlier format
-			if (header.bitplanes == 0)
-				header.bitplanes = 4;
+			bitplanes_ = header.bitplanes;
+			if (bitplanes_ == 0)
+				bitplanes_ = 4;
+			tilesize_ = 1 << (header.flags & 7);
+			if (tilesize_ == 1)
+				tilesize_ = 16;
 
 			// palette stored with tiles for convenience and debugging
 			u16* cols = header.palette;
@@ -90,10 +101,10 @@ public:
 			
 			numtiles_ = header.tilecount;
 			
-			const s16 tilelinewords = 4;
-			const s16 tilewords = tilelinewords * 16;
+			const s16 tilelinewords = tilesize_>>2;
+			const s16 tilewords = tilelinewords * tilesize_;
 
-			u32 tilesetwords = tilewords * numtiles_;
+			s32 tilesetwords = tilewords * numtiles_;
 			
 #ifdef FASTPAGE_TILES
 			// 'FASTPAGE_TILES' allows 16bit addressing and requires the
@@ -106,7 +117,8 @@ public:
 			tiles_alloc_ = new u16[tilesetwords];
 			tiles_ = tiles_alloc_;
 #endif
-			pprintf("created tileset: %d tiles @ %d bpl\n", (int)numtiles_, (int)header.bitplanes);
+			printf("created tileset: %d tiles @ %dx%d in %dp\n", 
+				(int)numtiles_, (int)tilesize_, (int)tilesize_, (int)header.bitplanes);
 
 			// read the data
 			fread(tiles_, 1, tilesetwords * 2, h);

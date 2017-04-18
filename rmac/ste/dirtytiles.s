@@ -18,6 +18,7 @@ dst_linewid	set	184
 	include		"ste/dirtytiles_pq.s"
 	.endif
 	include		"ste/dirtytiles_pr.s"
+	include		"ste/dirtytiles_pr8.s"
 	.if		^^defined AGT_CONFIG_PFLAYOUT_P
 	include		"ste/dirtytiles_p.s"
 	.endif
@@ -26,12 +27,13 @@ dst_linewid	set	184
 _SYS_DirtyTileInit:
 *------------------------------------------------------------------------------*
 	.if		^^defined AGT_CONFIG_PFLAYOUT_PQRS
-	jsr		dirtytile_setup_pr
+	jsr		dirtytile_setup_pqrs
 	.endif
 	.if		^^defined AGT_CONFIG_PFLAYOUT_PQ
 	jsr		dirtytile_setup_pq
 	.endif
 	jsr		dirtytile_setup_pr
+	jsr		dirtytile_setup_pr8
 	.if		^^defined AGT_CONFIG_PFLAYOUT_P
 	jsr		dirtytile_setup_p
 	.endif

@@ -11,24 +11,26 @@
 
 #include "drawcontext.h"
 
-extern "C" s16 *dm_dirtymask;
-extern "C" s16 *dm_dstaddr;
-extern "C" s16 *dm_ptiles;
-extern "C" s32 *dm_pmap;
-extern "C" s32 dm_virtual_pagebytes;
-extern "C" s16 dm_visible_linebytes;
-extern "C" s16 dm_map_tiles_x;
-extern "C" s16 dm_pi;
-extern "C" s16 dm_pi2;
-extern "C" s16 dm_pj;
-extern "C" s16 dm_pj2;
-extern "C" s16 dm_maskstride;
-extern "C" s16 dm_lineskip;
+extern "C" s16 * volatile dm_dirtymask;
+extern "C" s16 * volatile dm_dstaddr;
+extern "C" s16 * volatile dm_ptiles;
+extern "C" s32 * volatile dm_pmap;
+extern "C" volatile s32 dm_virtual_pagebytes;
+extern "C" volatile s16 dm_visible_linebytes;
+extern "C" volatile s16 dm_map_tiles_x;
+extern "C" volatile s16 dm_pi;
+extern "C" volatile s16 dm_pi2;
+extern "C" volatile s16 dm_pj;
+extern "C" volatile s16 dm_pj2;
+extern "C" volatile s16 dm_maskstride;
+extern "C" volatile s16 dm_lineskip;
 
 extern "C" void do_dirtyrect_pqrs();
 extern "C" void do_dirtyrect_pq();
 extern "C" void do_dirtyrect_pr();
 extern "C" void do_dirtyrect_p();
+
+extern "C" void do_dirtyrect_pr8();
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -176,7 +178,9 @@ template
 	// use blitter (STE/MegaST) [deprecated]
 	//bool _blitter,
 	// configure support for dynamic tiles (editing tile indices while displaying them)
-	bool _dynamic
+	bool _dynamic,
+	//
+	class mapmul_t = s16
 >
 class playfield_template
 {
@@ -186,15 +190,22 @@ public:
 	// configure behaviour
 	// ---------------------------------------------------------------------------------------------------------------------
 
+	// todo: remove
 	static const bool _blitter = false;
 
-	// TODO: mostly hardwired for now
-	static const int c_planes = 4;
+	// todo: plane support mostly hardwired for now due to specific drawing routs
+	static const int c_planestep_ = 2;
+	static const int c_planes_ = 1<<c_planestep_;
 
 	static const int c_preshift_stepshift_ = 2;
 	static const int c_preshift_step_ = 1<<c_preshift_stepshift_;
 
-	static const bool c_mapwrapping = false;
+//	static const int c_tileshift_b = 7;
+
+	static const int c_tileshift_b_ = (_tilestep + _tilestep + c_planestep_) - 3;
+	static const int c_tileshift_w_ = c_tileshift_b_ - 1;
+
+	static const bool c_mapwrapping_ = false;
 	static const bool c_dynamic_ = _dynamic;
 
 	// buffer speculation is for writing tile slices to future buffers ahead of time
@@ -205,22 +216,22 @@ public:
 	static const s16 c_tilestep_ = _tilestep;
 
 	// update method
-	static const bool c_scanwalk = (_hscroll == HScrollMode_SCANWALK);
+	static const bool c_scanwalk_ = (_hscroll == HScrollMode_SCANWALK);
 
 	// only update tile columns if full horizontal scrolling is possible
-	static const bool c_updatecols = (_hscroll != HScrollMode_NONE) && (_hscroll != HScrollMode_MARGIN);
+	static const bool c_updatecols_ = (_hscroll != HScrollMode_NONE) && (_hscroll != HScrollMode_MARGIN);
 	// only update tile rows if full vertical scrolling is possible
-	static const bool c_updaterows = (_vscroll != VScrollMode_NONE) && (_vscroll != VScrollMode_MARGIN);
+	static const bool c_updaterows_ = (_vscroll != VScrollMode_NONE) && (_vscroll != VScrollMode_MARGIN);
 
-	static const bool c_hdynamic_ = _dynamic && c_updatecols;
-	static const bool c_vdynamic_ = _dynamic && c_updaterows;
+	static const bool c_hdynamic_ = _dynamic && c_updatecols_;
+	static const bool c_vdynamic_ = _dynamic && c_updaterows_;
 
 	// only speculate on H axis if there is offscreen margin (only possible on STE with hscroll+linewid)
-	static const bool c_hspeculative_ = _speculative && c_updatecols && _ste_hwscroll;
+	static const bool c_hspeculative_ = _speculative && c_updatecols_ && _ste_hwscroll;
 	// only speculate via buffers if we're using them (STF preshifted framebuffers)
 //	static const bool c_hbufferspeculative_ = _speculative && c_updatecols && (!_ste);
 	// always possible to speculate on V axis
-	static const bool c_vspeculative_ = _speculative && c_updaterows;
+	static const bool c_vspeculative_ = _speculative && c_updaterows_;
 
 	static const s16 c_hmargin_ = (s16)(int)c_hspeculative_;
 	static const s16 c_vmargin_ = (s16)(int)c_vspeculative_;
@@ -229,24 +240,27 @@ public:
 	static const bool c_hsoftscroll_ = !_ste_hwscroll;
 	static const bool c_blitter_ = _blitter;
 
-	static const bool c_hloop = (_hscroll == HScrollMode_LOOPBACK);
-	static const bool c_vloop = (_vscroll == VScrollMode_LOOPBACK);
+	static const bool c_hloop_ = (_hscroll == HScrollMode_LOOPBACK);
+	static const bool c_vloop_ = (_vscroll == VScrollMode_LOOPBACK);
 
 	// configure PQRS buffer update pattern
-	static const bool c_updateP = c_updatecols || c_updaterows;
-	static const bool c_updateQ = (_hscroll == HScrollMode_LOOPBACK);
-	static const bool c_updateR = (_vscroll == VScrollMode_LOOPBACK) || (_restore == RestoreMode_PAGERESTORE);
-	static const bool c_updateS = c_updateQ && c_updateR;
+	static const bool c_updateP_ = c_updatecols_ || c_updaterows_;
+	static const bool c_updateQ_ = (_hscroll == HScrollMode_LOOPBACK);
+	static const bool c_updateR_ = (_vscroll == VScrollMode_LOOPBACK) || (_restore == RestoreMode_PAGERESTORE);
+	static const bool c_updateS_ = c_updateQ_ && c_updateR_;
 
 	// internal stuff for tiles
 	static const s16 c_tilesize_ = 1 << c_tilestep_;
 	static const s16 c_tilelinewords_ = c_tilesize_ >> 2;
-	static const s16 c_tileplanewords_ = c_tilesize_ >> 4;
 	static const s16 c_tilewords_ = c_tilelinewords_ * c_tilesize_;
+	// number of additional tiles visible @ hscroll=15 for this tilesize (not less than 1)
+	static const int c_hscrolltiles_ = (16 / c_tilesize_) > 0 ? (16 / c_tilesize_) : 1;
 
 	// maximum number of virtual tiles possible on any axis
 //	static const s16 c_max_vt_ = 32768 / c_tilesize_;
 	static const s16 c_max_vt_ = _max_scroll / c_tilesize_;
+
+//	typedef s32 mapmul_t;
 
 	// ---------------------------------------------------------------------------------------------------------------------
 
@@ -266,7 +280,7 @@ public:
 			srcywrap_ = (map_tiles_x_ * map_tiles_y_) << 2;	// todo: map element size		
 
 			delete[] mul_map_x_; 
-			mul_map_x_ = new s16[map_tiles_y_];
+			mul_map_x_ = new mapmul_t[map_tiles_y_];
 			for (s16 n = 0; n < map_tiles_y_; ++n)
 				mul_map_x_[n] = n * map_tiles_x_;
 
@@ -305,7 +319,7 @@ public:
 		// owned: map addressing storage
 		s16* modulo_map_x_;
 		s16* modulo_map_y_;
-		s16* mul_map_x_;
+		mapmul_t* mul_map_x_;
 
 		// internal: shadowed externally for speed
 		s16 map_tiles_x_;
@@ -418,7 +432,7 @@ public:
 			{
 				s16 xo = c_max_vt_ / vpage_tiles_x_;
 				s16 yo = c_max_vt_ / vpage_tiles_y_;
-				s16 maxlines = vpage_tiles_y_ * c_tilesize_ * (c_updateR ? 2 : 1);
+				s16 maxlines = vpage_tiles_y_ * c_tilesize_ * (c_updateR_ ? 2 : 1);
 				
 				delete[] quant_vpage_x_; 
 				delete[] quant_vpage_y_; 
@@ -444,7 +458,8 @@ public:
 				}
 			
 				// generate playfield workbuffer scanline modulo & index
-				s16 linewidth = (vpage_tiles_x_ * (c_updateQ ? 2 : 1)) << 3;
+				// todo: 8x8 mode
+				s16 linewidth = (vpage_tiles_x_ * (c_updateQ_ ? 2 : 1)) << 3;
 				for (s16 n = 0; n < maxlines; ++n)
 				{
 					lineindex_[n] = s32(n * linewidth);
@@ -532,7 +547,7 @@ public:
 	s16* modulo_vpage_y_;
 	s16* modulo_map_x_;
 	s16* modulo_map_y_;
-	s16* mul_map_x_;
+	mapmul_t* mul_map_x_;
 	u8 *display_alloc_;
 	
 	s16 rowskipwords_;
@@ -669,14 +684,14 @@ public:
 		s16 mx = xpos_;
 		s16 my = ypos_;
 
-		if (c_hloop)
+		if (c_hloop_)
 			mx = tmod16(mx, wrap_width_);
-		if (c_vloop)
+		if (c_vloop_)
 			my = tmod16(my, wrap_height_);
 
 		_shift.setdisplay(field_, addr, display_width_, virtual_width_, mx, my);
 
-/*		if (c_scanwalk)
+/*		if (c_scanwalk_)
 			// todo: fast mod here
 //			_shift.setdisplay(field_, addr, display_width_, virtual_width_, xpos_, ypos_);
 			_shift.setdisplay(field_, addr, display_width_, virtual_width_, xpos_, tmod(ypos_, wrap_height_));
@@ -729,7 +744,7 @@ public:
 		return modulo_map_y_[_vy + c_max_vt_];
 	}
 
-	inline s16 mul_map_x(const s16 _mx) const
+	inline mapmul_t mul_map_x(const s16 _mx) const
 	{
 		return mul_map_x_[_mx];
 	}
@@ -738,7 +753,7 @@ public:
 
 	inline void prepare_blitter()
 	{
-		reg16(ffff8a36) = c_planes;		// tile planes (1-4)
+		reg16(ffff8a36) = c_planes_;		// tile planes (1-4)
 		reg16(ffff8a28) = 0xffff;		// em1
 		reg16(ffff8a2a) = 0xffff;		// em2
 		reg16(ffff8a2c) = 0xffff;		// em3
@@ -761,7 +776,8 @@ public:
 		_i = xmod(_i, virtual_tiles_x_);
 		_j = xmod(_j, virtual_tiles_y_);
 		
-		const u16* srcaddr = &tiledata_[_t << 6];	// todo: c_tilesize_
+		// todo: 8x8 mode
+		const u16* srcaddr = &tiledata_[_t << c_tileshift_w];
 		u16* dstaddr = display_ + (_j * c_tilesize_ * virtual_linewords_) + (_i * c_tilelinewords_);
 		
 		// blitter version...
@@ -838,16 +854,16 @@ public:
 		{
 			for (s16 ii = 0; ii < (pi2-pi); ++ii)
 			{
-				if (c_updateP && c_updateQ && c_updateR && c_updateS)
+				if (c_updateP_ && c_updateQ_ && c_updateR_ && c_updateS_)
 					PQRS_fill_block_direct(_mi+ii, _mj+jj, pi+ii, pj+jj, pi+ii+1, pj+jj+1);
 				else
-				if (c_updateP && c_updateQ)
+				if (c_updateP_ && c_updateQ_)
 					PQ_fill_block_direct(_mi+ii, _mj+jj, pi+ii, pj+jj, pi+ii+1, pj+jj+1);
 				else
-				if (c_updateP && c_updateR)
+				if (c_updateP_ && c_updateR_)
 					PR_fill_block_direct(_mi+ii, _mj+jj, pi+ii, pj+jj, pi+ii+1, pj+jj+1);
 				else
-				if (c_updateP)
+				if (c_updateP_)
 					P_fill_block_direct(_mi+ii, _mj+jj, pi+ii, pj+jj, pi+ii+1, pj+jj+1);
 			}
 		}
@@ -855,38 +871,38 @@ public:
 
 	inline void fill_specrow_vx_sane(s16 _mi, s16 _mj, s16 pi, s16 _vy1, s16 pi2, s16 pjy1, s16 pjy2)
 	{
-		if (c_vloop)
+		if (c_vloop_)
 		{
 			// v-wrapping case
 
 			// start modulo virtual playfield dimensions
 			s16 pj = modulo_vpage_y(_vy1);
 
-			if (c_updateQ)
+			if (c_updateQ_)
 				PQRS_fill_specrow_direct(_mi, _mj, pi, pj, pi2, pjy1, pjy2);
 			else
 				PR_fill_specrow_direct(_mi, _mj, pi, pj, pi2, pjy1, pjy2);
 		}
 		else
-		if (c_updateR)
+		if (c_updateR_)
 		{
 			// non-v-wrapping case which still requires shadow vpage R (pagerestore mode)
 
-			if (c_updateQ)
+			if (c_updateQ_)
 				PQRS_fill_specrow_direct(_mi, _mj, pi, _vy1, pi2, pjy1, pjy2);
 			else
 				PR_fill_specrow_direct(_mi, _mj, pi, _vy1, pi2, pjy1, pjy2);
 		}
 		else
 		{
-			if (c_updateQ)
+			if (c_updateQ_)
 				PQ_fill_specrow_direct(_mi, _mj, pi, _vy1, pi2, pjy1, pjy2);
 			else
 				P_fill_specrow_direct(_mi, _mj, pi, _vy1, pi2, pjy1, pjy2);
 		}
 				
 		//// block entirely within virtual playfield			
-		//if (c_scanwalk)
+		//if (c_scanwalk_)
 		//	PR_fill_specrow_direct(_mi, _mj, pi, pj, pi2, pjy1, pjy2);
 		//else
 		//	PQRS_fill_specrow_direct(_mi, _mj, pi, pj, pi2, pjy1, pjy2);
@@ -894,7 +910,7 @@ public:
 
 	inline void shift_specrow_vx_sane(s16 _mi, s16 _mj, s16 pi, s16 _vy1, s16 pi2, s16 pjy1, s16 pjy2)
 	{
-		if (c_vloop)
+		if (c_vloop_)
 		{
 			// v-wrapping case
 
@@ -904,7 +920,7 @@ public:
 			PR_shift_specrow_direct(_mi, _mj, pi, pj, pi2, pjy1, pjy2);
 		}
 		else
-		if (c_updateR)
+		if (c_updateR_)
 		{
 			// non-v-wrapping case which still requires shadow vpage R (pagerestore mode)
 
@@ -918,13 +934,13 @@ public:
 
 	inline void fill_speccolumn_vy_sane(s16 _mi, s16 _mj, s16 _vx1, s16 pj, s16 pj2, s16 pjy1, s16 pjy2)
 	{
-		if (c_hloop)
+		if (c_hloop_)
 		{
 			// start modulo virtual playfield dimensions
 			//s16 pi = xmod<s16>(_vx1, vpage_tiles_x_);
 			s16 pi = modulo_vpage_x(_vx1);
 
-			if (c_updateR)
+			if (c_updateR_)
 				PQRS_fill_speccolumn_direct(_mi, _mj, pi, pj, pj2, pjy1, pjy2);
 			else
 				PQ_fill_speccolumn_direct(_mi, _mj, pi, pj, pj2, pjy1, pjy2);
@@ -933,13 +949,13 @@ public:
 		{
 			s16 pi = _vx1;
 
-			if (c_updateR)
+			if (c_updateR_)
 				PR_fill_speccolumn_direct(_mi, _mj, pi, pj, pj2, pjy1, pjy2);
 			else
 				P_fill_speccolumn_direct(_mi, _mj, pi, pj, pj2, pjy1, pjy2);
 		}
 
-/*		if (c_scanwalk)
+/*		if (c_scanwalk_)
 		{
 			// in this mode, columns are un-modded on x because virtual horizontal playfield is infinite/non-looping
 			PR_fill_speccolumn_direct(_mi, _mj, _vx1, pj, pj2, pjy1, pjy2);
@@ -960,7 +976,7 @@ public:
 	{
 		s16 pi = _vx1;
 
-		if (c_updateR)
+		if (c_updateR_)
 			PR_shift_speccolumn_direct(_mi, _mj, pi, pj, pj2, pjy1, pjy2);
 		else
 			P_shift_speccolumn_direct(_mi, _mj, pi, pj, pj2, pjy1, pjy2);
@@ -971,7 +987,7 @@ public:
 		if (_vy1 == _vy2)
 			return;
 
-		if (c_vloop)
+		if (c_vloop_)
 		{
 			// v-wrapping case
 
@@ -990,7 +1006,7 @@ public:
 			{
 				// block straddles virtual y-wrap, so split in two										
 				s16 o = vpage_tiles_y_ - pj;
-				if (c_updateQ)
+				if (c_updateQ_)
 				{
 					PQRS_fill_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
 					PQRS_fill_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
@@ -1004,25 +1020,25 @@ public:
 			else		
 			{
 				// block entirely within virtual playfield			
-				if (c_updateQ)
+				if (c_updateQ_)
 					PQRS_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2);
 				else
 					PR_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2);
 			}
 		}
 		else
-		if (c_updateR)
+		if (c_updateR_)
 		{
 			// non-v-wrapping case which still requires shadow vpage R (pagerestore mode)
 
-			if (c_updateQ)
+			if (c_updateQ_)
 				PQRS_fill_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
 			else
 				PR_fill_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
 		}
 		else
 		{
-			if (c_updateQ)
+			if (c_updateQ_)
 				PQ_fill_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
 			else
 				P_fill_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
@@ -1034,7 +1050,7 @@ public:
 		if (_vy1 == _vy2)
 			return;
 
-		if (c_vloop)
+		if (c_vloop_)
 		{
 			// v-wrapping case
 
@@ -1053,7 +1069,7 @@ public:
 			{
 				// block straddles virtual y-wrap, so split in two										
 				s16 o = vpage_tiles_y_ - pj;
-				if (c_updateQ)
+				if (c_updateQ_)
 				{
 					PQRS_dirty_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
 					PQRS_dirty_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
@@ -1067,25 +1083,25 @@ public:
 			else		
 			{
 				// block entirely within virtual playfield			
-				if (c_updateQ)
+				if (c_updateQ_)
 					PQRS_dirty_block_direct(_mi, _mj, pi, pj, pi2, pj2);
 				else
 					PR_dirty_block_direct(_mi, _mj, pi, pj, pi2, pj2);
 			}
 		}
 		else
-		if (c_updateR)
+		if (c_updateR_)
 		{
 			// non-v-wrapping case which still requires shadow vpage R (pagerestore mode)
 
-			if (c_updateQ)
+			if (c_updateQ_)
 				PQRS_dirty_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
 			else
 				PR_dirty_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
 		}
 		else
 		{
-			if (c_updateQ)
+			if (c_updateQ_)
 				PQ_dirty_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
 			else
 				P_dirty_block_direct(_mi, _mj, pi, _vy1, pi2, _vy2);
@@ -1111,7 +1127,7 @@ public:
 		if (_vy1 == _vy2)
 			return;
 
-		if (c_vloop)
+		if (c_vloop_)
 		{
 			// v-wrapping case
 
@@ -1140,7 +1156,7 @@ public:
 			}
 		}
 		else
-		if (c_updateR)
+		if (c_updateR_)
 		{
 			// non-v-wrapping case which still requires shadow vpage R (pagerestore mode)
 
@@ -1158,7 +1174,7 @@ public:
 		if (_vy1 == _vy2)
 			return;
 
-		if (c_vloop)
+		if (c_vloop_)
 		{
 			// v-wrapping case
 
@@ -1189,7 +1205,7 @@ public:
 			}
 		}
 		else
-		if (c_updateR)
+		if (c_updateR_)
 		{
 			// non-v-wrapping case which still requires shadow vpage R (pagerestore mode)
 
@@ -1207,7 +1223,7 @@ public:
 		if (_vx1 == _vx2)
 			return;
 
-		if (!c_hloop)
+		if (!c_hloop_)
 		{
 			// in this mode, rows are never clipped
 			fill_specrow_vx_sane(_mi, _mj, _vx1, _vy1, _vx2, pjy1, pjy2);
@@ -1252,7 +1268,7 @@ public:
 		if (_vy1 == _vy2)
 			return;
 
-		if (!c_vloop)
+		if (!c_vloop_)
 		{
 			// in this mode, columns are never clipped
 			fill_speccolumn_vy_sane(_mi, _mj, _vx1, _vy1, _vy2, pjy1, pjy2);
@@ -1288,7 +1304,7 @@ public:
 		if (_vy1 == _vy2)
 			return;
 
-		if (!c_vloop)
+		if (!c_vloop_)
 		{
 			// in this mode, columns are never clipped
 			shift_speccolumn_vy_sane(_mi, _mj, _vx1, _vy1, _vy2, pjy1, pjy2);
@@ -1324,7 +1340,7 @@ public:
 		if (_vx1 == _vx2)
 			return;
 
-		if (!c_hloop)
+		if (!c_hloop_)
 		{
 			// in this mode, rows are never clipped
 			fill_block_vx_sane(_mi, _mj, _vx1, _vy1, _vx2, _vy2);
@@ -1361,7 +1377,7 @@ public:
 		if (_vx1 == _vx2)
 			return;
 
-		if (!c_hloop)
+		if (!c_hloop_)
 		{
 			// in this mode, rows are never clipped
 			dirty_block_vx_sane(_mi, _mj, _vx1, _vy1, _vx2, _vy2);
@@ -1399,7 +1415,7 @@ public:
 		if (_vx1 == _vx2)
 			return;
 
-		if (!c_hloop)
+		if (!c_hloop_)
 		{
 			// in this mode, rows are never clipped
 			shift_block_vx_sane(_mi, _mj, _vx1, _vy1, _vx2, _vy2);
@@ -1436,7 +1452,7 @@ public:
 		if (_vx1 == _vx2)
 			return;
 
-		if (!c_hloop)
+		if (!c_hloop_)
 		{
 			// in this mode, rows are never clipped
 			shift_column_vx_sane(_mi, _mj, _vx1, _vy1, _vx2, _vy2);
@@ -1554,11 +1570,19 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// STE adds one extra visible word-column when hscroll is active
 	// all systems add one extra visible row when vscroll is active
 	// vertical height always rounded up to next tile
-	visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols &&*/ c_ste_) ? 1 : 0);  // keep horizontal margin for fixed 184 byte line
-	visible_tiles_y_ = ((display_height_ + (c_tilesize_-1)) / c_tilesize_) + (c_updaterows ? 1 : 0);
+	visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols_ &&*/ c_ste_) ? c_hscrolltiles_ : 0);  // keep horizontal margin for fixed 184 byte line
+	visible_tiles_y_ = ((display_height_ + (c_tilesize_-1)) / c_tilesize_) + (c_updaterows_ ? 1 : 0);
 
 	// dimensions for virtual page size used for tile updating - larger than display area + scroll margin
-	vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0); // keep horizontal margin for fixed 184 byte line
+	// note: hardcode tile based width to make vpage exactly 184 bytes per line, to accommodate other drawing functions
+	if (c_tilesize_ == 16)
+		vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
+	else
+	if (c_tilesize_ == 8)
+		vpage_tiles_x_ = visible_tiles_x_ + 4;
+	else
+		xassert(false);
+
 	vpage_tiles_y_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
 
 	pfieldcontext_->prepare(vpage_tiles_x_, vpage_tiles_y_);
@@ -1572,12 +1596,12 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	
 	// dimensions for virtual playfield  (not same as map dimensions)
 	// visible plus row/column update margin, x2 for circular loop
-	if (!c_updateQ)
+	if (!c_updateQ_)
 		virtual_tiles_x_ = vpage_tiles_x_;
 	else
 		virtual_tiles_x_ = vpage_tiles_x_ * 2;
 
-	if (!c_updateR)	
+	if (!c_updateR_)	
 		virtual_tiles_y_ = vpage_tiles_y_;
 	else
 		virtual_tiles_y_ = vpage_tiles_y_ * 2;
@@ -1601,7 +1625,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	virtual_pagebytes_ = virtual_linebytes_ * wrap_height_;	
 	
 	// words per virtual playfield buffer
-	if (c_scanwalk)
+	if (c_scanwalk_)
 	{
 		// pad by ~100 extra scanlines in scanwalk mode, to eliminate loopback buffer
 		bufferwords_ = (virtual_linewords_ * virtual_height_) + (c_max_vt_ * c_tilelinewords_);
@@ -1612,17 +1636,17 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 	pprintf("init playfield:\n");
 #if defined(REPORT_PLAYFIELD_METRICS)
-	printf("dw:%d, vw:%d, dtw:%d, vtw%d\n", (int)display_width_, (int)virtual_width_, (int)visible_tiles_x_, (int)virtual_tiles_x_);
-	printf("dh:%d, vh:%d, dth:%d, vth%d\n", (int)display_height_, (int)virtual_height_, (int)visible_tiles_y_, (int)virtual_tiles_y_);
+	printf("dw:%d, vw:%d, dtw:%d, vtw:%d\n", (int)display_width_, (int)virtual_width_, (int)visible_tiles_x_, (int)virtual_tiles_x_);
+	printf("dh:%d, vh:%d, dth:%d, vth:%d\n", (int)display_height_, (int)virtual_height_, (int)visible_tiles_y_, (int)virtual_tiles_y_);
 	printf("wrw:%d, wrh:%d\n", (int)wrap_width_, (int)wrap_height_);
 	printf("c_tilesize_:%d\n", (int)c_tilesize_);
-	printf("c_tileplanewords_:%d\n", (int)c_tileplanewords_);
+//	printf("c_tileplanewords_:%d\n", (int)c_tileplanewords_);
 	printf("c_tilelinewords_:%d\n", (int)c_tilelinewords_);
 	printf("virtual_linewords_ = %d\n", (int)virtual_linewords_);
 	printf("virtual_height_ = %d\n", (int)virtual_height_);
 	printf("virtual_pagebytes_ = %d\n", (int)virtual_pagebytes_);
 	printf("bufferwords_:%d\n", (int)bufferwords_);
-	if (c_scanwalk) printf("scanwalk padding words = %d\n", (int)(c_max_vt_ * c_tilelinewords_));
+	if (c_scanwalk_) printf("scanwalk padding words = %d\n", (int)(c_max_vt_ * c_tilelinewords_));
 	printf("c_hmargin_:%d\n", (int)c_hmargin_);
 	printf("c_vmargin_:%d\n", (int)c_vmargin_);
 #endif
@@ -1757,7 +1781,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	s16 txp = txpos_-c_hmargin_;
 	s16 typ = typos_-c_vmargin_;
 
-	if (c_scanwalk && txp < 0)
+	if (c_scanwalk_ && txp < 0)
 		txp = 0;
 
 	// prefill all buffers, prepared for wrap
@@ -1794,7 +1818,7 @@ void fill_abs()
 	s16 txp = txpos_-c_hmargin_;
 	s16 typ = typos_-c_vmargin_;
 
-	if (c_scanwalk && txp < 0)
+	if (c_scanwalk_ && txp < 0)
 		txp = 0;
 
 	// prefill all buffers, prepared for wrap
@@ -1841,7 +1865,7 @@ void fill()
 		s16 txp = txpos_;//-c_hmargin_;
 		s16 typ = typos_;//-c_vmargin_;
 
-		//if (c_scanwalk && txp < 0)
+		//if (c_scanwalk_ && txp < 0)
 		//	txp = 0;
 
 		// prefill all buffers, prepared for wrap
@@ -2053,7 +2077,7 @@ void speculative_fill()
 		s16 txp = txpos_-c_hmargin_;
 		s16 typ = typos_-c_vmargin_;
 
-		if (c_scanwalk && txp < 0)
+		if (c_scanwalk_ && txp < 0)
 			txp = 0;
 
 		// prefill all buffers, prepared for wrap
@@ -2170,7 +2194,7 @@ void speculative_fill()
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//lyf, lyf+dy
+				0, c_tilesize_//lyf, lyf+dy
 			);			
 		}
 		else if (tx_last_dy_ > tx) // patch lower-left diagonal
@@ -2192,7 +2216,7 @@ void speculative_fill()
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//lyf, lyf+dy
+				0, c_tilesize_//lyf, lyf+dy
 			);			
 		}
 		else
@@ -2208,10 +2232,10 @@ void speculative_fill()
 		// XXXXXXXX
 
 		// amortize any single-pixel remainder to minimize double-column updates
-		if (lyf == 15)
-			lyf = 16;
-		if (yf == 15)
-			yf = 16;
+		if (lyf == c_tilesize_-1)
+			lyf = c_tilesize_;
+		if (yf == c_tilesize_-1)
+			yf = c_tilesize_;
 
 		if (yf == lyf)
 		{
@@ -2266,7 +2290,7 @@ void speculative_fill()
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//yf, yf-dy
+				0, c_tilesize_//yf, yf-dy
 			);	
 		}
 		else if (tx_last_dy_ > tx)	// patch upper-left diagonal
@@ -2287,7 +2311,7 @@ void speculative_fill()
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//yf, yf-dy
+				0, c_tilesize_//yf, yf-dy
 			);		
 		}
 		else
@@ -2373,7 +2397,7 @@ void speculative_fill()
 			fill_speccolumn_virtual(
 				patch_x, patch_y1, 
 				patch_x, patch_y1, patch_y2,
-				0, 16//lxf+dx
+				0, c_tilesize_//lxf+dx
 			);				
 		}
 		else if (ty_last_dx_ > ty)
@@ -2393,7 +2417,7 @@ void speculative_fill()
 			fill_speccolumn_virtual(
 				patch_x, patch_y1, 
 				patch_x, patch_y1, patch_y2,
-				0, 16//lxf+dx
+				0, c_tilesize_//lxf+dx
 			);				
 		}
 		else
@@ -2408,10 +2432,10 @@ void speculative_fill()
 		// 00000000X
 
 		// amortize any single-pixel remainder to minimize double-column updates
-		if (lxf == 15)
-			lxf = 16;
-		if (xf == 15)
-			xf = 16;
+		if (lxf == c_tilesize_-1)
+			lxf = c_tilesize_;
+		if (xf == c_tilesize_-1)
+			xf = c_tilesize_;
 
 		if (xf == lxf)
 		{
@@ -2484,7 +2508,7 @@ void speculative_fill()
 			fill_speccolumn_virtual(
 				patch_x, patch_y1, 
 				patch_x, patch_y1, patch_y2,
-				0, 16//xf-dx
+				0, c_tilesize_//xf-dx
 			);				
 		}
 		else if (ty_last_dx_ > ty)
@@ -2504,7 +2528,7 @@ void speculative_fill()
 			fill_speccolumn_virtual(
 				patch_x, patch_y1, 
 				patch_x, patch_y1, patch_y2,
-				0, 16//xf-dx
+				0, c_tilesize_//xf-dx
 			);					
 		}
 		else
@@ -2697,7 +2721,7 @@ void hybrid_fill()
 		s16 txp = txpos_-c_hmargin_;
 		s16 typ = typos_-c_vmargin_;
 
-		if (c_scanwalk && txp < 0)
+		if (c_scanwalk_ && txp < 0)
 			txp = 0;
 
 		dirty_block_virtual
@@ -2743,7 +2767,7 @@ void hybrid_fill()
 		s16 txp = txpos_-c_hmargin_;
 		s16 typ = typos_-c_vmargin_;
 
-		if (c_scanwalk && txp < 0)
+		if (c_scanwalk_ && txp < 0)
 			txp = 0;
 
 	//	int qqq = 200000; while (qqq--) { };
@@ -2770,7 +2794,7 @@ void hybrid_fill()
 		reg16(00000064) = 0xf00;
 #endif		
 
-		if (c_hsyncshift_ && c_updatecols)
+		if (c_hsyncshift_ && c_updatecols_)
 		{
 			STFM_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
 			STFM_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
@@ -2865,12 +2889,12 @@ void hybrid_fill()
 #if !(SPECULATIVE_FILL_METHOD-0)
 	// method 0: easy but expensive...
 	// use longer rows/columns which overlap at ends to cover missed speculations at corners
-	if (c_vspeculative_ && c_updatecols)
+	if (c_vspeculative_ && c_updatecols_)
 	{
 		hs_fill_y1 -= 1;
 		hs_fill_y2 += 1;
 	}
-	if (c_hspeculative_ && c_updaterows)
+	if (c_hspeculative_ && c_updaterows_)
 	{
 		vs_fill_x1 -= 1;
 		vs_fill_x2 += 1;
@@ -2901,7 +2925,7 @@ void hybrid_fill()
 	}
 */
 
-	if (c_updaterows && c_vspeculative_ && (c_ste_ || drawshift_))
+	if (c_updaterows_ && c_vspeculative_ && (c_ste_ || drawshift_))
 	{
 	if (dy > 0)
 	{	
@@ -2929,14 +2953,14 @@ void hybrid_fill()
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//lyf, lyf+dy
+				0, c_tilesize_//lyf, lyf+dy
 			);		
 			else
 			shift_specrow_virtual(
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//lyf, lyf+dy
+				0, c_tilesize_//lyf, lyf+dy
 			);		
 		}
 		else if (tx_last_dy_ > tx) // patch lower-left diagonal
@@ -2959,14 +2983,14 @@ void hybrid_fill()
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//lyf, lyf+dy
+				0, c_tilesize_//lyf, lyf+dy
 			);			
 			else
 			shift_specrow_virtual(
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//lyf, lyf+dy
+				0, c_tilesize_//lyf, lyf+dy
 			);			
 		}
 		else
@@ -2982,10 +3006,10 @@ void hybrid_fill()
 		// XXXXXXXX
 
 		// amortize any single-pixel remainder to minimize double-column updates
-		if (lyf == 15)
-			lyf = 16;
-		if (yf == 15)
-			yf = 16;
+		if (lyf == c_tilesize_-1)
+			lyf = c_tilesize_;
+		if (yf == c_tilesize_-1)
+			yf = c_tilesize_;
 
 		if (yf == lyf)
 		{
@@ -3069,14 +3093,14 @@ void hybrid_fill()
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//yf, yf-dy
+				0, c_tilesize_//yf, yf-dy
 			);	
 			else
 			shift_specrow_virtual(
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//yf, yf-dy
+				0, c_tilesize_//yf, yf-dy
 			);	
 		}
 		else if (tx_last_dy_ > tx)	// patch upper-left diagonal
@@ -3098,14 +3122,14 @@ void hybrid_fill()
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//yf, yf-dy
+				0, c_tilesize_//yf, yf-dy
 			);		
 			else
 			shift_specrow_virtual(
 				patch_x1, patch_y,
 				patch_x1, patch_y, 
 				patch_x2,
-				0, 16//yf, yf-dy
+				0, c_tilesize_//yf, yf-dy
 			);		
 		}
 		else
@@ -3222,7 +3246,7 @@ void hybrid_fill()
 		}
 	}
 
-	if (c_updatecols && (c_hspeculative_ /*|| c_hbufferspeculation_*/) && (c_ste_ || drawshift_))
+	if (c_updatecols_ && (c_hspeculative_ /*|| c_hbufferspeculation_*/) && (c_ste_ || drawshift_))
 	{
 	if (dx > 0)
 	{		
@@ -3248,13 +3272,13 @@ void hybrid_fill()
 			//shift_speccolumn_virtual(
 			//	patch_x, patch_y1, 
 			//	patch_x, patch_y1, patch_y2,
-			//	0, 16//lxf+dx
+			//	0, c_tilesize_//lxf+dx
 			//);				
 			//else
 			fill_speccolumn_virtual(
 				patch_x, patch_y1, 
 				patch_x, patch_y1, patch_y2,
-				0, 16//lxf+dx
+				0, c_tilesize_//lxf+dx
 			);				
 		}
 		else if (ty_last_dx_ > ty)
@@ -3275,13 +3299,13 @@ void hybrid_fill()
 			//shift_speccolumn_virtual(
 			//	patch_x, patch_y1, 
 			//	patch_x, patch_y1, patch_y2,
-			//	0, 16//lxf+dx
+			//	0, c_tilesize_//lxf+dx
 			//);				
 			//else
 			fill_speccolumn_virtual(
 				patch_x, patch_y1, 
 				patch_x, patch_y1, patch_y2,
-				0, 16//lxf+dx
+				0, c_tilesize_//lxf+dx
 			);				
 		}
 		else
@@ -3296,10 +3320,10 @@ void hybrid_fill()
 		// 00000000X
 
 		// amortize any single-pixel remainder to minimize double-column updates
-		if (lxf == 15)
-			lxf = 16;
-		if (xf == 15)
-			xf = 16;
+		if (lxf == c_tilesize_-1)
+			lxf = c_tilesize_;
+		if (xf == c_tilesize_-1)
+			xf = c_tilesize_;
 
 		if (xf == lxf)
 		{
@@ -3387,13 +3411,13 @@ void hybrid_fill()
 			//shift_speccolumn_virtual(
 			//	patch_x, patch_y1, 
 			//	patch_x, patch_y1, patch_y2,
-			//	0, 16//xf-dx
+			//	0, c_tilesize_//xf-dx
 			//);				
 			//else
 			fill_speccolumn_virtual(
 				patch_x, patch_y1, 
 				patch_x, patch_y1, patch_y2,
-				0, 16//xf-dx
+				0, c_tilesize_//xf-dx
 			);				
 		}
 		else if (ty_last_dx_ > ty)
@@ -3414,13 +3438,13 @@ void hybrid_fill()
 			//shift_speccolumn_virtual(
 			//	patch_x, patch_y1, 
 			//	patch_x, patch_y1, patch_y2,
-			//	0, 16//xf-dx
+			//	0, c_tilesize_//xf-dx
 			//);					
 			//else
 			fill_speccolumn_virtual(
 				patch_x, patch_y1, 
 				patch_x, patch_y1, patch_y2,
-				0, 16//xf-dx
+				0, c_tilesize_//xf-dx
 			);					
 		}
 		else
@@ -3555,7 +3579,7 @@ void hybrid_fill()
 	}
 
 	// erase trailing edge
-	if (c_hsyncshift_ && c_updatecols)
+	if (c_hsyncshift_ && c_updatecols_)
 	{
 		if (dx > 0)
 			STFM_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
@@ -3616,7 +3640,7 @@ void hybrid_fill()
 //	}
 //}
 
-FORCEINLINE void multitouch(s16 _x, s16 _y)
+agt_inline void multitouch(s16 _x, s16 _y)
 {
 	if (c_dynamic_)
 	{
@@ -3691,6 +3715,7 @@ void multitouch_column(s16 _x, s16 _y, s16 _dy/*, s32 *_source*/)
 	}
 }
 
+// todo: 68k version
 void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
 {
 	if (c_dynamic_)

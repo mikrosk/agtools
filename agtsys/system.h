@@ -181,13 +181,13 @@ int main(int argc, char **argv)					\
 // access to timing rasters from C code
 
 #ifdef TIMING_RASTERS_MAIN
-#define TIMING_MAIN(_rgb_) { reg16(ffff8240) = _rgb_; reg16(00000064) = _rgb_; }
+#define TIMING_MAIN(_rgb_) { reg16(00000064) = _rgb_; reg16(ffff8240) = _rgb_; }
 #else
 #define TIMING_MAIN(_rgb_)
 #endif		
 
 #ifdef TIMING_RASTERS
-#define TIMING(_rgb_) { reg16(ffff8240) = _rgb_; reg16(00000064) = _rgb_; }
+#define TIMING(_rgb_) { reg16(00000064) = _rgb_; reg16(ffff8240) = _rgb_; }
 #else
 #define TIMING(_rgb_)
 #endif		
