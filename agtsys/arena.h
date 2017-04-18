@@ -311,7 +311,7 @@ public:
 
 	// modify multiple map tiles before next refresh: single tile at a time
 	// note: no dualfield support yet - will implement shared dualfield maps first
-	void multimod(s16 _x, s16 _y, s32 _rawidx)
+	agt_inline void multimod(s16 _x, s16 _y, s32 _rawidx)
 	{
 		// update map tiles
 		mapctx0_.multimod(_x, _y, _rawidx);

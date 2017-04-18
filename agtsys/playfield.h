@@ -345,7 +345,7 @@ public:
 			prepare();
 		}
 
-		FORCEINLINE void multimod(s16 _x, s16 _y, s32 _rawidx)
+		agt_inline void multimod(s16 _x, s16 _y, s32 _rawidx)
 		{
 			if (c_dynamic_)
 			{
