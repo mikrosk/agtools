@@ -3660,8 +3660,8 @@ void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
 		s16 bx2 = (_x + _dx + 7) & ~7;
 		s16 bdx = (bx2 - bx1) >> 3;
 
-		// we can deal with 8,16,24-wide tile bitmasks
-		if ((bdx > 0) && (bdx < 4))
+		// we can deal with 8,16,24,32-wide tile bitmasks
+		if ((bdx > 0)/* && (bdx < 4)*/)
 		{				
 			// access mask buffer
 			s16 xoffset = (_x >> 3);
@@ -3671,7 +3671,7 @@ void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
 
 			// generate endmasks for all cases
 			u16 em1 = (0xffff >> (_x & 7));
-			u16 em3 = (0xffff0000UL >> (((_x - 1) & 7) + 1));
+			u16 em3 = (0xffff0000UL >> (((_x + _dx - 1) & 7) + 1));
 
 			switch (bdx)
 			{
@@ -3688,7 +3688,13 @@ void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
 				dirtyline[1] = ~0;
 				dirtyline[2] |= em3;
 				break;
-			// no default:
+			default:
+				s16 *pd = dirtyline;
+				*pd++ |= em1;
+				s16 c = (bdx - 2) - 1;
+				do { *pd++ = ~0; } while (--c != -1);
+				*pd++ |= em3;
+				break;
 			}
 		}
 	}
@@ -3726,7 +3732,7 @@ void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
 		s16 bdx = (bx2 - bx1) >> 3;
 
 		// we can deal with 8,16,24-wide tile bitmasks
-		if ((bdx > 0) && (bdx < 4))
+		if ((bdx > 0)/* && (bdx < 4)*/)
 		{				
 			// access mask buffer
 			s16 xoffset = (_x >> 3);
@@ -3736,7 +3742,7 @@ void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
 
 			// generate endmasks for all cases
 			u16 em1 = (0xffff >> (_x & 7));
-			u16 em3 = (0xffff0000UL >> (((_x - 1) & 7) + 1));
+			u16 em3 = (0xffff0000UL >> (((_x + _dx - 1) & 7) + 1));
 
 			// loopsize for all cases
 			s16 y = _dy-1;
@@ -3768,7 +3774,20 @@ void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
 					dirtyline += stride;
 				} while (--y != -1);
 				break;
-			// no default:
+			default:
+				do
+				{
+					s16 cc = (bdx - 2) - 1;
+					s16 *pd = dirtyline;
+					dirtyline += stride;
+					{
+						*pd++ |= em1;
+						s16 c = cc;
+						do { *pd++ = ~0; } while (--c != -1);
+						*pd++ |= em3;
+					}
+				} while (--y != -1);
+				break;
 			}
 		}
 	}
