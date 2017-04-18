@@ -3676,7 +3676,7 @@ void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
 			switch (bdx)
 			{
 			case 1:
-				em1 |= em3;
+				em1 &= em3;
 				dirtyline[0] |= em1;
 				break;
 			case 2:
@@ -3750,7 +3750,7 @@ void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
 			switch (bdx)
 			{
 			case 1:
-				em1 |= em3;
+				em1 &= em3;
 				do
 				{
 					dirtyline[0] |= em1;
