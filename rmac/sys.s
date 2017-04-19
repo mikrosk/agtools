@@ -37,26 +37,28 @@ configure_50hz		=	0
 configure_50hz		=	1
 			.endif
 
-	.globl	_bSTF	
-	.globl	_bSTE	
-	.globl	_bMegaSTE
-	.globl	_bFalcon030
-	.globl	_bTT030	
+	.globl		_bSTF	
+	.globl		_bSTE	
+	.globl		_bMegaSTE
+	.globl		_bFalcon030
+	.globl		_bTT030	
 
 *-------------------------------------------------------*
 
-	.globl	_SYS_Configure
-	.globl	_SYS_Save
-	.globl	_SYS_Claim
-	.globl	_SYS_Restore
+	.globl		_SYS_Configure
+	.globl		_SYS_Save
+	.globl		_SYS_Claim
+	.globl		_SYS_Restore
 	
-	.globl	_ST_FlushInput
-	.globl	_ST_ResetInput
-	.globl	_ST_DisableInput
-	.globl	_ST_ResumeInput
+	.globl		_ST_FlushInput
+	.globl		_ST_ResetInput
+	.globl		_ST_DisableInput
+	.globl		_ST_ResumeInput
 	
-	.globl	_YMSYS_Callback
-	.globl	_YMSYS_VBCallback
+	.if		^^defined ENABLE_AGT_AUDIO
+	.globl		_YMSYS_Callback
+	.globl		_YMSYS_VBCallback
+	.endif
 
 	.globl		vbl_sema
 	
@@ -391,9 +393,11 @@ ym_td:
 ;	ori.w		#$0700,sr
 	andi.w		#$fbff,sr
 		
+	.if		^^defined ENABLE_AGT_AUDIO
 	movem.l		d0-a6,-(sp)
 	jsr		_YMSYS_Callback
 	movem.l		(sp)+,d0-a6
+	.endif
 
 	;and.b		#$f0,cdcr.w
 	

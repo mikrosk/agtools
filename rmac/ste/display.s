@@ -25,7 +25,9 @@
 	.globl		vbl_sema
 	
 	.globl		_AGT_ConsoleText_68k
+	.if		^^defined ENABLE_AGT_AUDIO
 	.globl		_YMSYS_VBCallback
+	.endif
 
 	.globl		_blackscreen
 
@@ -264,7 +266,9 @@ displayservice_ste_vbi_dmasafe:
 	.endif
 
 .skip:
+	.if		^^defined ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	.endif
 	
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
@@ -371,7 +375,9 @@ displayservice_ste_vbi:
 	.endif
 
 .skip:
+	.if		^^defined ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	.endif
 	
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
@@ -437,7 +443,9 @@ displayservice_f030_vbi:
 	.endif
 
 .skip:
+	.if		^^defined ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	.endif
 	
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc

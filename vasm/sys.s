@@ -42,26 +42,28 @@ configure_50hz		=	0
 configure_50hz		=	1
 			endc
 	
-	XDEF	_bSTF	
-	XDEF	_bSTE	
-	XDEF	_bMegaSTE
-	XDEF	_bFalcon030
-	XDEF	_bTT030	
+	XDEF		_bSTF	
+	XDEF		_bSTE	
+	XDEF		_bMegaSTE
+	XDEF		_bFalcon030
+	XDEF		_bTT030	
 
 *-------------------------------------------------------*
 
-	XDEF	_SYS_Configure
-	XDEF	_SYS_Save
-	XDEF	_SYS_Claim
-	XDEF	_SYS_Restore
+	XDEF		_SYS_Configure
+	XDEF		_SYS_Save
+	XDEF		_SYS_Claim
+	XDEF		_SYS_Restore
 	
-	XREF	_ST_FlushInput
-	XREF	_ST_ResetInput
-	XREF	_ST_DisableInput
-	XREF	_ST_ResumeInput
+	XREF		_ST_FlushInput
+	XREF		_ST_ResetInput
+	XREF		_ST_DisableInput
+	XREF		_ST_ResumeInput
 	
-	XREF	_YMSYS_Callback
-	XREF	_YMSYS_VBCallback
+	ifd		ENABLE_AGT_AUDIO
+	XREF		_YMSYS_Callback
+	XREF		_YMSYS_VBCallback
+	endc
 
 	XDEF		vbl_sema
 	
@@ -390,9 +392,11 @@ ym_td:
 ;	ori.w		#$0700,sr
 	andi.w		#$fbff,sr
 		
+	ifd		ENABLE_AGT_AUDIO
 	movem.l		d0-a6,-(sp)
 	jsr		_YMSYS_Callback
 	movem.l		(sp)+,d0-a6
+	endc
 
 	;and.b		#$f0,cdcr.w
 	

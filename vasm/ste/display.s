@@ -27,7 +27,9 @@
 	XREF		vbl_sema
 	
 	XREF		_AGT_ConsoleText_68k
+	ifd		ENABLE_AGT_AUDIO
 	XREF		_YMSYS_VBCallback
+	endc
 
 	XREF		_blackscreen
 
@@ -260,7 +262,9 @@ displayservice_ste_vbi_dmasafe:
 	endc
 
 .skip:
+	ifd		ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	endc
 	
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
@@ -367,7 +371,9 @@ displayservice_ste_vbi:
 	endc
 
 .skip:
+	ifd		ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	endc
 	
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
@@ -433,7 +439,9 @@ displayservice_f030_vbi:
 	endc
 
 .skip:
+	ifd		ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	endc
 	
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc

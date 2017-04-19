@@ -11,6 +11,8 @@
 //	******************************************************************************************************
 //----------------------------------------------------------------------------------------------------------------------
 
+#ifdef ENABLE_AGT_AUDIO
+
 // generate .dat tables for YM volume, frequency and vibrato (requires MiNTlib CRT / MINIMAL_LINK=no)
 //#define MAKE_TABLES
 
@@ -3023,3 +3025,5 @@ extern u32 raster_callback_ptr;
 //-----------------------------------------------------------------------------
 
 #pragma GCC diagnostic pop
+
+#endif // ENABLE_AGT_AUDIO
