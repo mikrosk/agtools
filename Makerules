@@ -54,7 +54,7 @@ COMPILERDEFS += \
 
 ifeq ($(USE_CFG),debug)
 
-CODEOPTFLAGS = $(TARGETFLAGS) -g -Os
+CODEOPTFLAGS = $(TARGETFLAGS) -g -Os -fomit-frame-pointer
 CODEGENFLAGS = $(CODEOPTFLAGS)
 
 else
@@ -71,8 +71,10 @@ ifeq ($(USE_BROWNELF),yes)
 CODEGENFLAGS += -fleading-underscore
 endif
 
-CFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -Wall
-CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -x c++ -std=c++0x -fno-exceptions -fno-rtti -fno-threadsafe-statics -Wall -Wno-reorder
+CFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -Wall -Wno-unused-variable
+CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -x c++ -std=c++0x -fno-exceptions -fno-rtti -fno-threadsafe-statics -Wall -Wno-reorder -Wno-unused-variable
+
+LDFLAGS += $(CODEGENFLAGS) -Wl,-Map,$*.map $(LDOPTS)
 
 # -----------------------------------------------------------------------------
 #	AGLIB objects
@@ -91,8 +93,10 @@ AGLIB_O =	\
 		$(AGTROOT)/agtsys/compress.o \
 		$(AGTROOT)/agtsys/fileio.o \
 		$(AGTROOT)/agtsys/os.o \
+		$(AGTROOT)/agtsys/tinycsv_agt.o \
 		$(AGTROOT)/agtsys/sound/sound.o \
 		$(AGTROOT)/agtsys/sound/music.o \
+		$(AGTROOT)/3rdparty/tinyxml2.o \
 		$(AGTROOT)/3rdparty/vsnprint.o \
 		$(AGTROOT)/$(ASMROOT)/sys.o \
 		$(AGTROOT)/$(ASMROOT)/qmem.o \
@@ -180,7 +184,8 @@ endif
 
 # -----------------------------------------------------------------------------
 
-LDFLAGS = -Wl,-Map,$*.map $(LDOPTS) -nostdlib -nostartfiles $(CODEGENFLAGS)
+LDFLAGS += -nostdlib -nostartfiles
+#-Wl,-Map,$*.map $(LDOPTS) -nostdlib -nostartfiles $(CODEGENFLAGS)
 
 # -----------------------------------------------------------------------------
 else
@@ -235,7 +240,7 @@ endif
 
 # -----------------------------------------------------------------------------
 
-LDFLAGS = -Wl,-Map,$*.map $(LDOPTS) $(CODEGENFLAGS)
+#LDFLAGS = -Wl,-Map,$*.map $(LDOPTS) $(CODEGENFLAGS)
 
 # -----------------------------------------------------------------------------
 endif
@@ -361,6 +366,7 @@ clean:
 	-rm -f $(PROJECT_O)
 	-rm -rf *.o
 	-rm -rf *.lst
+	-rm -rf ./auto/*.prg
 	
 # =============================================================================
 #	Build rules for source files

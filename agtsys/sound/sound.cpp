@@ -104,7 +104,7 @@ static virtual_channel_t event_queue[max_events_per_frame];
 virtual_channel_t *g_channel_freepool[max_virtual_channels];
 static virtual_channel_t channel_pool[max_virtual_channels];
 
-extern "C" volatile char g_serverlocks;
+//extern "C" volatile char g_serverlocks;
 volatile char g_flushchannels = 0;
 
 static int device_open(void);
