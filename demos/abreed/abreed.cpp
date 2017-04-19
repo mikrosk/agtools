@@ -723,7 +723,7 @@ restart_game:
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	fill the map with alien monsters
 
-		for (int e = 0; e < 50; e++)
+		for (int e = 0; e < 45; e++)
 		{
 			// repeatedly generate random 2D coordinates and keep only those 
 			// with a position that lands safely inside the non-solid map tiles
@@ -941,13 +941,13 @@ mainloop:
 			// where the viewport entity is using proper isometric coords too.
 
 			// countdown to random direction change
-			static s16 ccc = 512; // static, so it's initialised only once on first use!
+			static s16 ccc = 1024; // static, so it's initialised only once on first use!
 			if (ccc-- < 0)
 			{
-				ccc = 512;
+				ccc = 1024;
 
 				// apply random direction change
-				const s32 *pang = &s_fdirs_32ang[((prng.genS32()>>5) & 31) << 1];
+				const s32 *pang = &s_fdirs_32ang[((prng.genS32()>>7) & 31) << 1];
 				g_fscrollxdir = pang[0] >> 1;
 				g_fscrollydir = pang[1] >> 1;
 			}
@@ -1060,6 +1060,9 @@ void alien_fntick(entity_t *_pself)
 	// combine to index 8x4 sprite grid
 	self.frame = (s_anim[af] << 3) | (self.frame & 0x0007);
 
+	self.fwx = self.frx;
+	self.fwy = self.fry;
+
 	// move
 	self.frx += self.fvx;
 	self.fry += self.fvy;
@@ -1067,23 +1070,46 @@ void alien_fntick(entity_t *_pself)
 	{
 		s16 dirchanged = 0;
 
-		while (is_solidarea32(self.rx, self.ry) | ((self.wz > 0) && ((s & 7) == 0)) )
+		// upon contact with anything, reset to last good position then change direction
+		u8 wall = 0;
+		while ((wall = is_solidarea32(self.rx, self.ry)) | (self.wz > 0))
 		{
+			// reset to last good position
+			self.frx = self.fwx;
+			self.fry = self.fwy;
+
+			// prioritise wall contacts over entity contacts 
+			if (wall)
+			{
+				if (s & 6) // 2 bits = zero 1 out of 4 
+				{
+					// 75% chance of a 90' turn
+					s32 t = self.fvx;
+					self.fvx = -self.fvy;
+					self.fvy = t;
+				}
+				else
+				{
+					// 25% chance of a random direction change
+					const s32 *pang = &s_fdirs_32ang[((s_gcount += 5) & 31) << 1];
+					self.fvx = pang[0] >> 0;
+					self.fvy = pang[1] >> 0;
+				}
+			}
+			else
+			{
+				// for entity contacts, send entities in opposite directions for quick separation
+				self.fvx = -self.fvx;
+				self.fvy = -self.fvy;
+			}
+
 			// padding counter prevents re-collision with other monsters for a short period
-			// to reduce incidence of fist-fights - keeps the monsters moving
-			self.wz = -24;
-
-			s32 vx = self.fvx;
-			s32 vy = self.fvy;
-
-			// back off
-			self.frx -= vx;
-			self.fry -= vy;
-
-			// turn
-			const s32 *pang = &s_fdirs_32ang[((s_gcount += 5) & 31) << 1];
-			self.fvx = pang[0] >> 0;
-			self.fvy = pang[1] >> 0;
+			// to reduce incidence of fist-fights - keeps the monsters from getting stuck
+			// this is mainly needed because these entities are spawned randomly instead of being
+			// carefully placed in an editor - so they may overlap significantly on first tick. 
+			// they need an opportunity to put distance between each other.
+			if (self.wz > 0)
+				self.wz = -64;
 
 			// try to move again
 			self.frx += self.fvx;
@@ -1091,6 +1117,16 @@ void alien_fntick(entity_t *_pself)
 
 			// keep trying until we're not hitting walls
 			// (yes, this is not a smart monster AI)
+			dirchanged++;
+		}
+
+		// assuming no collision, occasionally change direction anyway
+		if (!dirchanged && ((s & 127) == 0))
+		{
+			// turn
+			const s32 *pang = &s_fdirs_32ang[((s_gcount += 5) & 31) << 1];
+			self.fvx = pang[0] >> 0;
+			self.fvy = pang[1] >> 0;
 			dirchanged++;
 		}
 
@@ -1126,7 +1162,7 @@ void alien_fncol(entity_t *_pself, entity_t *_pother)
 	entity_t &self = *_pself;
 
 	// mild hint to change direction
-	if (self.wz == 0)
+	if (self.wz >= 0)
 		self.wz = 1;
 }
 

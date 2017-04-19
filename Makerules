@@ -71,8 +71,8 @@ ifeq ($(USE_BROWNELF),yes)
 CODEGENFLAGS += -fleading-underscore
 endif
 
-CFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -Wall -Wno-unused-variable
-CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -x c++ -std=c++0x -fno-exceptions -fno-rtti -fno-threadsafe-statics -Wall -Wno-reorder -Wno-unused-variable
+CFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -Wall -Wno-narrowing -Wno-unused-variable
+CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -x c++ -std=c++0x -fno-exceptions -fno-rtti -fno-threadsafe-statics -Wall -Wno-reorder -Wno-narrowing -Wno-unused-variable
 
 LDFLAGS += $(CODEGENFLAGS) -Wl,-Map,$*.map $(LDOPTS)
 
