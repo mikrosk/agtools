@@ -78,7 +78,7 @@ extern "C"
 
 #if !defined(USE_TINY_CRT)
 #define S_SUPER_SSP(_sz_) \
-static const int ssp_size = _sz_; \
+static const int ssp_size = _sz_>>2; \
 u32 s_new_ssp[ssp_size]; \
 u32 s_old_ssp; \
 u32 s_old_usp;
@@ -93,7 +93,7 @@ u32 s_old_usp;
 		: \
 		: "cc" \
 	); \
-	s_old_ssp = Super(&s_new_ssp[ssp_size-256]);
+	s_old_ssp = Super(&s_new_ssp[ssp_size-64]);
 #else
 #define S_SUPER
 #endif
