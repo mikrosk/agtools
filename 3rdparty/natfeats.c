@@ -26,7 +26,7 @@
 #include "natfeats.h"
 
 /* NatFeats available & initialized */
-static short g_hnf_ok = 0;
+//short g_hnf_ok = 0;
 
 /* handles for frequently used NF features */
 static long nfid_print;

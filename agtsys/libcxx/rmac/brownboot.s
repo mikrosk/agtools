@@ -1,24 +1,19 @@
 
 ; --------------------------------------------------------------
         
-	.globl	___CTOR_LIST__
-	.globl	___DTOR_LIST__
-
         .globl    ___cxa_pure_virtual
 	.globl	__ZSt17__throw_bad_allocv
 
 	.globl	_memcpy
 	.globl	_memset
-;	.globl	_qmemclr
-	.globl	_qmemclr
-	
-	.globl	_qmemcpy
-	.globl	_qmemset
 
 	.globl	_main
 	.globl	_exit
+	.globl	__exit
 	.globl	___cxa_guard_acquire
 	.globl	___cxa_guard_release
+
+	.globl	___libc_csu_init
 
 ; --------------------------------------------------------------
 
@@ -35,20 +30,8 @@ SSPS			=		$4000
 
 *-------------------------------------------------------*
 __crt_entrypoint:	.globl		__crt_entrypoint
+_start:			.globl		_start
 *-------------------------------------------------------*
-;	bra		*
-	
-	pea		.here(pc)
-	move.w		#38,-(sp)
-	trap		#14
-	addq.l		#6,sp
-	bra.s		.cont
-.here:	;move.l		#512*1024,$436
-	;move.l		#512*1024,$44e
-	;move.l		#512*1024,$42E
-	rts
-.cont:	
-	
 	move.l		4(sp),a5
 *-------------------------------------------------------*
 *	command info
@@ -62,7 +45,6 @@ __crt_entrypoint:	.globl		__crt_entrypoint
 	add.l		20(a5),d0			; data segment
 	add.l		28(a5),d0			; bss segment
 	add.l		#BASEPAGE_SIZE+USPS,d0		; base page
-;	add.l		#BASEPAGE_SIZE,d0		; base page
 *-------------------------------------------------------*
 	move.l		a5,d1				; address to basepage
 	add.l		d0,d1				; end of program
@@ -84,43 +66,21 @@ __crt_entrypoint:	.globl		__crt_entrypoint
 *-------------------------------------------------------*
 *	Begone
 *-------------------------------------------------------*
-;	move.l		(sp)+,sp			; restore USP
 	clr.w		-(sp)				; Pterm0
 	trap		#1
 
 user_start:
 
-;	move.l		4(sp),a5				;address to basepage
-;	move.l		$0c(a5),d0				;length of text segment
-;	add.l		$14(a5),d0				;length of data segment
-;	add.l		$1c(a5),d0				;length of bss segment
-;	add.l		#STACK_SIZE+BASEPAGE_SIZE,d0		;length of stackpointer+basepage
-;	move.l		a5,d1					;address to basepage
-;	add.l		d0,d1					;end of program
-;	and.w		#-16,d1					;align stack
-
-;	move.l		sp,d2
-;	move.l		d1,sp					;new stackspace
-;	move.l		d2,-(sp)
-	
-;	move.l		d0,-(sp)				;mshrink()
-;	move.l		a5,-(sp)				;
-;	clr.w		-(sp)					;
-;	move.w		#$4a,-(sp)				;
-;	trap		#1					;
-;	lea.l		12(sp),sp				;
-			
 	; clear bss segment
 			
 	move.l		$18(a5),a0
 	move.l		$1c(a5),d0				;length of bss segment
-
 	move.l		d0,-(sp)
+	pea		0.w
 	move.l		a0,-(sp)
-	jsr		_qmemclr
-	addq.l		#8,sp
+	jsr		_memset
+	lea		12(sp),sp
 
-	
 ;	if (REDIRECT_OUTPUT_TO_SERIAL==1)  
 ;	; redirect to serial
 ;	
@@ -129,31 +89,16 @@ user_start:
 ;	move.w		#$46,-(sp)
 ;	trap		#1
 ;	addq.l		#6,sp
+;
 ;	endif
-	; execute static constructors
-	
-	lea		___CTOR_LIST__,a0
-	bsr		static_init
 
-;	jsr		_main
-	
 	pea		super_start
 	move.w		#38,-(sp)
 	trap		#14
 	addq.l		#6,sp
 
-	lea		___DTOR_LIST__,a0
-	bsr		static_init
-
-;	move.w		#1,-(sp)				; Cconin
-;	trap		#1
-;	addq.l		#2,sp
-
 	rts
 		
-;	clr.w		-(sp)					; Pterm0
-;	trap		#1
-
 ; --------------------------------------------------------------
 super_start:
 ; --------------------------------------------------------------
@@ -167,28 +112,33 @@ super_start:
 	move.l		a1,-(a0)
 	move.l		a0,sp
 	
+;	__libc_csu_init(int argc, char **argv, char **envp);
+
+	move.l		#0,-(sp)
+	pea		dummy_argv
+	pea		dummy_envp
+	jsr		___libc_csu_init
+	lea		12(sp),sp
+
+	move.l		sp,entrypoint_ssp	
+
 	jsr		_main
 	
-_exit:	move.l		(sp)+,a0
+;	link to high level exit(0) function on return
+	pea		0.w
+	jmp		_exit
+	
+__exit:
+
+;	level SSP, because exit() is a subroutine
+
+	move.l		entrypoint_ssp,sp
+
+	move.l		(sp)+,a0
 	move.l		a0,usp
 	move.l		(sp)+,sp
 	rts
 	
-; --------------------------------------------------------------
-static_init:	
-; --------------------------------------------------------------
-	move.l		(a0)+,d0
-	beq.s		.none
-.next:	move.l		(a0)+,a1
-	movem.l		d0/a0,-(sp)
-	moveq		#0,d0
-	jsr		(a1)
-	movem.l		(sp)+,d0/a0
-	subq.l		#1,d0
-	bne.s		.next
-.none:	rts
-
-
 ; --------------------------------------------------------------
 _memcpy:	
 ; --------------------------------------------------------------
@@ -420,13 +370,15 @@ _memset:
 	move.l		a1,d2
 ;	move.l		(sp)+,d2
 	rts
-	
+		
+; --------------------------------------------------------------
+	.text
 ; --------------------------------------------------------------
 
 _rand:		.globl	_rand
 ___cxa_guard_acquire:
 ___cxa_guard_release:
-		rts
+	rts
 		
 ; --------------------------------------------------------------
 __ZSt17__throw_bad_allocv:
@@ -435,11 +387,22 @@ ___cxa_pure_virtual:
 	jmp	_exit
 
 ; --------------------------------------------------------------
-	bss
+	.data
+; --------------------------------------------------------------
+	
+dummy_argv:
+dummy_envp:
+	dc.b		0
+	even
+
+; --------------------------------------------------------------
+	.bss
 ; --------------------------------------------------------------
 	
 	ds.b	SSPS
 new_ssp:
+	ds.l	1
+entrypoint_ssp:
 	ds.l	1
 
 ; --------------------------------------------------------------

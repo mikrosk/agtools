@@ -11,6 +11,8 @@
 //	******************************************************************************************************
 //----------------------------------------------------------------------------------------------------------------------
 
+#ifdef ENABLE_AGT_AUDIO
+
 // 1 = expect .bmu files packed with p2e wrapper
 // 0 = expect .bmz raw files
 #define AGT_CONFIG_PACKED_BMU (1)
@@ -428,3 +430,5 @@ void AGT_MusicFixupCallback(const char* const _name, remap_ft &remap_func)
 #endif // defined(ENABLE_AGT_AUDIO)
 
 #pragma GCC diagnostic pop
+
+#endif // ENABLE_AGT_AUDIO

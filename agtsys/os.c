@@ -12,6 +12,11 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <memory.h>
+
+#ifdef HATARI_NF_PRINTF
+#include "3rdparty/natfeats.h"
+#endif
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	Our AGT headers
@@ -24,7 +29,25 @@
 
 int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
 
+short g_hnf_ok = 0;
 short g_displaylocked = 0;
+
+// must be called only in supervisor mode, before user entrypoint
+int AGT_EntryPointPre()
+{
+#if defined(HATARI_NF_PRINTF)
+	nf_init();
+#endif
+	return 0;
+}
+
+int AGT_EntryPointPost()
+{
+#if defined(HATARI_NF_PRINTF)
+	g_hnf_ok = 0;
+#endif
+	return 0;
+}
 
 #if (1)
 
@@ -395,9 +418,9 @@ int bmprintf(const char *pFormat, ...)
 	va_start(pArg, pFormat);
 	len = vsnprintf(buf, 1000, pFormat, pArg);
 	va_end(pArg);
-#ifdef HATARI_NF_PRINTF
+#if defined(HATARI_NF_PRINTF)
 	// always route to Hatari NF console if enabled and detected
-	if (g_hnf)
+	if (g_hnf_ok)
 		nf_print(buf);
 #endif
 
@@ -405,10 +428,16 @@ int bmprintf(const char *pFormat, ...)
 	reg32(FFC1F0) = buf;
 #endif
 
-	// route to TOS console
-#ifndef HATARI_NF_PRINTF
+	// route to TOS console if display is not locked for graphics
 	if (!g_displaylocked)
 	{
+#if defined(HATARI_NF_PRINTF)
+		// if using NATFEATS debugging, route to BCONOUT when NATFEATS
+		// is not initialised. this catches early/late prints during
+		// static initialisation etc.
+		if (!g_hnf_ok)
+		{
+#endif
 		char *pscan = buf;
 		while (*pscan)
 		{
@@ -417,8 +446,10 @@ int bmprintf(const char *pFormat, ...)
 				Bconout(2, 13);
 			Bconout(2, c);
 		}
+#if defined(HATARI_NF_PRINTF)
 	}
 #endif
+	}
 
 	// always route to BM console
 	printf_console(buf);
@@ -427,4 +458,3 @@ int bmprintf(const char *pFormat, ...)
 
 	return len;
 }
-

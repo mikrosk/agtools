@@ -11,6 +11,8 @@
 //	******************************************************************************************************
 //----------------------------------------------------------------------------------------------------------------------
 
+#ifdef ENABLE_AGT_AUDIO
+
 // generate .dat tables for YM volume, frequency and vibrato (requires MiNTlib CRT / MINIMAL_LINK=no)
 //#define MAKE_TABLES
 
@@ -104,7 +106,7 @@ static virtual_channel_t event_queue[max_events_per_frame];
 virtual_channel_t *g_channel_freepool[max_virtual_channels];
 static virtual_channel_t channel_pool[max_virtual_channels];
 
-extern "C" volatile char g_serverlocks;
+//extern "C" volatile char g_serverlocks;
 volatile char g_flushchannels = 0;
 
 static int device_open(void);
@@ -3023,3 +3025,5 @@ extern u32 raster_callback_ptr;
 //-----------------------------------------------------------------------------
 
 #pragma GCC diagnostic pop
+
+#endif // ENABLE_AGT_AUDIO

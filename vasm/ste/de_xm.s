@@ -930,7 +930,7 @@ _EntityInteractVisibleXM_68k:
 
 	move.l		_g_pe_viewport,a2
 	move.w		.sp_pxmax(sp),d1
-	move.w		.sp_pxmax(sp),d2
+	move.w		.sp_pymax(sp),d2
 	move.w		ent_self(a0),d7
 	bra.s		.no_i1
 

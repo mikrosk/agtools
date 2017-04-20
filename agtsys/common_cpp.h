@@ -360,7 +360,7 @@ extern "C" int bmprintf(const char *pFormat, ...);
 extern "C" void SYS_Assert();
 
 // fancy assert which invokes vector $1C with a message param
-#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert @ "AGT_AT; __asm__ __volatile__ ("move.l %0,-(%%sp); jsr _SYS_Assert;" : : "p"(__msg) : "cc"); } };
+#define xassert(_e_) { if (!(_e_)) { const char* const __msg = "assert @ " AGT_AT; __asm__ __volatile__ ("move.l %0,-(%%sp); jsr _SYS_Assert;" : : "p"(__msg) : "cc"); } };
 
 // --------------------------------------------------------------------
 

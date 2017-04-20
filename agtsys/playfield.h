@@ -1635,7 +1635,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 
 	pprintf("init playfield:\n");
-#if defined(REPORT_PLAYFIELD_METRICS)
+#if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
 	printf("dw:%d, vw:%d, dtw:%d, vtw:%d\n", (int)display_width_, (int)virtual_width_, (int)visible_tiles_x_, (int)virtual_tiles_x_);
 	printf("dh:%d, vh:%d, dth:%d, vth:%d\n", (int)display_height_, (int)virtual_height_, (int)visible_tiles_y_, (int)virtual_tiles_y_);
 	printf("wrw:%d, wrh:%d\n", (int)wrap_width_, (int)wrap_height_);

@@ -25,7 +25,9 @@
 	.globl		vbl_sema
 	
 	.globl		_AGT_ConsoleText_68k
+	.if		^^defined ENABLE_AGT_AUDIO
 	.globl		_YMSYS_VBCallback
+	.endif
 
 	.globl		_blackscreen
 
@@ -59,7 +61,7 @@ highlight_statusbar		=	0
 use_auto_end_of_interrupt	=	0		; defaults to manual EOI for compatibility with other user-defined interrupts
 use_blitter_compatibility	=	1		; default is to assume blitter is busy on STE, helps prevent flickery rasters
 use_overscan			=	1		; enable 240 lines vs usual 200 (can be up to 274 but 240 is a good standard)
-use_lower_border		=	1
+use_lower_border		=	1		; enable/disable lower border specifically, when use_overscan = 1
 
 ; internal timera/timerb schedule for overscan mode
 displayservice_upper_delay	=	(94+4)		; safety padding of 6...3, but err towards more padding (smaller value) with blitter in use
@@ -264,8 +266,12 @@ displayservice_ste_vbi_dmasafe:
 	.endif
 
 .skip:
+	.if		^^defined ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	.endif
 	
+	andi.w		#$fbff,sr
+
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	
@@ -371,8 +377,12 @@ displayservice_ste_vbi:
 	.endif
 
 .skip:
+	.if		^^defined ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	.endif
 	
+	andi.w		#$fbff,sr
+
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	
@@ -437,8 +447,12 @@ displayservice_f030_vbi:
 	.endif
 
 .skip:
+	.if		^^defined ENABLE_AGT_AUDIO
 	jsr		_YMSYS_VBCallback
+	.endif
 	
+	andi.w		#$fbff,sr
+
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	
@@ -576,12 +590,24 @@ displayservice_ste_first_b:
 	move.l		(a0)+,(a1)+
 
 	clr.b		tbcr.w				; TimerB CTRL: halt
+
+	.if		(use_lower_border)	
 	
 	move.b		#displayservice_lower_delta_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
 	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
+	.if		(use_debugconsole)
+	tst.w		_show_console
+	beq.s		.normal
+	move.l		#displayservice_ste_lowerconsole_b,$120.w
+	bra.s		.cont
+	.endif		;(use_debugconsole)
+	
+.normal:
 	move.l		#displayservice_ste_lower_b,$120.w
-		
+.cont:
+	.endif		;(use_lower_border)
+			
 	move.l		(sp)+,a1
 	move.l		(sp)+,a0
 	
@@ -607,15 +633,7 @@ displayservice_ste_lower_b:
 	blitoff
 		
 	move.w		#$2700,sr
-	movem.l		d0/d1/a0/a1,-(sp)
-
-;	tst.b		DMAFlag.w
-;	bne		.safe_path
-	
-	lea		$ffff820a.w,a1
-	moveq		#0,d1
-	
-;	not.w	$ffff8240.w
+	movem.l		d0/a0,-(sp)
 
 ;	insert 'padding' scans to absorb short blitter jobs - 
 
@@ -623,10 +641,6 @@ displayservice_ste_lower_b:
 	lea		tbdr.w,a0
 .wl:	cmp.b		(a0),d0
 	blo.s		.wl
-
-
-
-	.if		(use_lower_border)
 
 	nop		; pad until lower border event
 	nop
@@ -645,39 +659,107 @@ displayservice_ste_lower_b:
 	dcb.w		5,$4e71				; ...wait...
 	move.b		#2,$ffff820a.w			; 50 Hz
 		
-	.endif		; (use_lower_border)
-	
-
-;	not.w	$ffff8240.w
 	
 	.else		; (use_blitter_compatibility)	
 
-	.if		(use_lower_border)
+	clr.b		$ffff820a.w			; 60 Hz
+	move.w		#$2700,sr
+	dcb.w		4,$4e71				; ...wait...
+	move.b		#2,$ffff820a.w			; 50 Hz
+		
+	movem.l		d0/a0,-(sp)
+
+	.endif		; (use_blitter_compatibility)	
+
+	clr.b		tbcr.w				; TimerB CTRL: halt
+	move.b		#displayservice_final_delta_tb-1,tbdr.w	; TimerB DATA: count
+	move.b		#8,tbcr.w				; TimerB CTRL: start))
+
+	move.l		#displayservice_ste_final_b,$120.w
+	
+	.if		(highlight_statusbar)
+	lea		$ffff8240.w,a0
+	move.l		#$06660666,d0
+;	move.l		#$09990999,d0
+	and.l		d0,(a0)+
+	and.l		d0,(a0)+
+	and.l		d0,(a0)+
+	and.l		d0,(a0)+
+	and.l		d0,(a0)+
+	and.l		d0,(a0)+
+	and.l		d0,(a0)+
+	and.l		d0,(a0)+
+	.endif
+	
+	movem.l		(sp)+,d0/a0
+	
+	.if		(use_blitter_compatibility)
+	bliton
+	.endif
+	
+	.if		(0=use_auto_end_of_interrupt)
+;	manual EOI
+	bclr.b		#0,isra.w
+	.endif
+	
+	rte
+
+	.if		(use_debugconsole)
+
+*-----------------------------------------------------------------------------*
+displayservice_ste_lowerconsole_b:
+*-----------------------------------------------------------------------------*
+	.if		(use_blitter_compatibility)	
+
+	blitoff
+		
+	move.w		#$2700,sr
+	movem.l		d0/d1/a0,-(sp)
+
+	move.l		_show_console,d1
+	
+;	insert 'padding' scans to absorb short blitter jobs - 
+
+	moveq		#displayservice_lower_delta_tb-(timecritical_pad_tb*2),d0
+	lea		tbdr.w,a0
+.wl:	cmp.b		(a0),d0
+	blo.s		.wl
+
+	nop		; pad until lower border event
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+
+	nop		; HW: almost stable
+	nop		; HW: stable
+;	nop		; HW: almost stable
+
+	clr.b		$ffff820a.w			; 60 Hz
+	dcb.w		5,$4e71				; ...wait...
+	move.b		#2,$ffff820a.w			; 50 Hz
+	
+	.else		; (use_blitter_compatibility)	
 
 	clr.b		$ffff820a.w			; 60 Hz
 	move.w		#$2700,sr
 	dcb.w		4,$4e71				; ...wait...
 	move.b		#2,$ffff820a.w			; 50 Hz
 	
-	.endif
-
+	movem.l		d0/d1/a0,-(sp)
+	
 	.endif		; (use_blitter_compatibility)	
-
-
-	.if		(use_lower_border)
-
-	.if		(use_debugconsole)
 
 ;	if console is enabled by build flags, 
 ;	show it in lower border if the console buffer is valid
-
-	move.l		_show_console,d0
-	beq.s		.no_con
-		
-	move.b		d0,$ffff8209.w
-	move.b		d0,$ffff8265.w
-	lsr.w		#8,d0
-	move.l		d0,$ffff8204.w
+	
+	move.b		d1,$ffff8265.w
+	move.b		d1,$ffff8209.w
+	lsr.w		#8,d1
+	move.l		d1,$ffff8204.w
 	move.b		#(184-160)>>1,$ffff820f.w
 
 	lea		$ffff8240.w,a0
@@ -694,59 +776,10 @@ displayservice_ste_lower_b:
 	move.l		d0,(a0)+
 
 	move.b		d0,tbcr.w				; TimerB CTRL: halt
-	bra.s		.en_con
-.no_con:
-
-;	otherwise schedule an artificial blanking event for 240-line display
-
-	.endif		;(use_debugconsole)
-
-	clr.b		tbcr.w				; TimerB CTRL: halt
-	move.b		#displayservice_final_delta_tb-1,tbdr.w	; TimerB DATA: count
-	move.b		#8,tbcr.w				; TimerB CTRL: start))
-
-	move.l		#displayservice_ste_final_b,$120.w
 	
-.en_con:
-	
-	.else		;(use_lower_border)
+	movem.l		(sp)+,d0/d1/a0
 
-	clr.b		tbcr.w				; TimerB CTRL: halt
-	moveq		#0,d0
-	lea		$ffff8240.w,a0
-	.if		^^defined TIMING_RASTERS
-	move.w		$64.w,(a0)+
-	move.w		d0,(a0)+
-	.else
-	move.l		d0,(a0)+
-	.endif
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+	
-	
-	.endif		;(use_lower_border)
-	
-	.if		(highlight_statusbar)
-	lea		$ffff8240.w,a0
-	move.l		#$06660666,d0
-;	move.l		#$09990999,d0
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	.endif
-	
 	.if		(use_blitter_compatibility)
-	movem.l		(sp)+,d0/d1/a0/a1
-
 	bliton
 	.endif
 	
@@ -757,7 +790,9 @@ displayservice_ste_lower_b:
 	
 	rte
 
-	.endif
+	.endif		;(use_debugconsole)
+
+	.endif		;(use_overscan)
 	
 
 *-----------------------------------------------------------------------------*

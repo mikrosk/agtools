@@ -198,6 +198,8 @@ machine machinestate;
 
 S_SUPER_SSP(AGT_CONFIG_STACK);
 
+AGT_MAIN;
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // some globals and bodge variables - some of this should be moved inside a player entity
@@ -336,31 +338,8 @@ char ascii2font[256];
 //	program start
 // =====================================================================================================================
 
-int main(int argc, char **argv)
+int AGT_EntryPoint()
 {
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	MiNTlib builds switch to SUPERVISOR & switch stacks. otherwise, AGT does it during CRT startup.
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	S_SUPER;
-
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	we can detect Hatari via natfeats API for debug-printf routing, if Hatari started with '--natfeats yes'
-	// ---------------------------------------------------------------------------------------------------------------------
-#if defined(HATARI_NF_PRINTF)
-	int hatariflag = nf_init();
-
-	if (hatariflag)
-	{
-		printf("Hatari NATFEATS detected!\n");
-	}
-	else
-	{
-		printf("Hatari NATFEATS NOT detected... :(\n");
-	}
-#endif
-
-	//printf("sizeof(entity_t) = %d\n", sizeof(entity_t));
 
 	//printf("mperc_last_: %d\n", mperc_last_);
 	//printf("midi_mperc_start_: %d\n", midi_mperc_start_);
@@ -376,9 +355,8 @@ int main(int argc, char **argv)
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools\n");
+	printf("[A]tari [G]ame [T]ools / dml 2016\n");
 	printf("game engine sample #1 (STE)\n");
-	printf("dml / 2016\n\n");
 
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	open scope before we create any interfaces (so we can expect them to be cleaned up before the scope is closed)
@@ -414,9 +392,6 @@ int main(int argc, char **argv)
 		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
-
-		// shut down printfs via BIOS, but continue redirecting to Hatari debugger (natfeats) if enabled
-		g_displaylocked = 1;
 
 		machinestate.save();
 
@@ -1057,15 +1032,10 @@ mainloop:
 			TIMING_MAIN(0x077);	
 
 			// ---------------------------------------------------------------------------------------------------------------------
-			//	tick all entities linked into the 'tick' chain
-			//	note: not all entities need to be in the tick chain. it depends on EntityFlag_TICKED. however non-ticked entities
-			//	should be manually sorted using EntitySort2D if they are still being drawn, in order to maintain 2D coherence. ticked
-			//	entities get sorted automatically by the tick system.
+			// update the viewport first.
 
-			// manually update the viewport first. we don't need a full tick for this but we do need to keep the viewport sorted
 			g_pe_viewport->rx = g_viewport_worldx - c_viewport_margin;
 			g_pe_viewport->ry = g_viewport_worldy;
-			EntitySort2D(g_pe_viewport);
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	tick all currently linked objects
@@ -1225,14 +1195,11 @@ mainloop:
 	machinestate.restore();
 
 	// ---------------------------------------------------------------------------------------------------------------------
-	//	MiNTlib builds switch to USER & restore stacks. otherwise, AGT does it during CRT pulldown.
-	// ---------------------------------------------------------------------------------------------------------------------
+	// back to TOS
 
-	S_USER;
+	pprintf("terminate...\n");
 
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	printf("terminate...\n");
+	return 0;
 }
 
 

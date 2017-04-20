@@ -744,7 +744,7 @@ i_mouse_dx:
 	move.b		#~imb_ikbd,isrb.w			; start yielding to interrupts immediately		
 	andi.w		#$fbff,sr
 *-------------------------------------------------------*
-	ifd		bldcfg_use_mouse
+	ifne		bldcfg_use_mouse
 	ext.w		d0
 	add.w		d0,_mouse_dx
 	endc
@@ -765,7 +765,7 @@ i_mouse_dy:
 	move.b		#~imb_ikbd,isrb.w			; start yielding to interrupts immediately				
 	andi.w		#$fbff,sr
 *-------------------------------------------------------*
-	ifd		bldcfg_use_mouse
+	ifne		bldcfg_use_mouse
 	ext.w		d0
 	add.w		d0,_mouse_dy
 	endc

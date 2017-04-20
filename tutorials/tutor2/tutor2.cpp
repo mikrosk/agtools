@@ -78,6 +78,8 @@ shifter_ste shift;
 
 S_SUPER_SSP(AGT_CONFIG_STACK);
 
+AGT_MAIN;
+
 // ---------------------------------------------------------------------------------------------------------------------
 //	define some space for the display.
 //	CAUTION: this is only meant to be simple for the tutorial - could end up in TTRam on some Ataris and break...
@@ -87,7 +89,7 @@ S_SUPER_SSP(AGT_CONFIG_STACK);
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
 
-// define a playfield config for horizontal-only scrolling using STE HW HSCROLL
+// define a playfield config for vertical-only scrolling 
 typedef playfield_template
 <
     /*tilesize=*/4,
@@ -132,15 +134,8 @@ static s16 g_viewport_worldy = c_scroll_safety_margin;
 //	program entrypoint
 // =====================================================================================================================
 
-int main(int argc, char **argv)
+int AGT_EntryPoint()
 {
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	switch to supervisor if still in user mode
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	S_SUPER;
-
-
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
@@ -245,13 +240,6 @@ int main(int argc, char **argv)
 
 		printf("init world viewport...\n");
 		myworld.init(g_viewport_worldx, g_viewport_worldy);
-
-
-		// ---------------------------------------------------------------------------------------------------------------------
-		//	lock out printf messages via BIOS, but continue redirecting to Hatari debugger (natfeats) if enabled
-
-		g_displaylocked = 1;
-
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over all machine resources - display, timers, input etc.
@@ -361,15 +349,11 @@ int main(int argc, char **argv)
 	}
 
 	// ---------------------------------------------------------------------------------------------------------------------
-	//	back to user mode
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	S_USER;
-
-	// ---------------------------------------------------------------------------------------------------------------------
 	// back to TOS
 
 	pprintf("terminate...\n");
+
+	return 0;
 }
 
 

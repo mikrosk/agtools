@@ -51,6 +51,8 @@ void machine::claim()
 {	
 	if (open_)
 	{
+		g_displaylocked = 1;
+
 		SYS_Claim();
 	}
 }
@@ -61,6 +63,8 @@ void machine::restore()
 	{
 		open_ = false;
 		SYS_Restore();
+
+		g_displaylocked = 0;
 	}
 }
 

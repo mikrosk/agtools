@@ -12,7 +12,7 @@
 
 *-----------------------------------------------------------------------------*
 
-enable_vscroll		set	1
+enable_vscroll		set	0
 hotswap_machine		set	0
 configure_mste		set	0
 
