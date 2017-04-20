@@ -21,9 +21,9 @@ EXT = tos
 endif
 
 # can disable auto-optimisations with: -no-opt
-VASM = $(AGTROOT)/bin/vasm16c $(VASM_CFG) -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
+VASM = $(WINE) $(AGTROOT)/bin/vasm16c $(VASM_CFG) -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
 # can disable auto-optimisations with: ~oall
-RMAC = $(AGTROOT)/bin/rmac $(RMAC_CFG) +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
+RMAC = $(WINE) $(AGTROOT)/bin/rmac $(RMAC_CFG) +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
 
 
 CC = $(TOOLCHAIN_PREFIX)gcc
@@ -266,8 +266,8 @@ ifeq ($(USE_CFG),release)
 # -----------------------------------------------------------------------------
 	$(STRIP) $*.tos
 ifeq ($(USE_UPX_PACKER),yes)
-	$(AGTROOT)/bin/upx -9 $*.tos
-#	$(AGTROOT)/bin/upx -9 --brute --ultra-brute $*.tos
+	$(WINE) $(AGTROOT)/bin/upx -9 $*.tos
+#	$(WINE) $(AGTROOT)/bin/upx -9 --brute --ultra-brute $*.tos
 endif
 # -----------------------------------------------------------------------------
 else
@@ -308,16 +308,16 @@ endif
 # -----------------------------------------------------------------------------
 ifeq ($(USE_CFG),release)
 # -----------------------------------------------------------------------------
-	$(AGTROOT)/bin/brownout -p 0 -i $*.elf -o $*.tos
+	$(WINE) $(AGTROOT)/bin/brownout -p 0 -i $*.elf -o $*.tos
 ifeq ($(USE_UPX_PACKER),yes)
-	$(AGTROOT)/bin/upx -9 $*.tos
-#	$(AGTROOT)/bin/upx -9 --brute --ultra-brute $*.tos
+	$(WINE) $(AGTROOT)/bin/upx -9 $*.tos
+#	$(WINE) $(AGTROOT)/bin/upx -9 --brute --ultra-brute $*.tos
 endif
 # -----------------------------------------------------------------------------
 else
 # -----------------------------------------------------------------------------
 	$(TOOLCHAIN_PREFIX)objdump -h $*.elf
-	$(AGTROOT)/bin/brownout -s -x -p 0 -i $*.elf -o $*.tos
+	$(WINE) $(AGTROOT)/bin/brownout -s -x -p 0 -i $*.elf -o $*.tos
 # -----------------------------------------------------------------------------
 endif
 # -----------------------------------------------------------------------------

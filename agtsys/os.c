@@ -12,6 +12,7 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <memory.h>
 
 #ifdef HATARI_NF_PRINTF
 #include "3rdparty/natfeats.h"

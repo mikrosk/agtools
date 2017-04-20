@@ -1225,7 +1225,6 @@ extern "C" void AGT_Exception_IMSFrame(s16 _frame, spritesheet::sps_header *h)
 	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
-	__builtin_unreachable;
 }
 
 extern "C" void AGT_Exception_EMSFrame(s16 _frame, spritesheet::sps_header *h)
@@ -1236,7 +1235,6 @@ extern "C" void AGT_Exception_EMSFrame(s16 _frame, spritesheet::sps_header *h)
 	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
-	__builtin_unreachable;
 }
 
 extern "C" void AGT_Exception_EMXFrame(s16 _frame, spritesheet::sps_header *h)
@@ -1247,7 +1245,6 @@ extern "C" void AGT_Exception_EMXFrame(s16 _frame, spritesheet::sps_header *h)
 	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
-	__builtin_unreachable;
 }
 
 extern "C" void AGT_Exception_SLSFrame(s16 _frame, slabsheet::sls_header *h)
@@ -1258,7 +1255,6 @@ extern "C" void AGT_Exception_SLSFrame(s16 _frame, slabsheet::sls_header *h)
 	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
-	__builtin_unreachable;
 }
 
 extern "C" void AGT_Exception_SLRFrame(s16 _frame, slabsheet::sls_header *h)
@@ -1269,7 +1265,6 @@ extern "C" void AGT_Exception_SLRFrame(s16 _frame, slabsheet::sls_header *h)
 	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
-	__builtin_unreachable;
 }
 
 #endif // defined(AGT_CONFIG_SAFETY_CHECKS)
