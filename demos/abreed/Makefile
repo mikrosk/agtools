@@ -156,7 +156,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: abreed
+all: project
 
 
 # =============================================================================
@@ -174,13 +174,13 @@ include $(AGTROOT)/Makerules
 # - the AGLIB platform to use in the build rules (STF/STE)
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
-abreed: AGLIB=$(AGLIB_STE)
-abreed: $(AGLIB_STE) abreed.$(EXT)
+project: AGLIB=$(AGLIB_STE)
+project: $(AGLIB_STE) abreed.$(EXT)
 
 # treat these names as targets not sourcefiles otherwise bad stuff can get
 # accidentally added to the link line (we have some sourcefiles with the same
 # names as some targets, sending make to confusionland)
-.PHONY: abreed
+.PHONY: project
 
 # =============================================================================
 #	Build rules for preparing data

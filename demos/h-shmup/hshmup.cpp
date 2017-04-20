@@ -1032,15 +1032,10 @@ mainloop:
 			TIMING_MAIN(0x077);	
 
 			// ---------------------------------------------------------------------------------------------------------------------
-			//	tick all entities linked into the 'tick' chain
-			//	note: not all entities need to be in the tick chain. it depends on EntityFlag_TICKED. however non-ticked entities
-			//	should be manually sorted using EntitySort2D if they are still being drawn, in order to maintain 2D coherence. ticked
-			//	entities get sorted automatically by the tick system.
+			// update the viewport first.
 
-			// manually update the viewport first. we don't need a full tick for this but we do need to keep the viewport sorted
 			g_pe_viewport->rx = g_viewport_worldx - c_viewport_margin;
 			g_pe_viewport->ry = g_viewport_worldy;
-			EntitySort2D(g_pe_viewport);
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	tick all currently linked objects

@@ -266,6 +266,8 @@ displayservice_ste_vbi_dmasafe:
 	jsr		_YMSYS_VBCallback
 	endc
 	
+	andi.w		#$fbff,sr
+
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	
@@ -375,6 +377,8 @@ displayservice_ste_vbi:
 	jsr		_YMSYS_VBCallback
 	endc
 	
+	andi.w		#$fbff,sr
+
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	
@@ -443,6 +447,8 @@ displayservice_f030_vbi:
 	jsr		_YMSYS_VBCallback
 	endc
 	
+	andi.w		#$fbff,sr
+
 	addq.w		#1,vbl_sema
 	bgt.s		.nsvc
 	

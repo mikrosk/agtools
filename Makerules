@@ -1,33 +1,29 @@
 # =============================================================================
-#	Some standard C/ASM config - probably won't need changed too often
+#	Common build rules & automation for all projects
 # =============================================================================
 
-TARGETFLAGS =	-m68000
-
-INCPATHS =	-I$(AGTROOT) -I3rdparty/
+# -----------------------------------------------------------------------------
+#	Configure the assemblers
+# -----------------------------------------------------------------------------
 
 ASMROOT = $(USE_ASSEMBLER)
 
-CRTSEQ_G =
-CRTSEQ_S =
-CRTSEQ_E = 
-
-
 ifeq ($(USE_BROWNELF),yes)
-
-VASM = $(AGTROOT)/bin/vasm16c -Felf -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
-RMAC = $(AGTROOT)/bin/rmac -fe +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
 TOOLCHAIN_PREFIX = m68k-ataribrown-elf-
+VASM_CFG = -Felf
+RMAC_CFG = -fe
 EXT = elf
-
 else
-
-VASM = $(AGTROOT)/bin/vasm16c -Faout -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
-RMAC = $(AGTROOT)/bin/rmac -fa +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
 TOOLCHAIN_PREFIX = m68k-atari-mint-
+VASM_CFG = -Faout
+RMAC_CFG = -fa
 EXT = tos
-
 endif
+
+# can disable auto-optimisations with: -no-opt
+VASM = $(AGTROOT)/bin/vasm16c $(VASM_CFG) -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
+# can disable auto-optimisations with: ~oall
+RMAC = $(AGTROOT)/bin/rmac $(RMAC_CFG) +oall -i"$(AGTROOT)/rmac;$(AGTROOT)"
 
 
 CC = $(TOOLCHAIN_PREFIX)gcc
@@ -41,8 +37,12 @@ STACK = $(TOOLCHAIN_PREFIX)stack
 FLAGS = $(TOOLCHAIN_PREFIX)flags
 
 # -----------------------------------------------------------------------------
-#
+#	Configure the compiler
 # -----------------------------------------------------------------------------
+
+TARGETFLAGS =	-m68000
+
+INCPATHS =	-I$(AGTROOT) -I3rdparty/
 
 COMPILERDEFS += \
 		-D__ATARI__ -D__M68000__  \
@@ -388,7 +388,10 @@ clean:
 # rules to assemble unspecified .s files -> .o
 %.o: %.s
 ifeq ($(USE_ASSEMBLER),rmac)
-	$(RMAC) $(COMPILERDEFS) -l$@.lst -o $@ $<
+	$(RMAC) $(COMPILERDEFS) -o $@ $<
 else
-	$(VASM) $(COMPILERDEFS) -L $@.lst -o $@ $<
+	$(VASM) $(COMPILERDEFS) -o $@ $<
 endif
+
+#	$(RMAC) $(COMPILERDEFS) -l$@.lst -o $@ $<
+#	$(VASM) $(COMPILERDEFS) -L $@.lst -o $@ $<

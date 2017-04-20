@@ -313,10 +313,14 @@ _SYS_Claim:
 	move.l		a0,$68.w			; HBL
 	move.l		#dummy_vbl,$70.w		; VBL
 ;	move.l		#dvbl,$70.w
+
+	if		^^defined ENABLE_AGT_AUDIO
 	if		(configure_50hz)
 	else
 	move.l		#ym_td,$110.w			; TimerD
 	endif
+	endif
+
 ;	move.l		#dummy_tc,$114.w		; TimerC
 	move.l		a0,$118.w			; IKBD/MIDI ACIA
 	move.l		a0,$120.w			; TimerB
@@ -385,6 +389,8 @@ dummy_tc:
 	bclr		#5,isrb.w
 	rte
 	
+	if		^^defined ENABLE_AGT_AUDIO	
+
 ym_td:
 ;	move.w		$ffff8240.w,-(sp)
 ;	move.w		#-1,$ffff8240.w
@@ -393,16 +399,16 @@ ym_td:
 ;	ori.w		#$0700,sr
 	andi.w		#$fbff,sr
 		
-	.if		^^defined ENABLE_AGT_AUDIO
 	movem.l		d0-a6,-(sp)
 	jsr		_YMSYS_Callback
 	movem.l		(sp)+,d0-a6
-	.endif
 
 	;and.b		#$f0,cdcr.w
 	
 ;	move.w		(sp)+,$ffff8240.w
 	rte
+	
+	endif
 
 
 *-------------------------------------------------------*
