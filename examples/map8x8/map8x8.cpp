@@ -129,6 +129,7 @@ typedef playfield_template
 	/*ste_hwscroll=*/true,						// use STE HW scrolling
 	/*stf_hsyncshift=*/false,					// use STF 4pix syncscroll
 	/*dynamic=*/true,							// enable support for runtime-refreshable map tiles
+	/*layers=*/1,								// specify 1 or 2 layer rendering
 	/*mapaddr=*/s32								// type required for highest map address (big 8x8 maps require 32bit)
 > playfield_multiscroll_ste;					// new name for our playfield definition
 
