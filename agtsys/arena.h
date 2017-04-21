@@ -311,12 +311,13 @@ public:
 
 	// modify multiple map tiles before next refresh: single tile at a time (using plain index, i.e. not pre-formatted for map)
 	// note: no dualfield support yet - will implement shared dualfield maps first
+	template<PFLayer _layercode = PFLayer_Base>
 	void multimod_idx(s16 _x, s16 _y, s32 _i)
 	{
 		// update map tiles
-		s32 rawidx = _i << playfield_type::c_tileshift_b_;
+		s32 rawidx = _i << (playfield_type::c_tileshift_b_ + (_layercode & PFLayer_Overlay) ? 1 : 0);
 
-		mapctx0_.multimod(_x, _y, rawidx);
+		mapctx0_.multimod<_layercode>(_x, _y, rawidx);
 //		mapctx1_.multimod(_x, _y, rawidx); // todo: eliminate dualfield maps!
 
 		// mark element on all active fields
@@ -331,10 +332,11 @@ public:
 
 	// modify multiple map tiles before next refresh: single tile at a time
 	// note: no dualfield support yet - will implement shared dualfield maps first
+	template<PFLayer _layercode = PFLayer_Base>
 	agt_inline void multimod(s16 _x, s16 _y, s32 _rawidx)
 	{
 		// update map tiles
-		mapctx0_.multimod(_x, _y, _rawidx);
+		mapctx0_.multimod<_layercode>(_x, _y, _rawidx);
 //		mapctx1_.multimod(_x, _y, _rawidx); // todo: eliminate dualfield maps!
 
 		// mark element on all active fields
@@ -349,10 +351,11 @@ public:
 
 	// modify multiple map tiles before next refresh: map row
 	// note: no dualfield support yet - will implement shared dualfield maps first
+	template<PFLayer _layercode = PFLayer_Base>
 	void multimod_row(s16 _x, s16 _y, s16 _dx, s32 *_source)
 	{
 		// update map tiles
-		mapctx0_.multimod_row(_x, _y, _dx, _source);
+		mapctx0_.multimod_row<_layercode>(_x, _y, _dx, _source);
 //		mapctx1_.multimod_row(_x, _y, _dx, _source); // todo: eliminate dualfield maps!
 
 		// mark row on all active fields
@@ -367,9 +370,10 @@ public:
 
 	// modify multiple map tiles before next refresh: map column
 	// note: no dualfield support yet - will implement shared dualfield maps first
+	template<PFLayer _layercode = PFLayer_Base>
 	void multimod_column(s16 _x, s16 _y, s16 _dy, s32 *_source)
 	{
-		mapctx0_.multimod_column(_x, _y, _dy, _source);
+		mapctx0_.multimod_column<_layercode>(_x, _y, _dy, _source);
 //		mapctx1_.multimod_column(_x, _y, _dy, _source); // todo: eliminate dualfield maps!
 
 		// mark column on all active fields
@@ -384,9 +388,10 @@ public:
 
 	// modify multiple map tiles before next refresh: map rectangle
 	// note: no dualfield support yet - will implement shared dualfield maps first
+	template<PFLayer _layercode = PFLayer_Base>
 	void multimod_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
 	{
-		mapctx0_.multimod_rect(_x, _y, _dx, _dy, _source);
+		mapctx0_.multimod_rect<_layercode>(_x, _y, _dx, _dy, _source);
 		//mapctx1_.multimod_rect(_x, _y, _dx, _dy, _source); // todo: eliminate dualfield maps!
 
 		// mark rect on all active fields

@@ -69,6 +69,12 @@ extern "C" void do_dirtyrect_pr8();
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+enum PFLayer
+{
+	PFLayer_Base = 1,
+	PFLayer_Overlay = 2,
+};
+
 enum HScrollMode
 {
 	HScrollMode_NONE,
@@ -364,25 +370,34 @@ public:
 			mapoverlay_ = _map->get();
 		}
 
+		template<PFLayer _layercode = PFLayer_Base>
 		agt_inline void multimod(s16 _x, s16 _y, s32 _rawidx)
 		{
 			if (c_dynamic_)
 			{
 				s32 index = mul_map_x_[_y] + _x;
-				map_[index] = _rawidx;
+				if (_layercode & PFLayer_Base)
+					map_[index] = _rawidx;
+				if (_layercode & PFLayer_Overlay)
+					mapoverlay_[index] = _rawidx;
 			}
 		}
 
+		template<PFLayer _layercode = PFLayer_Base>
 		void multimod_row(s16 _x, s16 _y, s16 _dx, s32 *_source)
 		{
 			if (c_dynamic_)
 			{
 				// update map
 				s32 index = mul_map_x_[_y] + _x;
-				lcopytorow(_source, &map_[index], _dx);
+				if (_layercode & PFLayer_Base)
+					lcopytorow(_source, &map_[index], _dx);
+				if (_layercode & PFLayer_Overlay)
+					lcopytorow(_source, &mapoverlay_[index], _dx);
 			}
 		}
 
+		template<PFLayer _layercode = PFLayer_Base>
 		void multimod_column(s16 _x, s16 _y, s16 _dy, s32 *_source)
 		{
 			// todo: prototype version - move this stuff to 68k
@@ -390,17 +405,24 @@ public:
 			{
 				// update map
 				s32 index = mul_map_x_[_y] + _x;
-				lcopytocolumn(_source, &map_[index], _dy, map_tiles_x_);
+				if (_layercode & PFLayer_Base)
+					lcopytocolumn(_source, &map_[index], _dy, map_tiles_x_);
+				if (_layercode & PFLayer_Overlay)
+					lcopytocolumn(_source, &mapoverlay_[index], _dy, map_tiles_x_);
 			}
 		}
 
+		template<PFLayer _layercode = PFLayer_Base>
 		void multimod_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
 		{
 			if (c_dynamic_)
 			{
 				// update map
 				s32 index = mul_map_x_[_y] + _x;
-				lcopytorect(_source, &map_[index], _dx, _dy, map_tiles_x_);
+				if (_layercode & PFLayer_Base)
+					lcopytorect(_source, &map_[index], _dx, _dy, map_tiles_x_);
+				if (_layercode & PFLayer_Overlay)
+					lcopytorect(_source, &mapoverlay_[index], _dx, _dy, map_tiles_x_);
 			}
 		}
 

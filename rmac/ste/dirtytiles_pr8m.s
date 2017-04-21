@@ -16,46 +16,46 @@
 	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst),\tdst
 	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst,\dstpgh.l),\tdstv
 
-	move.l		(\msrc)+,\tmp
-	and.l		(\tsrc)+,\tmp
-	or.l		(\msrc)+,\tmp
-	movep.l		\tmp,dst_linewid*0(\tdst)
-	movep.l		\tmp,dst_linewid*0(\tdstv)
-	move.l		(\msrc)+,\tmp
-	and.l		(\tsrc)+,\tmp
-	or.l		(\msrc)+,\tmp
-	movep.l		\tmp,dst_linewid*1(\tdst)
-	movep.l		\tmp,dst_linewid*1(\tdstv)
-	move.l		(\msrc)+,\tmp
-	and.l		(\tsrc)+,\tmp
-	or.l		(\msrc)+,\tmp
-	movep.l		\tmp,dst_linewid*2(\tdst)
-	movep.l		\tmp,dst_linewid*2(\tdstv)
-	move.l		(\msrc)+,\tmp
-	and.l		(\tsrc)+,\tmp
-	or.l		(\msrc)+,\tmp
-	movep.l		\tmp,dst_linewid*3(\tdst)
-	movep.l		\tmp,dst_linewid*3(\tdstv)
-	move.l		(\msrc)+,\tmp
-	and.l		(\tsrc)+,\tmp
-	or.l		(\msrc)+,\tmp
-	movep.l		\tmp,dst_linewid*4(\tdst)
-	movep.l		\tmp,dst_linewid*4(\tdstv)
-	move.l		(\msrc)+,\tmp
-	and.l		(\tsrc)+,\tmp
-	or.l		(\msrc)+,\tmp
-	movep.l		\tmp,dst_linewid*5(\tdst)
-	movep.l		\tmp,dst_linewid*5(\tdstv)
-	move.l		(\msrc)+,\tmp
-	and.l		(\tsrc)+,\tmp
-	or.l		(\msrc)+,\tmp
-	movep.l		\tmp,dst_linewid*6(\tdst)
-	movep.l		\tmp,dst_linewid*6(\tdstv)
-	move.l		(\msrc)+,\tmp
-	and.l		(\tsrc)+,\tmp
-	or.l		(\msrc)+,\tmp
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
 	movep.l		\tmp,dst_linewid*7(\tdst)
 	movep.l		\tmp,dst_linewid*7(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*6(\tdst)
+	movep.l		\tmp,dst_linewid*6(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*5(\tdst)
+	movep.l		\tmp,dst_linewid*5(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*4(\tdst)
+	movep.l		\tmp,dst_linewid*4(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*3(\tdst)
+	movep.l		\tmp,dst_linewid*3(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*2(\tdst)
+	movep.l		\tmp,dst_linewid*2(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*1(\tdst)
+	movep.l		\tmp,dst_linewid*1(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*0(\tdst)
+	movep.l		\tmp,dst_linewid*0(\tdstv)
 
 	.endm
 
@@ -66,7 +66,7 @@
 *------------------------------------------------------------------------------*
 _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 *------------------------------------------------------------------------------*
-
+	
 	movem.l		d0-a6,-(sp)
 
 	.if		^^defined TIMING_RASTERS
@@ -83,10 +83,10 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 
 	move.l		_dm_dirtymask,a1
 	move.l		_dm_dstaddr,a4
-;	move.l		_dm_ptiles,a2
-	move.l		_dm_pmap,d1
+
 	move.w		_dm_visible_linebytes,d7
 	move.l		_dm_virtual_pagebytes,d6
+
 	moveq		#0,d2
 	move.w		_dm_map_tiles_x,d2
 	lsl.l		#2,d2
@@ -193,6 +193,8 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 ;	a6 : dst base
 ;	usp: *
 
+	move.l		_dm_pmap,d1
+
 	; select 1,2,3-wide fetch from rectangle width in 8bit blocks
 
 	lsr.w		#3,d3
@@ -243,15 +245,18 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 .start4:
 	move.w		_dm_lineskip,.smc4d+2
 	move.w		_dm_maskstride,.smc4m+2
-	move.l		d1,d0
-	sub.l		_dm_plmap,d0
+	move.l		_dm_plmap,d0
+	sub.l		d1,d0
 	move.l		d0,.smc4t+2		
+	move.l		d2,.smc4s+2
+	move.l		_dm_ptiles,d2
+	move.l		_dm_pltiles,d7
 
 .ylp4:
 	; advance Y
 	
 	move.l		d1,a0
-	add.l		d2,d1
+.smc4s:	add.l		#$123456,d1
 
 	; check row
 
@@ -274,8 +279,8 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 
 	; access transparent map layer as offset from base layer
 	
-	move.l		a0,a1
-.smc4t:	add.l		#123456,a1
+.smc4t:	lea		$123456,a1
+	add.l		a0,a1
 
 	rol.l		#3,d3			; AB:BC:CD:DA
 	bsr		.do_block
@@ -310,15 +315,18 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 .start3:
 	move.w		_dm_lineskip,.smc3d+2
 	move.w		_dm_maskstride,.smc3m+2
-	move.l		d1,d0
-	sub.l		_dm_plmap,d0
+	move.l		_dm_plmap,d0
+	sub.l		d1,d0
 	move.l		d0,.smc3t+2		
+	move.l		d2,.smc3s+2
+	move.l		_dm_ptiles,d2
+	move.l		_dm_pltiles,d7
 
 .ylp3:
 	; advance Y
 	
 	move.l		d1,a0
-	add.l		d2,d1
+.smc3s:	add.l		#$123456,d1
 
 	; check row
 
@@ -341,8 +349,8 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 	
 	; access transparent map layer as offset from base layer
 	
-	move.l		a0,a1
-.smc3t:	add.l		#123456,a1	
+.smc3t:	lea		$123456,a1
+	add.l		a0,a1
 
 	lsl.l		#3,d3
 	bsr		.do_block
@@ -375,15 +383,18 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 .start2:
 	move.w		_dm_lineskip,.smc2d+2
 	move.w		_dm_maskstride,.smc2m+2
-	move.l		d1,d0
-	sub.l		_dm_plmap,d0
+	move.l		_dm_plmap,d0
+	sub.l		d1,d0
 	move.l		d0,.smc2t+2		
+	move.l		d2,.smc2s+2
+	move.l		_dm_ptiles,d2
+	move.l		_dm_pltiles,d7
 	
 .ylp2:
 	; advance Y
 	
 	move.l		d1,a0
-	add.l		d2,d1
+.smc2s:	add.l		#$123456,d1
 
 	; check row
 
@@ -406,8 +417,8 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 	
 	; access transparent map layer as offset from base layer
 	
-	move.l		a0,a1
-.smc2t:	add.l		#123456,a1	
+.smc2t:	lea		$123456,a1
+	add.l		a0,a1
 
 	lsl.l		#3,d3
 	bsr		.do_block
@@ -438,15 +449,18 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 .start1:
 	move.w		_dm_lineskip,.smc1d+2
 	move.w		_dm_maskstride,.smc1m+2
-	move.l		d1,d0
-	sub.l		_dm_plmap,d0
+	move.l		_dm_plmap,d0
+	sub.l		d1,d0
 	move.l		d0,.smc1t+2		
+	move.l		d2,.smc1s+2
+	move.l		_dm_ptiles,d2
+	move.l		_dm_pltiles,d7
 
 .ylp1:
 	; advance Y
 
 	move.l		d1,a0
-	add.l		d2,d1
+.smc1s:	add.l		#$123456,d1
 
 	; check row
 
@@ -469,8 +483,8 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 
 	; access transparent map layer as offset from base layer
 	
-	move.l		a0,a1
-.smc1t:	add.l		#123456,a1	
+.smc1t:	lea		$123456,a1
+	add.l		a0,a1
 
 	lsl.w		#3,d3
 	bsr		.do_block
