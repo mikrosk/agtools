@@ -86,10 +86,12 @@ public:
 			cct_header header;
 			fread(&header, 1, sizeof(cct_header), h);
 			
-			// hackety hack - cope with earlier format
+			// determine bitdepth
 			bitplanes_ = header.bitplanes;
 			if (bitplanes_ == 0)
 				bitplanes_ = 4;
+
+			// determine tilesize
 			tilesize_ = 1 << (header.flags & 7);
 			if (tilesize_ == 1)
 				tilesize_ = 16;
@@ -99,11 +101,16 @@ public:
 			for (s16 c = 0; c < 16; ++c)
 				palette_[c] = cols[c];
 			
-			numtiles_ = header.tilecount;
-			
+			// calculate words per tile
 			const s16 tilelinewords = tilesize_>>2;
-			const s16 tilewords = tilelinewords * tilesize_;
+			s16 tilewords = tilelinewords * tilesize_;
 
+			// tiles with mask consume 2x the space (which may include padding in 16x16 case)
+			if (header.flags & 8)
+				tilewords <<= 1;
+
+			// calculate words for complete tileset
+			numtiles_ = header.tilecount;
 			s32 tilesetwords = tilewords * numtiles_;
 			
 #ifdef FASTPAGE_TILES

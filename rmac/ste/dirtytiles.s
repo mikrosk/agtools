@@ -19,6 +19,7 @@ dst_linewid	set	184
 	.endif
 	include		"ste/dirtytiles_pr.s"
 	include		"ste/dirtytiles_pr8.s"
+	include		"ste/dirtytiles_pr8m.s"
 	.if		^^defined AGT_CONFIG_PFLAYOUT_P
 	include		"ste/dirtytiles_p.s"
 	.endif
@@ -34,6 +35,7 @@ _SYS_DirtyTileInit:
 	.endif
 	jsr		dirtytile_setup_pr
 	jsr		dirtytile_setup_pr8
+	jsr		dirtytile_setup_pr8m
 	.if		^^defined AGT_CONFIG_PFLAYOUT_P
 	jsr		dirtytile_setup_p
 	.endif
@@ -71,14 +73,20 @@ diagnostic_tile:
 	.bss
 *------------------------------------------------------------------------------*
 
-_dm_dirtymask:		ds.l	1
-	.globl	_dm_dirtymask
 _dm_dstaddr:		ds.l	1
 	.globl	_dm_dstaddr
+_dm_dirtymask:		ds.l	1
+	.globl	_dm_dirtymask
+;_dm_lmask:		ds.l	1
+;	.globl	_dm_lmask
 _dm_ptiles:		ds.l	1
 	.globl	_dm_ptiles
+_dm_pltiles:		ds.l	1
+	.globl	_dm_pltiles
 _dm_pmap:		ds.l	1
 	.globl	_dm_pmap
+_dm_plmap:		ds.l	1
+	.globl	_dm_plmap
 _dm_virtual_pagebytes:	ds.l	1
 	.globl	_dm_virtual_pagebytes
 _dm_visible_linebytes:	ds.w	1

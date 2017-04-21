@@ -1,9 +1,9 @@
 
 *------------------------------------------------------------------------------*
 
-; a4,d0,d7,d6,a3,a5,a0,a2
+; dst=a4,src=d0,tmp=d7,dstpgh=d6,tdst=a3,tdstv=a6,tsrc=a5,mapsrc=a0,tilesrc=a2
 
-.macro	tile_pr8	offs,dst,src,dstpgw,dstpgh,tdst,tsrc
+.macro	tile_pr8	offs,dst,tmp2,dstpgw,dstpgh,tdst,tdstv,tsrc
 
 	; handle odd/even offset for movep fill
 
@@ -13,34 +13,34 @@
 ;offset	set		(obyte+oword)
 
 	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst),\tdst
-	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst,\dstpgh.l),a6
+	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst,\dstpgh.l),\tdstv
 
-	move.l		\src,\tsrc
+;	move.l		\src,\tsrc
 	
-	move.l		(\tsrc)+,\src
-	movep.l		\src,dst_linewid*0(\tdst)
-	movep.l		\src,dst_linewid*0(a6)
-	move.l		(\tsrc)+,\src
-	movep.l		\src,dst_linewid*1(\tdst)
-	movep.l		\src,dst_linewid*1(a6)
-	move.l		(\tsrc)+,\src
-	movep.l		\src,dst_linewid*2(\tdst)
-	movep.l		\src,dst_linewid*2(a6)
-	move.l		(\tsrc)+,\src
-	movep.l		\src,dst_linewid*3(\tdst)
-	movep.l		\src,dst_linewid*3(a6)
-	move.l		(\tsrc)+,\src
-	movep.l		\src,dst_linewid*4(\tdst)
-	movep.l		\src,dst_linewid*4(a6)
-	move.l		(\tsrc)+,\src
-	movep.l		\src,dst_linewid*5(\tdst)
-	movep.l		\src,dst_linewid*5(a6)
-	move.l		(\tsrc)+,\src
-	movep.l		\src,dst_linewid*6(\tdst)
-	movep.l		\src,dst_linewid*6(a6)
-	move.l		(\tsrc)+,\src
-	movep.l		\src,dst_linewid*7(\tdst)
-	movep.l		\src,dst_linewid*7(a6)
+	move.l		(\tsrc)+,\tmp2
+	movep.l		\tmp2,dst_linewid*0(\tdst)
+	movep.l		\tmp2,dst_linewid*0(\tdstv)
+	move.l		(\tsrc)+,\tmp2
+	movep.l		\tmp2,dst_linewid*1(\tdst)
+	movep.l		\tmp2,dst_linewid*1(\tdstv)
+	move.l		(\tsrc)+,\tmp2
+	movep.l		\tmp2,dst_linewid*2(\tdst)
+	movep.l		\tmp2,dst_linewid*2(\tdstv)
+	move.l		(\tsrc)+,\tmp2
+	movep.l		\tmp2,dst_linewid*3(\tdst)
+	movep.l		\tmp2,dst_linewid*3(\tdstv)
+	move.l		(\tsrc)+,\tmp2
+	movep.l		\tmp2,dst_linewid*4(\tdst)
+	movep.l		\tmp2,dst_linewid*4(\tdstv)
+	move.l		(\tsrc)+,\tmp2
+	movep.l		\tmp2,dst_linewid*5(\tdst)
+	movep.l		\tmp2,dst_linewid*5(\tdstv)
+	move.l		(\tsrc)+,\tmp2
+	movep.l		\tmp2,dst_linewid*6(\tdst)
+	movep.l		\tmp2,dst_linewid*6(\tdstv)
+	move.l		(\tsrc)+,\tmp2
+	movep.l		\tmp2,dst_linewid*7(\tdst)
+	movep.l		\tmp2,dst_linewid*7(\tdstv)
 
 	.endm
 
@@ -487,16 +487,16 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 *------------------------------------------------------------------------------*
 
-.macro	jtile_pr8	offs,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
+.macro	jtile_pr8	offs,dst,tmp2,dstpgw,dstpgh,tdst,tdstv,tsrc,mapsrc,tilesrc
 
 	; address tile source
 
-	move.l		\tilesrc,\src		; tile library
-	add.l		\offs*4(\mapsrc),\src	; map index
+	move.l		\tilesrc,\tsrc		; tile library
+	add.l		\offs*4(\mapsrc),\tsrc	; map index
 
 	; plot tile to relevant vpage(s)
 
-	tile_pr8		\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
+	tile_pr8	\offs,\dst,\tmp2,\dstpgw,\dstpgh,\tdst,\tdstv,\tsrc
 
 	.endm
 	
@@ -537,58 +537,58 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 *------------------------------------------------------------------------------*
 
 .do_block_1111:
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_0111:
-	jtile_pr8	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-3,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_0011:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_0001:
-	jtile_pr8	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-1,a4,d0,d7,d6,a3,a6,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*4(a4),a4	
 	rts
 
 .do_block_1110:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_1100:
-	jtile_pr8	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-3,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_1000:
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_0000:
 	lea		-4*4(a0),a0
 	lea		-4*4(a4),a4	
 	rts
 
 .do_block_0110:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_0100:
-	jtile_pr8	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-3,a4,d0,d7,d6,a3,a6,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*4(a4),a4	
 	rts
 	
 .do_block_1011:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_1001:
-	jtile_pr8	-1,a4,d0,d7,d6,a3,a5,a0,a2
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-1,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*4(a4),a4	
 	rts
 		
 .do_block_1101:
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_0101:
-	jtile_pr8	-3,a4,d0,d7,d6,a3,a5,a0,a2
-	jtile_pr8	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-3,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8	-1,a4,d0,d7,d6,a3,a6,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*4(a4),a4	
 	rts
 	
 .do_block_1010:
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
 .do_block_0010:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*4(a4),a4	
 	rts

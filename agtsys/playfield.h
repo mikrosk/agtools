@@ -11,10 +11,13 @@
 
 #include "drawcontext.h"
 
-extern "C" s16 * volatile dm_dirtymask;
 extern "C" s16 * volatile dm_dstaddr;
+extern "C" s16 * volatile dm_dirtymask;
+//extern "C" s16 * volatile dm_lmask;
 extern "C" s16 * volatile dm_ptiles;
+extern "C" s16 * volatile dm_pltiles;
 extern "C" s32 * volatile dm_pmap;
+extern "C" s32 * volatile dm_plmap;
 extern "C" volatile s32 dm_virtual_pagebytes;
 extern "C" volatile s16 dm_visible_linebytes;
 extern "C" volatile s16 dm_map_tiles_x;
@@ -179,6 +182,8 @@ template
 	//bool _blitter,
 	// configure support for dynamic tiles (editing tile indices while displaying them)
 	bool _dynamic,
+	// either 1 or 2 playfield layers
+	s16 _layers = 1,
 	//
 	class mapmul_t = s16
 >
@@ -207,6 +212,8 @@ public:
 
 	static const bool c_mapwrapping_ = false;
 	static const bool c_dynamic_ = _dynamic;
+	//static const bool c_dynamiclayer_ = _dynamic;
+	static const bool c_twolayer_ = (_layers == 2);
 
 	// buffer speculation is for writing tile slices to future buffers ahead of time
 	static const bool c_hbufferspeculation_ = false;//(!_ste);
@@ -312,7 +319,8 @@ public:
 			  map_tiles_x_(0),
 			  map_tiles_y_(0),
 			  srcywrap_(0),
-			  map_(0)
+			  map_(0),
+			  mapoverlay_(0)
 		{
 		}
 
@@ -326,6 +334,7 @@ public:
 		s16 map_tiles_y_;
 		s16 srcywrap_;
 		s32* map_;
+		s32* mapoverlay_;
 
 		void setmap(s32* _map)
 		{
@@ -343,6 +352,16 @@ public:
 			map_ = _map->get();
 
 			prepare();
+		}
+
+		void setoverlaymap(s32* _map)
+		{
+			mapoverlay_ = &_map[2];
+		}
+
+		void setoverlaymap(worldmap* _map)
+		{
+			mapoverlay_ = _map->get();
 		}
 
 		agt_inline void multimod(s16 _x, s16 _y, s32 _rawidx)
@@ -539,6 +558,7 @@ public:
 	s16 map_tiles_y_;
 	s32 srcywrap_;
 	s32* map_;
+	s32* mapoverlay_;
 
 	// private, owned storage
 	s16* quant_vpage_x_;
@@ -564,6 +584,8 @@ public:
 		
 	tileset* tiles_;
 	const u16* tiledata_;
+	tileset* tilesoverlay_;
+	const u16* tileoverlaydata_;
 	
 	s32 tilecount_;
 	
@@ -574,12 +596,14 @@ public:
 	s16 last_slice_;
 	s16 slice_;
 
-	s32* dirtytiles_;
+//	s32* dirtytiles_;
 	s16* dirtymask_;
-	s16 dirtynum_;
+//	s16* layermask_;
+//	s16 dirtynum_;
 	s16 dirtymaskwidth_;
 	s16 dirtymaskstride_;
 	s16** dirtymasklines_;
+	s16** layermasklines_;
 
 	// ---------------------------------------------------------------------------------------------------------------------
 
@@ -675,6 +699,12 @@ public:
 	{	
 		tiles_ = _tiles;
 		tiledata_ = tiles_->get();
+	}
+
+	void setoverlaytiles(tileset* _tiles)
+	{
+		tilesoverlay_ = _tiles;
+		tileoverlaydata_ = tilesoverlay_->get();
 	}
 
 	inline void select(shifter_common& _shift)
@@ -1503,7 +1533,10 @@ playfield_template()
 	  txpos_(0), last_txpos_(0),
 	  typos_(0), last_typos_(0),
 	  ty_last_dx_(0), tx_last_dy_(0),
-	  tiles_(0), map_(0), map_tiles_x_(0), map_tiles_y_(0),
+	  tiles_(0), tilesoverlay_(0),
+	  tiledata_(0), tileoverlaydata_(0),
+	  map_(0), mapoverlay_(0), 
+	  map_tiles_x_(0), map_tiles_y_(0),
 	  tilecount_(0),
 	  quant_vpage_x_(0), quant_vpage_y_(0),
 	  modulo_vpage_x_(0), modulo_vpage_y_(0),
@@ -1511,10 +1544,10 @@ playfield_template()
 	  mul_map_x_(0),
 	  xpreshift_(0), drawshift_(1), 
 	  slice_(0), last_slice_(0),
-	  dirtytiles_(0),
-	  dirtynum_(0),
-	  dirtymask_(0),
-	  dirtymasklines_(0),
+	  //dirtytiles_(0),
+	  //dirtynum_(0),
+	  dirtymask_(0), //layermask_(0),
+	  dirtymasklines_(0), layermasklines_(0),
 	  dirtymaskwidth_(0),
 	  dirtymaskstride_(0)
 {
@@ -1527,10 +1560,16 @@ playfield_template()
 
 	if (c_dynamic_)
 	{
-		delete[] dirtytiles_;
+//		delete[] dirtytiles_;
 		delete[] dirtymask_;
 		delete[] dirtymasklines_;
 	}
+
+	//if (c_dynamiclayer_)
+	//{
+	//	delete[] layermask_;
+	//	delete[] layermasklines_;
+	//}
 }
 
 void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 _x, s16 _y)
@@ -1546,6 +1585,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	map_tiles_y_ = pmapcontext_->map_tiles_y_;
 	srcywrap_ = pmapcontext_->srcywrap_;
 	map_ = pmapcontext_->map_;
+	mapoverlay_ = pmapcontext_->mapoverlay_;
 
 	last_xpos_ = 0;
 	last_ypos_ = 0;
@@ -1714,20 +1754,24 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 	// dirty tile management: per-playfield state
 
-	if (c_dynamic_)
+	if (c_dynamic_/* || c_dynamiclayer_*/)
 	{
-		delete[] dirtytiles_;
-		dirtytiles_ = new s32[256];
-		dirtynum_ = 0;
-
-		// 1 word per 8 bits of mask (8 unused bits)
-		delete[] dirtymask_;
-		s32 dmsize = ((map_tiles_x_+7)>>3) * map_tiles_y_;
-		dirtymask_ = new s16[dmsize];
-//		qmemset(dirtymask_, 0xff, dmsize<<1);
-		qmemclr(dirtymask_, dmsize<<1);
 		dirtymaskwidth_ = ((map_tiles_x_+7)>>3);
 		dirtymaskstride_ = dirtymaskwidth_<<1;
+	}
+
+	// 1 word per 8 bits of mask (8 unused bits)
+	s32 dmsize = ((map_tiles_x_+7)>>3) * map_tiles_y_;
+
+	if (c_dynamic_)
+	{
+		//delete[] dirtytiles_;
+		//dirtytiles_ = new s32[256];
+		//dirtynum_ = 0;
+
+		delete[] dirtymask_;
+		dirtymask_ = new s16[dmsize];
+		qmemclr(dirtymask_, dmsize<<1);
 
 		delete[] dirtymasklines_; 
 		dirtymasklines_ = new s16*[map_tiles_y_];
@@ -1749,6 +1793,18 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 		//	}
 		//}
 	}
+
+	//if (c_dynamiclayer_)
+	//{
+	//	delete[] layermask_;
+	//	layermask_ = new s16[dmsize];
+	//	qmemclr(layermask_, dmsize<<1);
+
+	//	delete[] layermasklines_; 
+	//	layermasklines_ = new s16*[map_tiles_y_];
+	//	for (s16 n = 0; n < map_tiles_y_; ++n)
+	//		layermasklines_[n] = &layermask_[n * dirtymaskwidth_];
+	//}
 
 	delete[] display_alloc_;
 	int display_alloc_bytes = (bufferwords_<<1) + 256;

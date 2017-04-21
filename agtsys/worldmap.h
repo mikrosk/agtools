@@ -89,7 +89,11 @@ private:
 		if (tilestep == 0)
 			tilestep = 4;
 
-		int preshift = (tilestep + tilestep + 2) - 3;
+		int overlay = 0;
+		if (header_.flags & 8)
+			overlay = 1;
+
+		int preshift = (tilestep + tilestep + 2) - 3 + overlay;
 
 		// we now preshift for 16x16 tiles since other bits are unused (so far - can be masked later)
 		for (s32 m = 0; m < _mapspace; m++)

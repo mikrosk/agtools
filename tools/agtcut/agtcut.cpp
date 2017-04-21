@@ -123,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.4";
+static const char* const g_version_string = "v0.41";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -371,7 +371,8 @@ enum
 	// tiles
 	OPT_MAPRECT,
 	OPT_TILESIZE,
-	OPT_TOLERANCE, 
+	OPT_TOLERANCE,
+	OPT_TRANSLAYER,
 	OPT_OUTMODE
 	//
 };
@@ -490,6 +491,9 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_TOLERANCE,	_T("-t"),	 			SO_REQ_SEP	},
 	{ OPT_TOLERANCE,	_T("--tol"), 			SO_REQ_SEP	},
 	//
+	{ OPT_TRANSLAYER,	_T("-layer"),			SO_NONE		},
+	{ OPT_TRANSLAYER,	_T("--layer"),			SO_NONE		},
+	//
 	{ OPT_OUTMODE,		_T("-om"),	 			SO_REQ_SEP	},
 	{ OPT_OUTMODE,		_T("--outmode"), 		SO_REQ_SEP	},
 	//
@@ -571,6 +575,7 @@ static void usage(int level)
 	std::cout << " -ttags, --tiletags   > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
 	std::cout << " -t, --tol            > tile matching tolerance: 0.0+" << std::endl;
 	std::cout << " -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
+	std::cout << " -layer, --layer      > cut map as transparent layer" << std::endl;
 	std::cout << " -om, --outmode       > tile library output mode: direct,degas,rbplus" << std::endl;
 	std::cout << std::endl;
 	std::cout << "press any key..." << std::endl;
@@ -661,6 +666,7 @@ public:
 		  masklayout(Masklayout_INTERLEAVED),
 		  cutmode(Cutmode_TILES),
 		  outmode(Outmode_DEGAS),
+		  translayer(false),
 		  noremap(false),
 		  forceremap(false),
 		  masklayout_lock(false),
@@ -699,6 +705,7 @@ public:
 	bool quickcut;
 	bool visual;
 	bool keyrgb_specified;
+	bool translayer;
 
 	ubyte_t keycol;
 	iRGB keyrgb;
@@ -944,6 +951,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					getchar();
 					exit(1);
 				}
+			}
+			else if (args.OptionId() == OPT_TRANSLAYER)
+			{
+				_args.translayer = true;
 			}
 			else if (args.OptionId() == OPT_MASKLAYOUT)
 			{
@@ -2310,6 +2321,15 @@ static void remap_dictionary_tiles()
 			}
 		}
 */
+		// convert mask colour (if present) to index 128, encoding 8th plane only
+		for (int x = 0; x < g_allargs.tilesize * g_allargs.tilesize; x++)
+		{
+			ubyte_t c = ptile8[x];
+			if (c == g_allargs.keycol)
+				c = 128;
+			ptile8[x] = c;
+		}
+
 		// operate on 8 planes for intermediate steps, then save only required planes later
 		int planes = 8;
 		uword_t *ptileplanar = 0;
@@ -2740,7 +2760,12 @@ static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilema
 	FILE *hmap = fopen(outfile.c_str(), "wb");
 
 	// flags
+	// interpretation:
+	// %00001000
+	//  1=overlay
+	//  0=normal
 	vb = 0;
+	vb |= g_allargs.translayer ? 8 : 0;
 	fwrite(&vb, 1, sizeof(vb), hmap);
 	// tilestep
 	vb = (byte_t)_tilestep;
@@ -2769,7 +2794,7 @@ static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilema
 // --------------------------------------------------------------------
 
 // emit tiles to a series of 320x200 .PI1 images
-static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
+static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb, bool _mask)
 {
 	uword_t *buffer4plane = new uword_t[16000];
 	memset(buffer4plane, 0, 32000);
@@ -2778,10 +2803,12 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
 	int otx = 0;
 	int oty = 0;
 	// emit PI1 images representing dictionary
-	while (!s_tileplanardictionary.empty())
+	//while (!s_tileplanardictionary.empty())
+	for (tileplanardictionary_t::iterator it = s_tileplanardictionary.begin(); 
+		it != s_tileplanardictionary.end(); it++)
 	{
 		// copy 4 least significant planes to PI1 buffer
-		uword_t *pin = s_tileplanardictionary.front();
+		uword_t *pin = *it;// s_tileplanardictionary.front();
 		// find output tile address in 4-plane output buffer
 		uword_t *pout = &buffer4plane[((otx & -16)>>(4-2)) + (oty * (320>>(4-2)))];
 
@@ -2795,19 +2822,44 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
 				{
 					if (otx & 8)
 					{
-						// record 4 planes
-						poutb[0+1] = *pinb++;
-						poutb[2+1] = *pinb++;
-						poutb[4+1] = *pinb++;
-						poutb[6+1] = *pinb++;
+						if (_mask)
+						{
+							// record mask only
+							poutb[0 + 1] = pinb[7];
+							poutb[2 + 1] = pinb[7];
+							poutb[4 + 1] = pinb[7];
+							poutb[6 + 1] = pinb[7];
+							pinb += 4;
+						}
+						else
+						{
+
+							// record 4 planes
+							poutb[0+1] = *pinb++;
+							poutb[2+1] = *pinb++;
+							poutb[4+1] = *pinb++;
+							poutb[6+1] = *pinb++;
+						}
 					}
 					else
 					{
-						// record 4 planes
-						poutb[0+0] = *pinb++;
-						poutb[2+0] = *pinb++;
-						poutb[4+0] = *pinb++;
-						poutb[6+0] = *pinb++;
+						if (_mask)
+						{
+							// record mask only
+							poutb[0 + 0] = pinb[7];
+							poutb[2 + 0] = pinb[7];
+							poutb[4 + 0] = pinb[7];
+							poutb[6 + 0] = pinb[7];
+							pinb += 4;
+						}
+						else
+						{
+							// record 4 planes
+							poutb[0+0] = *pinb++;
+							poutb[2+0] = *pinb++;
+							poutb[4+0] = *pinb++;
+							poutb[6+0] = *pinb++;
+						}
 					}
 					// skip 4 planes of 8-plane tile
 					pinb += 4;
@@ -2823,13 +2875,24 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
 				uword_t *poutw = pout;
 				for (int tx = 0; tx < (g_allargs.tilesize >> 4); tx++)
 				{
-					// record 4 planes
-					*poutw++ = *pin++;
-					*poutw++ = *pin++;
-					*poutw++ = *pin++;
-					*poutw++ = *pin++;
-					// skip 4 planes of 8-plane tile
-					pin += 4;
+					if (_mask)
+					{
+						*poutw++ = pin[7];
+						*poutw++ = pin[7];
+						*poutw++ = pin[7];
+						*poutw++ = pin[7];
+						pin += 8;
+					}
+					else
+					{
+						// record 4 planes
+						*poutw++ = *pin++;
+						*poutw++ = *pin++;
+						*poutw++ = *pin++;
+						*poutw++ = *pin++;
+						// skip 4 planes of 8-plane tile
+						pin += 4;
+					}
 				}
 				// next line of PI1
 				pout += (320 >> (4-2));
@@ -2851,7 +2914,7 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
 			}
 		}
 
-		s_tileplanardictionary.pop_front();
+		//s_tileplanardictionary.pop_front();
 	}
 
 	// if some tiles are still pending, flush remainder
@@ -2864,6 +2927,20 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb)
 // --------------------------------------------------------------------
 //	emit tile library data file
 // --------------------------------------------------------------------
+
+template<class T>
+inline const T bceil(const T _v)
+{
+	T t = 0;
+
+	while ((1 << t) < _v)
+	{
+		++t;
+	}
+
+	return (t);	
+}
+
 
 static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 {
@@ -2913,13 +2990,18 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 		// write flags (1)
 		{
 			// interpretation:
-			// 0=16x16 (legacy)
-			// 3=8x8
-			// 4=16x16
-			// 5=32x32
+			// %00000111
+			//  0=16x16 (legacy)
+			//  3=8x8
+			//  4=16x16
+			//  5=32x32
+			// %00001000
+			//  1=overlay
+			//  0=normal
 
 			ubyte_t flags = 0;
-			flags = log2<ubyte_t>((ubyte_t)g_allargs.tilesize);
+			flags |= bceil<ubyte_t>((ubyte_t)g_allargs.tilesize);
+			flags |= g_allargs.translayer ? 8 : 0;
 			fwrite(&flags, 1, sizeof(flags), h);
 		}
 
@@ -2950,30 +3032,55 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 				if (g_allargs.tilesize == 8)
 				{
 					// 8x8 mode encoded differently for movep
-					const int tilebytes = tileplanes * g_allargs.tilesize * (g_allargs.tilesize>>3);
+					int tilebytes = tileplanes * g_allargs.tilesize * (g_allargs.tilesize>>3);
+					if (g_allargs.translayer)
+						tilebytes <<= 1;
+
 					uword_t *tilew = *it;
 					ubyte_t *tileb = (ubyte_t *)tilew;
 					ubyte_t *ptilespaceb = (ubyte_t *)tilespace;
 					for (int y = 0; y < 8; y++)
 					{
+						ubyte_t *tilesrc = tileb;
 						for (int p = 0; p < tileplanes; p++)
-							*ptilespaceb++ = *tileb++;
-						tileb += (8 - tileplanes);
+							*ptilespaceb++ = *tilesrc++;
+
+						if (g_allargs.translayer)
+						{
+							// emit exactly 4 bytes of mask
+							for (int p = 0; p < 4; p++)
+								*ptilespaceb++ = tileb[7];
+						}
+
+						tileb += 8;
 					}
 
 					fwrite(tilespace, 1, tilebytes, h);
 				}
 				else
+				if (g_allargs.tilesize == 16)
 				{
-					// any other size
-					const int tilewords = tileplanes * g_allargs.tilesize * (g_allargs.tilesize>>4);
+					// 16x16
+					int tilewords = tileplanes * g_allargs.tilesize * (g_allargs.tilesize>>4);
+					if (g_allargs.translayer)
+						tilewords <<= 1;
+
 					uword_t *tile = *it;
 					uword_t *ptilespace = tilespace;
 					for (int y = 0; y < 16; y++)
 					{
+						uword_t *tilesrc = tile;
 						for (int p = 0; p < tileplanes; p++)
-							*ptilespace++ = *tile++;
-						tile += (8 - tileplanes);
+							*ptilespace++ = *tilesrc++;
+
+						if (g_allargs.translayer)
+						{
+							// emit exactly 2 words of mask
+							for (int p = 0; p < 2; p++)
+								*ptilespace++ = tile[7];
+						}
+
+						tile += 8;
 					}
 
 					// reformat image to bigendian for intel->motorola
@@ -2981,6 +3088,13 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 						tilespace[i] = endianswap16(tilespace[i]);
 
 					fwrite(tilespace, 1, (tilewords * 2), h);
+				}
+				else
+				{
+					std::cerr << "error: direct mode supports 16x16 or 8x8 tiles only!" << std::endl;
+					printf("press any key...\n");
+					getchar();	
+					exit(1);
 				}
 			}
 		}
@@ -3423,7 +3537,13 @@ bool do_tilemap()
 				if (g_allargs.outmode == Outmode_DEGAS)
 				{
 					// emit tiles to a series of 320x200 .PI1 images
-					emit_tiles_degas(outfile, m_ppalettergb);
+					emit_tiles_degas(outfile, m_ppalettergb, false);
+					if (g_allargs.translayer)
+					{
+						std::string outfilem(outfile);
+						outfilem.append("-");
+						emit_tiles_degas(outfilem, m_ppalettergb, true);
+					}
 				}
 				else
 				if (g_allargs.outmode == Outmode_DIRECT)
@@ -3446,7 +3566,7 @@ bool do_tilemap()
 					}
 					else
 					{
-						int tilestep = log2<int>(g_allargs.tilesize);
+						int tilestep = bceil<int>(g_allargs.tilesize);
 						emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph, tilestep);
 					}
 				}

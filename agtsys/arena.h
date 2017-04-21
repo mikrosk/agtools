@@ -212,17 +212,37 @@ public:
 		//	b.fields[1].setmap(_map1);
 	}
 
+	void setoverlaymap(s32* _map0, s32* _map1)
+	{
+		mapctx0_.setoverlaymap(_map0);
+		mapctx1_.setoverlaymap(_map1);
+	}
+	
+	void setoverlaymap(worldmap* _map0, worldmap* _map1)
+	{
+		mapctx0_.setoverlaymap(_map0);
+		mapctx1_.setoverlaymap(_map1);
+	}
+
 	void settiles(tileset* _tiles0, tileset* _tiles1)
 	{
-		buffer& b = *pactive_; //buffers_[buffer_index_];
+		buffer& b = *pactive_;
 		b.fields[0].settiles(_tiles0);
 		if (dualfield_)
 			b.fields[1].settiles(_tiles1);
 	}	
 
+	void setoverlaytiles(tileset* _tiles0, tileset* _tiles1)
+	{
+		buffer& b = *pactive_;
+		b.fields[0].setoverlaytiles(_tiles0);
+		if (dualfield_)
+			b.fields[1].setoverlaytiles(_tiles1);
+	}	
+
 	void setpreshift(s16 _xps)
 	{
-		buffer& b = *pactive_; //buffers_[buffer_index_];
+		buffer& b = *pactive_;
 		b.fields[0].setpreshift(_xps);
 		if (dualfield_)
 			b.fields[1].setpreshift(_xps);
