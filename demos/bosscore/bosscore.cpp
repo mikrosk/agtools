@@ -237,10 +237,6 @@ tileset mytiles1;
 worldmap mymap0;
 worldmap mymap1;
 
-// not used (yet)
-char ascii2font[256];
-
-
 int map_xsize;
 int map_ysize;
 

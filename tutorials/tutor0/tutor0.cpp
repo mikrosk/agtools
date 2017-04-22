@@ -23,7 +23,6 @@
 //	+	intended to outline a bare starting point for a valid AGT program (if not a useful one!)
 //	+	a few dummy objects need to be defined for AGT to compile. some of these will disappear in future cleanups.
 //		- a pointer to the active viewport: g_pe_viewport
-//		- a font translation table: ascii2font[]
 //		- the entity dictionary: entity_dictionary[]
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -70,8 +69,6 @@
 // some things we currently need to define even if we don't use them
 
 entity_t *g_pe_viewport = NULL;
-
-char ascii2font[256];
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	hardware interfaces

@@ -78,7 +78,7 @@ within_entitydraw	set	0
 	
 	XREF		_g_linebytes
 	
-	XREF		_ascii2font
+	XDEF		_ascii2font
 	
 	XDEF		slab_precalcs
 
@@ -879,6 +879,8 @@ _AGT_MarkDirtyRectangle:
 *-------------------------------------------------------*
 			bss
 *-------------------------------------------------------*
+
+_ascii2font:		ds.b		256
 	
 _g_spr_window:
 _g_spr_window_x1:	ds.w		1

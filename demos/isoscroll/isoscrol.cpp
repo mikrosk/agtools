@@ -199,9 +199,6 @@ tileset mytiles1;
 worldmap mymap0;
 worldmap mymap1;
 
-// not used (yet)
-char ascii2font[256];
-
 // ---------------------------------------------------------------------------------------------------------------------
 // convert 3D world (wx,wy,wz) position to 2:1 isometric 2D screen (x,y) position
 

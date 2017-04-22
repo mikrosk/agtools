@@ -53,8 +53,6 @@
 
 entity_t *g_pe_viewport = NULL;
 
-char ascii2font[256];
-
 // ---------------------------------------------------------------------------------------------------------------------
 //	machine state interface (setup/shutdown)
 

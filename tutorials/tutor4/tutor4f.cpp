@@ -84,8 +84,6 @@ enum EntityType : int
 
 entity_t *g_pe_viewport = NULL;
 
-char ascii2font[256];
-
 // ---------------------------------------------------------------------------------------------------------------------
 //	hardware interfaces
 
