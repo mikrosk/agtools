@@ -500,7 +500,7 @@ public:
 			
 				// generate playfield workbuffer scanline modulo & index
 				// todo: 8x8 mode
-				s16 linewidth = (vpage_tiles_x_ * (c_updateQ_ ? 2 : 1)) << 3;
+				s16 linewidth = (vpage_tiles_x_ * (c_updateQ_ ? 2 : 1)) * (c_tilelinewords_<<1);
 				for (s16 n = 0; n < maxlines; ++n)
 				{
 					lineindex_[n] = s32(n * linewidth);
