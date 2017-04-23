@@ -522,6 +522,29 @@ public:
 		}
 	}	
 
+	void reset(s16 x, s16 y, bool _nowait = false)
+	{
+		s16 tb = buffer_index_;
+		//s16 tf = field_index_;
+		s16 curr_vbl = g_vbl;
+		for (int b = c_num_buffers_-1; b >= 0; b--)
+		{
+			if (!_nowait)
+			{
+				while (g_vbl == curr_vbl) { /* spin until counter changes */ }
+				curr_vbl = g_vbl;
+			}
+
+			select_buffer((tb + b) % c_num_buffers_,0);
+			setpos(x,y);
+			fill_abs(true);
+
+			if (!_nowait)
+				activate_buffer();
+		}
+		//select_buffer(tb,tf);
+	}
+
 	void init(s16 x, s16 y)
 	{
 		for (s16 b = 0; b < c_num_buffers_; ++b)
