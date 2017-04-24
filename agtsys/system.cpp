@@ -25,7 +25,7 @@ extern "C" void SYS_Restore();
 #if defined(AGT_CONFIG_DEBUG_CONSOLE)
 extern "C" void SYS_ConsoleInit();
 #endif
-extern "C" void SYS_DirtyTileInit();
+extern "C" void SYS_MapModInit();
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -35,7 +35,7 @@ void machine::configure()
 #if defined(AGT_CONFIG_DEBUG_CONSOLE)
 	SYS_ConsoleInit();
 #endif
-	SYS_DirtyTileInit();
+	SYS_MapModInit();
 }
 
 void machine::save()

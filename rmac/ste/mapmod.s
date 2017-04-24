@@ -1,7 +1,7 @@
 
 dst_linewid	set	184
 
-	.globl		_SYS_DirtyTileInit
+	.globl		_SYS_MapModInit
 
 *------------------------------------------------------------------------------*
 *	tile macros for writing different vpage layouts:
@@ -12,37 +12,37 @@ dst_linewid	set	184
 *------------------------------------------------------------------------------*
 
 	.if		^^defined AGT_CONFIG_PFLAYOUT_PQRS
-	include		"ste/dirtytiles_pqrs.s"
+	include		"ste/mapmod_pqrs16.s"
 	.endif
 	.if		^^defined AGT_CONFIG_PFLAYOUT_PQ
-	include		"ste/dirtytiles_pq.s"
+	include		"ste/mapmod_pq16.s"
 	.endif
-	include		"ste/dirtytiles_pr.s"
-	include		"ste/dirtytiles_pr8.s"
-	include		"ste/dirtytiles_pr8m.s"
+	include		"ste/mapmod_pr16.s"
+	include		"ste/mapmod_pr8.s"
+	include		"ste/mapmod_pr8m.s"
 	.if		^^defined AGT_CONFIG_PFLAYOUT_P
-	include		"ste/dirtytiles_p.s"
+	include		"ste/mapmod_p16.s"
 	.endif
 	
 *------------------------------------------------------------------------------*
-_SYS_DirtyTileInit:
+_SYS_MapModInit:
 *------------------------------------------------------------------------------*
 	.if		^^defined AGT_CONFIG_PFLAYOUT_PQRS
-	jsr		dirtytile_setup_pqrs
+	jsr		mapmod_setup_pqrs
 	.endif
 	.if		^^defined AGT_CONFIG_PFLAYOUT_PQ
-	jsr		dirtytile_setup_pq
+	jsr		mapmod_setup_pq
 	.endif
-	jsr		dirtytile_setup_pr
-	jsr		dirtytile_setup_pr8
-	jsr		dirtytile_setup_pr8m
+	jsr		mapmod_setup_pr
+	jsr		mapmod_setup_pr8
+	jsr		mapmod_setup_pr8m
 	.if		^^defined AGT_CONFIG_PFLAYOUT_P
-	jsr		dirtytile_setup_p
+	jsr		mapmod_setup_p
 	.endif
 	rts
 	
 *------------------------------------------------------------------------------*
-dirtytile_setup:	
+mapmod_setup:	
 *------------------------------------------------------------------------------*
 	move.l		d2,-(sp)
 	move.l		a0,a1

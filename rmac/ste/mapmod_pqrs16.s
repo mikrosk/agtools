@@ -1,7 +1,7 @@
 
 *------------------------------------------------------------------------------*
 
-.macro	tile_pq		offs,dst,src,dstpgw,dstpgh,tdst,tsrc
+.macro	tile_pqrs	offs,dst,src,dstpgw,dstpgh,tdst,tsrc
 
 	lea		\offs*8(\dst),\tdst
 
@@ -105,13 +105,117 @@
 	move.l		(\tsrc)+,(\tdst)+
 	move.l		(\tsrc)+,(\tdst)+
 
+	lea		\offs*8(\dst,\dstpgh.l),\tdst
+
+	move.l		\src,\tsrc
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+
+	lea		\offs*8(\dst,\dstpgh.l),\tdst
+	add.w		\dstpgw,\tdst
+
+	move.l		\src,\tsrc
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+	lea		dst_linewid-8(\tdst),\tdst
+	move.l		(\tsrc)+,(\tdst)+
+	move.l		(\tsrc)+,(\tdst)+
+
 	.endm
+
 
 *------------------------------------------------------------------------------*
 *	refresh only dirty tiles within rectangle pi,pj->pi2,pj2
 *	note: called either 1,2 or 4 times per frame dependent on layout & pos
 *------------------------------------------------------------------------------*
-_do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
+_do_dirtyrect_pqrs:	.globl	_do_dirtyrect_pqrs
 *------------------------------------------------------------------------------*
 
 	movem.l		d0-a6,-(sp)
@@ -401,7 +505,7 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 ; d3.l,	a4.l,	d0.l,	d7.w,	d6.l,	a3,	a5,	a0,	a2
 ; flags	dst	src	dstpgw	dstpgh	tmp	tmp	mapsrc	tilesrc
 
-;.macro	ctile_pq	offs,flags,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
+;.macro	ctile_pqrs	offs,flags,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
 ;
 ;	; test dirty flag
 ;
@@ -415,7 +519,7 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 ;
 ;	; plot tile to relevant vpage(s)
 ;
-;	tile_pq		\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
+;	tile_pqrs	\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
 ;.fclr\~:
 ;	.endm	
 
@@ -431,14 +535,14 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 *------------------------------------------------------------------------------*
 ;.do_block_:
 *------------------------------------------------------------------------------*
-;	ctile_pq	-8,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-7,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-6,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-5,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-4,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-3,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-2,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-1,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-8,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-7,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-6,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-5,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-4,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-3,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-2,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pqrs	-1,d3,a4,d0,d7,d6,a3,a5,a0,a2
 ;
 ;;	now move 8 tiles to the left for the next block
 ;
@@ -451,7 +555,7 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 
 *------------------------------------------------------------------------------*
 
-.macro	jtile_pq		offs,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
+.macro	jtile_pqrs	offs,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
 
 	; address tile source
 
@@ -460,7 +564,7 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 
 	; plot tile to relevant vpage(s)
 
-	tile_pq		\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
+	tile_pqrs	\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
 
 	.endm
 	
@@ -501,70 +605,70 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 *------------------------------------------------------------------------------*
 
 .do_block_1111:
-	jtile_pq	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0111:
-	jtile_pq	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-3,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0011:
-	jtile_pq	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0001:
-	jtile_pq	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-1,a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 
 .do_block_1110:
-	jtile_pq	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_1100:
-	jtile_pq	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-3,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_1000:
-	jtile_pq	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0000:
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 
 .do_block_0110:
-	jtile_pq	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0100:
-	jtile_pq	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-3,a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 	
 .do_block_1011:
-	jtile_pq	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_1001:
-	jtile_pq	-1,a4,d0,d7,d6,a3,a5,a0,a2
-	jtile_pq	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 		
 .do_block_1101:
-	jtile_pq	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0101:
-	jtile_pq	-3,a4,d0,d7,d6,a3,a5,a0,a2
-	jtile_pq	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-1,a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 	
 .do_block_1010:
-	jtile_pq	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-4,a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0010:
-	jtile_pq	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pqrs	-2,a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 	
 *------------------------------------------------------------------------------*
 
-pairtable_pq		=	.jt
+pairtable_pqrs		=	.jt
 
 *------------------------------------------------------------------------------*
-dirtytile_setup_pq:
+mapmod_setup_pqrs:
 *------------------------------------------------------------------------------*
-	lea		pairtable_pq,a0
-	bra		dirtytile_setup
+	lea		pairtable_pqrs,a0
+	bra		mapmod_setup
 	
 *------------------------------------------------------------------------------*

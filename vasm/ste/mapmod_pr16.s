@@ -3,41 +3,41 @@
 
 ; a4,d0,d7,d6,a3,a5,a0,a2
 
-.macro	tile_pr	offs,dst,src,dstpgw,dstpgh,tdst,tsrc
+tile_pr		macro
 
-	lea		\offs*8(\dst),\tdst
-	lea		\offs*8(\dst,\dstpgh.l),a6
 
-	move.l		\src,\tsrc
+	lea		\0*8(\1),\5
+	lea		\0*8(\1,\4.l),a6
+
+	move.l		\2,\6
 	
-	.rept	16
-	move.l	(\tsrc)+,\src
-	move.l	\src,(\tdst)+
-	move.l	\src,(a6)+
-	move.l	(\tsrc)+,\src
-	move.l	\src,(\tdst)+
-	move.l	\src,(a6)+
-	lea	dst_linewid-8(\tdst),\tdst
-	lea	dst_linewid-8(a6),a6
-	.endr
-
-	.endm
-
+	rept		16
+	move.l		(\6)+,\2
+	move.l		\2,(\5)+
+	move.l		\2,(a6)+
+	move.l		(\6)+,\2
+	move.l		\2,(\5)+
+	move.l		\2,(a6)+
+	lea		dst_linewid-8(\5),\5
+	lea		dst_linewid-8(a6),a6
+	endr
+	
+	endm
 
 *------------------------------------------------------------------------------*
 *	refresh only dirty tiles within rectangle pi,pj->pi2,pj2
 *	note: called either 1,2 or 4 times per frame dependent on layout & pos
 *------------------------------------------------------------------------------*
-_do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
+_do_dirtyrect_pr:	xdef	_do_dirtyrect_pr
 *------------------------------------------------------------------------------*
 
 	movem.l		d0-a6,-(sp)
-
-	.if		^^defined TIMING_RASTERS
+	
+	ifd		TIMING_RASTERS
 	move.w		#$753,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 	
 ;	bra		.done
 
@@ -169,11 +169,11 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 	dc.w		.start4-.jtab
 
 .done:
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$777,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 
 	movem.l		(sp)+,d0-a6
 	rts
@@ -224,11 +224,11 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	; dirty row
 
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$707,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 
 	rol.l		#3,d3			; AB:BC:CD:DA
 	bsr		.do_block
@@ -241,11 +241,11 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	lea		8*8*4(a4),a4
 
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$753,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 
 .next4:
 
@@ -279,11 +279,11 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	; dirty row
 
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$707,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 
 	lsl.l		#3,d3
 	bsr		.do_block
@@ -294,14 +294,13 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	lea		8*8*3(a4),a4
 
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$753,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 
 .next3:
-
 	; next Y
 
 .smc3d:	lea		1234(a4),a4
@@ -331,11 +330,11 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	; dirty row
 
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$707,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 
 	lsl.l		#3,d3
 	bsr		.do_block
@@ -344,11 +343,11 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	lea		8*8*2(a4),a4
 
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$753,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 
 .next2:
 
@@ -381,22 +380,22 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 	; dirty row
 
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$707,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 
 	lsl.w		#3,d3
 	bsr		.do_block
 
 	lea		8*8*1(a4),a4
 
-	.if		^^defined TIMING_RASTERS
+	ifd		TIMING_RASTERS
 	move.w		#$753,d0
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
-	.endif
+	endc
 	
 .next1:
 
@@ -416,23 +415,23 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 ; d3.l,	a4.l,	d0.l,	d7.w,	d6.l,	a3,	a5,	a0,	a2
 ; flags	dst	src	dstpgw	dstpgh	tmp	tmp	mapsrc	tilesrc
 
-;.macro	ctile_pr	offs,flags,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
+;ctile_pr		macro
 ;
 ;	; test dirty flag
 ;
-;	add.b		\flags,\flags
-;	bcc		.fclr\~
+;	add.b		\1,\1
+;	bcc		.fclr\@
 ;
 ;	; address tile source
 ;
-;	move.l		\tilesrc,\src		; tile library
-;	add.l		\offs*4(\mapsrc),\src	; map index
+;	move.l		\9,\3			; tile library
+;	add.l		\0*4(\8),\3		; map index
 ;
 ;	; plot tile to relevant vpage(s)
 ;
-;	tile_pr		\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
-;.fclr\~:
-;	.endm	
+;	tile_pr.\0	\2,\3,\4,\5,\6,\7
+;.fclr\@:
+;	endm
 		
 *------------------------------------------------------------------------------*
 *	emit up to 8 tiles, left-to-right, one per set bit in d0
@@ -446,14 +445,14 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 *------------------------------------------------------------------------------*
 ;.do_block_:
 *------------------------------------------------------------------------------*
-;	ctile_pr	-8,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-7,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-6,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-5,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-4,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-3,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-2,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-1,d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-8	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-7	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-6	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-5	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-4	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-3	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-2	d3,a4,d0,d7,d6,a3,a5,a0,a2
+;	ctile_pr.-1	d3,a4,d0,d7,d6,a3,a5,a0,a2
 ;
 ;;	now move 8 tiles to the left for the next block
 ;
@@ -466,18 +465,18 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 
 *------------------------------------------------------------------------------*
 
-.macro	jtile_pr	offs,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
+jtile_pr		macro
 
 	; address tile source
 
-	move.l		\tilesrc,\src		; tile library
-	add.l		\offs*4(\mapsrc),\src	; map index
+	move.l		\8,\2			; tile library
+	add.l		\0*4(\7),\2		; map index
 
 	; plot tile to relevant vpage(s)
 
-	tile_pr		\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
+	tile_pr.\0	\1,\2,\3,\4,\5,\6
 
-	.endm
+	endm
 	
 *------------------------------------------------------------------------------*
 .do_block:
@@ -516,58 +515,58 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 *------------------------------------------------------------------------------*
 
 .do_block_1111:
-	jtile_pr	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0111:
-	jtile_pr	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-3	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0011:
-	jtile_pr	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0001:
-	jtile_pr	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-1	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 
 .do_block_1110:
-	jtile_pr	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_1100:
-	jtile_pr	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-3	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_1000:
-	jtile_pr	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0000:
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 
 .do_block_0110:
-	jtile_pr	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0100:
-	jtile_pr	-3,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-3	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 	
 .do_block_1011:
-	jtile_pr	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_1001:
-	jtile_pr	-1,a4,d0,d7,d6,a3,a5,a0,a2
-	jtile_pr	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-1	a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 		
 .do_block_1101:
-	jtile_pr	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0101:
-	jtile_pr	-3,a4,d0,d7,d6,a3,a5,a0,a2
-	jtile_pr	-1,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-3	a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-1	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
 	
 .do_block_1010:
-	jtile_pr	-4,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-4	a4,d0,d7,d6,a3,a5,a0,a2
 .do_block_0010:
-	jtile_pr	-2,a4,d0,d7,d6,a3,a5,a0,a2
+	jtile_pr.-2	a4,d0,d7,d6,a3,a5,a0,a2
 	lea		-4*4(a0),a0
 	lea		-4*8(a4),a4	
 	rts
@@ -577,9 +576,9 @@ _do_dirtyrect_pr:	.globl	_do_dirtyrect_pr
 pairtable_pr		=	.jt
 
 *------------------------------------------------------------------------------*
-dirtytile_setup_pr:
+mapmod_setup_pr:
 *------------------------------------------------------------------------------*
 	lea		pairtable_pr,a0
-	bra		dirtytile_setup
+	bra		mapmod_setup
 	
 *------------------------------------------------------------------------------*

@@ -1,9 +1,10 @@
 
 *------------------------------------------------------------------------------*
+; offs,dst=a4,tmp=d0,dstpgh=d6,tdst=a3,tdstv=a6,tsrc=a5,msrc=a2
+; busy: d4,d5
+; free: usp,a1,d1
 
-; dst=a4,src=d0,tmp=d7,dstpgh=d6,tdst=a3,tdstv=a6,tsrc=a5,mapsrc=a0,tilesrc=a2
-
-.macro	tile_pr8	offs,dst,tmp2,dstpgw,dstpgh,tdst,tdstv,tsrc
+.macro	tile_pr8m	offs,dst,tmp,dstpgh,tdst,tdstv,tsrc,msrc
 
 	; handle odd/even offset for movep fill
 
@@ -15,32 +16,46 @@
 	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst),\tdst
 	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst,\dstpgh.l),\tdstv
 
-;	move.l		\src,\tsrc
-	
-	move.l		(\tsrc)+,\tmp2
-	movep.l		\tmp2,dst_linewid*0(\tdst)
-	movep.l		\tmp2,dst_linewid*0(\tdstv)
-	move.l		(\tsrc)+,\tmp2
-	movep.l		\tmp2,dst_linewid*1(\tdst)
-	movep.l		\tmp2,dst_linewid*1(\tdstv)
-	move.l		(\tsrc)+,\tmp2
-	movep.l		\tmp2,dst_linewid*2(\tdst)
-	movep.l		\tmp2,dst_linewid*2(\tdstv)
-	move.l		(\tsrc)+,\tmp2
-	movep.l		\tmp2,dst_linewid*3(\tdst)
-	movep.l		\tmp2,dst_linewid*3(\tdstv)
-	move.l		(\tsrc)+,\tmp2
-	movep.l		\tmp2,dst_linewid*4(\tdst)
-	movep.l		\tmp2,dst_linewid*4(\tdstv)
-	move.l		(\tsrc)+,\tmp2
-	movep.l		\tmp2,dst_linewid*5(\tdst)
-	movep.l		\tmp2,dst_linewid*5(\tdstv)
-	move.l		(\tsrc)+,\tmp2
-	movep.l		\tmp2,dst_linewid*6(\tdst)
-	movep.l		\tmp2,dst_linewid*6(\tdstv)
-	move.l		(\tsrc)+,\tmp2
-	movep.l		\tmp2,dst_linewid*7(\tdst)
-	movep.l		\tmp2,dst_linewid*7(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*7(\tdst)
+	movep.l		\tmp,dst_linewid*7(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*6(\tdst)
+	movep.l		\tmp,dst_linewid*6(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*5(\tdst)
+	movep.l		\tmp,dst_linewid*5(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*4(\tdst)
+	movep.l		\tmp,dst_linewid*4(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*3(\tdst)
+	movep.l		\tmp,dst_linewid*3(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*2(\tdst)
+	movep.l		\tmp,dst_linewid*2(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*1(\tdst)
+	movep.l		\tmp,dst_linewid*1(\tdstv)
+	move.l		-(\msrc),\tmp
+	and.l		-(\tsrc),\tmp
+	or.l		-(\msrc),\tmp
+	movep.l		\tmp,dst_linewid*0(\tdst)
+	movep.l		\tmp,dst_linewid*0(\tdstv)
 
 	.endm
 
@@ -49,9 +64,9 @@
 *	refresh only dirty tiles within rectangle pi,pj->pi2,pj2
 *	note: called either 1,2 or 4 times per frame dependent on layout & pos
 *------------------------------------------------------------------------------*
-_do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
+_do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 *------------------------------------------------------------------------------*
-
+	
 	movem.l		d0-a6,-(sp)
 
 	.if		^^defined TIMING_RASTERS
@@ -68,10 +83,10 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 	move.l		_dm_dirtymask,a1
 	move.l		_dm_dstaddr,a4
-	move.l		_dm_ptiles,a2
-	move.l		_dm_pmap,d1
+
 	move.w		_dm_visible_linebytes,d7
 	move.l		_dm_virtual_pagebytes,d6
+
 	moveq		#0,d2
 	move.w		_dm_map_tiles_x,d2
 	lsl.l		#2,d2
@@ -167,7 +182,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 ;	d4 : ycount-1
 ;	d5 : rectangle mask, 8bit-aligned
 ;	d6 : dstpgh
-;	d7 : dstpgw
+;	d7 : *
 
 ;	a0 : *
 ;	a1 : dirty mask source, word-aligned bytes
@@ -176,6 +191,9 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 ;	a4 : dst
 ;	a5 : *
 ;	a6 : dst base
+;	usp: *
+
+	move.l		_dm_pmap,d1
 
 	; select 1,2,3-wide fetch from rectangle width in 8bit blocks
 
@@ -226,13 +244,19 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 .start4:
 	move.w		_dm_lineskip,.smc4d+2
-	move.w		_dm_maskstride,.smc4+2
+	move.w		_dm_maskstride,.smc4m+2
+	move.l		_dm_plmap,d0
+	sub.l		d1,d0
+	move.l		d0,.smc4t+2		
+	move.l		d2,.smc4s+2
+	move.l		_dm_ptiles,d2
+	move.l		_dm_pltiles,d7
 
 .ylp4:
 	; advance Y
 	
 	move.l		d1,a0
-	add.l		d2,d1
+.smc4s:	add.l		#$123456,d1
 
 	; check row
 
@@ -242,7 +266,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	beq.s		.next4
 	eor.l		d3,d0
 	movep.l		d0,0(a1)
-
+	
 	; dirty row
 
 	.if		^^defined TIMING_RASTERS
@@ -250,6 +274,13 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
 	.endif
+
+	move.l		a1,usp
+
+	; access transparent map layer as offset from base layer
+	
+.smc4t:	lea		$123456,a1
+	add.l		a0,a1
 
 	rol.l		#3,d3			; AB:BC:CD:DA
 	bsr		.do_block
@@ -262,6 +293,8 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 	lea		8*4*4(a4),a4
 
+	move.l		usp,a1
+
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
 	move.w		d0,$64.w
@@ -273,7 +306,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	; next Y
 
 .smc4d:	lea		1234(a4),a4
-.smc4:	lea		1234(a1),a1
+.smc4m:	lea		1234(a1),a1
 	dbra		d4,.ylp4
 	bra		.done
 
@@ -281,13 +314,19 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 .start3:
 	move.w		_dm_lineskip,.smc3d+2
-	move.w		_dm_maskstride,.smc3+2
+	move.w		_dm_maskstride,.smc3m+2
+	move.l		_dm_plmap,d0
+	sub.l		d1,d0
+	move.l		d0,.smc3t+2		
+	move.l		d2,.smc3s+2
+	move.l		_dm_ptiles,d2
+	move.l		_dm_pltiles,d7
 
 .ylp3:
 	; advance Y
 	
 	move.l		d1,a0
-	add.l		d2,d1
+.smc3s:	add.l		#$123456,d1
 
 	; check row
 
@@ -306,6 +345,13 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.w		d0,$ffff8240.w
 	.endif
 
+	move.l		a1,usp
+	
+	; access transparent map layer as offset from base layer
+	
+.smc3t:	lea		$123456,a1
+	add.l		a0,a1
+
 	lsl.l		#3,d3
 	bsr		.do_block
 	lsr.l		#8,d3			; 00:xx:AA:BB
@@ -314,6 +360,8 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	bsr		.do_block
 
 	lea		8*4*3(a4),a4
+
+	move.l		usp,a1
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
@@ -326,7 +374,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	; next Y
 
 .smc3d:	lea		1234(a4),a4
-.smc3:	lea		1234(a1),a1
+.smc3m:	lea		1234(a1),a1
 	dbra		d4,.ylp3
 	bra		.done
 
@@ -334,12 +382,19 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 .start2:
 	move.w		_dm_lineskip,.smc2d+2
-	move.w		_dm_maskstride,.smc2+2
+	move.w		_dm_maskstride,.smc2m+2
+	move.l		_dm_plmap,d0
+	sub.l		d1,d0
+	move.l		d0,.smc2t+2		
+	move.l		d2,.smc2s+2
+	move.l		_dm_ptiles,d2
+	move.l		_dm_pltiles,d7
+	
 .ylp2:
 	; advance Y
 	
 	move.l		d1,a0
-	add.l		d2,d1
+.smc2s:	add.l		#$123456,d1
 
 	; check row
 
@@ -358,12 +413,21 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.w		d0,$ffff8240.w
 	.endif
 
+	move.l		a1,usp
+	
+	; access transparent map layer as offset from base layer
+	
+.smc2t:	lea		$123456,a1
+	add.l		a0,a1
+
 	lsl.l		#3,d3
 	bsr		.do_block
 	lsr.l		#8,d3			; xx:xx:00:BB
 	bsr		.do_block
 
 	lea		8*4*2(a4),a4
+
+	move.l		usp,a1
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
@@ -376,7 +440,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	; next Y
 
 .smc2d:	lea		1234(a4),a4
-.smc2:	lea		1234(a1),a1
+.smc2m:	lea		1234(a1),a1
 	dbra		d4,.ylp2
 	bra		.done
 
@@ -384,12 +448,19 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 .start1:
 	move.w		_dm_lineskip,.smc1d+2
-	move.w		_dm_maskstride,.smc1+2
+	move.w		_dm_maskstride,.smc1m+2
+	move.l		_dm_plmap,d0
+	sub.l		d1,d0
+	move.l		d0,.smc1t+2		
+	move.l		d2,.smc1s+2
+	move.l		_dm_ptiles,d2
+	move.l		_dm_pltiles,d7
+
 .ylp1:
 	; advance Y
 
 	move.l		d1,a0
-	add.l		d2,d1
+.smc1s:	add.l		#$123456,d1
 
 	; check row
 
@@ -408,11 +479,20 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.w		d0,$ffff8240.w
 	.endif
 
+	move.l		a1,usp
+
+	; access transparent map layer as offset from base layer
+	
+.smc1t:	lea		$123456,a1
+	add.l		a0,a1
+
 	lsl.w		#3,d3
 	bsr		.do_block
 
 	lea		8*4*1(a4),a4
 
+	move.l		usp,a1
+	
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
 	move.w		d0,$64.w
@@ -424,79 +504,27 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	; next Y
 
 .smc1d:	lea		1234(a4),a4
-.smc1:	lea		1234(a1),a1
+.smc1m:	lea		1234(a1),a1
 	dbra		d4,.ylp1
 	bra		.done
 
-
-
-*------------------------------------------------------------------------------*
-*	emit single flag-conditional tile
 *------------------------------------------------------------------------------*
 
-; d3.l,	a4.l,	d0.l,	d7.w,	d6.l,	a3,	a5,	a0,	a2
-; flags	dst	src	dstpgw	dstpgh	tmp	tmp	mapsrc	tilesrc
+;offs,dst=a4,tmp=d0,dstpgh=d6,tdst=a3,tdstv=a6,tsrc=a5,msrc=a2,mapsrc=a0,mmapsrc=a1,tilesrc=d2,mtilesrc=d7
 
-;.macro	ctile_pr	offs,flags,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
-;
-;	; test dirty flag
-;
-;	add.b		\flags,\flags
-;	bcc		.fclr\~
-;
-;	; address tile source
-;
-;	move.l		\tilesrc,\src		; tile library
-;	add.l		\offs*4(\mapsrc),\src	; map index
-;
-;	; plot tile to relevant vpage(s)
-;
-;	tile_pr		\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
-;.fclr\~:
-;	.endm	
-		
-*------------------------------------------------------------------------------*
-*	emit up to 8 tiles, left-to-right, one per set bit in d0
-*------------------------------------------------------------------------------*
-*	note: at least 1 bit set in d0 if reached this point
-*	note: blocks themselves applied right-to-left, starting at right edge
-*	note: d7 (dstpgw) becomes free for P,PR page layouts (PQ,PQRS not really used anyway)
-*------------------------------------------------------------------------------*
-*	todo: break 8 tests into 2x nibble patterns for quicker sub-rejection
-*	todo: turn each nibble into a jmptab with dedicated code per pattern
-*------------------------------------------------------------------------------*
-;.do_block_:
-*------------------------------------------------------------------------------*
-;	ctile_pr	-8,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-7,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-6,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-5,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-4,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-3,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-2,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-1,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;
-;;	now move 8 tiles to the left for the next block
-;
-;	lea		-8*4(a0),a0
-;	lea		-8*8(a4),a4
-;
-;	rts
-
-
-
-*------------------------------------------------------------------------------*
-
-.macro	jtile_pr8	offs,dst,tmp2,dstpgw,dstpgh,tdst,tdstv,tsrc,mapsrc,tilesrc
+.macro	jtile_pr8m	offs,dst,tmp,dstpgh,tdst,tdstv,tsrc,msrc,mapsrc,mmapsrc,tilesrc,mtilesrc
 
 	; address tile source
 
 	move.l		\tilesrc,\tsrc		; tile library
 	add.l		\offs*4(\mapsrc),\tsrc	; map index
 
+	move.l		\mtilesrc,\msrc		; masked tile library
+	add.l		\offs*4(\mmapsrc),\msrc	; masked map index
+
 	; plot tile to relevant vpage(s)
 
-	tile_pr8	\offs,\dst,\tmp2,\dstpgw,\dstpgh,\tdst,\tdstv,\tsrc
+	tile_pr8m	\offs,\dst,\tmp,\dstpgh,\tdst,\tdstv,\tsrc,\msrc
 
 	.endm
 	
@@ -536,71 +564,79 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 *	cascade tiles into patterns of 4 bits
 *------------------------------------------------------------------------------*
 
+;offs,dst=a4,tmp=d0,dstpgh=d6,tdst=a3,tdstv=a6,tsrc=a5,msrc=a2,mapsrc=a0,mmapsrc=a1,tilesrc=d2,mtilesrc=d7
+
 .do_block_1111:
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-4,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_0111:
-	jtile_pr8	-3,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-3,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_0011:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-2,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_0001:
-	jtile_pr8	-1,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-1,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 	lea		-4*4(a0),a0
+	lea		-4*4(a1),a1
 	lea		-4*4(a4),a4	
 	rts
 
 .do_block_1110:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-2,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_1100:
-	jtile_pr8	-3,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-3,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_1000:
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-4,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_0000:
 	lea		-4*4(a0),a0
+	lea		-4*4(a1),a1
 	lea		-4*4(a4),a4	
 	rts
 
 .do_block_0110:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-2,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_0100:
-	jtile_pr8	-3,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-3,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 	lea		-4*4(a0),a0
+	lea		-4*4(a1),a1
 	lea		-4*4(a4),a4	
 	rts
 	
 .do_block_1011:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-2,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_1001:
-	jtile_pr8	-1,a4,d0,d7,d6,a3,a6,a5,a0,a2
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-1,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
+	jtile_pr8m	-4,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 	lea		-4*4(a0),a0
+	lea		-4*4(a1),a1
 	lea		-4*4(a4),a4	
 	rts
 		
 .do_block_1101:
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-4,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_0101:
-	jtile_pr8	-3,a4,d0,d7,d6,a3,a6,a5,a0,a2
-	jtile_pr8	-1,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-3,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
+	jtile_pr8m	-1,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 	lea		-4*4(a0),a0
+	lea		-4*4(a1),a1
 	lea		-4*4(a4),a4	
 	rts
 	
 .do_block_1010:
-	jtile_pr8	-4,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-4,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 .do_block_0010:
-	jtile_pr8	-2,a4,d0,d7,d6,a3,a6,a5,a0,a2
+	jtile_pr8m	-2,a4,d0,d6,a3,a6,a5,a2,a0,a1,d2,d7
 	lea		-4*4(a0),a0
+	lea		-4*4(a1),a1
 	lea		-4*4(a4),a4	
 	rts
 	
 *------------------------------------------------------------------------------*
 
-pairtable_pr8		=	.jt
+pairtable_pr8m		=	.jt
 
 *------------------------------------------------------------------------------*
-dirtytile_setup_pr8:
+mapmod_setup_pr8m:
 *------------------------------------------------------------------------------*
-	lea		pairtable_pr8,a0
-	bra		dirtytile_setup
+	lea		pairtable_pr8m,a0
+	bra		mapmod_setup
 	
 *------------------------------------------------------------------------------*
