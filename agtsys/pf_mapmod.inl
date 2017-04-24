@@ -4,10 +4,10 @@
 //	playfield region update implementation
 //----------------------------------------------------------------------------------------------------------------------
 
-#include "pf_dirty16.inl"
-#include "pf_dirty16m.inl"
-#include "pf_dirty8.inl"
-#include "pf_dirty8m.inl"
+#include "pf_mapmod16.inl"
+#include "pf_mapmod16m.inl"
+#include "pf_mapmod8.inl"
+#include "pf_mapmod8m.inl"
 
 //----------------------------------------------------------------------------------------------------------------------
 

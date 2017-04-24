@@ -895,7 +895,7 @@ public:
 	#include "pf_specshiftc.inl"		// shift speculative column slices
 	#include "pf_specshiftr.inl"		// shift speculative row slices
 
-	#include "pf_dirty.inl"				// refill dirty tiles
+	#include "pf_mapmod.inl"				// refill dirty tiles
 
 	// =====================================================================================================================
 
