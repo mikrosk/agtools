@@ -144,7 +144,7 @@ agt_inline void PR16_dirty_block_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi
 
 	__asm__ __volatile__ (
 "											\
-		jsr		_do_dirtyrect_pr;			\
+		jsr		_do_dirtyrect_pr16;			\
 "
      	: 
 		: 

@@ -69,7 +69,6 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.l		_dm_dirtymask,a1
 	move.l		_dm_dstaddr,a4
 	move.l		_dm_ptiles,a2
-	move.l		_dm_pmap,d1
 	move.w		_dm_visible_linebytes,d7
 	move.l		_dm_virtual_pagebytes,d6
 	moveq		#0,d2
@@ -167,7 +166,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 ;	d4 : ycount-1
 ;	d5 : rectangle mask, 8bit-aligned
 ;	d6 : dstpgh
-;	d7 : dstpgw
+;	d7 : *
 
 ;	a0 : *
 ;	a1 : dirty mask source, word-aligned bytes
@@ -176,6 +175,9 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 ;	a4 : dst
 ;	a5 : *
 ;	a6 : dst base
+;	usp: *
+
+	move.l		_dm_pmap,a0
 
 	; select 1,2,3-wide fetch from rectangle width in 8bit blocks
 
@@ -229,10 +231,6 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.w		_dm_maskstride,.smc4+2
 
 .ylp4:
-	; advance Y
-	
-	move.l		d1,a0
-	add.l		d2,d1
 
 	; check row
 
@@ -261,6 +259,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	bsr		.do_block
 
 	lea		8*4*4(a4),a4
+	lea		8*4*4(a0),a0
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
@@ -274,6 +273,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 .smc4d:	lea		1234(a4),a4
 .smc4:	lea		1234(a1),a1
+	add.w		d2,a0
 	dbra		d4,.ylp4
 	bra		.done
 
@@ -284,10 +284,6 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.w		_dm_maskstride,.smc3+2
 
 .ylp3:
-	; advance Y
-	
-	move.l		d1,a0
-	add.l		d2,d1
 
 	; check row
 
@@ -314,6 +310,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	bsr		.do_block
 
 	lea		8*4*3(a4),a4
+	lea		8*4*3(a0),a0
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
@@ -327,6 +324,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 .smc3d:	lea		1234(a4),a4
 .smc3:	lea		1234(a1),a1
+	add.w		d2,a0
 	dbra		d4,.ylp3
 	bra		.done
 
@@ -336,10 +334,6 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.w		_dm_lineskip,.smc2d+2
 	move.w		_dm_maskstride,.smc2+2
 .ylp2:
-	; advance Y
-	
-	move.l		d1,a0
-	add.l		d2,d1
 
 	; check row
 
@@ -364,6 +358,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	bsr		.do_block
 
 	lea		8*4*2(a4),a4
+	lea		8*4*2(a0),a0
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
@@ -377,6 +372,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 .smc2d:	lea		1234(a4),a4
 .smc2:	lea		1234(a1),a1
+	add.w		d2,a0
 	dbra		d4,.ylp2
 	bra		.done
 
@@ -386,10 +382,6 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	move.w		_dm_lineskip,.smc1d+2
 	move.w		_dm_maskstride,.smc1+2
 .ylp1:
-	; advance Y
-
-	move.l		d1,a0
-	add.l		d2,d1
 
 	; check row
 
@@ -412,6 +404,7 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 	bsr		.do_block
 
 	lea		8*4*1(a4),a4
+	lea		8*4*1(a0),a0
 
 	.if		^^defined TIMING_RASTERS
 	move.w		#$753,d0
@@ -425,64 +418,9 @@ _do_dirtyrect_pr8:	.globl	_do_dirtyrect_pr8
 
 .smc1d:	lea		1234(a4),a4
 .smc1:	lea		1234(a1),a1
+	add.w		d2,a0
 	dbra		d4,.ylp1
 	bra		.done
-
-
-
-*------------------------------------------------------------------------------*
-*	emit single flag-conditional tile
-*------------------------------------------------------------------------------*
-
-; d3.l,	a4.l,	d0.l,	d7.w,	d6.l,	a3,	a5,	a0,	a2
-; flags	dst	src	dstpgw	dstpgh	tmp	tmp	mapsrc	tilesrc
-
-;.macro	ctile_pr	offs,flags,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
-;
-;	; test dirty flag
-;
-;	add.b		\flags,\flags
-;	bcc		.fclr\~
-;
-;	; address tile source
-;
-;	move.l		\tilesrc,\src		; tile library
-;	add.l		\offs*4(\mapsrc),\src	; map index
-;
-;	; plot tile to relevant vpage(s)
-;
-;	tile_pr		\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
-;.fclr\~:
-;	.endm	
-		
-*------------------------------------------------------------------------------*
-*	emit up to 8 tiles, left-to-right, one per set bit in d0
-*------------------------------------------------------------------------------*
-*	note: at least 1 bit set in d0 if reached this point
-*	note: blocks themselves applied right-to-left, starting at right edge
-*	note: d7 (dstpgw) becomes free for P,PR page layouts (PQ,PQRS not really used anyway)
-*------------------------------------------------------------------------------*
-*	todo: break 8 tests into 2x nibble patterns for quicker sub-rejection
-*	todo: turn each nibble into a jmptab with dedicated code per pattern
-*------------------------------------------------------------------------------*
-;.do_block_:
-*------------------------------------------------------------------------------*
-;	ctile_pr	-8,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-7,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-6,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-5,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-4,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-3,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-2,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pr	-1,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;
-;;	now move 8 tiles to the left for the next block
-;
-;	lea		-8*4(a0),a0
-;	lea		-8*8(a4),a4
-;
-;	rts
-
 
 
 *------------------------------------------------------------------------------*
