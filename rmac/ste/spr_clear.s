@@ -942,6 +942,9 @@ _AGT_BLiT_PlayfieldRestore:
 	move.w		d0,BLiTEM3.w
 
 *-------------------------------------------------------*
+;	move.l		_drawcontext+dctx_clearstack_prvtide,d0
+;	beq		.cstop
+;	move.l		d0,a5
 	move.l		_drawcontext+dctx_clearstack_prvtide,a5
 
 	move.l		_drawcontext+dctx_lineidx,a3
