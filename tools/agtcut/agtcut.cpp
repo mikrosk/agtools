@@ -3069,16 +3069,16 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 					uword_t *ptilespace = tilespace;
 					for (int y = 0; y < 16; y++)
 					{
-						uword_t *tilesrc = tile;
-						for (int p = 0; p < tileplanes; p++)
-							*ptilespace++ = *tilesrc++;
-
 						if (g_allargs.translayer)
 						{
 							// emit exactly 2 words of mask
 							for (int p = 0; p < 2; p++)
 								*ptilespace++ = tile[7];
 						}
+
+						uword_t *tilesrc = tile;
+						for (int p = 0; p < tileplanes; p++)
+							*ptilespace++ = *tilesrc++;
 
 						tile += 8;
 					}
