@@ -3020,7 +3020,8 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 
 		// write tiles (n)
 		{
-			uword_t tilespace[32*(8*(32>>4))]; // worst: 32x32x8
+//			uword_t tilespace[32*(8*(32>>4))]; // worst: 32x32x8pl(*2mask)
+			uword_t tilespace[(32*32*8*2)>>3]; // worst: 32x32x8pl(*2mask)
 
 			int tileplanes = g_allargs.planes;
 

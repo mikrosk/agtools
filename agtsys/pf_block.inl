@@ -42,17 +42,17 @@ agt_inline void PR_fill_block_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, 
 	if (c_tilestep_ == 4)
 	{
 		if (c_twolayer_)
-			{ PR16m_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2); }
+			PR16m_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2);
 		else
-			{ PR16_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2); }
+			PR16_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2);
 	}
 	else
 	if (c_tilestep_ == 3)
 	{
 		if (c_twolayer_)
-			{ PR8m_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2); }
+			PR8m_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2);
 		else
-			{ PR8_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2); }
+			PR8_fill_block_direct(_mi, _mj, pi, pj, pi2, pj2);
 	}
 }
 

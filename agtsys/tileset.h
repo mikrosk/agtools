@@ -102,7 +102,7 @@ public:
 				palette_[c] = cols[c];
 			
 			// calculate words per tile
-			const s16 tilelinewords = tilesize_>>2;
+			const s16 tilelinewords = (tilesize_ * bitplanes_) >> (3+1);
 			s16 tilewords = tilelinewords * tilesize_;
 
 			// tiles with mask consume 2x the space (which may include padding in 16x16 case)

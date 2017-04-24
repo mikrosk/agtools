@@ -30,8 +30,6 @@ inline void PR8m_fill_specrow_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, 
 
 	u16* dstaddr = &framebuffer_[(pj * rowskipwords_) + (pjy1 * virtual_linewords_) + ((pi & -2) * c_tilelinewords_)];
 
-	s16 dstrowskip = (rowskipwords_ << 1);
-
 	__asm__ __volatile__ (
 #ifdef TIMING_RASTERS
 "												\
