@@ -232,7 +232,7 @@ int AGT_EntryPoint()
 	//	welcome message
 
 	printf("[A]tari [G]ame [T]ools / dml 2017\n");
-	printf("8x8 2-layer map with scroll & tile anim\n");
+	printf("8x8 2-layer map with scroll & map anim\n");
 
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	open scope before we create any interfaces (so we can expect them to be cleaned up before the scope is closed)
@@ -601,12 +601,21 @@ mainloop:
 				// tile indices 
 				// (pre-shifted into map format for 8x8 tilesize @ 4x8 = 32bytes per tile)
 				// note: the shift constant '5' can be found more properly using 'playfield_multiscroll_ste::c_tileshift_b_'
-				static s32 newtiles[] = 
+				static s32 newtiles_layer1[] = 
 				{ 
 					0<<5, 1<<5, 2<<5, 3<<5, 4<<5, 5<<5, 6<<5, 7<<5, 
 					8<<5, 9<<5, 10<<5, 11<<5, 12<<5, 13<<5, 14<<5, 15<<5, 
 					16<<5, 17<<5, 18<<5, 19<<5, 20<<5, 21<<5, 22<<5, 23<<5, 24<<5,
 					25<<5, 26<<5, 27<<5, 28<<5, 29<5, 30<<5, 31<<5, 32<<5, 33<<5,
+				};
+
+				// note: 2nd layer requires index preshift of (c_tileshift_b_ + 1) due to stored mask
+				static s32 newtiles_layer2[] = 
+				{ 
+					0<<6, 1<<6, 2<<6, 3<<6, 4<<6, 5<<6, 6<<6, 7<<6, 
+					8<<6, 9<<6, 10<<6, 11<<6, 12<<6, 13<<6, 14<<6, 15<<6, 
+					16<<6, 17<<6, 18<<6, 19<<6, 20<<6, 21<<6, 22<<6, 23<<6, 24<<6,
+					25<<6, 26<<6, 27<<6, 28<<6, 29<<6, 30<<6, 31<<6, 32<<6, 33<<6,
 				};
 
 				// update irregular block of tiles
@@ -621,10 +630,10 @@ mainloop:
 				// edit some rows in the base layer - stagger them just for fun
 				s16 yp2 = yp + 8;
 				for (s16 y = yp; y < yp2; y++)
-					myworld.multimod_row<PFLayer_Base>(y, y, 8, &newtiles[nanim]);
+					myworld.multimod_row<PFLayer_Base>(y, y, 8, &newtiles_layer1[nanim]);
 
 				// edit a moving rectangle on the top layer
-				myworld.multimod_rect<PFLayer_Overlay>(yp+4, (yp-4+(n&15)), 4, 4, &newtiles[nanim]);
+				myworld.multimod_rect<PFLayer_Overlay>(yp+4, (yp-4+(n>>3&15)), 4, 4, &newtiles_layer2[0]);
 			}
 
 			TIMING_MAIN(606);	

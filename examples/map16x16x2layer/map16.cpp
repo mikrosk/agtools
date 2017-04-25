@@ -230,7 +230,7 @@ int AGT_EntryPoint()
 	//	welcome message
 
 	printf("[A]tari [G]ame [T]ools / dml 2017\n");
-	printf("16x16 2-layer map with scroll & tile anim\n");
+	printf("16x16 2-layer map with scroll & map anim\n");
 
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	open scope before we create any interfaces (so we can expect them to be cleaned up before the scope is closed)
@@ -598,13 +598,22 @@ mainloop:
 
 				// tile indices 
 				// (pre-shifted into map format for 8x8 tilesize @ 4x8 = 32bytes per tile)
-				// note: the shift constant '5' can be found more properly using 'playfield_multiscroll_ste::c_tileshift_b_'
-				static s32 newtiles[] = 
+				// note: the shift constant '7' can be found more properly using 'playfield_multiscroll_ste::c_tileshift_b_'
+				static s32 newtiles_layer1[] = 
 				{ 
 					0<<7, 1<<7, 2<<7, 3<<7, 4<<7, 5<<7, 6<<7, 7<<7, 
 					8<<7, 9<<7, 10<<7, 11<<7, 12<<7, 13<<7, 14<<7, 15<<7, 
 					16<<7, 17<<7, 18<<7, 19<<7, 20<<7, 21<<7, 22<<7, 23<<7, 24<<7,
 					25<<7, 26<<7, 27<<7, 28<<7, 29<<7, 30<<7, 31<<7, 32<<7, 33<<7,
+				};
+
+				// note: 2nd layer requires index preshift of (c_tileshift_b_ + 1) due to stored mask
+				static s32 newtiles_layer2[] = 
+				{ 
+					0<<8, 1<<8, 2<<8, 3<<8, 4<<8, 5<<8, 6<<8, 7<<8, 
+					8<<8, 9<<8, 10<<8, 11<<8, 12<<8, 13<<8, 14<<8, 15<<8, 
+					16<<8, 17<<8, 18<<8, 19<<8, 20<<8, 21<<8, 22<<8, 23<<8, 24<<8,
+					25<<8, 26<<8, 27<<8, 28<<8, 29<<8, 30<<8, 31<<8, 32<<8, 33<<8,
 				};
 
 				// update irregular block of tiles
@@ -617,12 +626,12 @@ mainloop:
 				s16 yp = map_ytiles >> 2;
 
 				// edit some rows in the base layer - stagger them just for fun
-				s16 yp2 = yp + 6;
+				s16 yp2 = yp + 5;
 				for (s16 y = yp; y < yp2; y++)
-					myworld.multimod_row<PFLayer_Base>(y, y, 6, &newtiles[nanim]);
+					myworld.multimod_row<PFLayer_Base>(y, y, 5, &newtiles_layer1[nanim]);
 
 				// edit a moving rectangle on the top layer
-				myworld.multimod_rect<PFLayer_Overlay>(yp+4, (yp-4+(n&15)), 2, 2, &newtiles[nanim]);
+				myworld.multimod_rect<PFLayer_Overlay>(yp+4, (yp-4+(n>>3&15)), 3, 3, &newtiles_layer2[0]);
 			}
 
 			TIMING_MAIN(606);	
