@@ -9,10 +9,10 @@
         .globl 		___init_array_start
         .globl 		___fini_array_start
 
-        .section        .preinit_array,"",@progbits
+        .section        .preinit_array,"" |,@progbits
 ___preinit_array_start:
-        .section        .init_array,"",@progbits
+        .section        .init_array,"" |,@progbits
 ___init_array_start:
-        .section        .fini_array,"",@progbits
+        .section        .fini_array,"" |,@progbits
 ___fini_array_start:
 
