@@ -3853,18 +3853,20 @@ void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
 				} while (--y != -1);
 				break;
 			default:
-				do
 				{
 					s16 cc = (bdx - 2) - 1;
-					s16 *pd = dirtyline;
-					dirtyline += stride;
+					do
 					{
-						*pd++ |= em1;
-						s16 c = cc;
-						do { *pd++ = ~0; } while (--c != -1);
-						*pd++ |= em3;
-					}
-				} while (--y != -1);
+						s16 *pd = dirtyline;
+						dirtyline += stride;
+						{
+							*pd++ |= em1;
+							s16 c = cc;
+							do { *pd++ = ~0; } while (--c != -1);
+							*pd++ |= em3;
+						}
+					} while (--y != -1);
+				}
 				break;
 			}
 		}

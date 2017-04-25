@@ -1,6 +1,10 @@
 
 dst_linewid	set	184
 
+*	turn off 0(An) outer displacements for sized code indexing
+
+	.opt		"~o3"
+
 	.globl		_SYS_MapModInit
 
 *------------------------------------------------------------------------------*

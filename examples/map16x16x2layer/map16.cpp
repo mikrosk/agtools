@@ -619,7 +619,7 @@ mainloop:
 				// update irregular block of tiles
 				// note: prefer multimod_row/column/rect vs individual tile edits for speed!
 				// cycle through tile array with offset 0-7
-				s16 nanim = n & 7; 
+				s16 nanim = (n>>1) & 7; 
 				n++;
 				// animate tiles in centre of map
 				s16 xp = map_xtiles >> 2;

@@ -3,27 +3,37 @@
 
 ; a4,d0,d7,d6,a3,a5,a0,a2
 
-.macro	tile_pr16	offs,dst,src,dstpgw,dstpgh,tdst,tsrc
+.macro	tile_pr16	offs,dst,tmp,dstpgw,dstpgh,tdst,tsrc
 
 	lea		\offs*8(\dst),\tdst
 	lea		\offs*8(\dst,\dstpgh.l),a6
 
-	move.l		\src,\tsrc
-	
 	.rept		16
-	move.l		(\tsrc)+,\src
-	move.l		\src,(\tdst)+
-	move.l		\src,(a6)+
-	move.l		(\tsrc)+,\src
-	move.l		\src,(\tdst)+
-	move.l		\src,(a6)+
+	move.l		(\tsrc)+,\tmp
+	move.l		\tmp,(\tdst)+
+	move.l		\tmp,(a6)+
+	move.l		(\tsrc)+,\tmp
+	move.l		\tmp,(\tdst)+
+	move.l		\tmp,(a6)+
 	lea		dst_linewid-8(\tdst),\tdst
 	lea		dst_linewid-8(a6),a6
 	.endr
 
 	.endm
 
+.macro	do_block_inl
 
+	move.w		#$07f8,d0
+	and.w		d3,d0
+	beq.s		.blank\~	; early shortcut empty patterns
+	bsr		.do_block_2	; todo: could inline this if jumptable was in a register
+	bra.s		.cont\~
+.blank\~:
+	lea		-8*4(a0),a0
+	lea		-8*8(a4),a4
+.cont\~:	
+	.endm
+	
 *------------------------------------------------------------------------------*
 *	refresh only dirty tiles within rectangle pi,pj->pi2,pj2
 *	note: called either 1,2 or 4 times per frame dependent on layout & pos
@@ -229,13 +239,17 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	.endif
 
 	rol.l		#3,d3			; AB:BC:CD:DA
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 	ror.l		#8,d3			; DA:AB:BC:CD
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 	lsr.l		#8,d3			; 00:DA:AB:BC
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 	lsr.l		#8,d3			; 00:00:DA:AB
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 
 	lea		8*8*4(a4),a4
 	lea		8*4*4(a0),a0
@@ -282,11 +296,14 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	.endif
 
 	lsl.l		#3,d3
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 	lsr.l		#8,d3			; 00:xx:AA:BB
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 	lsr.l		#8,d3			; 00:00:xx:AA
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 
 	lea		8*8*3(a4),a4
 	lea		8*4*3(a0),a0
@@ -332,9 +349,11 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	.endif
 
 	lsl.l		#3,d3
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 	lsr.l		#8,d3			; xx:xx:00:BB
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 
 	lea		8*8*2(a4),a4
 	lea		8*4*2(a0),a0
@@ -380,7 +399,8 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	.endif
 
 	lsl.w		#3,d3
-	bsr		.do_block
+	do_block_inl
+;	bsr		.do_block
 
 	lea		8*8*1(a4),a4
 	lea		8*4*1(a0),a0
@@ -404,16 +424,16 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 
 *------------------------------------------------------------------------------*
 
-.macro	jtile_pr16	offs,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
+.macro	jtile_pr16	offs,dst,tmp,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
 
 	; address tile source
 
-	move.l		\tilesrc,\src		; tile library
-	add.l		\offs*4(\mapsrc),\src	; map index
+	move.l		\tilesrc,\tsrc		; tile library
+	add.l		\offs*4(\mapsrc),\tsrc	; map index
 
 	; plot tile to relevant vpage(s)
 
-	tile_pr16	\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
+	tile_pr16	\offs,\dst,\tmp,\dstpgw,\dstpgh,\tdst,\tsrc
 
 	.endm
 	
@@ -424,6 +444,21 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 *------------------------------------------------------------------------------*
 	move.w		#$07f8,d0
 	and.w		d3,d0
+	beq.s		.blank
+	lea		.jt(pc,d0.w),a5
+	move.l		(a5)+,-(sp)
+	move.l		(a5),a3
+	jsr		(a3)
+	rts
+.blank:	lea		-8*4(a0),a0
+	lea		-8*8(a4),a4
+	rts
+
+*------------------------------------------------------------------------------*
+.do_block_2:
+*------------------------------------------------------------------------------*
+*	schedule 2 patterns of 4 bits & execute
+*------------------------------------------------------------------------------*
 	lea		.jt(pc,d0.w),a5
 	move.l		(a5)+,-(sp)
 	move.l		(a5),a3

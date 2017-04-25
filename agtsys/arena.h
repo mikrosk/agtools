@@ -51,6 +51,9 @@ public:
 		
 	buffer buffers_[c_num_buffers_];
 
+	// todo: only single-field mapmod support so far
+	s16 **dirtymaskindex_[c_num_buffers_];
+
 	s16 buffer_index_;
 	s16 field_index_;
 	s16 dualfield_;
@@ -92,6 +95,9 @@ public:
 				buffers_[b].fields[0].setcontext(&mapctx0_, &pfctx_);
 				buffers_[b].fields[1].setcontext(&mapctx1_, &pfctx_);
 			}
+
+			//// shortcut to dirty tile masks
+			//dirtymaskindex_[b] = buffers_[b].fields[0].dirtymasklines_;
 		}
 	}
 	
@@ -250,6 +256,277 @@ public:
 
 	//
 
+	// todo: prototype version - move this stuff to 68k
+	agt_hotcode agt_inline void multitouch(s16 _x, s16 _y)
+	{
+		if (playfield_type::c_dynamic_)
+		{
+			u16 pattern = 0x8000 >> (_x & 7);
+			s16 xoffset = (_x >> 3);
+
+			if (c_num_buffers_ > 0)
+			{
+				s16 *dirtyline = (dirtymaskindex_[0])[_y];
+				dirtyline[xoffset] |= pattern;	
+			}
+
+			if (c_num_buffers_ > 1)
+			{
+				s16 *dirtyline = (dirtymaskindex_[1])[_y];
+				dirtyline[xoffset] |= pattern;	
+			}
+		}
+	}
+
+	// todo: prototype version - move this stuff to 68k
+	agt_hotcode void multitouch_row(s16 _x, s16 _y, s16 _dx)
+	{
+		if (playfield_type::c_dynamic_)
+		{
+			s16 *dirtyline0, *dirtyline1;
+			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
+
+			// find mask rectangle width
+			s16 bx1 = (_x & ~7);
+			s16 bx2 = (_x + _dx + 7) & ~7;
+			s16 bdx = (bx2 - bx1) >> 3;
+
+			// we can deal with 8,16,24,32-wide tile bitmasks
+			if ((bdx > 0)/* && (bdx < 4)*/)
+			{				
+				// access mask buffer
+				s16 xoffset = (_x >> 3);
+				s16 stride = dirtymaskwidth;
+
+				// generate endmasks for all cases
+				u16 em1 = (0xffff >> (_x & 7));
+				u16 em3 = (0xffff0000UL >> (((_x + _dx - 1) & 7) + 1));
+
+				if (c_num_buffers_ > 0)
+					dirtyline0 = (dirtymaskindex_[0])[_y] + xoffset;
+				if (c_num_buffers_ > 1)
+					dirtyline1 = (dirtymaskindex_[1])[_y] + xoffset;
+
+				switch (bdx)
+				{
+				case 1:
+					em1 &= em3;
+					{
+						if (c_num_buffers_ > 0)
+							dirtyline0[0] |= em1;
+						if (c_num_buffers_ > 1)
+							dirtyline1[0] |= em1;
+					}
+					break;
+				case 2:
+					{
+						if (c_num_buffers_ > 0)
+						{
+							dirtyline0[0] |= em1;
+							dirtyline0[1] |= em3;
+						}
+						if (c_num_buffers_ > 1)
+						{
+							dirtyline1[0] |= em1;
+							dirtyline1[1] |= em3;
+						}
+					}
+					break;
+				case 3:
+					{
+						if (c_num_buffers_ > 0)
+						{
+							dirtyline0[0] |= em1;
+							dirtyline0[1] = ~0;
+							dirtyline0[2] |= em3;
+						}
+
+						if (c_num_buffers_ > 1)
+						{
+							dirtyline1[0] |= em1;
+							dirtyline1[1] = ~0;
+							dirtyline1[2] |= em3;
+						}
+					}
+					break;
+				default:
+					{
+						if (c_num_buffers_ > 0)
+							*dirtyline0++ |= em1;
+						if (c_num_buffers_ > 1)
+							*dirtyline1++ |= em1;
+
+						s16 c = (bdx - 2) - 1;
+						do { 
+							if (c_num_buffers_ > 0)
+								*dirtyline0++ = ~0; 
+							if (c_num_buffers_ > 1)
+								*dirtyline1++ = ~0; 
+						} while (--c != -1);
+
+						if (c_num_buffers_ > 0)
+							*dirtyline0++ |= em3;
+						if (c_num_buffers_ > 1)
+							*dirtyline1++ |= em3;
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	// todo: prototype version - move this stuff to 68k
+	agt_hotcode agt_inline void multitouch_column(s16 _x, s16 _y, s16 _dy)
+	{
+		if (playfield_type::c_dynamic_)
+		{
+			s16 *dirtyline0, *dirtyline1;
+			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
+
+			// update dirty mask
+			u16 pattern = 0x8000 >> (_x & 7);
+			s16 xoffset = (_x >> 3);
+			s16 stride = dirtymaskwidth;
+
+			if (c_num_buffers_ > 0)
+				dirtyline0 = dirtymaskindex_[0][_y] + xoffset;
+			if (c_num_buffers_ > 1)
+				dirtyline1 = dirtymaskindex_[1][_y] + xoffset;
+
+			s16 y = _dy-1;
+			do
+			{
+				if (c_num_buffers_ > 0)
+				{ *dirtyline0 |= pattern; dirtyline0 += stride; }
+				if (c_num_buffers_ > 1)
+				{ *dirtyline1 |= pattern; dirtyline1 += stride; }
+
+			} while (--y != -1);
+		}
+	}
+
+	// todo: prototype version - move this stuff to 68k
+	agt_hotcode void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy)
+	{
+		if (playfield_type::c_dynamic_)
+		{
+
+			s16 *dirtyline0, *dirtyline1;
+			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
+
+			// find mask rectangle width
+			s16 bx1 = (_x & ~7);
+			s16 bx2 = (_x + _dx + 7) & ~7;
+			s16 bdx = (bx2 - bx1) >> 3;
+
+			// we can deal with 8,16,24,32-wide tile bitmasks
+			if ((bdx > 0)/* && (bdx < 4)*/)
+			{				
+				// access mask buffer
+				s16 xoffset = (_x >> 3);
+				s16 stride = dirtymaskwidth;
+
+				// generate endmasks for all cases
+				u16 em1 = (0xffff >> (_x & 7));
+				u16 em3 = (0xffff0000UL >> (((_x + _dx - 1) & 7) + 1));
+
+				if (c_num_buffers_ > 0)
+					dirtyline0 = (dirtymaskindex_[0])[_y] + xoffset;
+				if (c_num_buffers_ > 1)
+					dirtyline1 = (dirtymaskindex_[1])[_y] + xoffset;
+
+				s16 y = _dy-1;
+
+				switch (bdx)
+				{
+				case 1:	
+					em1 &= em3;
+					do
+					{
+						if (c_num_buffers_ > 0)
+						{ dirtyline0[0] |= em1; dirtyline0 += stride; }
+						if (c_num_buffers_ > 1)
+						{ dirtyline1[0] |= em1; dirtyline1 += stride; }
+
+					} while (--y != -1);
+					break;
+				case 2:
+					do
+					{
+						if (c_num_buffers_ > 0)
+						{
+							dirtyline0[0] |= em1;
+							dirtyline0[1] |= em3;
+							dirtyline0 += stride;
+						}
+						if (c_num_buffers_ > 1)
+						{
+							dirtyline1[0] |= em1;
+							dirtyline1[1] |= em3;
+							dirtyline1 += stride;
+						}
+					} while (--y != -1);
+					break;
+				case 3:
+					do
+					{
+						if (c_num_buffers_ > 0)
+						{
+							dirtyline0[0] |= em1;
+							dirtyline0[1] = ~0;
+							dirtyline0[2] |= em3;
+							dirtyline0 += stride;
+						}
+
+						if (c_num_buffers_ > 1)
+						{
+							dirtyline1[0] |= em1;
+							dirtyline1[1] = ~0;
+							dirtyline1[2] |= em3;
+							dirtyline1 += stride;
+						}
+					} while (--y != -1);
+					break;
+				default:
+					{
+						s16 *pd0;
+						s16 *pd1;
+
+						s16 cc = (bdx - 2) - 1;
+						do
+						{
+							if (c_num_buffers_ > 0)
+							{ pd0 = dirtyline0; dirtyline0 += stride; }
+							if (c_num_buffers_ > 1)
+							{ pd1 = dirtyline1; dirtyline1 += stride; }
+
+							if (c_num_buffers_ > 0)
+								*pd0++ |= em1;
+							if (c_num_buffers_ > 1)
+								*pd1++ |= em1;
+
+							s16 c = cc;
+							do { 							
+								if (c_num_buffers_ > 0)
+									*pd0++ = ~0; 
+								if (c_num_buffers_ > 1)
+									*pd1++ = ~0;  
+							} while (--c != -1);
+
+							if (c_num_buffers_ > 0)
+								*pd0++ |= em3;
+							if (c_num_buffers_ > 1)
+								*pd1++ |= em3;
+
+						} while (--y != -1);
+					}
+					break;
+				}
+			}
+		}
+	}
+
+#if (0)
 	// signal multiple map tiles modified before next refresh: single tile at a time
 	// note: no dualfield support yet - will implement shared dualfield maps first
 	void multitouch(s16 _x, s16 _y)
@@ -306,6 +583,7 @@ public:
 			//	rb.fields[1].multitouch_rect(_x, _y, _dx, _dy);
 		} while (--b != -1);
 	}
+#endif
 
 	//
 
@@ -320,14 +598,16 @@ public:
 		mapctx0_.multimod<_layercode>(_x, _y, rawidx);
 //		mapctx1_.multimod(_x, _y, rawidx); // todo: eliminate dualfield maps!
 
+		multitouch(_x, _y);
+
 		// mark element on all active fields
-		s16 b = c_num_buffers_-1;
-		do {
-			buffer& rb = buffers_[b];
-			rb.fields[0].multitouch(_x, _y);
-			//if (dualfield_)
-			//	rb.fields[1].multitouch(_x, _y);
-		} while (--b != -1);		
+		//s16 b = c_num_buffers_-1;
+		//do {
+		//	buffer& rb = buffers_[b];
+		//	rb.fields[0].multitouch(_x, _y);
+		//	//if (dualfield_)
+		//	//	rb.fields[1].multitouch(_x, _y);
+		//} while (--b != -1);		
 	}
 
 	// modify multiple map tiles before next refresh: single tile at a time
@@ -339,14 +619,16 @@ public:
 		mapctx0_.multimod<_layercode>(_x, _y, _rawidx);
 //		mapctx1_.multimod(_x, _y, _rawidx); // todo: eliminate dualfield maps!
 
-		// mark element on all active fields
-		s16 b = c_num_buffers_-1;
-		do {
-			buffer& rb = buffers_[b];
-			rb.fields[0].multitouch(_x, _y);
-			//if (dualfield_)
-			//	rb.fields[1].multitouch(_x, _y);
-		} while (--b != -1);
+		multitouch(_x, _y);
+
+		//// mark element on all active fields
+		//s16 b = c_num_buffers_-1;
+		//do {
+		//	buffer& rb = buffers_[b];
+		//	rb.fields[0].multitouch(_x, _y);
+		//	//if (dualfield_)
+		//	//	rb.fields[1].multitouch(_x, _y);
+		//} while (--b != -1);
 	}
 
 	// modify multiple map tiles before next refresh: map row
@@ -358,14 +640,16 @@ public:
 		mapctx0_.multimod_row<_layercode>(_x, _y, _dx, _source);
 //		mapctx1_.multimod_row(_x, _y, _dx, _source); // todo: eliminate dualfield maps!
 
-		// mark row on all active fields
-		s16 b = c_num_buffers_-1;
-		do {
-			buffer& rb = buffers_[b];
-			rb.fields[0].multitouch_row(_x, _y, _dx);
-			//if (dualfield_)
-			//	rb.fields[1].multitouch_row(_x, _y, _dx);
-		} while (--b != -1);
+		multitouch_row(_x, _y, _dx);
+
+		//// mark row on all active fields
+		//s16 b = c_num_buffers_-1;
+		//do {
+		//	buffer& rb = buffers_[b];
+		//	rb.fields[0].multitouch_row(_x, _y, _dx);
+		//	//if (dualfield_)
+		//	//	rb.fields[1].multitouch_row(_x, _y, _dx);
+		//} while (--b != -1);
 	}
 
 	// modify multiple map tiles before next refresh: map column
@@ -376,14 +660,16 @@ public:
 		mapctx0_.multimod_column<_layercode>(_x, _y, _dy, _source);
 //		mapctx1_.multimod_column(_x, _y, _dy, _source); // todo: eliminate dualfield maps!
 
-		// mark column on all active fields
-		s16 b = c_num_buffers_-1;
-		do {
-			buffer& rb = buffers_[b];
-			rb.fields[0].multitouch_column(_x, _y, _dy);
-			//if (dualfield_)
-			//	rb.fields[1].multitouch_column(_x, _y, _dy);
-		} while (--b != -1);
+		multitouch_column(_x, _y, _dy);
+
+		//// mark column on all active fields
+		//s16 b = c_num_buffers_-1;
+		//do {
+		//	buffer& rb = buffers_[b];
+		//	rb.fields[0].multitouch_column(_x, _y, _dy);
+		//	//if (dualfield_)
+		//	//	rb.fields[1].multitouch_column(_x, _y, _dy);
+		//} while (--b != -1);
 	}
 
 	// modify multiple map tiles before next refresh: map rectangle
@@ -394,14 +680,16 @@ public:
 		mapctx0_.multimod_rect<_layercode>(_x, _y, _dx, _dy, _source);
 		//mapctx1_.multimod_rect(_x, _y, _dx, _dy, _source); // todo: eliminate dualfield maps!
 
-		// mark rect on all active fields
-		s16 b = c_num_buffers_-1;
-		do {
-			buffer& rb = buffers_[b];
-			rb.fields[0].multitouch_rect(_x, _y, _dx, _dy);
-			//if (dualfield_)
-			//	rb.fields[1].multitouch_rect(_x, _y, _dx, _dy);
-		} while (--b != -1);
+		multitouch_rect(_x, _y, _dx, _dy);
+
+		//// mark rect on all active fields
+		//s16 b = c_num_buffers_-1;
+		//do {
+		//	buffer& rb = buffers_[b];
+		//	rb.fields[0].multitouch_rect(_x, _y, _dx, _dy);
+		//	//if (dualfield_)
+		//	//	rb.fields[1].multitouch_rect(_x, _y, _dx, _dy);
+		//} while (--b != -1);
 	}
 
 	//
@@ -574,6 +862,9 @@ public:
 			rb.fields[0].init(b, 0, display_width_, display_height_, x, y);
 			if (dualfield_)
 				rb.fields[1].init(b, 1, display_width_, display_height_, x, y);
+
+			// shortcut to dirty tile masks
+			dirtymaskindex_[b] = buffers_[b].fields[0].dirtymasklines_;
 		}
 		
 		select_buffer(buffer_index_, 0);
