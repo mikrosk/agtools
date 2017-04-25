@@ -47,7 +47,7 @@ LINK_MINIMAL=yes
 # =============================================================================
 #       Build configurations
 # =============================================================================
-USE_CFG=testing
+USE_CFG=release
 # -----------------------------------------------------------------------------
 # Notes:
 #       debug	= Limit optimization & extra debug info
@@ -137,12 +137,12 @@ COMPILERDEFS += \
 # -----------------------------------------------------------------------------
 
 COMPILERDEFS += \
-		-DAGT_CONFIG_PRINT_PLAYFIELD_METRICS \
 #		-DAGT_CONFIG_SAFETY_CHECKS \
 #		-DAGT_CONFIG_DEBUG_CONSOLE \
 #		-DAGT_CONFIG_DEBUGDRAW \
 #		-DAGT_CONFIG_STEEM_DEBUG \
 #		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
+#		-DAGT_CONFIG_PRINT_PLAYFIELD_METRICS \
 #		-DUSE_MEMTRACE \
 
 # -----------------------------------------------------------------------------

@@ -5,5 +5,5 @@
 
 # cut background map & tiles
 
-../../bin/agtcut -vis -cm tiles -ts 8 -t 0.0 -ccf 1 -bp 4 -om direct -s map-2.png -o map8x8.cct -p chunky8.ccs
+../../bin/agtcut -vis -cm tiles -ts 8 -t 0.0 -ccf 1 -bp 4 -om direct -s map-2.png -o map.cct -p chunky8.ccs
 

@@ -11,7 +11,7 @@
 //		- scrolling region clamped to upper-left of map, just to show tile animation.
 //		- sample map produces 2200 unique 8x8 tiles = 140,800 pixels stored.
 //		- map itself is 1600x1104 = 1,766,400 pixels.
-//		- tiles are animated using calls to multimod_row() with changing tile indices.
+//		- tiles are animated using calls to multimod_row/rect() with changing tile indices.
 //		- tile animation support is enabled by "/*dynamic=*/true" playfield parameter - low overhead if no tiles change.
 //		- must pass "/*mapaddr=*/s32" playfield parameter to enable 32bit map indexing when using maps containing
 //		  more than 32768 tiles total, by x*y measurement (otherwise defaults to s16 for 16bit addressing).
@@ -203,12 +203,10 @@ entity_t *g_pe_viewport = NULL;
 // sprite assets
 
 // playfield tile assets (x2 in dual-field mode)
-tileset mytiles0;
-tileset mytiles1;
+tileset mytiles;
 
 // playfield map assets (x2 in dual-field mode)
-worldmap mymap0;
-worldmap mymap1;
+worldmap mymap;
 
 // =====================================================================================================================
 // =====================================================================================================================
@@ -237,7 +235,7 @@ int AGT_EntryPoint()
 	//	welcome message
 
 	printf("[A]tari [G]ame [T]ools / dml 2017\n");
-	printf("8x8 tilemap with scrolling & tile animation (STE)\n");
+	printf("8x8 tilemap with scroll & tile anim\n");
 
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	open scope before we create any interfaces (so we can expect them to be cleaned up before the scope is closed)
@@ -290,22 +288,22 @@ int AGT_EntryPoint()
 		//	load map tiles
 
 		printf("loading tiles...\n");
-		mytiles0.load_cct("map8x8.cct");
+		mytiles.load_cct("map.cct");
 
 #if defined(TIMING_RASTERS_MAIN)
 		// save copy of BG colour for rasters
-		s16 bgcol = mytiles0.getcol(0);
+		s16 bgcol = mytiles.getcol(0);
 #endif
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	load map
 		
 		printf("loading map...\n");
-		mymap0.load_ccm("map8x8.ccm");
+		mymap.load_ccm("map.ccm");
 
 		// get map tile dimensions (x16 -> in pixels) to help keep scroll inside the map limits
-		int map_xtiles = mymap0.getwidth();
-		int map_ytiles = mymap0.getheight();
+		int map_xtiles = mymap.getwidth();
+		int map_ytiles = mymap.getheight();
 		int map_xsize = map_xtiles << playfield_multiscroll_ste::c_tilestep_;
 		int map_ysize = map_ytiles << playfield_multiscroll_ste::c_tilestep_;
 
@@ -316,8 +314,8 @@ int AGT_EntryPoint()
 		g_fscrolly = c_scroll_safety_margin<<16;//(map_ysize<<(16-1)) - (120<<16);
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
-		g_map_fxlimit = (map_xsize-320-c_scroll_safety_margin)<<16;
-		g_map_fylimit = (map_ysize-SCREEN_LINES-c_scroll_safety_margin)<<16;
+		g_map_fxlimit = ((map_xsize/2)-320-c_scroll_safety_margin)<<16;
+		g_map_fylimit = ((map_ysize/2)-SCREEN_LINES-c_scroll_safety_margin)<<16;
 
 
 		// ---------------------------------------------------------------------------------------------------------------------
@@ -332,7 +330,7 @@ int AGT_EntryPoint()
 		//	A: because in dual-field mode each display field can have a different (dithered) tile library
 	
 		printf("assigning world map...\n");
-		myworld.setmap(&mymap0, &mymap0);
+		myworld.setmap(&mymap, &mymap);
 
 		pprintf("assigning world tiles...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
@@ -340,7 +338,7 @@ int AGT_EntryPoint()
 			myworld.select_buffer(b,0);
 			pprintf("assigning buffer %d world tileset...\n", b);
 
-			myworld.settiles(&mytiles0, &mytiles0);
+			myworld.settiles(&mytiles, &mytiles);
 		}
 
 		// ---------------------------------------------------------------------------------------------------------------------
@@ -393,12 +391,12 @@ int AGT_EntryPoint()
 		for (s16 c = 0; c < 16; ++c)
 		{
 			// logic (next)
-			shift.setcolour(0, 0, c, mytiles0.getcol(c));
-			shift.setcolour(0, 1, c, mytiles0.getcol(c));	// only needed in dual-field mode
+			shift.setcolour(0, 0, c, mytiles.getcol(c));
+			shift.setcolour(0, 1, c, mytiles.getcol(c));	// only needed in dual-field mode
 
 			// physic (current)
-			shift.setcolour(1, 0, c, mytiles0.getcol(c));
-			shift.setcolour(1, 1, c, mytiles0.getcol(c));	// only needed in dual-field mode
+			shift.setcolour(1, 0, c, mytiles.getcol(c));
+			shift.setcolour(1, 1, c, mytiles.getcol(c));	// only needed in dual-field mode
 		}
 
 		s16 buffer_index = 0;
@@ -615,12 +613,13 @@ mainloop:
 				s16 nanim = n & 7; 
 				n++;
 				// animate tiles in centre of map
-				s16 xp = map_xtiles >> 1;
-				s16 yp = map_ytiles >> 1;
+				s16 xp = map_xtiles >> 2;
+				s16 yp = map_ytiles >> 2;
+
 				// animate staggered rows just for fun
 				s16 yp2 = yp + 10;
 				for (s16 y = yp; y < yp2; y++)
-					myworld.multimod_row(y, y, 10, &newtiles[nanim]);
+					myworld.multimod_row<PFLayer_Base>(y, y, 10, &newtiles[nanim]);
 			}
 
 			TIMING_MAIN(606);	
