@@ -503,15 +503,28 @@ get forcibly remapped to a new palette before outputting as 4-bit)
 
 -vis, --visual
 
-Emit <outfile>_vis.tga for spritesheets, showing exactly what got cut, and what
+For spritesheets:
+
+Emits <outfile>_vis.tga for spritesheets, showing exactly what got cut, and what
 the cut graphics will look like when rendered in the engine.
 
 This shortcuts the need to run the game engine to check sprites, and annoying
 engine crashes which may result if the frame count wasn't defined correctly!
 
-For sprites, the image is emitted as a vertical strip, with the first frame at
-the top, in the target colour depth. For tile mode, the image corresponds to
-the extractd map in the target colour depth.
+The image is emitted as a vertical strip, with the first frame at the top, in
+the target colour depth & palette. 
+
+For tilemaps:
+
+Emits two .tga files corresponding to the to the extracted map, in the target
+colour depth and palette.
+
+<outfile>_mapvis.tga shows the map itself.
+
+<outfile>_index.tga shows the tile indices used to construct the map.
+
+See --tiletags for a better means to identify/enumerate tiles of interest by
+highlighting tiles from a .csv table of indices.
 
 
 ===============================================================================
