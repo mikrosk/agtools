@@ -539,7 +539,7 @@ static void usage(int level)
 	std::cout << " -cm, --cutmode       > cutting mode: tiles,imspr,emspr,emxspr,slabs,slabrestore" << std::endl;
 	std::cout << " -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
 	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
-	std::cout << " -crn, --colrenorm    > renormalise source image to quantised rgb: 1-255" << std::endl;
+	std::cout << " -crn, --colrenorm    > renormalise quantised source RGB to 8bit RGB: 1-255" << std::endl;
 	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
 	std::cout << " -key, --key-colour   > colour index assumed to be transarent: 0-255" << std::endl;
 	std::cout << " -keyrgb, --key-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
@@ -547,6 +547,7 @@ static void usage(int level)
 	std::cout << " -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
 	std::cout << " -nr, --no-remap      > prevent remapping of 8bit images (to 4bit), use first 16 colours only" << std::endl;
 	std::cout << " -fr, --force-remap   > force remapping of 8bit images (to 4bit) so --key-rgb is usable" << std::endl;
+	std::cout << " -vis, --visual       > provide feedback/visualisation of cut assets as .tga file" << std::endl;
 	std::cout << std::endl;
 	std::cout << "sprite cutting mode:" << std::endl;
 	std::cout << " -sxp, --sprxpos      > first frame xpos: 0+" << std::endl;
@@ -564,14 +565,13 @@ static void usage(int level)
 	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar,preshift" << std::endl;
 	std::cout << " -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
 	std::cout << " -qc, --quickcut      > improve cutting speed (reduce optimization) for quicker test/debug turnaround" << std::endl;
-	std::cout << " -vis, --visual       > provide feedback/visualisation of cut assets as .tga file" << std::endl;
 	std::cout << " -ccr                 > cryptochrome colour field remapping: both,high,low" << std::endl;
 	std::cout << " -prv, --preview      > show ASCII preview of extracted colours + masking" << std::endl;
 	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;
 	std::cout << " -emxopt, --emx-opt   > optimization level for EMX mask delta elimination" << std::endl;
 	std::cout << std::endl;
 	std::cout << "map & tile cutting mode:" << std::endl;
-	std::cout << " -ts, --tilesize      > tile size (rbplus mode only): 8,16,32" << std::endl;
+	std::cout << " -ts, --tilesize      > tile size: 8,16,32" << std::endl;
 	std::cout << " -ttags, --tiletags   > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
 	std::cout << " -t, --tol            > tile matching tolerance: 0.0+" << std::endl;
 	std::cout << " -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;

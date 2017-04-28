@@ -301,7 +301,7 @@ then failing to use -o can cause your source image to be overwritten.
 
 Specify cutting mode. This does affect which other switches make sense...
 
- [sprites]
+ [imspr]
  
  Cut sprite frames from a single image, in column,row order as a grid (or just
  a single row, or just a single column). Size and spacing of each cell is set
@@ -333,11 +333,40 @@ Specify cutting mode. This does affect which other switches make sense...
  Slabs can not contain interior holes but they can have an irregular vertical
  outline. A large circular graphic would encode well as a slab. Small objects,
  tall thin objects or wider objects with interior holes are better as sprites.
+
+ [slabrestore]
  
+ Similar to slabs but produces an optimised background-restore contour which
+ can be used to reduce the cost of restoring map graphics behind a slab.
+ When creating a slab asset for drawing in the game code, you can bind a
+ slab and a slabrestore asset into an asset-pair, which the engine will then
+ use as a single asset.
+ Without a slabrestore definition, slabs must restore background using a
+ normal bounding rectangle, which can be quite large!
+  
  [tiles]
  
  Cut background tiles & map index grid from an image. Optionally performs tile
  library optimization based on visual similarity between tiles.
+ Note that similar-tile optimisation is not generally a good idea when you
+ want stable tile indices e.g. for map animation so it defaults off.
+
+
+-ccf, --ccfields <num>
+
+Specify 1- or 2- field rendering for backgrounds. Similar to tile cutting mode
+in the PCS tool. Outputs two sets of .ccm (map) and .cct (tile library) files
+which are intended to be dislpayed on odd/even fields at 50hz.
+
+The 2nd set is equivalent to the 1st with the opposite dither pattern applied.
+
+When left at the default (1-field), only the first set is emitted and it will 
+not use the 2x2 dither which gets applied automatically in 2-field mode.
+
+Note that you can specify 2-field mode to produce dithered graphics, keeping
+only one .cct/.ccm set from the pair for use ingame (discarding the other). 
+
+Default: 1
 
 
 -p -pal <file>
@@ -350,64 +379,302 @@ Note that colour reduction is only performed if the source image is not already
 indexed colour (4 or 8bit BMP or PNG) or if the indexed source image has more
 colours than will fit in the specified number of output bitplanes.
 
+Note also that -fr and -nr switches can be used to override the automatic logic
+which determines when to reduce/remap source images to a new palette.
 
--b --bitplanes <num>
+
+-crn, --colrenorm <range 1-255>
+
+Renormalise quantised source RGB to 8bit RGB.
+
+This should be used to 'correct' source images into the range 0-255 when they
+originate from a quantised colour source. e.g. a 16-colour Atari image when
+captures (screenshot or direct export) can often be in the range 0-224 since
+the maximum value for white is 15,15,15 on Atari and this becomes 15<<4 or
+244 when shifted into 8bit. This shift-based conversion results in colour
+remapping errors during colour reduction, and the converted graphics are
+adversely affected.
+
+The palette and remapping summary automatically produced by the tool will
+usually help identify when this is really needed.
+
+
+-bp --bitplanes <num>
 
 Specify the number of output bitplanes. Typically 4 for STF/STE or 8 for Falcon
 but other depths can be set.
 
+Note: while this is used by the file format output modules it is not yet properly
+supporting any depth other than 4, at least for palette and colour processing.
+
 
 -key --key-colour <index>
 
-Specify the transparent index colour, for source graphics which are already in
-indexed colour format (i.e. the colour indices are known in advance). You can
-also use this with the builtin colour-reduction but since the resulting colour
-indices can change if the palette changes, it might be tricky to keep track of.
+Specify the transparent (or key) colour index.
 
-A separate option is provided for colour-reduction mode (see --keyrgb) which
-helps deal with this.
+This is used in more than one situation. Generally speaking it is the source
+colour index which will be converted into a mask for graphics requiring masks.
 
-Note that the preview mode (-prv) can help identify which colour index is being
-used for the area around sprites, as a guide to setting -key.
+It is mainly used to select the transparent/mask colour for source graphics
+which are already in indexed colour format - i.e. the colour indices are known
+in advance and which are not to be changed - either because the source graphic
+is already in the target colour depth or the --no-remap option is used with
+e.g. an 8bit source image to interpret existing colour indices as they are. 
+
+However it is also used as the temporary transparent colour index in 8-bit
+space when converting images from truecolour - or any other colour remapping
+which may be taking place. In this case it will normally specifiy a high,
+unused index e.g. 255.
+
+A separate option is provided specifically for colour-reduction mode
+(see --keyrgb) which allows you to map RGB values (e.g. magenta) to the mask
+without dealing with colour indices directly. This is normally enough to deal
+with transparency in high-bitdepth source images.
+
+Note that the preview mode (-prv) can help identify which pixels are being
+mapped to the mask (and if things go wrong, the colour index of the pixels
+which were supposed to be mask, but ended up solid). This can be used as a
+guide for setting -key with indexed source art.
+
+The builtin default is 255.
 
 
 -keyrgb --key-rgb <RR:GG:BB>
 
-Same as -key, but the colour is specified as R,G,B in hex. So to specify 
-magenta as transparent you would use: 
+Same meaning as -key, but the colour is specified as R,G,B in hex. So to
+specify  magenta as transparent you would use: 
 
 	-keyrgb FF:00:FF
 
-Since this can result in TWO colours being transparent (the -key index, and
-the --keyrgb colour) it is normally a good idea to specify an unused key index
-when using this option e.g.
+Caution:
 
-	-keyrgb FF:00:FF -key 99
+Since this can result in TWO colours being transparent for 8bit sources 
+(the -key index, and the --keyrgb colour being converted to that index) there
+*may* be rare occasions when you have to set both, depending on the source art
+(e.g. colour 255 is used, and is solid, but 128 is 'free').
 
-This will ensure the 'post-reduced' colour index 0 is not also treated as
-transparent and produce unwanted holes...
+	-keyrgb FF:00:FF -key 128
+	
+However the builtin default of 255 for -key is usually safe to leave as-is.
+
+This shouldn't be an issue with truecolour source images since there are no
+existing indices to create a conflict.
 
 
 -kg --key-guard
 
-Makes the colour reducer extra sensitive to the key colour, such that it will
-avoid reducing nearby colours to the key colour (and accidentally making some
-transparent holes that aren't in the source image). It can still reduce colours
-to the key colour but only if they are within a very near tolerance.
+Makes the colour reducer extra sensitive to the -key/-keyrgb colour, such that
+it will avoid reducing nearby colours to the key colour and so accidentally
+create some transparent holes that aren't in the source image. It can still
+reduce colours to the key colour but only if they are within a very specific
+tolerance. Non-key colours will be preferred if not a close match. This is
+quite important when you have colours in your images quite close to the key
+colour (e.g. if you have solid dark greys and the key is black).
 
 See --key-tol for setting the tolerance.
 
 
 -kt --key-tol <0.0+>
 
-Specify the tolerance for matching the transparent/key colour.
+Specify the tolerance for matching the transparent/key colour, to be used with
+--key-guard.
 
 Default: 0.01
+
+
+-nr, --no-remap
+
+Prevent remapping of 8bit images (or any indexed images > output bitdepth)
+which would normally be automatically remapped to fit the bitdepth.
+
+e.g. an 8bit source image will normally be remapped to 4bits for output, where
+a 4bit source image would not - the indices will be used directly. 
+
+This option will result in the lower (e.g.) 4 bits of the 8-bit source image
+being interpreted literally, discarding any higher colours.
+
+
+-fr. --force-remap
+
+This is the opposite of --no-remap. It forces the remapping of images when
+they are already within the target bitdepth (e.g. 4-bit source images will
+get forcibly remapped to a new palette before outputting as 4-bit)
+
+
+-vis, --visual
+
+Emit <outfile>_vis.tga for spritesheets, showing exactly what got cut, and what
+the cut graphics will look like when rendered in the engine.
+
+This shortcuts the need to run the game engine to check sprites, and annoying
+engine crashes which may result if the frame count wasn't defined correctly!
+
+For sprites, the image is emitted as a vertical strip, with the first frame at
+the top, in the target colour depth. For tile mode, the image corresponds to
+the extractd map in the target colour depth.
 
 
 ===============================================================================
 Summary: Sprite/Slab Options
 ===============================================================================
+
+
+-sxp, --sprxpos
+-syp, --sprypos
+
+Specify the starting x,y position for cutting frames from the spritesheet.
+This will be the top-left corner of the first frame in the sprite sequence.
+
+
+-sxs, --sprxsize
+-sys, --sprysize
+
+Specify the size of a sprite frame in this sequence. All frames will have the
+same 'size' and no pixels will be cut from the area outside of the frame.
+
+However, the cutter will only store (and later, draw) 'used' pixels where it
+can, and encodes offsets in the sprite data to make up for the gaps. So a
+large transparent frame with a small solid area inside will not cost extra
+memory or drawing time.
+
+This provides a convenient way to cut animation frames with varying size 
+between frames.
+
+
+-sxi, --sprxinc
+-syi, --spryinc
+
+Horizontal step (spacing) between sprite frames on a single row. This is the
+distance between the top-left corner of one frame and the top-left corner of
+the next.
+
+Note: Sprites are cut left-to-right, top-to-bottom, but you can still cut a
+single row or a single column.
+
+
+-sxc, --sprxcount
+-syc, --sprycount
+
+Specify the number of frames on a row, and the number of rows. 
+
+e.g. you can cut a single row by specifying '-sxc <num>, syc 1'
+e.g. you can cut a single column by specifying '-sxc 1, syc <num>'
+
+
+-sc, --sprcount <num>
+
+If you are cutting from a W x H grid of sprites but don't want to cut every
+frame from the grid (say, the last row only has a few frames on it) you can
+cap the total number of frames cut using this option. This will stop the
+cutting early and could save a bit of memory on unwanted empty frames.
+
+
+-sm, --sprmap <to:from:flags>
+
+Map a non-existent frame in the source sequence to an existing one with some
+optional transformations applied. This is used mainly to provide flips and
+rotations for sprite frames which are not present in the source image.
+
+to: 	the missing frame to be mapped
+from:	the existing frame to use as the source
+flags:	optional transformations to apply
+
+e.g. a typical layout for 4 frames on the source image...
+
+	[A] [B] [C] [D]
+
+...being cut as usual from left-to-right...
+
+	-sc 4
+
+...would cut a normal 4-frame sequence. But extending this...
+
+	-sc 6 -sm 4:2:y -sm 5:1:xy
+
+
+...would cut the same 4 frames, but add 2 new frames to the sequence at frame
+#4 (5th frame) and #5 (6th frame). Frame #4 would be a copy of frame #2, with
+y-flip applied. Frame #5 would be a copy of frame #1, with x & y-flips applied.
+
+
+So the resulting sprite sequence would be (where <^ means x,y flipped):
+
+	[A] [B] [C] [D] [<C] [<^B]
+	
+
+Using this notation, it is possible to cut a sprite with 360' rotation in four
+quadrants, when only one quadrant is present in the source image.
+
+Note: It's usually better practice to make sure the source image contains all
+the frames required. However when working with ripped (e.g. arcade) art, it
+can be useful to leave the spritesheet unmodified. There are also a few useful
+optimizations which could be done by the cutting tool later if it knows a 
+frame is a flipped copy of another - storing metadata for the frame instead of
+pixels (and let the engine do the flip).
+
+
+-gm, --gen-mask
+
+Generate explicit masks from the -key and --keyrgb transparent colours when
+emitting IMSPR format sprites. This is needed on STE using blitter sprites. 
+
+(This is now the default, and so redundant)
+
+
+-nogm, --no-gen-mask
+
+Prevent the generation of explicit masks from the -key and --keyrgb transparent
+colours when emitting IMSPR format sprites. This is required for STF sprite
+routines which assume implicit masking of colour 0. 
+
+
+-ml, --mask-layout <interleaved,planar,preshift>
+
+Specify the memory layout for masks in the final data. 
+
+IMPORTANT: This setting is now set internally according to the -cm sprite
+cutting mode so it does not need to be set manually for typical use.
+
+'interleaved' puts a single mask word before each group of plane words. So a
+4-plane sprite would be encoded like a 5-plane sprite with ordering:
+
+	M,P0,P1,P2,P3, M,P0,P1,P2,P3.
+	
+This is the preferred format for STE blitter sprites using width>32. It will
+require a blit per plane, in two passes (AND, OR). The most flexible method.
+	
+
+'planar' puts the whole mask in front of all the colour data. e.g.
+
+	M,M,... P0,P1,P2,P3,P0,P1,P2,P3,... 
+
+For completeness only - no particular benefit at current time. May prove to
+be useful on STF if an explicit mask is wanted, independent of colour 0
+(i.e. colour 0 can be solid in some areas of the sprite).
+
+'preshift' puts the whole mask in front of all the colour data while
+generating a unique mask frame for each pixel shift. A sub-index is emitted
+to the file format recording an offset to each mask preshift frame.
+
+The colour data layout is also change to plane-at-a-time, line-at-a-time,
+so each scanline can be rendered as 4 planes in a single blit.
+	
+Default: interleaved
+
+
+-sopt, --soptimize <on,off>
+
+Optimize away unused pixels from sprite frames. Reduces storage cost and draw
+time. Offsets are stored in each frame to ensure the sprite origin is correct.
+
+Turning this off forces all frames to store the same amount of data, unused
+pixels and all. Per-frame offsets will be stored as 0,0. 
+
+Normally you'd want this on since there is no downside, although it does make
+writing a new sprite routine a bit easier to test when disabled.
+
+Default: on
+
 
 -qc, --quickcut
 
@@ -421,15 +688,28 @@ Note: this produces less optimised, less efficient sprites. It's just a speedup
 for the cutting process itself.
 
 
--vis, --visual
+-ccr <both,high,low>
 
-Emit <outfile>_vis.tga for spritesheets, showing exactly what got cut, and what
-the cut graphics will look like when rendered in the engine.
+Specify which cryptochrome fields to use when reducing graphics to dual-field
+cryptochrome palettes. i.e. when the target palette for colour reduction is a
+dual-field .ccs/ccr/ccp generated by the PCS tool.
 
-This shortcuts the need to run the game engine to check sprites, and annoying
-engine crashes which may result if the frame count wasn't defined correctly!
+Currently CC palettes are mainly useful for dithered backgrounds so when the
+sprites should share the same palette but without dither this feature can select
+the high or low CC field for non-dithered remapping of those sprites.
 
-The image is emitted as a vertical strip, with the first frame at the top.
+The high field is biased slightly brighter. The low field slightly darker. The
+only way to get dead-center luminance using CC palettes is to dither (since
+that is how they operate in practice!). In other words, There is no 'middle'
+field - the dither of both fields approximates the middle field.
+
+Default: both
+
+
+-prv, --preview
+
+Use ASCII preview of sprite colour indices and masks. Helps guide setting of
+the -key, -keyrgb options etc.
 
 
 -sg, --sprguide <guidefile.sgd>
@@ -544,156 +824,15 @@ Example [villager.sgd] sprite guide file (from the AGT isoscroll demo):
 	5,96,128
 
 
+-emxopt, --emx-opt
 
+Specify optimisation level for EMX sprite generator. Higher values take longer
+but may produce more efficient sprites. Diminishing returns as it is increased.
 
--sxp, --sprxpos
--syp, --sprypos
+Lower values can be used to speed up the cutting process (although -qc is more
+effective at this for rapid testing)
 
-Specify the starting x,y position for cutting frames from the spritesheet.
-This will be the top-left corner of the first frame in the sprite sequence.
-
-
--sxs, --sprxsize
--sys, --sprysize
-
-Specify the size of a sprite frame in this sequence. All frames will have the
-same 'size' and no pixels will be cut from the area outside of the frame.
-
-However, the cutter will only store (and later, draw) 'used' pixels where it
-can, and encodes offsets in the sprite data to make up for the gaps. So a
-large transparent frame with a small solid area inside will not cost extra
-memory or drawing time.
-
-This provides a convenient way to cut animation frames with varying size 
-between frames.
-
-
--sxi, --sprxinc
--syi, --spryinc
-
-Horizontal step (spacing) between sprite frames on a single row. This is the
-distance between the top-left corner of one frame and the top-left corner of
-the next.
-
-Note: Sprites are cut left-to-right, top-to-bottom, but you can still cut a
-single row or a single column.
-
-
--sxc, --sprxcount
--syc, --sprycount
-
-Specify the number of frames on a row, and the number of rows. 
-
-e.g. you can cut a single row by specifying '-sxc <num>, syc 1'
-e.g. you can cut a single column by specifying '-sxc 1, syc <num>'
-
-
--sc, --sprcount <num>
-
-If you are cutting from a W x H grid of sprites but don't want to cut every
-frame from the grid (say, the last row only has a few frames on it) you can
-cap the total number of frames cut using this option. This will stop the
-cutting early and could save a bit of memory on unwanted empty frames.
-
--sm, --sprmap <to:from:flags>
-
-Map a non-existent frame in the source sequence to an existing one with some
-optional transformations applied. This is used mainly to provide flips and
-rotations for sprite frames which are not present in the source image.
-
-to: 	the missing frame to be mapped
-from:	the existing frame to use as the source
-flags:	optional transformations to apply
-
-e.g. a typical layout for 4 frames on the source image...
-
-	[A] [B] [C] [D]
-
-...being cut as usual from left-to-right...
-
-	-sc 4
-
-...would cut a normal 4-frame sequence. But extending this...
-
-	-sc 6 -sm 4:2:y -sm 5:1:xy
-
-
-...would cut the same 4 frames, but add 2 new frames to the sequence at frame
-#4 (5th frame) and #5 (6th frame). Frame #4 would be a copy of frame #2, with
-y-flip applied. Frame #5 would be a copy of frame #1, with x & y-flips applied.
-
-
-So the resulting sprite sequence would be (where <^ means x,y flipped):
-
-	[A] [B] [C] [D] [<C] [<^B]
-	
-
-Using this notation, it is possible to cut a sprite with 360' rotation in four
-quadrants, when only one quadrant is present in the source image.
-
-Note: It's usually better practice to make sure the source image contains all
-the frames required. However when working with ripped (e.g. arcade) art, it
-can be useful to leave the spritesheet unmodified. There are also a few useful
-optimizations which could be done by the cutting tool later if it knows a 
-frame is a flipped copy of another - storing metadata for the frame instead of
-pixels (and let the engine do the flip).
-
--gm, --gen-mask
-
-Generate explicit masks from the -key and --keyrgb transparent colours. This
-is needed on STE using blitter sprites. 
-
-
--ml, --mask-layout <interleaved,planar,preshift>
-
-Specify the memory layout for masks in the final data. 
-
-'interleaved' puts a single mask word before each group of plane words. So a
-4-plane sprite would be encoded like a 5-plane sprite with ordering:
-
-	M,P0,P1,P2,P3, M,P0,P1,P2,P3.
-	
-This is the preferred format for STE blitter sprites using width>32. It will
-require a blit per plane, in two passes (AND, OR). The most flexible method.
-	
-
-'planar' puts the whole mask in front of all the colour data. e.g.
-
-	M,M,... P0,P1,P2,P3,P0,P1,P2,P3,... 
-
-For completeness only - no particular benefit at current time. May prove to
-be useful on STF if an explicit mask is wanted, independent of colour 0
-(i.e. colour 0 can be solid in some areas of the sprite).
-
-'preshift' puts the whole mask in front of all the colour data while
-generating a unique mask frame for each pixel shift. A sub-index is emitted
-to the file format recording an offset to each mask preshift frame.
-
-The colour data layout is also change to plane-at-a-time, line-at-a-time,
-so each scanline can be rendered as 4 planes in a single blit.
-	
-
-Default: interleaved (for generic blitter sprites on STE)
-
-IMPORTANT: Must be '-ml interleaved' for blitter sprites with width>=32 on 
-STE. For STF no explicit mask should be generated currently - it is derived
-from the colour planes at drawtime.
-
--sopt. --soptimize <on,off>
-
-Optimize away unused pixels from sprite frames. Reduces storage cost and draw
-time. Offsets are stored in each frame to ensure the sprite origin is correct.
-
-Turning this off forces all frames to store the same amount of data, unused
-pixels and all. Per-frame offsets will be stored as 0,0
-
-Default: on
-
-
--prv. --preview
-
-Use ASCII preview of sprite colour indices and masks. Helps guide setting of
-the -key, -keyrgb options etc.
+Default: 20
 
 
 ===============================================================================
@@ -710,6 +849,27 @@ The AGT playfield system on ST is currently fixed at 16x16 as the optimal size.
 Default: 16
 
 
+-ttags, --tiletags <tags.csv>
+
+Allows specific tile indices to be 'tagged' in the diagnostic output images for
+tilemaps. This produces a _tags.tga diagnostic image with the tagged indices
+visually highlighted. It can be used to quickly identify tile indices of
+interest and establish that all have been identified before writing code using
+requiring those indices (e.g. collision tests or special trigger functions).
+
+e.g. on an initial cut with no tags, you can use the _index.tga image to find
+some tile indices of interest, and add them to a .csv file. You then pass the
+.csv file via --tiletags and cut a second time, and you'll see the tagged
+tiles highlighted in the _tags.tga image. You can then proceed to add more
+indices to the .csv, and cut again. This process continues until you can see
+all the tiles of interest highlighted in _tags.tga.
+
+CAUTION: If you change the map after generating your list of indices, the tile
+indices can suddenly change! There is however a separate feature provided to
+deal with this tile-stability problem. See '--maprect' for details on how to
+use it to generate entirely stable tile indices for e.g animation effects etc.
+
+
 -t, --tol <tolerance>
 
 Specify the tile optimization tolerance. Larger numbers will match tiles more
@@ -719,34 +879,33 @@ for most maps but it needs tuning.
 
 Matching is performed using least-squares-error in RGB space.
 
+This optimisation needs to be used with care when attempting to work with
+stable tile indices for e.g. map animation. Changing the tolerance will
+often change the indices, even if you use --maprect to stabilise them.
+
+See also: '--maprect'
+
 Default: 0.0
 
 
--ccf, --ccfields <num>
+-layer, --layer
 
-Specify 1- or 2- field rendering for backgrounds. Similar to tile cutting mode
-in the PCS tool. Outputs two sets of .ccm (map) and .cct (tile library) files
-which are intended to be dislpayed on odd/even fields at 50hz.
+Cut map as 1 or 2 layers. A 2-layer map has two independent tilesets and two
+independent map structures. The second 'layer' is masked on top of the first
+at runtime but is otherwise entirely separate and both are freely editable
+both offline and at runtime.
 
-The 2nd set is equivalent to the 1st with the opposite dither pattern applied.
+This can be used to implement a variety of interesting effects including:
 
-When left at the default 1, only the first set is emitted.
+- damage overlays (e.g. craters, scratches, other decals/marks)
+- shadow overlays
+- animated structures on top of static maps
+- more complex backgrounds made up of combinations of a smaller set of tiles
+  split over two layers.
+- subtle animation and parallax effects
 
-Default: 1
-
-
--ccr <both,high,low>
-
-Specify which cryptochrome fields to use when reducing graphics to dual-field
-cryptochrome palettes. Currently CC palettes are mainly useful for dithered
-backgrounds so if the sprites should use the same palette but without dither
-this feature can select the high or low CC field for undithered reduction.
-
-The high field is biased slightly brighter. The low field slightly darker.
-
-There is no middle field - the dither usually approximates the middle field.
-
-Default: both
+Note that tile animation is possible on both layers simultaneously. This is
+covered in the engine documentation.
 
 
 -om, --outmode <direct,degas,rbplus>
@@ -760,16 +919,23 @@ Specify the output format for maps and tiles.
  
  Output: file.ccm (map), file.cct (tiles with palette)
  
+ This mode supports 16x16 or 8x8 tilesize with 1 or 2 layers.
+ 
  [degas]
  
  This mode is intended for use with STOS/Missing-Link. It emits the tiles as
  a sequence of Degas .PI1 files. Each image is filled left-right, top-bottom
  and enough images will be produced to encode all tiles in the library.
 
+ This mode supports 32x32, 16x16 or 8x8 tilesize with 1 or 2 layers. The mask
+ data is placed on mask .PI1s which correspond 1:1 with the colour PI1s.
+
  [rbplus]
  
  This is for exporting to RBasic+ on the Jag. Map is a raw binary format, just
  16 bits per raw map index. The tiles are encoded in a 16-colour vertical .BMP
+
+ This mode supports 32x32 or 16x16 tilesize with 1 layer.
 
 
 ===============================================================================
@@ -780,7 +946,7 @@ Maps are emitted as '.ccm' files (format described towards end)
 Tile libraries are emitted as '.cct' files (format described towards end)
 
 
-This command will cut a map & tile library from an 8bit BMP without remapping
+This command will cut a map & tile library from a 4-bit BMP without remapping
 any colours. It will emit the tile library to a series of Degas PI1 files.
 
  -cm tiles -o degas -s shark_16col.bmp
@@ -792,8 +958,25 @@ engine.
  -cm tiles -o direct -s shark_16col.bmp
 
 
-Same again, but will colour-reduce a 24bit PNG to a specified (RIFF) palette.
+Same again, but will colour-reduce an 8-bit PNG to a specified (RIFF) palette.
 See help for other palette formats!
+
+ -cm tiles -o direct -s shark_256col.png -p shark.pal
+
+
+Same again, but will NOT remap the 8-bit PNG - it will use the first 16 colours
+of 256 directly, discarding any higher colour indices.
+
+ -cm tiles -o direct -nr -s shark_256col.png
+
+
+Same again, but will FORCE remapping of a 4-bit PNG to use the specified target
+palette (without -fr it would not remap, using the colour indices directly).
+
+ -cm tiles -o direct -fr -s shark_16col.png -p shark.pal
+
+
+Same again, but will colour-reduce a 24bit PNG to the specified target palette.
 
  -cm tiles -o direct -s shark_24bit.png -p shark.pal
 
@@ -803,6 +986,13 @@ a specified tolerance.
 
  -cm tiles -t 0.75 -o direct -s shark_24bit.png -p shark.pal
 
+
+This will cut all tiles in the source image, but will only emit a .ccm map for
+the specified rectangle x:0 y:1 w:20 h:128. This has many uses ranging from
+multiple levels sharing the same tileset to 'hidden' tile rows above the map
+area, containing copies of certain tiles to stabilise/fix their map indices.
+
+ -cm tiles -mr 0:1:20:128 -o direct -s shark_24bit.png -p shark.pal
 
 
 ===============================================================================
