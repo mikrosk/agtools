@@ -1,7 +1,7 @@
 ===============================================================================
 Atari Game Tools: art cutting tool, a brief guide:
 ===============================================================================
-v0.35 : dml : 22/10/2016
+v0.41 : dml : 28/04/2017
 -------------------------------------------------------------------------------
 
 
@@ -40,6 +40,77 @@ the output from the tool, then check the details of the file types involved.
 ===============================================================================
 changenotes:
 ===============================================================================
+
+v0.41	24/04/2017
+---------------------------------------
+* add -layer switch for multilayer (2-layer) maps with 8x8 and 16x16 tilesizes
+* check tilesize is valid in different output modes
+
+v0.40	18/04/2017
+---------------------------------------
+* add -ts/--tilesize switch for 8x8 or 16x16 tilemaps
+
+v0.377	10/04/2017
+---------------------------------------
+* improve EMX lineorder optimiser
+* add -emxopt/--emx-opt-level switch to set EMX optimisation vs cutting time
+
+v0.376	01/04/2017
+---------------------------------------
+* many improvements & fixes to emx cutter (!)
+[improvements]
+- palette review/summary added for reduce, remap and translate cases
+- now error out properly if codegen sim fails, instead of generating faulty sprite file
+- common lineorder optimization now detects convergence instead of a fixed cap on trials
+- common lineorder optimization - better darwin seeking, adding perturbance on zero gain case
+[fixes]
+- delta optimization wasn't tracking all cases properly for empty lines
+- common lineorder optimization wasn't working for empty lines if reordering
+  left them in the middle of the sprite (no dst skip in draw routine)
+- common lineorder optimization now moves empty lines to end of render so no
+  dst skips required
+- register sweep was not updating high word tags properly
+- register-last-written scan was not coping with swaps of 16bit tags
+- register 16bit immediate reload was missing emitted instruction (!)
+- bug fixed in sprite flipping of optimised frame region
+- bug fixed in unique colour counting after remap
+- bug fixed in mutation selector - signed modulo (!)
+- replaced redundant em_dirty tests with changed[] table
+- replaced individual empty line tests with single livelines[] table
+
+v0.374	30/03/2017
+---------------------------------------
+* now provides a palette equivalence summary for images being remapped from higher 
+  indexed colour depths, or 16c images being used directly without remapping.
+* added -nogm/--no-gen-mask switch to usage text
+
+
+v0.372	07/03/2017
+---------------------------------------
+* added -fr/--force-remap switch to force colour remapping of already-indexed
+  images (i.e. already within the required output bitdepth).
+* added -nr/--no-remap to inhibit remapping of indexed images which are outwith
+  the required output bitdepth (e.g. 8bit indexed images = use lower 4 bits)
+
+v0.37	06/03/2017
+---------------------------------------
+* added -mr/-maprect switch to define active cutting area for maps. in this mode
+  all tiles are extracted, but only the specified rectangle is emitted as a map.
+  this can be used to fix the order of 'special' tiles in the first few unused
+  rows of a map - e.g. for tile animation - without including them in the map itself.
+
+v0.361	06/03/2017
+---------------------------------------
+* fix for temporary .s files (emx code generator via RMAC) to allow concurrent
+  agtcut processes to run from a parallel makefile without file collisions.
+
+v0.36	13/02/2017
+---------------------------------------
+* change default for IMSPR to emit mask (for STE)
+* now requires -nogm/--no-generate-mask to suppress mask for STF sprite format
+* check input sprites don't exceed size limits for each sprite mode
+* add "-cm imspr" as alternative name for sprite cutting mode "-cm sprites"
+  to match IMSPR name for internal DrawType within engine.
 
 v0.35	22/10/2016
 ---------------------------------------
@@ -1185,8 +1256,8 @@ The other flags are reserved for now...
 Quick Help info
 ===============================================================================
 
-[A]tari [G]ame [T]ools: playfield/sprite/slab cutter v0.29 / dml
-built on Oct  3 2016
+[A]tari [G]ame [T]ools: playfield/sprite/slab cutter v0.41 / dml
+built on Apr 24 2017
 usage:
  atgcut [opts] -s infile
 
@@ -1200,14 +1271,17 @@ general:
                       > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)
                       > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm
  -o, --outfile        > output filename
- -cm, --cutmode       > cutting mode: tiles,sprites,emspr,emxspr,slabs
+ -cm, --cutmode       > cutting mode: tiles,imspr,emspr,emxspr,slabs,slabrestore
  -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)
  -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png
+ -crn, --colrenorm    > renormalise source image to quantised rgb: 1-255
  -bp, --bitplanes     > #bitplanes to generate: 1-8
  -key, --key-colour   > colour index assumed to be transarent: 0-255
  -keyrgb, --key-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex
  -kg, --key-guard     > guard against reducing colours to key colour
  -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)
+ -nr, --no-remap      > prevent remapping of 8bit images (to 4bit), use first 16 colours only
+ -fr, --force-remap   > force remapping of 8bit images (to 4bit) so --key-rgb is usable
 
 sprite cutting mode:
  -sxp, --sprxpos      > first frame xpos: 0+
@@ -1221,13 +1295,21 @@ sprite cutting mode:
  -sc, --sprcount      > total frames to cut, if stopping early: 0+, where 0=ignore
  -sm, --sprmap        > map sprite frame from another: -sm new:existing:flipflags
  -gm, --gen-mask      > generate 1bpl mask data along with colour data
+ -nogm, --no-gen-mask > don't generate 1bpl mask data - only colour data (STF)
  -ml, --mask-layout   > mask layout strategy: interleaved,planar,preshift
  -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)
+ -qc, --quickcut      > improve cutting speed (reduce optimization) for quicker test/debug turnaround
+ -vis, --visual       > provide feedback/visualisation of cut assets as .tga file
  -ccr                 > cryptochrome colour field remapping: both,high,low
  -prv, --preview      > show ASCII preview of extracted colours + masking
+ -sg, --sprguide      > sprite guide file (ASCII)
+ -emxopt, --emx-opt   > optimization level for EMX mask delta elimination
 
 map & tile cutting mode:
- -ts, --tilesize      > tile size (rbplus mode only): 16,32
+ -ts, --tilesize      > tile size (rbplus mode only): 8,16,32
  -ttags, --tiletags   > list of tile indices to tag (CSV file - one hex value per row)
  -t, --tol            > tile matching tolerance: 0.0+
+ -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)
+ -layer, --layer      > cut map as transparent layer
  -om, --outmode       > tile library output mode: direct,degas,rbplus
+
