@@ -395,61 +395,6 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 
 
 *------------------------------------------------------------------------------*
-*	emit single flag-conditional tile
-*------------------------------------------------------------------------------*
-
-; d3.l,	a4.l,	d0.l,	d7.w,	d6.l,	a3,	a5,	a0,	a2
-; flags	dst	src	dstpgw	dstpgh	tmp	tmp	mapsrc	tilesrc
-
-;.macro	ctile_pq	offs,flags,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
-;
-;	; test dirty flag
-;
-;	add.b		\flags,\flags
-;	bcc		.fclr\~
-;
-;	; address tile source
-;
-;	move.l		\tilesrc,\src		; tile library
-;	add.l		\offs*4(\mapsrc),\src	; map index
-;
-;	; plot tile to relevant vpage(s)
-;
-;	tile_pq		\offs,\dst,\src,\dstpgw,\dstpgh,\tdst,\tsrc
-;.fclr\~:
-;	.endm	
-
-*------------------------------------------------------------------------------*
-*	emit up to 8 tiles, left-to-right, one per set bit in d0
-*------------------------------------------------------------------------------*
-*	note: at least 1 bit set in d0 if reached this point
-*	note: blocks themselves applied right-to-left, starting at right edge
-*	note: d7 (dstpgw) becomes free for P,PR page layouts (PQ,PQRS not really used anyway)
-*------------------------------------------------------------------------------*
-*	todo: break 8 tests into 2x nibble patterns for quicker sub-rejection
-*	todo: turn each nibble into a jmptab with dedicated code per pattern
-*------------------------------------------------------------------------------*
-;.do_block_:
-*------------------------------------------------------------------------------*
-;	ctile_pq	-8,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-7,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-6,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-5,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-4,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-3,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-2,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;	ctile_pq	-1,d3,a4,d0,d7,d6,a3,a5,a0,a2
-;
-;;	now move 8 tiles to the left for the next block
-;
-;	lea		-8*4(a0),a0
-;	lea		-8*8(a4),a4
-;
-;	rts
-
-
-
-*------------------------------------------------------------------------------*
 
 .macro	jtile_pq		offs,dst,src,dstpgw,dstpgh,tdst,tsrc,mapsrc,tilesrc
 

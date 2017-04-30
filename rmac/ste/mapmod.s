@@ -83,8 +83,6 @@ _dm_dstaddr:		ds.l	1
 	.globl	_dm_dstaddr
 _dm_dirtymask:		ds.l	1
 	.globl	_dm_dirtymask
-;_dm_lmask:		ds.l	1
-;	.globl	_dm_lmask
 _dm_ptiles:		ds.l	1
 	.globl	_dm_ptiles
 _dm_pltiles:		ds.l	1

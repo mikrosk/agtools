@@ -4,8 +4,7 @@
 ; busy: d4,d5
 ; free: usp,a1,d1
 
-;tile_pr8m.offs	1:dst,2:tmp,3:dstpgh,4:tdst,5:tdstv,6:tsrc,7:msrc
-tile_pr8m		macro
+tile_pr8m		macro	;[offs,]dst,tmp,dstpgh,tdst,tdstv,tsrc,msrc
 
 	; handle odd/even offset for movep fill
 
@@ -194,7 +193,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 ;	a6 : dst base
 ;	usp: *
 
-	move.l		_dm_pmap,d1
+	move.l		_dm_pmap,a0
 
 	; select 1,2,3-wide fetch from rectangle width in 8bit blocks
 
@@ -246,18 +245,14 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 .start4:
 	move.w		_dm_lineskip,.smc4d+2
 	move.w		_dm_maskstride,.smc4m+2
+	move.w		d2,.smc4s+2
 	move.l		_dm_plmap,d0
-	sub.l		d1,d0
+	sub.l		a0,d0
 	move.l		d0,.smc4t+2		
-	move.l		d2,.smc4s+2
 	move.l		_dm_ptiles,d2
 	move.l		_dm_pltiles,d7
 
 .ylp4:
-	; advance Y
-	
-	move.l		d1,a0
-.smc4s:	add.l		#$123456,d1
 
 	; check row
 
@@ -293,6 +288,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 	bsr		.do_block
 
 	lea		8*4*4(a4),a4
+	lea		8*4*4(a0),a0
 
 	move.l		usp,a1
 
@@ -308,6 +304,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 
 .smc4d:	lea		1234(a4),a4
 .smc4m:	lea		1234(a1),a1
+.smc4s:	lea		1234(a0),a0
 	dbra		d4,.ylp4
 	bra		.done
 
@@ -316,18 +313,14 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 .start3:
 	move.w		_dm_lineskip,.smc3d+2
 	move.w		_dm_maskstride,.smc3m+2
+	move.w		d2,.smc3s+2
 	move.l		_dm_plmap,d0
-	sub.l		d1,d0
+	sub.l		a0,d0
 	move.l		d0,.smc3t+2		
-	move.l		d2,.smc3s+2
 	move.l		_dm_ptiles,d2
 	move.l		_dm_pltiles,d7
 
 .ylp3:
-	; advance Y
-	
-	move.l		d1,a0
-.smc3s:	add.l		#$123456,d1
 
 	; check row
 
@@ -361,6 +354,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 	bsr		.do_block
 
 	lea		8*4*3(a4),a4
+	lea		8*4*3(a0),a0
 
 	move.l		usp,a1
 
@@ -376,6 +370,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 
 .smc3d:	lea		1234(a4),a4
 .smc3m:	lea		1234(a1),a1
+.smc3s:	lea		1234(a0),a0
 	dbra		d4,.ylp3
 	bra		.done
 
@@ -384,18 +379,14 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 .start2:
 	move.w		_dm_lineskip,.smc2d+2
 	move.w		_dm_maskstride,.smc2m+2
+	move.w		d2,.smc2s+2
 	move.l		_dm_plmap,d0
-	sub.l		d1,d0
+	sub.l		a0,d0
 	move.l		d0,.smc2t+2		
-	move.l		d2,.smc2s+2
 	move.l		_dm_ptiles,d2
 	move.l		_dm_pltiles,d7
 	
 .ylp2:
-	; advance Y
-	
-	move.l		d1,a0
-.smc2s:	add.l		#$123456,d1
 
 	; check row
 
@@ -427,6 +418,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 	bsr		.do_block
 
 	lea		8*4*2(a4),a4
+	lea		8*4*2(a0),a0
 
 	move.l		usp,a1
 
@@ -442,6 +434,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 
 .smc2d:	lea		1234(a4),a4
 .smc2m:	lea		1234(a1),a1
+.smc2s:	lea		1234(a0),a0
 	dbra		d4,.ylp2
 	bra		.done
 
@@ -450,18 +443,14 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 .start1:
 	move.w		_dm_lineskip,.smc1d+2
 	move.w		_dm_maskstride,.smc1m+2
+	move.w		d2,.smc1s+2
 	move.l		_dm_plmap,d0
-	sub.l		d1,d0
+	sub.l		a0,d0
 	move.l		d0,.smc1t+2		
-	move.l		d2,.smc1s+2
 	move.l		_dm_ptiles,d2
 	move.l		_dm_pltiles,d7
 
 .ylp1:
-	; advance Y
-
-	move.l		d1,a0
-.smc1s:	add.l		#$123456,d1
 
 	; check row
 
@@ -491,6 +480,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 	bsr		.do_block
 
 	lea		8*4*1(a4),a4
+	lea		8*4*1(a0),a0
 
 	move.l		usp,a1
 	
@@ -506,6 +496,7 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 
 .smc1d:	lea		1234(a4),a4
 .smc1m:	lea		1234(a1),a1
+.smc1s:	lea		1234(a0),a0
 	dbra		d4,.ylp1
 	bra		.done
 
@@ -513,10 +504,8 @@ _do_dirtyrect_pr8m:	xdef	_do_dirtyrect_pr8m
 
 ;offs,dst=a4,tmp=d0,dstpgh=d6,tdst=a3,tdstv=a6,tsrc=a5,msrc=a2,mapsrc=a0,mmapsrc=a1,tilesrc=d2,mtilesrc=d7
 
-;.macro	jtile_pr8m.offs	1:dst,2:tmp,3:dstpgh,4:tdst,5:tdstv,6:tsrc,7:msrc
-;tilesrc=d2,mtilesrc=d7
-;mapsrc=a0,mmapsrc=a1
-jtile_pr8m		macro
+;mapsrc=a0,mmapsrc=a1,tilesrc=d2,mtilesrc=d7
+jtile_pr8m		macro	;[offs,]dst,tmp,dstpgh,tdst,tdstv,tsrc,msrc[,mapsrc,mmapsrc,tilesrc,mtilesrc]
 	; address tile source
 
 	move.l		d2,\6		; tile library

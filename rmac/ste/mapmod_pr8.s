@@ -1,8 +1,6 @@
 
 *------------------------------------------------------------------------------*
 
-; dst=a4,src=d0,tmp=d7,dstpgh=d6,tdst=a3,tdstv=a6,tsrc=a5,mapsrc=a0,tilesrc=a2
-
 .macro	tile_pr8	offs,dst,tmp2,dstpgw,dstpgh,tdst,tdstv,tsrc
 
 	; handle odd/even offset for movep fill
@@ -14,8 +12,6 @@
 
 	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst),\tdst
 	lea		(((\offs+256)&1)+((((\offs+256)&~1)-256)*4))(\dst,\dstpgh.l),\tdstv
-
-;	move.l		\src,\tsrc
 	
 	move.l		(\tsrc)+,\tmp2
 	movep.l		\tmp2,dst_linewid*0(\tdst)
