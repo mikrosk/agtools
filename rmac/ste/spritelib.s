@@ -16,6 +16,8 @@
 
 	include		"drawctx.inc"
 
+	include		"ste\\b_slab.inc"
+
 *-------------------------------------------------------*
 
 within_entitydraw	set	0

@@ -45,6 +45,21 @@ enum EntityDraw
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
+// draw priority layers for ordered drawing
+
+enum EntityLayer
+{
+	EntityLayer_0 = 0,
+		EntityLayer_BG = EntityLayer_0,
+	EntityLayer_1 = 4,
+		EntityLayer_MAIN = EntityLayer_1,
+	EntityLayer_2 = 8,
+		EntityLayer_FG = EntityLayer_2,
+	EntityLayer_3 = 12,
+		EntityLayer_HUD = EntityLayer_3
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
 // entity configuration flags
 
 // flags covering generic properties
@@ -109,6 +124,7 @@ typedef void (*fn2ptr_t)(entity_t *_pe1, entity_t *_pe2);
 	s16 counter;				\
 								\
 	s16 drawtype;				\
+	s16 drawlayer;				\
 	s16 f_self;					\
 	s16 f_interactswith;		\
 
@@ -133,6 +149,7 @@ struct entity_t
 	struct entity_t *pnext_y;
 	struct entity_t *pprev_y;
 	struct entity_t *pparent;
+	struct entity_t *pdlayer_;
 
 	// [identity]
 	s16 id;
@@ -173,6 +190,8 @@ void EntityTickAll();
 // note: instead call EntityDrawVisible(...) wrapper from mainloop
 extern "C" void BLiT_EntityDrawVisibleXM_68k(drawcontext_t *_pctx);
 extern "C" void BLiT_EntityDrawVisibleYM_68k(drawcontext_t *_pctx);
+extern "C" void BLiT_EntityDeferVisibleXM_68k(drawcontext_t *_pctx);
+extern "C" void BLiT_EntityDeferVisibleYM_68k(drawcontext_t *_pctx);
 
 // interact/collide all entities within viewport rectangle
 // note: instead call EntityInteractVisible() wrapper from mainloop
@@ -439,10 +458,10 @@ static inline void EntitySwitchAsset_Sprite(entity_t *_pent, spritesheet *_passe
 // EntityDrawVisible(), EntityInteractVisible() are configured according to world major axis
 
 #if defined(AGT_CONFIG_WORLD_YMAJOR)
-#define EntityDrawVisible BLiT_EntityDrawVisibleYM_68k
+#define EntityDrawVisible BLiT_EntityDeferVisibleYM_68k	//BLiT_EntityDrawVisibleYM_68k
 #define EntityInteractVisible EntityInteractVisibleYM_68k
 #else
-#define EntityDrawVisible BLiT_EntityDrawVisibleXM_68k
+#define EntityDrawVisible BLiT_EntityDeferVisibleXM_68k	//BLiT_EntityDrawVisibleXM_68k
 #define EntityInteractVisible EntityInteractVisibleXM_68k
 #endif
 

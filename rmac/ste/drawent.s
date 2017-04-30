@@ -27,6 +27,7 @@ within_entitydraw	set	1
 
 	.if		^^defined AGT_CONFIG_WORLD_XMAJOR
 	.globl		_BLiT_EntityDrawVisibleXM_68k
+	.globl		_BLiT_EntityDeferVisibleXM_68k
 	.globl		_EntityInteractVisibleXM_68k
 	.globl		_gp_entity_x_head
 	.globl		_gp_entity_x_aftertail
@@ -34,11 +35,13 @@ within_entitydraw	set	1
 	
 	.if		^^defined AGT_CONFIG_WORLD_YMAJOR
 	.globl		_BLiT_EntityDrawVisibleYM_68k
+	.globl		_BLiT_EntityDeferVisibleYM_68k
 	.globl		_EntityInteractVisibleYM_68k
 	.globl		_gp_entity_y_head
 	.globl		_gp_entity_y_aftertail
 	.endif
 
+;	.globl		_BLiT_EntityDrawLayers_68k
 	.globl		_EntitySpatial_68k
 	.globl		_gp_entity_tick_tail
 ;	.globl		_EntityLink_Tick_Ext
@@ -276,13 +279,19 @@ _EntitySpatial_68k:
 
 *-------------------------------------------------------*
 
+	include		"ste\\b_slab.inc"
+
 	.if		^^defined AGT_CONFIG_WORLD_XMAJOR	
 	include		"ste\\de_xm.s"
+	include		"ste\\de_xm_dp.s"
 	.endif
 
 	.if		^^defined AGT_CONFIG_WORLD_YMAJOR	
 	include		"ste\\de_ym.s"
+	include		"ste\\de_ym_dp.s"
 	.endif
+
+	include		"ste\\de_layers.s"
 	
 *-------------------------------------------------------*
 			.text
