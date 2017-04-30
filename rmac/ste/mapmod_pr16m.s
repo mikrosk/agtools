@@ -10,13 +10,6 @@
 	lea		\offs*8(\dst,\dstpgh.l),\tdstv
 
 	.rept		16
-;	move.l		(\tsrc)+,\tmp
-;	move.l		\tmp,(\tdst)+	
-;	move.l		\tmp,(\tdstv)+	
-;	move.l		(\tsrc)+,\tmp
-;	move.l		\tmp,(\tdst)+	
-;	move.l		\tmp,(\tdstv)+	
-	
 	move.l		(\msrc)+,\tmp	
 	move.l		\tmp,d1
 	and.l		(\tsrc)+,d1	

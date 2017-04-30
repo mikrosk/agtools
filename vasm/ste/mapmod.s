@@ -22,7 +22,7 @@ dst_linewid	set	184
 	include		ste/mapmod_pq16.s
 	endc
 	include		ste/mapmod_pr16.s
-;	include		ste/mapmod_pr16m.s
+	include		ste/mapmod_pr16m.s
 	include		ste/mapmod_pr8.s
 	include		ste/mapmod_pr8m.s
 	ifd		AGT_CONFIG_PFLAYOUT_P
@@ -39,7 +39,7 @@ _SYS_MapModInit:
 	jsr		mapmod_setup_pq
 	endc	
 	jsr		mapmod_setup_pr16
-;	jsr		mapmod_setup_pr16m
+	jsr		mapmod_setup_pr16m
 	jsr		mapmod_setup_pr8
 	jsr		mapmod_setup_pr8m
 	ifd		AGT_CONFIG_PFLAYOUT_P
