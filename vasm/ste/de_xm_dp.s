@@ -157,7 +157,7 @@ _BLiT_EntityDeferVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax(sp),d1
 	blt.s		.EntityDeferVisibleXM_NONE_next
 ;	bra		.EntityDeferVisibleXM_complete
 		
