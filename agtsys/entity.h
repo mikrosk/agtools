@@ -193,6 +193,11 @@ extern "C" void BLiT_EntityDrawVisibleYM_68k(drawcontext_t *_pctx);
 extern "C" void BLiT_EntityDeferVisibleXM_68k(drawcontext_t *_pctx);
 extern "C" void BLiT_EntityDeferVisibleYM_68k(drawcontext_t *_pctx);
 
+extern "C" void STF_EntityDrawVisibleXM_68k(drawcontext_t *_pctx);
+extern "C" void STF_EntityDrawVisibleYM_68k(drawcontext_t *_pctx);
+extern "C" void STF_EntityDeferVisibleXM_68k(drawcontext_t *_pctx);
+extern "C" void STF_EntityDeferVisibleYM_68k(drawcontext_t *_pctx);
+
 // interact/collide all entities within viewport rectangle
 // note: instead call EntityInteractVisible() wrapper from mainloop
 extern "C" void EntityInteractVisibleXM_68k();
@@ -455,15 +460,59 @@ static inline void EntitySwitchAsset_Sprite(entity_t *_pent, spritesheet *_passe
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// select default entity draw functions based on AGT_CONFIG_STF/AGT_CONFIG_STE (fallback is AGT_CONFIG_STE)
+
+#if defined(AGT_CONFIG_STF)
+#define EntityDrawVisibleXM STF_EntityDrawVisibleXM_68k
+#define EntityDrawVisibleYM STF_EntityDrawVisibleYM_68k
+#define EntityDeferVisibleXM STF_EntityDeferVisibleXM_68k
+#define EntityDeferVisibleYM STF_EntityDeferVisibleYM_68k
+#else
+#define EntityDrawVisibleXM BLiT_EntityDrawVisibleXM_68k
+#define EntityDrawVisibleYM BLiT_EntityDrawVisibleYM_68k
+#define EntityDeferVisibleXM BLiT_EntityDeferVisibleYM_68k
+#define EntityDeferVisibleYM BLiT_EntityDeferVisibleYM_68k
+#endif
+
+// ---------------------------------------------------------------------------------------------------------------------
+// select multi-layered vs single-layer drawing based on AGT_CONFIG_ENTITYLAYERS
+// note: single-layer drawing is (very) slightly more efficient than multi-layered with 1 layer for quantities of objects
+
+#if defined(AGT_CONFIG_ENTITYLAYERS) && (AGT_CONFIG_ENTITYLAYERS > 1)
+// makefile-controlled drawing method (configured by AGT_CONFIG_STF/AGT_CONFIG_ST)
+#undef EntityDrawVisibleXM
+#define EntityDrawVisibleXM EntityDeferVisibleXM
+#undef EntityDrawVisibleYM
+#define EntityDrawVisibleYM EntityDeferVisibleYM
+// explicit multi-layer drawing for STF/STE
+#define STF_EntityDrawVisibleXM STF_EntityDeferVisibleXM_68k
+#define STF_EntityDrawVisibleYM STF_EntityDeferVisibleYM_68k
+#define BLiT_EntityDrawVisibleXM BLiT_EntityDeferVisibleXM_68k
+#define BLiT_EntityDrawVisibleYM BLiT_EntityDeferVisibleYM_68k
+#else
+// explicit single-layer drawing for STF/STE
+#define STF_EntityDrawVisibleXM STF_EntityDrawVisibleXM_68k
+#define STF_EntityDrawVisibleYM STF_EntityDrawVisibleYM_68k
+#define BLiT_EntityDrawVisibleXM BLiT_EntityDrawVisibleXM_68k
+#define BLiT_EntityDrawVisibleYM BLiT_EntityDrawVisibleYM_68k
+#endif
+
+// ---------------------------------------------------------------------------------------------------------------------
 // EntityDrawVisible(), EntityInteractVisible() are configured according to world major axis
 
 #if defined(AGT_CONFIG_WORLD_YMAJOR)
-#define EntityDrawVisible BLiT_EntityDeferVisibleYM_68k	//BLiT_EntityDrawVisibleYM_68k
+#define EntityDrawVisible EntityDrawVisibleYM
+#define STF_EntityDrawVisible STF_EntityDrawVisibleYM
+#define BLiT_EntityDrawVisible BLiT_EntityDrawVisibleYM
 #define EntityInteractVisible EntityInteractVisibleYM_68k
 #else
-#define EntityDrawVisible BLiT_EntityDeferVisibleXM_68k	//BLiT_EntityDrawVisibleXM_68k
+#define EntityDrawVisible EntityDrawVisibleXM
+#define STF_EntityDrawVisible STF_EntityDrawVisibleXM
+#define BLiT_EntityDrawVisible BLiT_EntityDrawVisibleXM
 #define EntityInteractVisible EntityInteractVisibleXM_68k
 #endif
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 extern "C" s16 g_debugdraw;
 

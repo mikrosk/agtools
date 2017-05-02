@@ -1790,39 +1790,39 @@ void boss_fncol(entity_t *_pself, entity_t *_pother)
 
 entitydef_t entity_dictionary[EntityType_MAX_] =
 {
-	// [functions]								[coords]						[priorities]	[tick state]		[rendering]			[classification properties]
-	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drawpri	h,d,frame,counter	drawtype			f_self,f_interactswith	
+	// [functions]								[coords]						[priorities]	[tick state]		[rendering]				[classification properties]
+	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drawpri	h,d,frame,counter	drawtype,drawlayer		f_self,f_interactswith	
 
 	// engine objects...
 
 	// viewport																					// viewport has no tick
 	// Q: why? A: because it's a rectangle and we can determine what is inside it quickly if it is also an entity which moves through the world
-	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,	EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
+	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
 
 	// player objects...
 
 	// player																					// tick player first...
 	//	- move and shoot to select tracks
-	{ &play_fntick,&play_fncol,0,				{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPR,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &play_fntick,&play_fncol,0,				{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 	// boss
 	//	- moves around slowly, takes no damage, shoots huge guns with crappy aim
-	{ &boss_state0_enter_fntick,0,0,			{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_SLAB,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &boss_state0_enter_fntick,0,0,			{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_SLAB,0,		EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 	// boss eye
 	//	- attached to boss, takes damage, kills boss when health hits zero
-	{ &bosseye_fntick,bosseye_fncol,0,			{0},{0},{0},{0},0,0,0,0,		1,0,			100,0,0,0,			EntityDraw_EMXSPR,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
-	{ &bosspulp_fntick,bosspulp_fncol,0,		{0},{0},{0},{0},30,0,0,0,		1,0,			100,0,0,0,			EntityDraw_EMXSPR,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &bosseye_fntick,bosseye_fncol,0,			{0},{0},{0},{0},0,0,0,0,		1,0,			100,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &bosspulp_fntick,bosspulp_fncol,0,		{0},{0},{0},{0},30,0,0,0,		1,0,			100,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 	// boss shielding
 	//	- hitbox attached to boss either side of eye channel, absorbs bullets, except in channel area
-	{ &bossshield_fntick,0,0,					{0},{0},{0},{0},110,28,0,0,		1,0,			0,0,0,0,			EntityDraw_NONE,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &bossshield_fntick,0,0,					{0},{0},{0},{0},110,28,0,0,		1,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 
 	// boss laser
-	{ &bossbeam_fntick,0,0,						{0},{0},{-4},{0},0,0,0,0,		2,0,			0,12,0,0,			EntityDraw_EMXSPR,	EntityFlag_NMEBULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
+	{ &bossbeam_fntick,0,0,						{0},{0},{-4},{0},0,0,0,0,		2,0,			0,12,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NMEBULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
 	// boss ball weapon
-	{ &bossball_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		2,0,			0,12,0,0,			EntityDraw_EMXSPR,	EntityFlag_NMEBULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
+	{ &bossball_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		2,0,			0,12,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NMEBULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
 
 	// bullet weapon																			// ...then everything else
-	{ &bullet_fntick,&bullet_fncol,0,			{0},{0},{10},{0},0,0,0,0,		2,0,			0,15,0,0,			EntityDraw_EMXSPR,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
+	{ &bullet_fntick,&bullet_fncol,0,			{0},{0},{10},{0},0,0,0,0,		2,0,			0,15,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
 };
 
 //----------------------------------------------------------------------------------------------------------------------
