@@ -123,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.41";
+static const char* const g_version_string = "v0.42";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -369,6 +369,7 @@ enum
 	OPT_SPRMAP,
 //	OPT_SLAB,
 	// tiles
+	OPT_STITCHMAPS,
 	OPT_MAPRECT,
 	OPT_TILESIZE,
 	OPT_TOLERANCE,
@@ -485,6 +486,9 @@ CSimpleOpt::SOption g_Options[] =
 	//{ OPT_SLAB,			_T("-sl"),	 			SO_NONE		},
 	//{ OPT_SLAB,			_T("--slab"),			SO_NONE		},
 	//
+	{ OPT_STITCHMAPS,	_T("-stm"),	 			SO_NONE	},
+	{ OPT_STITCHMAPS,	_T("--stitch-maps"),	SO_NONE	},
+	//
 	{ OPT_TILESIZE,		_T("-ts"),	 			SO_REQ_SEP	},
 	{ OPT_TILESIZE,		_T("--tilesize"),		SO_REQ_SEP	},
 	//
@@ -576,6 +580,7 @@ static void usage(int level)
 	std::cout << " -t, --tol            > tile matching tolerance: 0.0+" << std::endl;
 	std::cout << " -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
 	std::cout << " -layer, --layer      > cut map as transparent layer" << std::endl;
+	std::cout << " -stm, --stitch-maps  > import multiple, numbered source images, stack vertically" << std::endl;
 	std::cout << " -om, --outmode       > tile library output mode: direct,degas,rbplus" << std::endl;
 	std::cout << std::endl;
 	std::cout << "press any key..." << std::endl;
@@ -666,6 +671,7 @@ public:
 		  masklayout(Masklayout_INTERLEAVED),
 		  cutmode(Cutmode_TILES),
 		  outmode(Outmode_DEGAS),
+		  stitchmaps(false),
 		  translayer(false),
 		  noremap(false),
 		  forceremap(false),
@@ -706,6 +712,7 @@ public:
 	bool visual;
 	bool keyrgb_specified;
 	bool translayer;
+	bool stitchmaps;
 
 	ubyte_t keycol;
 	iRGB keyrgb;
@@ -746,6 +753,7 @@ public:
 	bool forceremap;
 
 	std::list<guideevent> guideeventseq;
+	std::vector<std::string> sources;
 
 	spritemap_t spritemappings;
 
@@ -851,7 +859,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				float farg = (float)atof(s_arg.c_str());
 				if (farg < 0.0f || farg > 1e4f)
 				{
-					printf("error: invalid arg for tile matching tolerance: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for tile matching tolerance: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -864,7 +872,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				float farg = (float)atof(s_arg.c_str());
 				if (farg < 0.0f || farg > 1e4f)
 				{
-					printf("error: invalid arg for key guard tolerance: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for key guard tolerance: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -917,7 +925,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					printf("error: invalid arg for cutmode: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for cutmode: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -946,11 +954,15 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					printf("error: invalid arg for outmode: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for outmode: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
 				}
+			}
+			else if (args.OptionId() == OPT_STITCHMAPS)
+			{
+				_args.stitchmaps = true;
 			}
 			else if (args.OptionId() == OPT_TRANSLAYER)
 			{
@@ -979,7 +991,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					}
 					else
 					{
-						printf("error: invalid arg for masklayout: %s\n", s_arg.c_str());
+						fprintf(stderr, "error: invalid arg for masklayout: %s\n", s_arg.c_str());
 						printf("press any key...\n");
 						getchar();
 						exit(1);
@@ -1009,7 +1021,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					printf("error: invalid arg for sprite-optimize: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite-optimize: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1029,7 +1041,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 255)
 				{
-					printf("error: invalid arg for colrenorm: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for colrenorm: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1042,7 +1054,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 31)
 				{
-					printf("error: invalid arg for emxopt: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for emxopt: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1055,7 +1067,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 255)
 				{
-					printf("error: invalid arg for key colour: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for key colour: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1073,7 +1085,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 
 				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
 				{
-					printf("error: invalid arg for key rgb: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for key rgb: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1091,7 +1103,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 255)
 				{
-					printf("error: invalid arg for key colour: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for key colour: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1104,7 +1116,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if ((iarg != 8) && (iarg != 16) && (iarg != 32))
 				{
-					printf("error: invalid arg for tile size: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for tile size: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1117,7 +1129,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if ((iarg != 1) && (iarg != 2))
 				{
-					printf("error: invalid arg for ccfields: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for ccfields: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1144,7 +1156,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					printf("error: invalid arg for ccr: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for ccr: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1179,7 +1191,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					(mw < 0) ||
 					(mh < 0))
 				{
-					printf("error: invalid map cutting rectangle: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid map cutting rectangle: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1204,7 +1216,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > g_maxplanes)
 				{
-					printf("error: invalid arg for bitplanes/bpp: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for bitplanes/bpp: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1217,7 +1229,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					printf("error: invalid arg for sprite cutting position: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting position: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1230,7 +1242,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					printf("error: invalid arg for sprite cutting position: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting position: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1243,7 +1255,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 4096)
 				{
-					printf("error: invalid arg for sprite cutting size: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting size: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1265,7 +1277,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 4096)
 				{
-					printf("error: invalid arg for sprite cutting size: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting size: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1278,7 +1290,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					printf("error: invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1291,7 +1303,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					printf("error: invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1304,7 +1316,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					printf("error: invalid arg for sprite cutting x-count: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting x-count: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1317,7 +1329,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					printf("error: invalid arg for sprite cutting y-count: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting y-count: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1330,7 +1342,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					printf("error: invalid arg for sprite cutting count: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for sprite cutting count: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
@@ -1358,12 +1370,60 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		}
 		else 
 		{
-			printf("error: invalid argument: %s\n", args.OptionText());
+			fprintf(stderr, "error: invalid argument: %s\n", args.OptionText());
 			printf("press any key...\n");
 			getchar();
 			exit(1);
 		}
     }
+
+	// certain modes expect globbing
+	if (_args.stitchmaps)
+	{
+		// can't stitch from a glob if no outfile was specified
+		if (_args.outfile.length() == 0)
+		{
+			fprintf(stderr, "error: must specify -o output filename stub if using multiple source images\n");
+			printf("press any key...\n");
+			getchar();
+			exit(1);
+		}
+
+		// expand input filenames    
+		CSimpleGlob glob(SG_GLOB_NOCHECK);
+		if (SG_SUCCESS != glob.Add(_args.sourcefile.c_str()))
+		{
+			fprintf(stderr, "error: failed to expand glob\n");
+			printf("press any key...\n");
+			getchar();
+			exit(1);
+		}
+
+		// check infile/outfile specification rules  
+		if (glob.FileCount() == 0)
+		{
+			fprintf(stderr, "error: no input files specified!\n");
+			printf("press any key...\n");
+			getchar();
+			exit(1);
+		}
+		else
+		{
+			// expand input filespec to individual files
+			for (int n = 0; n < glob.FileCount(); ++n)
+			{
+				std::string namein(glob.File(n));
+
+				printf("expanded glob: %s\n", namein.c_str());
+
+				// in case only one file globbed, use normal mode - otherwise record multiple sources
+				if (glob.FileCount() > 1)
+					_args.sources.push_back(namein);
+				if (n == 0)
+					_args.sourcefile = namein;
+			}
+		}
+	}
 
 	if (_args.sourcefile.length() == 0)
 	{
@@ -3370,11 +3430,166 @@ bool do_tilemap()
 
 	std::cout << "map / tile cutting mode..." << std::endl;
 
-	if (image_load(g_allargs.sourcefile.c_str(), m_psourcergb, m_psourcecol, m_ppalettergb, sourcew, sourceh, sourced))
+	bool success = false;
+
+	if (!g_allargs.sources.empty())
 	{
-		if (1)
+		// pull in multiple source images, generate single joined image in memory
+		// todo: ideally we clean up the old images after join \o/
+
+		// todo: this is crap code - try harder later
+		static const int MAX_STITCH_SOURCES = 64;
+
+		RGB *t_psourcergb[MAX_STITCH_SOURCES];;
+		ubyte_t *t_psourcecol[MAX_STITCH_SOURCES];
+		RGB *t_ppalettergb[MAX_STITCH_SOURCES];
+		ulong_t t_sourcew[MAX_STITCH_SOURCES];
+		ulong_t t_sourceh[MAX_STITCH_SOURCES];
+		ulong_t t_sourced[MAX_STITCH_SOURCES];
+
+		success = true;
+		int sidx = 0;
+		for (std::vector<std::string>::iterator it = g_allargs.sources.begin(); (it != g_allargs.sources.end()) && success; it++, sidx++)
 		{
+			// load images as separate objects
+
+			t_psourcergb[sidx] = 0;
+			t_psourcecol[sidx] = 0; 
+			t_ppalettergb[sidx] = 0;
+			t_sourcew[sidx] = 0;
+			t_sourceh[sidx] = 0;
+			t_sourced[sidx] = 0;
+
+			std::string source = *it;
+
+			success &= image_load
+			(
+				source.c_str(), 
+				t_psourcergb[sidx], 
+				t_psourcecol[sidx], 
+				t_ppalettergb[sidx], 
+				t_sourcew[sidx], 
+				t_sourceh[sidx], 
+				t_sourced[sidx]
+			);
+			if (success)
+				std::cout << "read stitching source [" << g_allargs.sourcefile.c_str() << "] with colour depth " << t_sourced[sidx] << " and dimensions " << t_sourcew[sidx] << " x " << t_sourceh[sidx] << std::endl;
+	
+			// source consistency check, in case someone saves a file with the wrong width, depth etc.
+			if ((sidx > 0) && 
+				((t_sourcew[sidx] != t_sourcew[sidx-1]) || 
+				 (t_sourced[sidx] != t_sourced[sidx-1]) ||
+				 (!!(t_psourcecol[sidx]) != !!(t_psourcecol[sidx-1])) ||
+				 (!!(t_ppalettergb[sidx]) != !!(t_ppalettergb[sidx-1]))
+				 )
+			)
+			{
+				std::cerr << "error: multiple source files are inconsistent in width or colour depth!" << std::endl;
+				printf("press any key...\n");
+				getchar();	
+				exit(1);
+			}
+
+			// additional palette consistency check!
+			if ((sidx > 0) && 
+				(t_ppalettergb[0]) && 
+				(t_sourced[0] > 0) && 
+				(t_sourced[0] <= 8)
+			)
+			{
+				int ncols = 1 << t_sourced[0];
+				bool different = false;
+
+				for (int c = 0; (c < ncols) & !different; c++)
+				{
+					if (t_ppalettergb[sidx] != t_ppalettergb[sidx - 1])
+						different = true;
+				}
+
+				if (different)
+				{
+					std::cerr << "error: multiple source files are inconsistent in palette values!" << std::endl;
+					printf("press any key...\n");
+					getchar();
+					exit(1);
+				}
+			}
+
+			// sum height for joined image
+			sourceh += t_sourceh[sidx];
+		}
+
+		if (success)
+		{
+			std::cout << "read multiple source images for stitching" << std::endl;
+
+			// join the images together
+
+			sourcew = t_sourcew[0];
+			sourced = t_sourced[0];
+
+			// copy palette from first image
+			if (t_ppalettergb[0])
+			{
+				m_ppalettergb = new RGB[256];
+				memcpy(m_ppalettergb, t_ppalettergb[0], sizeof(RGB) * 256); // todo: get palette size properly!
+			}
+
+			// create space for joined colourmap, if present
+			if (t_psourcecol[0])
+				m_psourcecol = new ubyte_t[sourcew*sourceh];
+
+			// create space for raw RGB data
+			if (t_psourcergb[0])
+				m_psourcergb = new RGB[sourcew*sourceh];
+
+			// transfer pixels to joined image
+			for (int i = 0, yo = 0; i < sidx; i++)
+			{
+				int ytilerow = yo >> bceil(g_allargs.tilesize);
+				std::cout << "joining source [" << i << "] starting @ tile row [" << ytilerow << "]" << std::endl;
+
+				// note: certain pixel buffers are optional so check them before copying data
+				ubyte_t *scol = t_psourcecol[i];
+				RGB *srgb = t_psourcergb[i];
+				for (int sy = 0; sy < t_sourceh[i]; sy++)
+				{
+					for (int sx = 0; sx < sourcew; sx++)
+					{
+						if (m_psourcecol)
+							m_psourcecol[sx + ((sy+yo) * sourcew)] = scol[sx + (sy * sourcew)];
+						if (m_psourcergb)
+							m_psourcergb[sx + ((sy+yo) * sourcew)] = srgb[sx + (sy * sourcew)];
+					}
+				}
+
+				// advance output vertically
+				yo += t_sourceh[i];
+			}
+
+			std::cout << "joined " << sidx << " images into single map for extraction" << std::endl;
+		}
+		else
+		{
+			std::cerr << "error: failed to read one or more source images for stitching!" << std::endl;
+			printf("press any key...\n");
+			getchar();	
+			exit(1);
+		}
+	}
+	else
+	{
+		// single source image - just load it and use it
+		success = image_load(g_allargs.sourcefile.c_str(), m_psourcergb, m_psourcecol, m_ppalettergb, sourcew, sourceh, sourced);
+		if (success)
 			std::cout << "read [" << g_allargs.sourcefile.c_str() << "] with colour depth " << sourced << " and dimensions " << sourcew << " x " << sourceh << std::endl;
+	}
+
+	if (success)
+	{
+		//if (1)
+		{
+			//std::cout << "read [" << g_allargs.sourcefile.c_str() << "] with colour depth " << sourced << " and dimensions " << sourcew << " x " << sourceh << std::endl;
 
 			if ((sourcew & (g_allargs.tilesize - 1)) || (sourceh & (g_allargs.tilesize - 1)))
 			{
@@ -3857,10 +4072,10 @@ bool do_tilemap()
 			if (m_psourcecol2)
 				delete[] m_psourcecol2;
 		}
-		else
-		{
-			std::cerr << "warning: could not decode [" << g_allargs.sourcefile.c_str() << "] source image" << std::endl;
-		}
+		//else
+		//{
+		//	std::cerr << "warning: could not decode [" << g_allargs.sourcefile.c_str() << "] source image" << std::endl;
+		//}
 	}
 	else
 	{
