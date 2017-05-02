@@ -27,6 +27,7 @@ within_entitydraw	set	1
 
 	ifd		AGT_CONFIG_WORLD_XMAJOR
 	XDEF		_BLiT_EntityDrawVisibleXM_68k
+	XDEF		_BLiT_EntityDeferVisibleXM_68k
 	XDEF		_EntityInteractVisibleXM_68k
 	XREF		_gp_entity_x_head
 	XREF		_gp_entity_x_aftertail
@@ -34,11 +35,13 @@ within_entitydraw	set	1
 	
 	ifd		AGT_CONFIG_WORLD_YMAJOR
 	XDEF		_BLiT_EntityDrawVisibleYM_68k
+	XDEF		_BLiT_EntityDeferVisibleYM_68k
 	XDEF		_EntityInteractVisibleYM_68k
 	XREF		_gp_entity_y_head
 	XREF		_gp_entity_y_aftertail
 	endc
 
+;	XDEF		_BLiT_EntityDrawLayers_68k
 	XDEF		_EntitySpatial_68k
 	XREF		_gp_entity_tick_tail
 ;	XREF		_EntityLink_Tick_Ext
@@ -76,10 +79,7 @@ within_entitydraw	set	1
 
 	ifd		AGT_CONFIG_DEBUGDRAW
 	XREF		_g_debugdraw
-	endc
-	
-*-------------------------------------------------------*
-
+	endc	
 
 *-------------------------------------------------------*
 *	Direct 68k version to support VISTRIG links
@@ -277,14 +277,20 @@ _EntitySpatial_68k:
 
 *-------------------------------------------------------*
 
+	include		"ste\\b_slab.inc"
+
 	ifd		AGT_CONFIG_WORLD_XMAJOR	
 	include		"ste\\de_xm.s"
+	include		"ste\\de_xm_dp.s"
 	endc
 
 	ifd		AGT_CONFIG_WORLD_YMAJOR	
 	include		"ste\\de_ym.s"
+	include		"ste\\de_ym_dp.s"
 	endc
 	
+	include		"ste\\de_layers.s"
+
 *-------------------------------------------------------*
 			text
 *-------------------------------------------------------*

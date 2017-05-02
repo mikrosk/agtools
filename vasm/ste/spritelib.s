@@ -23,6 +23,8 @@
 
 	include		"drawctx.inc"
 
+	include		"ste\\b_slab.inc"
+
 *-------------------------------------------------------*
 
 within_entitydraw	set	0
@@ -484,7 +486,6 @@ enable_clipping	set	1
 
 
 ;	include		"ste/spr2bpl.s"
-
 
 
 *-------------------------------------------------------*

@@ -19,6 +19,7 @@ ent_pprev_x:		ds.l	1
 ent_pnext_y:		ds.l	1
 ent_pprev_y:		ds.l	1
 ent_pparent:		ds.l	1
+ent_layer_:		ds.l	1
 ent_id:			ds.w	1
 ent_type:		ds.w	1
 *-------------------------------------------------------*
@@ -48,10 +49,12 @@ ent_damage:		ds.w	1
 ent_frame:		ds.w	1
 ent_counter:		ds.w	1
 ent_drawtype:		ds.w	1
-;
+ent_drawlayer:		ds.w	1
 *-------------------------------------------------------*
 ent_self:		ds.w	1
 ent_interactswith:	ds.w	1
+*-------------------------------------------------------*
+ent_header_:
 *-------------------------------------------------------*
 			.text
 *-------------------------------------------------------*

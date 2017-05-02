@@ -937,21 +937,21 @@ void villager_fncol(entity_t *_pself, entity_t *_pother)
 
 entitydef_t entity_dictionary[EntityType_MAX_] =
 {
-	// [functions]								[coords]						[control]		[tick state]		[rendering]			[classification properties]
-	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype			f_self,f_interactswith	
+	// [functions]								[coords]						[control]		[tick state]		[rendering]				[classification properties]
+	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype,drawlayer		f_self,f_interactswith	
 
 	// engine objects...
 
 	// viewport																					// viewport has no tick
 	// Q: why? A: because it's a rectangle and we can determine what is inside it quickly if it is also an entity which moves through the world
-	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,	EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
+	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
 
 	// villager objects...
 
 	// villager
 	//	summary:
 	//	- bouncy, run, bouncy!
-	{ &villager_fntick,&villager_fncol,0,		{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPR,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &villager_fntick,&villager_fncol,0,		{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 };
 
