@@ -34,7 +34,6 @@
 			move.l	%10,%%a4;				 	\
 			move.l	%9,%%d7;				 	\
 			move.l	%8,%%a0;				 	\
-			addq.l	#2,%%a0;					\
 			moveq	#0,%%d2;					\
 			move.w	%6,%%d2;					\
 			lsl.l	#2,%%d2;					\
@@ -96,7 +95,6 @@
 			move.l	%10,%%a4;				 	\
 			move.l	%9,%%d7;				 	\
 			move.l	%8,%%a0;				 	\
-			addq.l	#2,%%a0;					\
 			moveq	#0,%%d2;					\
 			move.w	%6,%%d2;					\
 			lsl.l	#2,%%d2;					\

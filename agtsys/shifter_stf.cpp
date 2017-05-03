@@ -18,9 +18,9 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-extern "C" void STFM_ConfigureDisplayService();
-extern "C" void STFM_InstallDisplayService();
-extern "C" void STFM_RemoveDisplayService();
+extern "C" void STF_ConfigureDisplayService();
+extern "C" void STF_InstallDisplayService();
+extern "C" void STF_RemoveDisplayService();
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -28,21 +28,21 @@ void shifter_stf::configure(s16 _hscrollmask)
 {
 	scrollmask_ = _hscrollmask;
 
-	STFM_ConfigureDisplayService();
+	STF_ConfigureDisplayService();
 }
 
 void shifter_stf::init()
 {	
 	init_common();
 
-	STFM_InstallDisplayService();
+	STF_InstallDisplayService();
 }
 
 void shifter_stf::restore()
 {
 	restore_common();
 
-	STFM_RemoveDisplayService();
+	STF_RemoveDisplayService();
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -101,9 +101,9 @@ extern "C" s16 g_tshift;
 extern "C" s16 g_displayservice_consumed_lines;
 extern "C" s16 g_xpreshift;
 
-extern "C" int STFM_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
-extern "C" int STFM_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
-//extern "C" int STFM_RestoreEdges(int _xoff);
+extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
+extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
+//extern "C" int STF_RestoreEdges(int _xoff);
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -181,7 +181,7 @@ template
 	// enable speculative tile optimization (more complicated logic, less tile drawing)
 	bool _speculative,
 	// STE hardware scroll+linewid
-	bool _ste_hwscroll,
+	bool _ste_hw,
 	// use LJBK 4- or 8-pixel sync shift
 	bool _stf_hsyncshift,
 	// use blitter (STE/MegaST) [deprecated]
@@ -223,7 +223,7 @@ public:
 
 	// buffer speculation is for writing tile slices to future buffers ahead of time
 	static const bool c_hbufferspeculation_ = false;//(!_ste);
-	static const bool c_hsyncshift_ = _stf_hsyncshift && (!_ste_hwscroll); // ljbk display only
+	static const bool c_hsyncshift_ = _stf_hsyncshift && (!_ste_hw); // ljbk display only
 
 	// tilesize
 	static const s16 c_tilestep_ = _tilestep;
@@ -240,7 +240,7 @@ public:
 	static const bool c_vdynamic_ = _dynamic && c_updaterows_;
 
 	// only speculate on H axis if there is offscreen margin (only possible on STE with hscroll+linewid)
-	static const bool c_hspeculative_ = _speculative && c_updatecols_ && _ste_hwscroll;
+	static const bool c_hspeculative_ = _speculative && c_updatecols_ && _ste_hw;
 	// only speculate via buffers if we're using them (STF preshifted framebuffers)
 //	static const bool c_hbufferspeculative_ = _speculative && c_updatecols && (!_ste);
 	// always possible to speculate on V axis
@@ -249,8 +249,8 @@ public:
 	static const s16 c_hmargin_ = (s16)(int)c_hspeculative_;
 	static const s16 c_vmargin_ = (s16)(int)c_vspeculative_;
 
-	static const bool c_ste_ = _ste_hwscroll;
-	static const bool c_hsoftscroll_ = !_ste_hwscroll;
+	static const bool c_ste_ = _ste_hw;
+	static const bool c_hsoftscroll_ = !_ste_hw;
 	static const bool c_blitter_ = _blitter;
 
 	static const bool c_hloop_ = (_hscroll == HScrollMode_LOOPBACK);
@@ -1637,6 +1637,8 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 	// dimensions for virtual page size used for tile updating - larger than display area + scroll margin
 	// note: hardcode tile based width to make vpage exactly 184 bytes per line, to accommodate other drawing functions
+	if (c_ste_)
+	{
 	if (c_tilesize_ == 16)
 		vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
 	else
@@ -1644,6 +1646,11 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 		vpage_tiles_x_ = visible_tiles_x_ + 4;
 	else
 		xassert(false);
+	}
+	else
+	{
+		vpage_tiles_x_ = visible_tiles_x_;
+	}
 
 	vpage_tiles_y_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
 
@@ -2874,8 +2881,8 @@ void hybrid_fill()
 
 		if (c_hsyncshift_ && c_updatecols_)
 		{
-			STFM_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
-			STFM_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
+			STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
+			STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
 		}
 
 		last_txpos_ = txpos_;
@@ -3630,7 +3637,7 @@ void hybrid_fill()
 					(tx  + vpage_tiles_x_), hs_fill_y2
 				);
 				if (c_hsyncshift_)
-					STFM_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
+					STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
 			}
 		}
 		else if (tdx < 0)
@@ -3651,7 +3658,7 @@ void hybrid_fill()
 				);
 
 				if (c_hsyncshift_)
-					STFM_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
+					STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
 			}
 		}
 	}
@@ -3660,10 +3667,10 @@ void hybrid_fill()
 	if (c_hsyncshift_ && c_updatecols_)
 	{
 		if (dx > 0)
-			STFM_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
+			STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
 		else
 		if (dx < 0)
-			STFM_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
+			STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
 	}
 
 

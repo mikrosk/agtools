@@ -68,6 +68,7 @@ within_entitydraw	set	0
 	XDEF		_AGT_PlayfieldRestoreInit
 	XDEF		_AGT_PlayfieldRestoreReset
 	XDEF		_AGT_BLiT_PlayfieldRestore
+	XDEF		_AGT_CPU_PlayfieldRestore
 	endc
 
 ;	clipping window
