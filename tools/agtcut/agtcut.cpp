@@ -123,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.42";
+static const char* const g_version_string = "v0.421";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -3500,10 +3500,15 @@ bool do_tilemap()
 				int ncols = 1 << t_sourced[0];
 				bool different = false;
 
+				RGB *cmpa = t_ppalettergb[sidx];
+				RGB *cmpb = t_ppalettergb[sidx - 1];
+
 				for (int c = 0; (c < ncols) & !different; c++)
 				{
-					if (t_ppalettergb[sidx] != t_ppalettergb[sidx - 1])
-						different = true;
+					if ((cmpa[c].red   != cmpb[c].red) ||
+					    (cmpa[c].green != cmpb[c].green) ||
+					    (cmpa[c].blue  != cmpb[c].blue))
+					different = true;
 				}
 
 				if (different)
@@ -3531,8 +3536,10 @@ bool do_tilemap()
 			// copy palette from first image
 			if (t_ppalettergb[0])
 			{
+				int ncols = 1 << t_sourced[0];
 				m_ppalettergb = new RGB[256];
-				memcpy(m_ppalettergb, t_ppalettergb[0], sizeof(RGB) * 256); // todo: get palette size properly!
+				memset(m_ppalettergb, 0, sizeof(RGB) * 256);
+				memcpy(m_ppalettergb, t_ppalettergb[0], sizeof(RGB) * ncols);
 			}
 
 			// create space for joined colourmap, if present
