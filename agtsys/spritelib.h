@@ -1,12 +1,23 @@
 //======================================================================================================================
 // 	[A]tari [G]ame [T]ools / dml 2016
 //======================================================================================================================
-//	SPRITE drawing interfaces
-//----------------------------------------------------------------------------------------------------------------------
-//	Realtime-shifted 4bpl sprites:
+//	SPRITE drawing interfaces:
+//	- Full clipping
 //	- Optional auto-clearing mechanism
-//	- Includes FISR/NFSR read optimizations
+//	- All methods include FISR/NFSR read optimizations
 //	- Compatible with sprite files from AGTCut tool
+//----------------------------------------------------------------------------------------------------------------------
+//	Realtime-shifted sprites:
+//	- IMSPR/EMSPR/EMXSPR methods for BLiTTER
+//	- ISSPR method (SVMC/SFMC) for STF
+// ---------------------------------------------------------------------------------------------------------------------
+//	Preshifted sprites:
+//	- EMSPR,EMXSPR methods for BLiTTER (preshifted mask)
+//	- IPSPR method for STF (todo)
+// ---------------------------------------------------------------------------------------------------------------------
+//	Generated sprites:
+//	- EMXSPR method for BLiTTER
+//	- IGSPR method for STF (todo)
 // ---------------------------------------------------------------------------------------------------------------------
 
 #ifndef spritelib_h_
@@ -15,22 +26,11 @@
 // =====================================================================================================================
 // 	access to sprite library
 // =====================================================================================================================
-//
-//  - 'fixed-shift' just means there are dedicated pieces of code for each shift offset
-//	  so all shift positions are available but optimizations consume a lot of ram.
-//  - 'variable-shift' means there is one pieces of code for all shift offsets
-//	  which is slightly slower but requires very little code.
-
-//----------------------------------------------------------------------------------------------------------------------
 
 #include "drawcontext.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
-// precisely clipped, software-scrolled, variable-shift, masking, 4-bitplane sprite function
-// notes: 
-//  - full clipping, providing sprite does not cross L+R or T+B edges together
-//  - FISR (force initial source read) implemented for precise left-edge clipping
-//	- safest most general path, but slower than the others
+// clipped, masked, 4-bitplane sprite functions (for direct calls)
 
 extern "C" int AGT_STF_ISSprDrawClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
 
@@ -38,13 +38,8 @@ extern "C" int AGT_BLiT_IMSprDrawClipped(drawcontext_t* _pctx, spritesheet::sps_
 extern "C" int AGT_BLiT_EMSprDrawClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
 extern "C" int AGT_BLiT_EMXSprDrawClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
 
-//extern "C" int STE_EMSprClipGeneral2BPL(spritesheet::sps_header *_psps, u16 *_pfb, s32 *_plinetable, int _frame, int _x, int _y);
-
 // ---------------------------------------------------------------------------------------------------------------------
-// unclipped, software-scrolled, variable-shift, masking, 4-bitplane sprite function
-// notes: 
-//  - no clipping at all - be careful!
-//	- preferred path for smaller sprites when ram is tight
+// ubclipped, masked, 4-bitplane sprite functions (for direct calls)
 
 extern "C" int AGT_STF_ISSprDrawUnClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
 
@@ -52,9 +47,6 @@ extern "C" int AGT_BLiT_IMSprDrawUnClipped(drawcontext_t* _pctx, spritesheet::sp
 extern "C" int AGT_BLiT_EMSprDrawUnClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
 extern "C" int AGT_BLiT_EMXSprDrawUnClipped(drawcontext_t* _pctx, spritesheet::sps_header *_psps, int _frame, int _x, int _y);
 
-//extern "C" int STE_EMSprNoClipGeneral2BPL(spritesheet::sps_header *_psps, u16 *_pfb, int _frame, int _x, int _y);
-
-//extern "C" int STE_SlabNoClipGeneral4BPL(slabsheet::sls_header *_psls, u16 *_pfb, int _frame, int _x, int _y);
 extern "C" int AGT_BLiT_SlabDraw(slabsheet::sls_header *_psls, u16 *_pfb, int _frame, int _x, int _y);
 extern "C" int AGT_BLiT_SlabSetupOnce();
 
