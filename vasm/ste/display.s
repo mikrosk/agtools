@@ -306,7 +306,7 @@ displayservice_ste_vbi:
 	tst.b		DMAFlag.w
 	bne		displayservice_ste_vbi_dmasafe
 	
-	clr.b		tacr.w				; TimerA CTRL: halt
+	clr.b		tacr.w					; TimerA CTRL: halt
 	bset		#5,iera.w				; TimerA IE: enable
 	bset		#5,imra.w				; TimerA IM: enable
 	move.b		#displayservice_upper_delay-timecritical_pad_ta,$fffffa1f.w	; TimerA DATA: delay

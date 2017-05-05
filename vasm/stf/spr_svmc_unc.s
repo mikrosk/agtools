@@ -145,7 +145,7 @@
 .nx3:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .nx2:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
 .nx1:	shiftVMC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.nx0:	;add.l		a3,a0				; + src skip
+.nx0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .ngo:	moveq		#0,d2				; wipe shift registers
 	moveq		#0,d3
@@ -254,7 +254,7 @@
 .fx3:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .fx2:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
 .fx1:	shiftVMC_F	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx0:	;add.l		a3,a0				; + src skip
+.fx0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .fgo:	moveq		#0,d2				; wipe shift registers
 	moveq		#0,d3
