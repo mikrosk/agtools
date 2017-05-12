@@ -11,7 +11,8 @@
 	COMMENT		HEAD=7
 	OPT		P=68000,NOTYPE
 	OPT		W+
-	OPT		OW+
+;	OPT		OW+
+	OPT		O-
 
 *-------------------------------------------------------*
 
@@ -82,52 +83,7 @@ enable_restore	set	1
 	text
 *-------------------------------------------------------*
 
-	ifd		qqqq
-
-*-------------------------------------------------------*
-*	clipping window
-*-------------------------------------------------------*
-			rsreset
-*-------------------------------------------------------*
-clip_x1			rs.w	1
-clip_y1			rs.w	1
-clip_x2			rs.w	1
-clip_y2			rs.w	1
-
-*-------------------------------------------------------*
-*	spritesheet .sps main header
-*-------------------------------------------------------*
-			rsreset
-*-------------------------------------------------------*
-sps_version		rs.w	1
-sps_framecount		rs.w	1
-sps_planes		rs.w	1
-sps_flags		rs.w	1
-sps_preshift_range	rs.b	1
-sps_preshift_step	rs.b	1
-sps_srcwidth		rs.w	1
-sps_srcheight		rs.w	1
-sps_frameindex		rs.l	0
-*-------------------------------------------------------*
-sps_size		rs.b	0
-*-------------------------------------------------------*
-
-*-------------------------------------------------------*
-*	spritesheet .sps sprite frame header
-*-------------------------------------------------------*
-			rsreset
-*-------------------------------------------------------*
-spf_w			rs.w	1
-spf_h			rs.w	1
-spf_xo			rs.w	1
-spf_yo			rs.w	1
-spf_data		rs.l	0
-*-------------------------------------------------------*
-spf_size		rs.b	0
-*-------------------------------------------------------*
-
-			endc
-
+enable_restore		set	1
 
 *-------------------------------------------------------*
 _AGT_MarkDirtyRectangle:
@@ -166,8 +122,9 @@ _AGT_MarkDirtyRectangle:
 	lsr.w		#1,d3
 	lsr.w		#1,d1
 	
-	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
-	move.l		_drawcontext+dctx_clearstack_tide,a5
+	ifne		(enable_restore&(use_sprite_saverestore|use_sprite_pagerestore))
+	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		rstr_ptide(a4),a5
 	move.l		a5,d5
 	endc
 	
@@ -186,7 +143,7 @@ _AGT_MarkDirtyRectangle:
 	mulu.w		_g_linebytes,d7
 	add.l		d7,a1
 	
-	ifne		(use_sprite_pagerestore)	
+	ifne		(enable_restore&use_sprite_pagerestore)	
 	move.w		d2,(a5)+			; y
 	move.w		d1,(a5)+			; xo
 
@@ -197,9 +154,10 @@ _AGT_MarkDirtyRectangle:
 	endc	
 
 
-	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
+	ifne		(enable_restore&(use_sprite_saverestore|use_sprite_pagerestore))
 	move.l		d5,(a5)+
-	move.l		a5,_drawcontext+dctx_clearstack_tide
+	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		a5,rstr_ptide(a4)
 	endc
 
 *-------------------------------------------------------*
@@ -209,7 +167,8 @@ _AGT_MarkDirtyRectangle:
 	rts
 
 *-------------------------------------------------------*
-*	variable-shift, masked on keycolour=0
+*	SVMC: variable-shift, clipped, masked on key=0
+*	SFMC: optimized/fixed-shift, clipped, masked on key=0
 *-------------------------------------------------------*
 
 	ifd		AGT_CONFIG_STF_OPT_SIZE
@@ -217,12 +176,6 @@ _AGT_MarkDirtyRectangle:
 	else
 	include		"stf/spr_sfmc.s"
 	endc
-
-*-------------------------------------------------------*
-*	optimized/fixed-shift, masked on keycolour=0
-*-------------------------------------------------------*
-
-;	include		vasm\stf\spr_sfmc.s
 
 *-------------------------------------------------------*
 

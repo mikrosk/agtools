@@ -90,19 +90,20 @@ typedef playfield_template
     /*vscroll=*/VScrollMode_LOOPBACK,
     /*hscroll=*/HScrollMode_NONE,
     /*restore=*/RestoreMode_PAGERESTORE,
-    /*speculative=*/true,
-    /*ste_hwscroll=*/true,
+    /*updatemode=*/UpdateMode_NORMAL,
+    /*ste_hw=*/true,
     /*stf_hsyncshift=*/false,
     /*dynamic=*/false
-> playfield_vscroll_ste;
+> playfield_t;
 
 // define an arena (world) composed of 2 such playfields (double-buffered)
 typedef arena_template
 <
     /*buffers=*/2,
     /*singleframe=*/false,
-    /*playfield_type=*/playfield_vscroll_ste
-> arena_vscroll_ste;
+    /*dualfield=*/false,
+    /*playfield_type=*/playfield_t
+> arena_t;
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	playfield assets
@@ -143,7 +144,7 @@ int AGT_EntryPoint()
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools\n");
+	printf("[A]tari [G]ame [T]ools / dml 2017\n");
 
 	printf("Sprites: Background Restore\n");
 
@@ -221,7 +222,7 @@ int AGT_EntryPoint()
 		//	create an instance of the double-buffered arena (our game world), connected to the shifter interface
 
 		printf("creating world...\n");
-		arena_vscroll_ste myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
+		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the arena playfield(s)
@@ -291,11 +292,6 @@ int AGT_EntryPoint()
 		//	mainloop setup
 		// =====================================================================================================================
 
-		// ---------------------------------------------------------------------------------------------------------------------
-		//	initialise playfield-restore state before any sprites are drawn
-
-		AGT_PlayfieldRestoreInit();
-
 		// =====================================================================================================================
 		//	mainloop
 		// =====================================================================================================================
@@ -339,6 +335,9 @@ int AGT_EntryPoint()
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
 
+			// restore playfield from any previous drawing
+			myworld.bgrestore();
+
 			// fill any background tiles required by this change in coordinates
 			myworld.hybrid_fill(false);
 
@@ -355,11 +354,6 @@ int AGT_EntryPoint()
 			// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
 			myworld.get_context(drawcontext, 0, 320, SCREEN_LINES);
-
-			// ---------------------------------------------------------------------------------------------------------------------
-			//	reset playfield-restore after sprites are drawn (it needs flushed)
-
-			AGT_BLiT_PlayfieldRestore();
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	prepare to draw EMXSPR-format sprites with blitter

@@ -121,19 +121,20 @@ typedef playfield_template
     /*vscroll=*/VScrollMode_LOOPBACK,
     /*hscroll=*/HScrollMode_NONE,
     /*restore=*/RestoreMode_PAGERESTORE,
-    /*speculative=*/true,
-    /*ste_hwscroll=*/true,
+    /*updatemode=*/UpdateMode_NORMAL,
+    /*ste_hw=*/true,
     /*stf_hsyncshift=*/false,
     /*dynamic=*/false
-> playfield_vscroll_ste;
+> playfield_t;
 
 // define an arena (world) composed of 2 such playfields (double-buffered)
 typedef arena_template
 <
     /*buffers=*/2,
     /*singleframe=*/false,
-    /*playfield_type=*/playfield_vscroll_ste
-> arena_vscroll_ste;
+    /*dualfield=*/false,
+    /*playfield_type=*/playfield_t
+> arena_t;
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	playfield assets
@@ -186,7 +187,7 @@ int AGT_EntryPoint()
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools\n");
+	printf("[A]tari [G]ame [T]ools / dml 2017\n");
 
 	printf("Entities: Entities to Ashes\n");
 
@@ -264,7 +265,7 @@ int AGT_EntryPoint()
 		//	create an instance of the double-buffered arena (our game world), connected to the shifter interface
 
 		printf("creating world...\n");
-		arena_vscroll_ste myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
+		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the arena playfield(s)
@@ -353,11 +354,6 @@ int AGT_EntryPoint()
 		// =====================================================================================================================
 		//	mainloop setup
 		// =====================================================================================================================
-
-		// ---------------------------------------------------------------------------------------------------------------------
-		//	initialise playfield-restore state before any sprites are drawn
-
-		AGT_PlayfieldRestoreInit();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	initialize entity manager - removes any lingering entities, sets things up for a new session
@@ -456,7 +452,6 @@ int AGT_EntryPoint()
 			// manually update the viewport first. we don't need a full tick for this but we do need to keep the viewport sorted
 			g_pe_viewport->rx = g_viewport_worldx;
 			g_pe_viewport->ry = g_viewport_worldy - c_viewport_margin;
-			EntitySort2D(g_pe_viewport);
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	tick all currently linked objects
@@ -481,6 +476,9 @@ int AGT_EntryPoint()
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
 
+			// restore playfield from any previous drawing
+			myworld.bgrestore();
+
 			// fill any background tiles required by this change in coordinates
 			myworld.hybrid_fill(false);
 
@@ -497,11 +495,6 @@ int AGT_EntryPoint()
 			// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
 			myworld.get_context(drawcontext, 0, 320, SCREEN_LINES);
-
-			// ---------------------------------------------------------------------------------------------------------------------
-			//	reset playfield-restore after sprites are drawn (it needs flushed)
-
-			AGT_BLiT_PlayfieldRestore();
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	draw 'all the things'
@@ -544,11 +537,11 @@ int AGT_EntryPoint()
 			g_viewport_changeinx -= g_viewport_worldx;
 			g_viewport_changeiny -= g_viewport_worldy;
 
-			TIMING_MAIN(0x000);	
-
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	repeat until mainloop expires...
 
+			TIMING_MAIN(0x000);
+	
 		}
 
 		// =====================================================================================================================

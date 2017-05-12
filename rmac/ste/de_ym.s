@@ -85,7 +85,8 @@ _BLiT_EntityDrawVisibleYM_68k:
 *	initial conditions
 *-------------------------------------------------------*
 
-	move.l		dctx_clearstack_tide(a4),a5
+	move.l		dctx_prestorestate(a4),a5
+	move.l		rstr_ptide(a5),a5
 	move.l		a5,usp
 
 *-------------------------------------------------------*
@@ -358,8 +359,7 @@ enable_clipping	set	1				; enable full xy clipping
 		
 	; include raw drawing function here (configure it first)
 	
-use_slab_restore	set	0
-enable_restore		set	1
+enable_slabrestore	set	0
 preserve_usp		set	1
 
 	move.l		lpair_first(a0),a0
@@ -383,8 +383,7 @@ preserve_usp		set	1
 
 	; include raw restore function here (configure it first)
 
-use_slab_restore	set	1
-enable_restore		set	1
+enable_slabrestore	set	1
 preserve_usp		set	0
 
 	move.l		d3,a0
@@ -574,8 +573,9 @@ enable_clipping	set	1				; enable full xy clipping
 	move.l		(sp)+,a6
 
 	move.l		.pctx(a6),a4
+	move.l		dctx_prestorestate(a4),a4
 	move.l		usp,a5
-	move.l		a5,dctx_clearstack_tide(a4)
+	move.l		a5,rstr_ptide(a4)
 	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -653,7 +653,8 @@ _BLiT_EntityDebugVisibleYM_68k:
 *	initial conditions
 *-------------------------------------------------------*
 
-	move.l		dctx_clearstack_tide(a4),a5
+	move.l		dctx_prestorestate(a4),a5
+	move.l		rstr_ptide(a5),a5
 	move.l		a5,usp
 
 *-------------------------------------------------------*
@@ -747,8 +748,9 @@ enable_clipping	set	1				; enable full xy clipping
 	move.l		(sp)+,a6
 
 	move.l		.pctx(a6),a4
+	move.l		dctx_prestorestate(a4),a4
 	move.l		usp,a5
-	move.l		a5,dctx_clearstack_tide(a4)
+	move.l		a5,rstr_ptide(a4)
 	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5

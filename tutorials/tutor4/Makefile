@@ -125,6 +125,7 @@ STACKSIZE = 16384
 
 COMPILERDEFS += \
 		-DAGT_CONFIG_WORLD_YMAJOR \
+#		-DAGT_CONFIG_ENTITYLAYERS=2 \
 #		-DAGT_CONFIG_VISTRIGGER \
 #		-DAGT_CONFIG_DYNAMIC_TICKPRIO \
 #		-DENABLE_AGT_AUDIO \
@@ -137,10 +138,11 @@ COMPILERDEFS += \
 # -----------------------------------------------------------------------------
 
 COMPILERDEFS += \
+#		-DAGT_CONFIG_PRINT_PLAYFIELD_METRICS \
+#		-DAGT_CONFIG_STEEM_DEBUG \
 #		-DAGT_CONFIG_SAFETY_CHECKS \
 #		-DAGT_CONFIG_DEBUG_CONSOLE \
 #		-DAGT_CONFIG_DEBUGDRAW \
-#		-DAGT_CONFIG_STEEM_DEBUG \
 #		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
 #		-DUSE_MEMTRACE \
 
@@ -156,8 +158,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: tutorial_4a tutorial_4b tutorial_4c tutorial_4d tutorial_4e tutorial_4f tutorial_4g
-
+all: tutor4a tutor4b tutor4c tutor4d tutor4e tutor4f tutor4g
 
 # =============================================================================
 #	Shared build rules
@@ -174,27 +175,38 @@ include $(AGTROOT)/Makerules
 # - the AGLIB platform to use in the build rules (STF/STE)
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
-tutorial_4a: AGLIB=$(AGLIB_STE)
-tutorial_4a: $(AGLIB_STE) tutor4a.$(EXT)
+tutor4a: AGLIB=$(AGLIB_STE)
+tutor4a: $(AGLIB_STE) tutor4a.$(EXT)
 
-tutorial_4b: AGLIB=$(AGLIB_STE)
-tutorial_4b: $(AGLIB_STE) tutor4b.$(EXT)
+tutor4b: AGLIB=$(AGLIB_STE)
+tutor4b: $(AGLIB_STE) tutor4b.$(EXT)
 
-tutorial_4c: AGLIB=$(AGLIB_STE)
-tutorial_4c: $(AGLIB_STE) tutor4c.$(EXT)
+tutor4c: AGLIB=$(AGLIB_STE)
+tutor4c: $(AGLIB_STE) tutor4c.$(EXT)
 
-tutorial_4d: AGLIB=$(AGLIB_STE)
-tutorial_4d: $(AGLIB_STE) tutor4d.$(EXT)
+tutor4d: AGLIB=$(AGLIB_STE)
+tutor4d: $(AGLIB_STE) tutor4d.$(EXT)
 
-tutorial_4e: AGLIB=$(AGLIB_STE)
-tutorial_4e: $(AGLIB_STE) tutor4e.$(EXT)
+tutor4e: AGLIB=$(AGLIB_STE)
+tutor4e: $(AGLIB_STE) tutor4e.$(EXT)
 
-tutorial_4f: AGLIB=$(AGLIB_STE)
-tutorial_4f: $(AGLIB_STE) tutor4f.$(EXT)
+tutor4f: AGLIB=$(AGLIB_STE)
+tutor4f: $(AGLIB_STE) tutor4f.$(EXT)
 
-tutorial_4g: AGLIB=$(AGLIB_STE)
-tutorial_4g: $(AGLIB_STE) tutor4g.$(EXT)
+tutor4g: AGLIB=$(AGLIB_STE)
+tutor4g: $(AGLIB_STE) tutor4g.$(EXT)
 
+stf: AGLIB=$(AGLIB_STF)
+stf: $(AGLIB_STF) stf.$(EXT)
+
+.PHONY: tutor4a
+.PHONY: tutor4b
+.PHONY: tutor4c
+.PHONY: tutor4d
+.PHONY: tutor4e
+.PHONY: tutor4f
+.PHONY: tutor4g
+.PHONY: stf
 
 # =============================================================================
 #	Build rules for preparing data

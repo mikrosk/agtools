@@ -156,7 +156,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: tutorial
+all: tutor2
 
 
 # =============================================================================
@@ -174,9 +174,10 @@ include $(AGTROOT)/Makerules
 # - the AGLIB platform to use in the build rules (STF/STE)
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
-tutorial: AGLIB=$(AGLIB_STE)
-tutorial: $(AGLIB_STE) tutor2.$(EXT)
+tutor2: AGLIB=$(AGLIB_STE)
+tutor2: $(AGLIB_STE) tutor2.$(EXT)
 
+.PHONY: tutor2
 
 # =============================================================================
 #	Build rules for preparing data

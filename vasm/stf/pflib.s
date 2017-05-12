@@ -32,7 +32,7 @@
 _SYS_MapModInit:
 	rts
 
-maskbuffer_size		=	(1*240)+1
+;maskbuffer_size		=	(1*240)+1
 
 ; todo: does not work in ljbk 8pix mode
 *-------------------------------------------------------*
@@ -65,8 +65,6 @@ _STF_MaskEdgeL:
 	lsr.w		d2
 	add.w		d2,a0
 
-;	lea		160-8(a0),a1
-
 	move.w		.xoff+2(a6),d2
 
 ;	determine mask: 0,4,8,12 pixels	
@@ -85,108 +83,59 @@ _STF_MaskEdgeL:
 	lsr.w		d3,d1
 	swap		d1
 	lsr.w		d3,d1
-
-;	move.l		d1,d7
-;	not.l		d7
-;;	moveq		#-1,d7
-
-	and.w		#4-1,d2
-			
-	lea		maskbuffer,a2
-	mulu.w		#(8*maskbuffer_size),d2
-	add.l		d2,a2
 	
 	move.w		.height+2(a6),d3
-
-	move.l		a0,(a2)+
-	move.w		d3,(a2)+
 	
-	moveq		#16-1,d0
+	moveq		#32-1,d0
 	and.w		d3,d0
-	lsr.w		#4,d3
-
+	lsr.w		#5,d3
 	neg.w		d0
-	add.w		#16,d0
+	add.w		#32,d0
 
-	move.w		d0,d2
-	lsl.w		#3,d2
-	
-;	move.w		d0,d2				; *20
-;	lsl.w		#2,d2
-;	add.w		d0,d2
-;;	lsl.w		#3,d2
-;	lsl.w		#2,d2
-	jmp		.ylp(pc,d2.w)
-.ylp:
-	rept		16
+	lsl.w		#3,d0
+	jmp		.y412(pc,d0.w)
+.y412:
+	rept		32
 	and.l		d1,(a0)+
 	and.l		d1,(a0)+
-;	move.l		(a0),d0
-;	move.l		d0,(a2)+
-;	and.l		d1,d0
-;	move.l		d0,(a0)+
-;	move.l		(a1),d0
-;	move.l		d0,(a2)+
-;	and.l		d7,d0
-;	move.l		d0,(a1)+
-;	move.l		(a0),d0
-;	move.l		d0,(a2)+
-;	and.l		d1,d0
-;	move.l		d0,(a0)+
-;	move.l		(a1),d0
-;	move.l		d0,(a2)+
-;	and.l		d7,d0
-;	move.l		d0,(a1)+
 	lea		160-8(a0),a0
-;	lea		160-8(a1),a1
 	endr
 	
-	dbra		d3,.ylp	
+	dbra		d3,.y412	
 	bra		.done
 		
 *-------------------------------------------------------*
 .mask_8:
 *-------------------------------------------------------*
-	move.w		.height+2(a6),d3
-
 	moveq		#0,d1	
 
-	moveq		#16-1,d0
+	move.w		.height+2(a6),d3
+
+	moveq		#32-1,d0
 	and.w		d3,d0
-	lsr.w		#4,d3
-
+	lsr.w		#5,d3
 	neg.w		d0
-	add.w		#16,d0
-
-	move.w		d0,d2
+	add.w		#32,d0
 	
 ;	compensate for indexing fixed offset sequence
-	mulu.w		#160,d0
-	sub.w		d0,a0
+	move.w		d0,d2
+	mulu.w		#160,d2
+	sub.w		d2,a0
 	
-	lsl.w		#2,d2
-	jmp		.ylp8(pc,d2.w)
-.ylp8:
-	movep.l		d1,0*160(a0)
-	movep.l		d1,1*160(a0)
-	movep.l		d1,2*160(a0)
-	movep.l		d1,3*160(a0)
-	movep.l		d1,4*160(a0)
-	movep.l		d1,5*160(a0)
-	movep.l		d1,6*160(a0)
-	movep.l		d1,7*160(a0)
-	movep.l		d1,8*160(a0)
-	movep.l		d1,9*160(a0)
-	movep.l		d1,10*160(a0)
-	movep.l		d1,11*160(a0)
-	movep.l		d1,12*160(a0)
-	movep.l		d1,13*160(a0)
-	movep.l		d1,14*160(a0)
-	movep.l		d1,15*160(a0)
-	
-	lea		16*160(a0),a0
+	add.w		d0,d0
+	add.w		d0,d0
+	jmp		.y8(pc,d0.w)
+.y8:
 
-	dbra		d3,.ylp8	
+ln	set		0	
+	rept		32
+	movep.l		d1,ln*160(a0)
+ln	set		ln+1	
+	endr
+		
+	lea		32*160(a0),a0
+
+	dbra		d3,.y8	
 	
 *-------------------------------------------------------*
 .mask_0:
@@ -224,84 +173,49 @@ _STF_MaskEdgeR:
 	add.l		d1,a0
 
 	move.w		.xoff+2(a6),d2
+	add.w		#320-16,d2
 	and.w		#-16,d2
 	lsr.w		d2
 	add.w		d2,a0
 
-	lea		160-8(a0),a0
+;	lea		160-8(a0),a0
 
 	move.w		.xoff+2(a6),d2
 	
 	moveq		#$c,d3
 	and.w		d2,d3
+;	offset R
 	addq.w		#4,d3
 	cmp.w		#16,d3	
 	beq		.mask_0
 	cmp.w		#8,d3
 	beq		.mask_8
 
+*-------------------------------------------------------*
 .mask_4_12:	
+*-------------------------------------------------------*
 	
 	moveq		#-1,d1
 	lsr.w		d3,d1
 	swap		d1
 	lsr.w		d3,d1
-
 	not.l		d1
-	
-;	move.l		d1,d7
-;	not.l		d7
-;	moveq		#-1,d7
-
-	and.w		#4-1,d2
-			
-	lea		maskbuffer,a2
-	mulu.w		#(8*maskbuffer_size),d2
-	add.l		d2,a2
-	
+					
 	move.w		.height+2(a6),d3
-
-	move.l		a0,(a2)+
-	move.w		d3,(a2)+
 	
-	moveq		#16-1,d0
+	moveq		#32-1,d0
 	and.w		d3,d0
-	lsr.w		#4,d3
-
+	lsr.w		#5,d3
 	neg.w		d0
-	add.w		#16,d0
-
-	move.w		d0,d2
-	lsl.w		#3,d2
+	add.w		#32,d0
 	
-;	move.w		d0,d2				; *20
-;	lsl.w		#2,d2
-;	add.w		d0,d2
-;;	lsl.w		#3,d2
-;	lsl.w		#2,d2
-	jmp		.ylp(pc,d2.w)
+	lsl.w		#3,d0
+	jmp		.ylp(pc,d0.w)
 .ylp:
-	rept		16
+	rept		32
 	and.l		d1,(a0)+
 	and.l		d1,(a0)+
-;	move.l		(a0),d0
-;	move.l		d0,(a2)+
-;	and.l		d1,d0
-;	move.l		d0,(a0)+
-;	move.l		(a1),d0
-;	move.l		d0,(a2)+
-;	and.l		d7,d0
-;	move.l		d0,(a1)+
-;	move.l		(a0),d0
-;	move.l		d0,(a2)+
-;	and.l		d1,d0
-;	move.l		d0,(a0)+
-;	move.l		(a1),d0
-;	move.l		d0,(a2)+
-;	and.l		d7,d0
-;	move.l		d0,(a1)+
 	lea		160-8(a0),a0
-;	lea		160-8(a1),a1
 	endr
 	
 	dbra		d3,.ylp	
@@ -310,46 +224,33 @@ _STF_MaskEdgeR:
 *-------------------------------------------------------*
 .mask_8:
 *-------------------------------------------------------*
-	move.w		.height+2(a6),d3
-
 	moveq		#0,d1	
 
-	moveq		#16-1,d0
+	move.w		.height+2(a6),d3
+
+	moveq		#32-1,d0
 	and.w		d3,d0
-	lsr.w		#4,d3
-
+	lsr.w		#5,d3
 	neg.w		d0
-	add.w		#16,d0
-
-	move.w		d0,d2
+	add.w		#32,d0
 	
 ;	compensate for indexing fixed offset sequence
-	mulu.w		#160,d0
-	sub.w		d0,a0
-
-	addq.l		#1,a0
+	move.w		d0,d2
+	mulu.w		#160,d2
+	sub.w		d2,a0
 	
-	lsl.w		#2,d2
-	jmp		.ylp8(pc,d2.w)
+	add.w		d0,d0
+	add.w		d0,d0
+	jmp		.ylp8(pc,d0.w)
 .ylp8:
-	movep.l		d1,0*160(a0)
-	movep.l		d1,1*160(a0)
-	movep.l		d1,2*160(a0)
-	movep.l		d1,3*160(a0)
-	movep.l		d1,4*160(a0)
-	movep.l		d1,5*160(a0)
-	movep.l		d1,6*160(a0)
-	movep.l		d1,7*160(a0)
-	movep.l		d1,8*160(a0)
-	movep.l		d1,9*160(a0)
-	movep.l		d1,10*160(a0)
-	movep.l		d1,11*160(a0)
-	movep.l		d1,12*160(a0)
-	movep.l		d1,13*160(a0)
-	movep.l		d1,14*160(a0)
-	movep.l		d1,15*160(a0)
+
+ln	set		0	
+	rept		32
+	movep.l		d1,(ln*160)+1(a0)
+ln	set		ln+1	
+	endr
 	
-	lea		16*160(a0),a0
+	lea		32*160(a0),a0
 
 	dbra		d3,.ylp8	
 
@@ -360,70 +261,12 @@ _STF_MaskEdgeR:
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts
-
-
-*-------------------------------------------------------*
-_STF_RestoreEdges:
-*-------------------------------------------------------*
-			rsreset
-*-------------------------------------------------------*
-.savea6:		rs.l	1
-.save:			rs.l	10
-.return:		rs.l	1
-*-------------------------------------------------------*
-.xoff:			rs.l	1
-*-------------------------------------------------------*
-.frame_:		rs.b	0
-*-------------------------------------------------------*
-	movem.l		d2-d7/a2-a5,-(sp)
-	link		a6,#-.frame_
-*-------------------------------------------------------*
-	move.w		.xoff+2(a6),d2
-	
-	and.w		#4-1,d2
-			
-	lea		maskbuffer,a2
-	mulu.w		#(8*maskbuffer_size),d2
-	add.l		d2,a2
-			
-	move.l		(a2)+,d0
-	beq		.quit
-	move.l		d0,a0
-	lea		160-8(a0),a1
-	move.w		(a2)+,d3
-
-	move.w		d3,d0
-	lsr.w		#4,d3
-		
-	and.w		#16-1,d0
-	neg.w		d0
-	add.w		#16,d0
-;	lsl.w		#4,d0
-	lsl.w		#3,d0
-	jmp		.ylp(pc,d0.w)
-.ylp:
-	rept		16
-	move.l		(a2)+,(a0)+
-;	move.l		(a2)+,(a1)+
-	move.l		(a2)+,(a0)+
-;	move.l		(a2)+,(a1)+
-	lea		160-8(a0),a0
-;	lea		160-8(a1),a1
-	endr
-	
-	dbra		d3,.ylp	
-
-*-------------------------------------------------------*
-.quit:	unlk		a6
-	movem.l		(sp)+,d2-d7/a2-a5
-*-------------------------------------------------------*
-	rts
 	
 *-------------------------------------------------------*
 	bss
 *-------------------------------------------------------*
 
-maskbuffer:		ds.b	(8*maskbuffer_size)*4
+;maskbuffer:		ds.b	(8*maskbuffer_size)*4
 
 *-------------------------------------------------------*
 	text

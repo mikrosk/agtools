@@ -21,7 +21,11 @@ pr_sc_hshift		macro
 pr_sc_lshift		macro
 	move.l		(a1)+,d0
 	and.w		d5,d0
+	ifeq		(\1-1)
+	add.l		d0,d0
+	else
 	lsl.l		#\1,d0
+	endc
 	move.l		(a5)+,d3
 	swap		d3
 	rol.l		#\1,d3
@@ -56,6 +60,21 @@ pr_sc_4bpl		macro
 	addq.l		#8,a1
 	addq.l		#8,a5
 			
+;	move.l		(a1)+,d0
+;	move.l		(a5)+,d3
+;	and.l		d5,d0
+;	and.l		d6,d3
+;	or.l		d0,d3
+;	move.l		d3,(a3)+
+;	move.l		d3,(a4)+
+;	move.l		(a1)+,d0
+;	move.l		(a5)+,d3
+;	and.l		d5,d0
+;	and.l		d6,d3
+;	or.l		d0,d3
+;	move.l		d3,(a3)+
+;	move.l		d3,(a4)+
+			
 	else
 
 	; shift=?
@@ -86,7 +105,10 @@ _PR_shift_speccolumn_Npix:
 	
 	moveq		#16-1,d0
 	and.w		_g_xpreshift,d0
-	lsl.w		#2,d0
+	add.w		d0,d0
+	add.w		d0,d0
+	add.w		d3,d3
+	add.w		d3,d3
 	jmp		.tab(pc,d0.w)
 .tab:	bra.w		_PR_shift_speccolumn_0pix
 	bra.w		_PR_shift_speccolumn_1pix
@@ -114,8 +136,8 @@ _PR_shift_speccolumn_15pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
+	
 
 	bra		.syl
 .yl:
@@ -191,7 +213,6 @@ _PR_shift_speccolumn_14pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -268,7 +289,6 @@ _PR_shift_speccolumn_13pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -345,7 +365,6 @@ _PR_shift_speccolumn_12pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -422,7 +441,6 @@ _PR_shift_speccolumn_11pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -499,7 +517,6 @@ _PR_shift_speccolumn_10pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -576,7 +593,6 @@ _PR_shift_speccolumn_9pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -651,8 +667,11 @@ _PR_shift_speccolumn_8pix:
 	
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
+	
+;	move.l		#$FF00FF00,d5
+;	move.l		d5,d6
+;	not.l		d6
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -730,7 +749,6 @@ _PR_shift_speccolumn_7pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -807,7 +825,6 @@ _PR_shift_speccolumn_6pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -884,7 +901,6 @@ _PR_shift_speccolumn_5pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -961,7 +977,6 @@ _PR_shift_speccolumn_4pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1039,7 +1054,6 @@ _PR_shift_speccolumn_3pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1116,7 +1130,6 @@ _PR_shift_speccolumn_2pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1193,7 +1206,6 @@ _PR_shift_speccolumn_1pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1269,7 +1281,6 @@ _PR_shift_speccolumn_0pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1414,7 +1425,10 @@ _P_shift_speccolumn_Npix:
 	
 	moveq		#16-1,d0
 	and.w		_g_xpreshift,d0
-	lsl.w		#2,d0
+	add.w		d0,d0
+	add.w		d0,d0
+	add.w		d3,d3
+	add.w		d3,d3
 	jmp		.tab(pc,d0.w)
 .tab:	bra.w		_P_shift_speccolumn_0pix
 	bra.w		_P_shift_speccolumn_1pix
@@ -1442,7 +1456,6 @@ _P_shift_speccolumn_15pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1518,7 +1531,6 @@ _P_shift_speccolumn_14pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1594,7 +1606,6 @@ _P_shift_speccolumn_13pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1670,7 +1681,6 @@ _P_shift_speccolumn_12pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1746,7 +1756,6 @@ _P_shift_speccolumn_11pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1822,7 +1831,6 @@ _P_shift_speccolumn_10pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 	
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1898,7 +1906,6 @@ _P_shift_speccolumn_9pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -1973,7 +1980,6 @@ _P_shift_speccolumn_8pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -2050,7 +2056,6 @@ _P_shift_speccolumn_7pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -2126,7 +2131,6 @@ _P_shift_speccolumn_6pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -2202,7 +2206,6 @@ _P_shift_speccolumn_5pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -2278,7 +2281,6 @@ _P_shift_speccolumn_4pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -2355,7 +2357,6 @@ _P_shift_speccolumn_3pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -2431,7 +2432,6 @@ _P_shift_speccolumn_2pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -2507,7 +2507,6 @@ _P_shift_speccolumn_1pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl
@@ -2582,7 +2581,6 @@ _P_shift_speccolumn_0pix:
 	move.l		a5,-(sp)
 	move.l		a6,-(sp)
 
-	lsl.w		#2,d3
 	lea		.jt(pc,d3.w),a6
 
 	bra		.syl

@@ -18,4 +18,13 @@
 #include "playfield.h"
 #include "arena.h"
 
+extern "C" 
+{
+	u16 *g_rst_pfb;
+	s32 *g_rst_pflineidx;
+	s32 g_rst_vpagebytes;
+	s16 g_rst_vpageh;
+	restorestate_t *g_rst_state;
+};
+
 // ---------------------------------------------------------------------------------------------------------------------

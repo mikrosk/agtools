@@ -51,10 +51,10 @@ _STF_EntityDrawVisibleXM_68k:
 *-------------------------------------------------------*
 .sp_frame_:		rs.b	0
 *-------------------------------------------------------*
-;	ifd		AGT_CONFIG_DEBUGDRAW
-;	tst.w		_g_debugdraw
-;	bne		_BLiT_EntityDebugVisibleXM_68k
-;	endc
+	ifd		AGT_CONFIG_DEBUGDRAW
+	tst.w		_g_debugdraw
+;	bne		_STF_EntityDebugVisibleXM_68k
+	endc
 *-------------------------------------------------------*	
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
@@ -77,15 +77,17 @@ _STF_EntityDrawVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
-	add.w		#320+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+	add.w		#320+(32*2),d0		; todo: hardcoded visibility margin - make configurable
 	move.w		d0,.sp_pxmax(sp)
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*
 
-	move.l		dctx_clearstack_tide(a4),a5
+;	move.l		dctx_clearstack_tide(a4),a5
+	move.l		dctx_prestorestate(a4),a5
+	move.l		rstr_ptide(a5),a5
 	move.l		a5,usp
-
+	
 *-------------------------------------------------------*
 	
 	; important to begin with invalid drawtype
@@ -168,7 +170,6 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 .STE_EntityDrawVisibleXM_SPRITE_setup:
 *-------------------------------------------------------*
-;	jsr		_AGT_BLiT_IMSprInit			; todo: init type depends on platform & spr format
 	bra		.STE_EntityDrawVisibleXM_SPRITE_go
 
 
@@ -261,9 +262,10 @@ enable_clipping	set	1				; enable full xy clipping
 	move.l		(sp)+,a6
 	
 	move.l		.pctx(a6),a4
+	move.l		dctx_prestorestate(a4),a4
 	move.l		usp,a5
-	move.l		a5,dctx_clearstack_tide(a4)
-	
+	move.l		a5,rstr_ptide(a4)
+
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*

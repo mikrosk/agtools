@@ -124,7 +124,6 @@
 
 	ifne		(enable_restore)
 	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
-;	move.l		_drawcontext+dctx_clearstack_tide,a5
 	move.l		usp,a5
 	move.l		a5,a6
 	endc
@@ -247,7 +246,6 @@
 	ifne		(enable_restore)
 	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		a6,(a5)+
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
 	move.l		a5,usp
 	endc
 	endc

@@ -399,9 +399,11 @@ ym_td:
 ;	ori.w		#$0700,sr
 	andi.w		#$fbff,sr
 		
+	.if		^^defined ENABLE_AGT_AUDIO
 	movem.l		d0-a6,-(sp)
 	jsr		_YMSYS_Callback
 	movem.l		(sp)+,d0-a6
+	.endif
 
 	;and.b		#$f0,cdcr.w
 	

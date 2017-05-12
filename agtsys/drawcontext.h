@@ -10,6 +10,13 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+typedef struct restorestate_s
+{
+	s32 *pstack;
+	s32 *ptide;
+
+} restorestate_t;
+
 typedef struct drawcontext_s
 {
 	// playfield buffers, arrays
@@ -26,10 +33,12 @@ typedef struct drawcontext_s
 	s16 vpagex;
 	s16 vpagey;
 
-	void *pspriteclear_stack_prv;
-	void *pspriteclear_stack_cur;
-	void *pspriteclear_stack_tide;
-	void *pspriteclear_stack_prvtide;
+	restorestate_t *prestorestate;
+
+	//void *pspriteclear_stack_prv;
+	//void *pspriteclear_stack_cur;
+	//void *pspriteclear_stack_tide;
+	//void *pspriteclear_stack_prvtide;
 
 	// vpage-adjusted clipping window
 	s16 clip_window_x1;

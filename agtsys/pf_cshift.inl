@@ -11,7 +11,8 @@
 		// WRAPAROUND_MAPS will modulo mi,mj map lookup during draw, if enabled
 		// but recommend disable WRAPAROUND_MAPS for extra speed in loop 
 		// (its only useful if map is smaller than playfield)
-		
+
+
 		if (pj == pj2)
 			return;
 
@@ -22,7 +23,9 @@
 		const u16* ptiles = &tiledata_[0];
 
 		u16* dstaddr = &framebuffer_[(pj * rowskipwords_) + (pi * c_tilelinewords_)];
-		
+
+		s16 dstlineskip = (virtual_linewords_ << 1) - 8;
+
 		__asm__ __volatile__ (
 #ifdef TIMING_RASTERS
 "											\
@@ -39,10 +42,12 @@
 			lsl.l	#2,%%d2;					\
 											\
 			move.l	%%a4,%%a3;					\
-			add.l	%11,%%a3;					\
+			add.l	%12,%%a3;					\
 											\
 			move.w	%3,%%d4; 					\
 			sub.w	%1,%%d4; 					\
+											\
+			move.w	%11,%%d1; 					\
 											\
 			jsr		_PR_shift_column_Npix;	\
 											\
@@ -58,7 +63,7 @@
 			  "m"(pi), "m"(pj2),
 			  "m"(mi), "m"(mj), 
 			  "m"(map_tiles_x_), "m"(map_tiles_y_), 
-			  "m"(pmap), "m"(ptiles), "m"(dstaddr), 
+			  "m"(pmap), "m"(ptiles), "m"(dstaddr), "m"(dstlineskip), 
 			  "m"(virtual_pagebytes_)
 			: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 			  "%%a0", "%%a1", "%%a3", "%%a4", "%%a5",

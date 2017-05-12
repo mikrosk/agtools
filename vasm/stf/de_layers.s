@@ -75,7 +75,9 @@ _STF_EntityDrawLayers_68k:
 *	initial conditions
 *-------------------------------------------------------*
 	
-	move.l		dctx_clearstack_tide(a4),a5
+;	move.l		dctx_clearstack_tide(a4),a5
+	move.l		dctx_prestorestate(a4),a5
+	move.l		rstr_ptide(a5),a5
 	move.l		a5,usp
 
 *-------------------------------------------------------*
@@ -167,7 +169,6 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 .STF_EntityDrawLayers_SPRITE_setup:
 *-------------------------------------------------------*
-;	jsr		_AGT_IMSprInit			; todo: init type depends on platform & spr format
 	bra		.STF_EntityDrawLayers_SPRITE_go
 
 
@@ -244,8 +245,9 @@ enable_clipping	set	1				; enable full xy clipping
 	move.l		(sp)+,a6
 	
 	move.l		.pctx(a6),a4
+	move.l		dctx_prestorestate(a4),a4
 	move.l		usp,a5
-	move.l		a5,dctx_clearstack_tide(a4)
+	move.l		a5,rstr_ptide(a4)
 	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5

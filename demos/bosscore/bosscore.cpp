@@ -56,11 +56,9 @@
 #include "agtsys/sound/music.h"
 #endif
 
-//#include "tables/sintab32.h"
-
 // ---------------------------------------------------------------------------------------------------------------------7
 
-extern short g_displaylocked;
+//#include "tables/sintab32.h"
 
 // ---------------------------------------------------------------------------------------------------------------------7
 //	Game Entity IDs
@@ -121,25 +119,25 @@ static const s16 c_singlevbl = 0;
 // define a playfield config for horizontal-only scrolling using STE HW HSCROLL
 typedef playfield_template
 <
-	/*tilesize=*/4, 
-	/*max_scroll=*/2880,
-	/*vscroll=*/VScrollMode_NONE,				// no vertical scrolling needed
-	/*hscroll=*/HScrollMode_SCANWALK,			// enable hscroll
+	/*tilesize=*/4,								// 2^4 for 16x16 bg tiles
+	/*max_scroll=*/2880,						// maximum scroll distance in pixels (reduce to save a little ram on tables)
+	/*vscroll=*/VScrollMode_NONE,				// disable vscroll
+	/*hscroll=*/HScrollMode_SCANWALK,			// enable full hscroll
 	/*restore=*/RestoreMode_PAGERESTORE,		// restore from virtual page (verus save/restore for individual objects)
-	/*speculative=*/true,						// todo: force this as only available mode - others deprecated
-	/*ste_hwscroll=*/true,						// use STE HW scrolling
-	/*stf_hsyncshift=*/false,					// use STF 4pix syncscroll
+	/*updatemode=*/UpdateMode_NORMAL,			// tile update method (normal=full speculative-margin on STE, partial/vertical on STF)
+	/*ste_hw=*/true,							// use STE hardware for display/scroll offsets (otherwise STF syncscroll)
+	/*stf_hsyncshift=*/false,					// use STF 4-pixel offsets with LJBK method
 	/*dynamic=*/false							// enable support for runtime-refreshable map tiles
-> playfield_hscroll_ste;						// new name for our playfield definition
+> playfield_t;									// new name for our playfield definition
 
 // define an arena (world) composed of 2 such playfields (double-buffering on STE)
 typedef arena_template
 <
-	/*buffers=*/2,								// number of framebuffers required
-	/*singleframe=*/c_singlevbl ? true : false,	// set true for dual-field and single-vbl, for reduced cost. set false for dual-field @ 25hz or less
-	/*playfield_type=*/playfield_hscroll_ste	// playfield config/definition to use
-> arena_hscroll_ste;							// new name for our playfield arena definition
-
+	/*buffers=*/2,								// number of framebuffers (playfields) required
+	/*singleframe=*/c_singlevbl ? true : false,	// optimise dualfield to half the framebuffer count, when locked @ 50hz
+	/*dualfield=*/true,							// enable dualfield support at compiletime, otherwise on/off flag will be ignored
+	/*playfield_type=*/playfield_t				// playfield config/definition to use for framebuffers
+> arena_t;	
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	machine state interface (setup/shutdown)
@@ -241,7 +239,8 @@ int map_xsize;
 int map_ysize;
 
 s16 buffer_index = 0;
-arena_hscroll_ste *g_pworld = 0;
+arena_t *g_pworld = 0;
+static s16 s_bgcol = 0;
 
 extern "C" void menu_vblservice()
 {
@@ -256,11 +255,6 @@ mainloop:
 			// no need to wait for vbl - we're using a vbl-based foreground thread
 
 			s16 field_index = g_vbl;
-
-#ifdef TIMING_RASTERS_MAIN		
-			// save the current BG colour so we can use raster timing
-			s16 bgcol = reg16(ffff8240);
-#endif
 
 			TIMING_MAIN(0x077);
 
@@ -323,6 +317,9 @@ mainloop:
 			// update the playfield coordinates for this draw pass
 			g_pworld->setpos(g_viewport_worldx, g_viewport_worldy);
 
+			// restore playfield from any previous drawing
+			g_pworld->bgrestore();
+
 			// fill any background tiles required by this change in coordinates
 			g_pworld->hybrid_fill(false);
 
@@ -346,13 +343,7 @@ mainloop:
 			// - other devious details used to synchronize drawing with playfields
 			// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
-			g_pworld->get_context(drawcontext, working_field, 320, SCREEN_LINES);
-
-			// ---------------------------------------------------------------------------------------------------------------------
-			//	erase any sprites/slabs previously drawn to this buffer (now that it is no longer the physical display - clearing 
-			//	them sooner than this could cause visible flicker or just produce invisible sprites)
-
-			AGT_BLiT_PlayfieldRestore();
+			g_pworld->get_context(drawcontext, working_field, 320+16, SCREEN_LINES);
 
 			TIMING_MAIN(0x753);	
 
@@ -407,7 +398,7 @@ mainloop:
 			}
 
 
-			TIMING_MAIN(bgcol);	
+			TIMING_MAIN(s_bgcol);	
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	any remaining CPU time here can be put to good use
@@ -444,8 +435,11 @@ int AGT_EntryPoint()
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools / dml 2016\n");
+	printf("[A]tari [G]ame [T]ools / dml 2017\n");
 	printf("Boss Core (STE)\n");
+
+	// ---------------------------------------------------------------------------------------------------------------------
+	//	using BLiTTER slabs requires a one-time precalc during startup
 
 	AGT_BLiT_SlabSetupOnce();
 
@@ -507,7 +501,7 @@ int AGT_EntryPoint()
 
 #if defined(TIMING_RASTERS_MAIN)
 		// save copy of BG colour for rasters
-		s16 bgcol = mytiles0.getcol(0);
+		s_bgcol = mytiles0.getcol(0);
 #endif
 
 		// ---------------------------------------------------------------------------------------------------------------------
@@ -536,7 +530,7 @@ int AGT_EntryPoint()
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
 
 		pprintf("creating world...\n");
-		arena_hscroll_ste myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
+		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
 
 		g_pworld = &myworld;
 
@@ -710,8 +704,6 @@ int AGT_EntryPoint()
 		//	game restart point
 		// =====================================================================================================================
 
-		AGT_PlayfieldRestoreInit();
-
 #if defined(ENABLE_AGT_AUDIO)
 //		AGT_MusicLoad("lfpoison.bmz");
 		AGT_MusicLoad("gra2boss.bmz");
@@ -728,7 +720,7 @@ restart_game:
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	reset the sprite clearing stacks so we don't erase bogus rectangles when we restart the game
 
-		AGT_PlayfieldRestoreReset();
+		myworld.bgrestore_reset();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	reset the scrolling playfield
@@ -747,12 +739,7 @@ restart_game:
 
 		// must perform a complete tile-refill on all buffers if the player just died
 		// todo: ugly jump - should fade/blank screen first, but it's only an example..
-		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
-		{
-			myworld.select_buffer(b,0);
-			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
-			myworld.fill_abs(true);
-		}
+		myworld.reset(g_viewport_worldx, g_viewport_worldy);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create some significant 'static' entities related to the player

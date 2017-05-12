@@ -125,6 +125,8 @@ STACKSIZE = 16384
 
 COMPILERDEFS += \
 		-DAGT_CONFIG_WORLD_XMAJOR \
+#		-DAGT_CONFIG_STF_OPT_SIZE \
+#		-DAGT_CONFIG_STF_NOEDGEMASKING \
 #		-DAGT_CONFIG_VISTRIGGER \
 #		-DAGT_CONFIG_DYNAMIC_TICKPRIO \
 #		-DENABLE_AGT_AUDIO \
@@ -137,11 +139,12 @@ COMPILERDEFS += \
 # -----------------------------------------------------------------------------
 
 COMPILERDEFS += \
+#		-DAGT_CONFIG_STEEM_DEBUG \
+#		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
+#		-DAGT_CONFIG_PRINT_PLAYFIELD_METRICS \
 #		-DAGT_CONFIG_SAFETY_CHECKS \
 #		-DAGT_CONFIG_DEBUG_CONSOLE \
 #		-DAGT_CONFIG_DEBUGDRAW \
-#		-DAGT_CONFIG_STEEM_DEBUG \
-#		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
 #		-DUSE_MEMTRACE \
 
 # -----------------------------------------------------------------------------
@@ -156,7 +159,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: project
+all: ste
 
 
 # =============================================================================
@@ -174,13 +177,19 @@ include $(AGTROOT)/Makerules
 # - the AGLIB platform to use in the build rules (STF/STE)
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
-project: AGLIB=$(AGLIB_STE)
-project: $(AGLIB_STE) abreed.$(EXT)
+ste: AGLIB=$(AGLIB_STE)
+ste: $(AGLIB_STE) abreed.$(EXT)
+
+# note: STF builds currently require vasm - rmac port is pending
+
+stf: AGLIB=$(AGLIB_STF)
+stf: $(AGLIB_STF) stf.$(EXT)
 
 # treat these names as targets not sourcefiles otherwise bad stuff can get
 # accidentally added to the link line (we have some sourcefiles with the same
 # names as some targets, sending make to confusionland)
-.PHONY: project
+.PHONY: ste
+.PHONY: stf
 
 # =============================================================================
 #	Build rules for preparing data

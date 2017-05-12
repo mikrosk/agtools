@@ -17,6 +17,7 @@
 //	+	clean exit
 //
 //	additional:
+//	+	not an ideal starting point for a real project - see tutor4 onwards for a more realistic example
 //	+	this helps illustrate the interface to the display state, so it may be used directly by the programmer.
 //		however this low level of access is not typical of normal AGT usage for game playfields. later tutorials will 
 //		link the shifter interface with other engine layers which provide the extra functionality needed for games.
@@ -110,7 +111,7 @@ int AGT_EntryPoint()
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools\n");
+	printf("[A]tari [G]ame [T]ools / dml 2017\n");
 
 	printf("The Shifter display interface\n");
 

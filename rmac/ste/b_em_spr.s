@@ -262,7 +262,6 @@
 
 	.if		(enable_restore)
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
-;	move.l		_drawcontext+dctx_clearstack_tide,a5
 	move.l		usp,a5
 	move.l		a5,d5
 	.endif
@@ -398,7 +397,6 @@
 	.if		(enable_restore)
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		d5,(a5)+
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
 	move.l		a5,usp
 	.endif
 	.endif
@@ -529,7 +527,6 @@
 
 	.if		(enable_restore)
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
-;	move.l		_drawcontext+dctx_clearstack_tide,a5
 	move.l		usp,a5
 	move.l		a5,d5
 	.endif
@@ -646,7 +643,6 @@
 	.if		(enable_restore)
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		d5,(a5)+
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
 	move.l		a5,usp
 	.endif
 	.endif

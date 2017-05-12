@@ -9,7 +9,8 @@ _PR_shift_specrow_Npix:
 *-------------------------------------------------------*
 	moveq		#16-1,d0
 	and.w		_g_xpreshift,d0
-	lsl.w		#2,d0
+	add.w		d0,d0
+	add.w		d0,d0
 	jmp		.tab(pc,d0.w)
 .tab:	bra.w		_PR_shift_specrow_0pix
 	bra.w		_PR_shift_specrow_1pix
@@ -46,8 +47,9 @@ _PR_shift_specrow_0pix:
 	mulu.w		d3,d2
 	neg.w		d2
 	addq.w		#8,d2
-		
-	lsl.w		#2,d3
+	
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -134,7 +136,8 @@ _PR_shift_specrow_1pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -235,7 +238,8 @@ _PR_shift_specrow_2pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -337,7 +341,8 @@ _PR_shift_specrow_3pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -438,7 +443,8 @@ _PR_shift_specrow_4pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -539,7 +545,8 @@ _PR_shift_specrow_5pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -640,7 +647,8 @@ _PR_shift_specrow_6pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -741,7 +749,8 @@ _PR_shift_specrow_7pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -839,7 +848,8 @@ _PR_shift_specrow_8pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -936,7 +946,8 @@ _PR_shift_specrow_9pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -1037,7 +1048,8 @@ _PR_shift_specrow_10pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -1138,7 +1150,8 @@ _PR_shift_specrow_11pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -1239,7 +1252,8 @@ _PR_shift_specrow_12pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -1341,7 +1355,8 @@ _PR_shift_specrow_13pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -1442,7 +1457,8 @@ _PR_shift_specrow_14pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos
@@ -1544,7 +1560,8 @@ _PR_shift_specrow_15pix:
 	neg.w		d2
 	addq.w		#8,d2
 		
-	lsl.w		#2,d3
+	add.w		d3,d3
+	add.w		d3,d3
 	lea		.jt(pc,d3.w),a6
 
 	move.l		d1,a0				; map xy pos

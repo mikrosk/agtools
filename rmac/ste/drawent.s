@@ -282,16 +282,24 @@ _EntitySpatial_68k:
 	include		"ste\\b_slab.inc"
 
 	.if		^^defined AGT_CONFIG_WORLD_XMAJOR	
-	include		"ste\\de_xm.s"
+	.if		^^defined AGT_CONFIG_ENTITYLAYERS	
 	include		"ste\\de_xm_dp.s"
+	.else
+	include		"ste\\de_xm.s"
+	.endif
 	.endif
 
 	.if		^^defined AGT_CONFIG_WORLD_YMAJOR	
-	include		"ste\\de_ym.s"
+	.if		^^defined AGT_CONFIG_ENTITYLAYERS	
 	include		"ste\\de_ym_dp.s"
+	.else
+	include		"ste\\de_ym.s"
+	.endif
 	.endif
 
+	.if		^^defined AGT_CONFIG_ENTITYLAYERS	
 	include		"ste\\de_layers.s"
+	.endif
 	
 *-------------------------------------------------------*
 			.text

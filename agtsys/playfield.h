@@ -11,6 +11,12 @@
 
 #include "drawcontext.h"
 
+extern "C" u16 *g_rst_pfb;
+extern "C" s32 *g_rst_pflineidx;
+extern "C" s32 g_rst_vpagebytes;
+extern "C" s16 g_rst_vpageh;
+extern "C" restorestate_t *g_rst_state;
+
 extern "C" s16 * volatile dm_dstaddr;
 extern "C" s16 * volatile dm_dirtymask;
 //extern "C" s16 * volatile dm_lmask;
@@ -34,6 +40,26 @@ extern "C" void do_dirtyrect_pr();
 extern "C" void do_dirtyrect_p();
 
 extern "C" void do_dirtyrect_pr8();
+
+extern "C" int AGT_MarkDirtyRectangle(u16 *_pfb, int _x, int _y, int _xs, int _ys);
+
+extern "C" int AGT_PlayfieldRestoreInit();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// reset sprite clearing stacks - called before first frame to be drawn in each new scene/level
+
+extern "C" int AGT_PlayfieldRestoreReset();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// restore sprite footprints using Blitter/CPU (STE)
+
+extern "C" int AGT_BLiT_PlayfieldRestore();
+extern "C" int AGT_CPU_PlayfieldRestore();
+
+// ---------------------------------------------------------------------------------------------------------------------
+// restore sprite footprints using CPU only (STF)
+
+extern "C" int AGT_STF_PlayfieldRestore();
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -101,8 +127,8 @@ extern "C" s16 g_tshift;
 extern "C" s16 g_displayservice_consumed_lines;
 extern "C" s16 g_xpreshift;
 
-extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
-extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
+//extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
+//extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 //extern "C" int STF_RestoreEdges(int _xoff);
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -166,6 +192,13 @@ static inline void lcopytorect(s32* _src, s32* _dst, s16 _dx, s16 _dy, s16 _stri
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+enum UpdateMode
+{
+	UpdateMode_NORMAL,
+	UpdateMode_STF_AHEAD_MARGIN,
+	UpdateMode_STF_AHEAD_BUFFER
+};
+
 template 
 <
 	// tilesize in 2^n
@@ -179,7 +212,7 @@ template
 	// configure background restore mode
 	RestoreMode _restore,
 	// enable speculative tile optimization (more complicated logic, less tile drawing)
-	bool _speculative,
+	UpdateMode _updatemode,
 	// STE hardware scroll+linewid
 	bool _ste_hw,
 	// use LJBK 4- or 8-pixel sync shift
@@ -204,6 +237,11 @@ public:
 	// todo: remove
 	static const bool _blitter = false;
 
+	static const bool c_ste_ = _ste_hw;
+	static const bool c_hsoftscroll_ = !_ste_hw;
+	static const bool c_blitter_ = _blitter;
+	static const UpdateMode c_updatemode_ = _updatemode;
+
 	// todo: plane support mostly hardwired for now due to specific drawing routs
 	static const int c_planestep_ = 2;
 	static const int c_planes_ = 1<<c_planestep_;
@@ -222,7 +260,7 @@ public:
 	static const bool c_twolayer_ = (_layers == 2);
 
 	// buffer speculation is for writing tile slices to future buffers ahead of time
-	static const bool c_hbufferspeculation_ = false;//(!_ste);
+	static const bool c_hbufferspeculation_ = (!c_ste_) && (c_updatemode_ == UpdateMode_STF_AHEAD_BUFFER);
 	static const bool c_hsyncshift_ = _stf_hsyncshift && (!_ste_hw); // ljbk display only
 
 	// tilesize
@@ -240,18 +278,15 @@ public:
 	static const bool c_vdynamic_ = _dynamic && c_updaterows_;
 
 	// only speculate on H axis if there is offscreen margin (only possible on STE with hscroll+linewid)
-	static const bool c_hspeculative_ = _speculative && c_updatecols_ && _ste_hw;
+	static const bool c_hspeculative_ = c_updatecols_ && (c_ste_ || (c_updatemode_ == UpdateMode_STF_AHEAD_MARGIN));
 	// only speculate via buffers if we're using them (STF preshifted framebuffers)
 //	static const bool c_hbufferspeculative_ = _speculative && c_updatecols && (!_ste);
 	// always possible to speculate on V axis
-	static const bool c_vspeculative_ = _speculative && c_updaterows_;
+	static const bool c_vspeculative_ = /*_speculative &&*/ c_updaterows_;
+	static const bool c_stf_maskedspeculation_ = (c_updatemode_ == UpdateMode_STF_AHEAD_MARGIN) && !c_ste_ && c_hspeculative_/* && !c_hbufferspeculation_*/;
 
 	static const s16 c_hmargin_ = (s16)(int)c_hspeculative_;
 	static const s16 c_vmargin_ = (s16)(int)c_vspeculative_;
-
-	static const bool c_ste_ = _ste_hw;
-	static const bool c_hsoftscroll_ = !_ste_hw;
-	static const bool c_blitter_ = _blitter;
 
 	static const bool c_hloop_ = (_hscroll == HScrollMode_LOOPBACK);
 	static const bool c_vloop_ = (_vscroll == VScrollMode_LOOPBACK);
@@ -608,7 +643,9 @@ public:
 	const u16* tiledata_;
 	tileset* tilesoverlay_;
 	const u16* tileoverlaydata_;
-	
+
+	restorestate_t restorestate_;
+
 	s32 tilecount_;
 	
 	mersenne_twister twister_;
@@ -617,6 +654,7 @@ public:
 	s16 xpreshift_;
 	s16 last_slice_;
 	s16 slice_;
+	s16 maskedges_;
 
 //	s32* dirtytiles_;
 	s16* dirtymask_;
@@ -649,14 +687,19 @@ public:
 	}
 
 	// set speculative slice to render (for buffer speculation)
-	inline void setslice(s16 _s)
+	agt_inline void setslice(s16 _s)
 	{
 		slice_ = _s<<c_preshift_stepshift_;
 	}
 
-	inline void setpos(s16 _x, s16 _y)
+	agt_inline void setpos(s16 _x, s16 _y)
 	{
-		xpos_ = _x;//(_x & 0xFFFC) + xpreshift_;
+		// todo: not for hbufferspec
+		if (c_hsyncshift_)
+			xpos_ = (_x & 0xFFFC) + xpreshift_;
+		else
+			xpos_ = _x;
+
 		ypos_ = _y;
 		txpos_ = xpos_ >> c_tilestep_;
 		typos_ = ypos_ >> c_tilestep_;
@@ -676,17 +719,19 @@ public:
 //		g_tshift = xpos_ & (c_tilesize_-1);
 //#endif
 
-		if (!c_ste_ && !c_hbufferspeculation_)
+		if (!c_ste_ && !c_hspeculative_ && !c_hbufferspeculation_)
 		{
 			// suppress redrawing of shifted tilestrips for no effective change in tile position or shift in this buffer
-			bool draw = (typos_ != last_typos_) || 
+			bool draw = (ypos_ != last_ypos_) || 
 						(txpos_ != last_txpos_) || 
 						((xpos_ & 3) != (last_xpos_ & 3));
 
 			drawshift_ = draw;
 		}
+		else
+			drawshift_ = 1;
 
-		drawshift_ = 1;
+		//drawshift_ = 1;
 	}
 		
 	//void setmap(s32* _map)
@@ -1539,6 +1584,9 @@ public:
 #define fill_rows_virtual fill_block_virtual
 #define fill_columns_virtual fill_block_virtual
 
+#define shift_rows_virtual shift_block_virtual
+//#define shift_columns_virtual shift_block_virtual
+
 playfield_template()
 	: pmapcontext_(0),
 	  display_width_(0), display_height_(0),
@@ -1571,7 +1619,8 @@ playfield_template()
 	  dirtymask_(0), //layermask_(0),
 	  dirtymasklines_(0), layermasklines_(0),
 	  dirtymaskwidth_(0),
-	  dirtymaskstride_(0)
+	  dirtymaskstride_(0),
+	  maskedges_(0)
 {
 }
 
@@ -1586,6 +1635,8 @@ playfield_template()
 		delete[] dirtymask_;
 		delete[] dirtymasklines_;
 	}
+
+	delete[] restorestate_.pstack;
 
 	//if (c_dynamiclayer_)
 	//{
@@ -1632,24 +1683,28 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// STE adds one extra visible word-column when hscroll is active
 	// all systems add one extra visible row when vscroll is active
 	// vertical height always rounded up to next tile
-	visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols_ &&*/ c_ste_) ? c_hscrolltiles_ : 0);  // keep horizontal margin for fixed 184 byte line
+	if (c_ste_)
+		visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols_ &&*/ c_ste_) ? c_hscrolltiles_ : 0);  // keep horizontal margin for fixed 184 byte line
+	else
+		visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) - (c_stf_maskedspeculation_ ? 2 : 0);
+		
 	visible_tiles_y_ = ((display_height_ + (c_tilesize_-1)) / c_tilesize_) + (c_updaterows_ ? 1 : 0);
 
 	// dimensions for virtual page size used for tile updating - larger than display area + scroll margin
 	// note: hardcode tile based width to make vpage exactly 184 bytes per line, to accommodate other drawing functions
 	if (c_ste_)
 	{
-	if (c_tilesize_ == 16)
-		vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
-	else
-	if (c_tilesize_ == 8)
-		vpage_tiles_x_ = visible_tiles_x_ + 4;
-	else
-		xassert(false);
+		if (c_tilesize_ == 16)
+			vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
+		else
+		if (c_tilesize_ == 8)
+			vpage_tiles_x_ = visible_tiles_x_ + 4;//(c_hspeculative_ ? 4 : 0);
+		else
+			xassert(false);
 	}
 	else
 	{
-		vpage_tiles_x_ = visible_tiles_x_;
+		vpage_tiles_x_ = visible_tiles_x_ + (c_stf_maskedspeculation_ ? 2 : 0);
 	}
 
 	vpage_tiles_y_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
@@ -1660,7 +1715,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	modulo_vpage_x_ = pfieldcontext_->modulo_vpage_x_; 
 	modulo_vpage_y_ = pfieldcontext_->modulo_vpage_y_; 
 
-	scrollmargin_tiles_x_ = c_hspeculative_ ? visible_tiles_x_ : vpage_tiles_x_;
+	scrollmargin_tiles_x_ = (c_hspeculative_ /*&& !c_hbufferspeculation_*/) ? visible_tiles_x_ : vpage_tiles_x_;
 	scrollmargin_tiles_y_ = c_vspeculative_ ? visible_tiles_y_ : vpage_tiles_y_;
 	
 	// dimensions for virtual playfield  (not same as map dimensions)
@@ -1718,6 +1773,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	if (c_scanwalk_) printf("scanwalk padding words = %d\n", (int)(c_max_vt_ * c_tilelinewords_));
 	printf("c_hmargin_:%d\n", (int)c_hmargin_);
 	printf("c_vmargin_:%d\n", (int)c_vmargin_);
+	printf("preshift: %d\n", (int)xpreshift_); 
 #endif
 
 	// todo: can be shared between connected playfields
@@ -1835,6 +1891,11 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	//		layermasklines_[n] = &layermask_[n * dirtymaskwidth_];
 	//}
 
+	delete[] restorestate_.pstack;
+	restorestate_.pstack = new s32[5 * 256];
+	restorestate_.pstack[0] = 0;
+	restorestate_.ptide = &restorestate_.pstack[1];
+
 	delete[] display_alloc_;
 	int display_alloc_bytes = (bufferwords_<<1) + 256;
 	display_alloc_ = new u8[display_alloc_bytes];
@@ -1850,7 +1911,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// display_ base by the missing line count before alignment, and add it back to the framebuffer
 	// address for writing graphics. in this way no memory is wasted.
 
-	s16 displaysvc_consumed_words = g_displayservice_consumed_lines * virtual_linewords_;
+	s16 displaysvc_consumed_words = (g_displayservice_consumed_lines * virtual_linewords_) + (c_stf_maskedspeculation_ ? 4 : 0);
 	display_ = (u16*)(((u32)(display_alloc_) - (displaysvc_consumed_words<<1) + 255) & -256);
 	framebuffer_ = display_ + displaysvc_consumed_words;
 
@@ -1863,19 +1924,40 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 #if (1)
 
-	s16 txp = txpos_-c_hmargin_;
+/*	s16 txp = txpos_-c_hmargin_;
 	s16 typ = typos_-c_vmargin_;
 
 	if (c_scanwalk_ && txp < 0)
 		txp = 0;
 
 	// prefill all buffers, prepared for wrap
-	fill_rows_virtual
-	(
-		txp, typ,
-		txp, typ, 
-		txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
-	);
+	if (c_ste_)
+	{
+		fill_block_virtual
+		(
+			txp, typ,
+			txp, typ, 
+			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+		);
+	}
+	else
+	{
+		shift_block_virtual
+		(
+			txp, typ,
+			txp, typ, 
+			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+		);
+	}
+
+//	last_xpos_ = xpos_;
+//	last_ypos_ = ypos_;
+		
+//	last_txpos_ = txpos_;
+//	last_typos_ = typos_;
+*/
+
+	fill_abs();
 
 #endif
 
@@ -1898,184 +1980,53 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+	//s16 txp = txpos_-c_hmargin_;
+	//s16 typ = typos_-c_vmargin_;
+
+	//if (c_scanwalk_ && txp < 0)
+	//	txp = 0;
+
+	//// prefill all buffers, prepared for wrap
+	//fill_rows_virtual
+	//(
+	//	txp, typ,
+	//	txp, typ, 
+	//	txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+	//);
+
 void fill_abs()
 {
 	s16 txp = txpos_-c_hmargin_;
 	s16 typ = typos_-c_vmargin_;
+	g_xpreshift = xpreshift_;
 
 	if (c_scanwalk_ && txp < 0)
 		txp = 0;
 
 	// prefill all buffers, prepared for wrap
-	fill_rows_virtual
-	(
-		txp, typ,
-		txp, typ, 
-		txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
-	);
+	//fill_rows_virtual
+	//(
+	//	txp, typ,
+	//	txp, typ, 
+	//	txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+	//);
 
-	last_xpos_ = xpos_;
-	last_ypos_ = ypos_;
-		
-	last_txpos_ = txpos_;
-	last_typos_ = typos_;
-}
-
-void fill()
-{		
-	// load normal deltas for scrolling >= 1 tile
-	s16 tx = txpos_;
-	s16 ty = typos_;
-	s16 txl = last_txpos_;
-	s16 tyl = last_typos_;
-	s16 tdx = (tx - txl);
-	s16 tdy = (ty - tyl);
-	
-	if ((tdx == 0) && 
-		(tdy == 0))
-		return;
-
-	if (c_blitter_)
-		prepare_blitter();
-
-	if ((xabs(tdx) >= visible_tiles_x_) || 
-		(xabs(tdy) >= visible_tiles_y_))
+	if (c_ste_)
 	{
-#ifdef TIMING_RASTERS_MAIN		
-		reg16(ffff8240) = 0x400;
-		reg16(00000064) = 0x400;
-#endif		
-
-#if (1)
-		s16 txp = txpos_;//-c_hmargin_;
-		s16 typ = typos_;//-c_vmargin_;
-
-		//if (c_scanwalk_ && txp < 0)
-		//	txp = 0;
-
-		// prefill all buffers, prepared for wrap
-		fill_rows_virtual
+		fill_block_virtual
 		(
 			txp, typ,
 			txp, typ, 
-			txp + vpage_tiles_x_, typ + vpage_tiles_y_
+			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
 		);
-#endif
-
-/*
-		// todo: use c_hmargin_, c_vmargin_ for properly configured offsets
-	
-		s16 xo = xmax(txpos_-c_hmargin_, 0);
-		s16 yo = xmax(typos_-c_vmargin_, 0);
-
-		yo = typos_;
-*/
-/*		// prefill all 4 buffers, prepared for wrap
-		fill_rows_virtual
+	}
+	else
+	{
+		shift_block_virtual
 		(
-			xo, yo,
-			xo, yo, 
-			xo + vpage_tiles_x_, yo + vpage_tiles_y_
-		);				
-*/
-
-#ifdef TIMING_RASTERS_MAIN		
-		reg16(ffff8240) = 0xf00;
-		reg16(00000064) = 0xf00;
-#endif		
-
-		last_txpos_ = txpos_;
-		last_typos_ = typos_;	
-		last_xpos_ = xpos_;
-		last_ypos_ = ypos_;		
-		return;
-	}
-
-	//	last_txpos_ = txpos_;
-	//	last_typos_ = typos_;	
-	//	last_xpos_ = xpos_;
-	//	last_ypos_ = ypos_;		
-	//return;
-
-	// initial hscroll fill column, assuming no change in y
-	s16 hs_fill_y1 = ty;
-	s16 hs_fill_y2 = ty + vpage_tiles_y_;
-	s16 vs_fill_x1 = tx;
-	s16 vs_fill_x2 = tx + vpage_tiles_x_;
-	
-	//if (tdy > 0)
-	//{
-	//	// don't ever fill more than a visible screen's worth
-	//	if (tdy > vpage_tiles_y_)
-	//		tdy = vpage_tiles_y_;
-
-	//	// adjust height of hscrollfill column for change in y
-	//	//hs_fill_y2 -= tdy;
-	//}			
-	//else if (tdy < 0)
-	//{
-	//	// don't ever fill more than a visible screen's worth
-	//	if (tdy < -vpage_tiles_y_)
-	//		tdy = -vpage_tiles_y_;
-
-	//	// adjust height of hscrollfill column for change in y
-	//	//hs_fill_y1 -= tdy;
-	//}
-
-	//if (tdx > 0)
-	//{
-	//	// don't ever fill more than a visible screen's worth
-	//	if (tdx > vpage_tiles_x_)
-	//		tdx = vpage_tiles_x_;
-
-	//	// adjust width of vscrollfill row for change in x
-	//	vs_fill_x2 -= tdx;
-	//}			
-	//else if (tdx < 0)
-	//{
-	//	// don't ever fill more than a visible screen's worth
-	//	if (tdx < -vpage_tiles_x_)
-	//		tdx = -vpage_tiles_x_;
-
-	//	// adjust width of vscrollfill row for change in x
-	//	vs_fill_x1 -= tdx;
-	//}
-
-	if (tdy > 0)
-	{	
-		// fill bottom edge
-		fill_rows_virtual(
-			vs_fill_x1, (tyl + vpage_tiles_y_),
-			vs_fill_x1, (tyl + vpage_tiles_y_), 
-			vs_fill_x2, (ty + vpage_tiles_y_)
-		);			
-	}
-	else if (tdy < 0)
-	{
-		// fill top edge
-		fill_rows_virtual(
-			vs_fill_x1, ty,
-			vs_fill_x1, ty, 
-			vs_fill_x2, tyl
-		);			
-	}
-
-	if (tdx > 0)
-	{
-		// fill right edge
-		fill_columns_virtual(
-			(txl + vpage_tiles_x_), hs_fill_y1, 
-			(txl + vpage_tiles_x_), hs_fill_y1, 
-			(tx + vpage_tiles_x_), hs_fill_y2
-		);
-	}
-	else if (tdx < 0)
-	{
-		// fill left edge
-		fill_columns_virtual(
-			tx, hs_fill_y1, 
-			tx, hs_fill_y1, 
-			txl, hs_fill_y2
+			txp, typ,
+			txp, typ, 
+			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
 		);
 	}
 
@@ -2088,679 +2039,61 @@ void fill()
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-void speculative_fill()
+agt_outline void warp_catchup()
 {
-	s16 dx = (xpos_ - last_xpos_);
-	s16 dy = (ypos_ - last_ypos_);
-
-	if ((dx == 0) && 
-		(dy == 0))
-	{
-		return;
-	}
-
-	if (c_blitter_)
-		prepare_blitter();
-
-/*	
-	s16 dxsign = 0;
-	if (dx > 0)
-		dxsign = 1;
-	else if (dx < 0)
-		dxsign = -1;
-
-	s16 dysign = 0;
-	if (dy > 0)
-		dysign = 1;
-	else if (dy < 0)
-		dysign = -1;
-*/				
-	s16 lxf = last_xpos_ & (c_tilesize_-1);
-	s16 lyf = last_ypos_ & (c_tilesize_-1);
-	s16 xf = xpos_ & (c_tilesize_-1);
-	s16 yf = ypos_ & (c_tilesize_-1);
-	
-/*
-	// round up tile delta for any nonzero movement so we can draw some part of a row
-			
-	if (dx > 0)
-		tdx = (((dx + (c_tilesize_ - 1)) & -c_tilesize_) >> 4);
-	else
-		tdx = -(((-dx + (c_tilesize_ - 1)) & -c_tilesize_) >> 4);
-
-	if (dy > 0)
-		tdy = (((dy + (c_tilesize_ - 1)) & -c_tilesize_) >> 4);
-	else
-		tdy = -(((-dy + (c_tilesize_ - 1)) & -c_tilesize_) >> 4);
-*/			
-			
-	s16 tx = txpos_;
-	s16 ty = typos_;
-	s16 txl = last_txpos_;
-	s16 tyl = last_typos_;
-	s16 tdx = (tx - txl);
-	s16 tdy = (ty - tyl);
-
-	if ((xabs(tdx) >= visible_tiles_x_) || 
-		(xabs(tdy) >= visible_tiles_y_))
-	{
+		// 'warp' by at least viewport dimensions - full refill
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0x400;
 		reg16(00000064) = 0x400;
 #endif		
-//		prepare_blitter();
 
-		// prefill all 4 buffers, prepared for wrap
-/*		fill_rows_virtual
-		(
-			txpos_-1, typos_-1,
-			txpos_-1, typos_-1, 
-			txpos_-1 + vpage_tiles_x_, typos_-1 + vpage_tiles_y_
-		);				
-*/
-
+		// prefill all buffers, prepared for wrap
+#if (1)
 		s16 txp = txpos_-c_hmargin_;
 		s16 typ = typos_-c_vmargin_;
 
 		if (c_scanwalk_ && txp < 0)
 			txp = 0;
 
-		// prefill all buffers, prepared for wrap
-		fill_rows_virtual
+	//	int qqq = 200000; while (qqq--) { };
+	
+		if (c_ste_)
+		fill_block_virtual
 		(
 			txp, typ,
 			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+			txpos_-c_hmargin_ + vpage_tiles_x_, 
+			typos_-c_vmargin_ + vpage_tiles_y_
 		);
-
+		else
+		shift_block_virtual
+		(
+			txp, typ,
+			txp, typ, 
+			txpos_-c_hmargin_ + vpage_tiles_x_, 
+			typos_-c_vmargin_ + vpage_tiles_y_
+		);
+#endif
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0xf00;
 		reg16(00000064) = 0xf00;
 #endif		
 
+#if !defined(AGT_CONFIG_STF_NOEDGEMASKING)
+		if (c_hsyncshift_ && c_updatecols_)
+		{
+			maskedges_ |= 3;
+			//STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
+			//STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
+		}
+#endif
+
 		last_txpos_ = txpos_;
 		last_typos_ = typos_;	
 		last_xpos_ = xpos_;
 		last_ypos_ = ypos_;		
-		return;
-	}
-		
-	// speculative fill column/row, assuming one axis at a time
-//		s16 hs_fill_y1 = ty + ((dysign < 0) ? dysign : 0);
-//		s16 hs_fill_y2 = ty + vpage_tiles_y_ + ((dysign > 0) ? dysign : 0);
-//		s16 vs_fill_x1 = tx + ((dxsign < 0) ? dxsign : 0);
-//		s16 vs_fill_x2 = tx + vpage_tiles_x_ + ((dxsign > 0) ? dxsign : 0);
-
-	s16 x1 = tx;
-	s16 y1 = ty;
-	s16 x2 = tx + visible_tiles_x_;
-	s16 y2 = ty + visible_tiles_y_;
-
-	s16 hs_fill_y1 = y1;
-	s16 hs_fill_y2 = y2;
-	s16 vs_fill_x1 = x1;
-	s16 vs_fill_x2 = x2;
-	
-#if !(SPECULATIVE_FILL_METHOD-0)
-	// method 0: easy but expensive...
-	// use longer rows/columns which overlap at ends to cover missed speculations at corners
-	hs_fill_y1 -= 1;
-	hs_fill_y2 += 1;
-	vs_fill_x1 -= 1;
-	vs_fill_x2 += 1;
-#endif
-
-/*		
-	if (tdy > 0)
-	{
-		// don't ever fill more than a visible screen's worth
-		if (tdy > vpage_tiles_y_)
-			tdy = vpage_tiles_y_;
-
-		// adjust height of hscrollfill column for change in y
-		//hs_fill_y2 -= tdy;
-	}			
-	else if (tdy < 0)
-	{
-		// don't ever fill more than a visible screen's worth
-		if (tdy < -vpage_tiles_y_)
-			tdy = -vpage_tiles_y_;
-
-		// adjust height of hscrollfill column for change in y
-		//hs_fill_y1 -= tdy;
-	}
-*/
-
-	if (dx > 0)
-	{
-		//vs_fill_x2 += 1;
-	}			
-	else if (dx < 0)
-	{
-		//vs_fill_x1 -= 1;
-	}
-/*
-	if (dy > 0)
-	{
-		// adjust width of vscrollfill row for change in x
-		hs_fill_y2 += 1;
-	}			
-	else if (dy < 0)
-	{
-		// adjust width of vscrollfill row for change in x
-		hs_fill_y1 -= 1;
-	}
-*/
-
-//	prepare_blitter();
-
-	if (dy > 0)
-	{	
-		// fill bottom edge
-
-#if !(SPECULATIVE_FILL_METHOD-1)
-		// calculate portion which may have missed previous speculative updates
-		if (tx_last_dy_ < tx)
-		{
-			// 00000000*
-			// 00000000*
-			// 00000000*
-			// 00000000*
-			// *****XXXX
-			
-			// we have scrolled right since the last DY
-			// right tiles may be spoiled
-			
-			s16 patch_x1 = tx_last_dy_ + visible_tiles_x_;
-			s16 patch_x2 = x2 + 1;
-			s16 patch_y = y2;
-			
-			fill_specrow_virtual(
-				patch_x1, patch_y,
-				patch_x1, patch_y, 
-				patch_x2,
-				0, c_tilesize_//lyf, lyf+dy
-			);			
-		}
-		else if (tx_last_dy_ > tx) // patch lower-left diagonal
-		{
-			// *00000000
-			// *00000000
-			// *00000000
-			// *00000000
-			// XXXX*****
-
-			// we have scrolled left since the last DX
-			// left tiles may be spoiled
-			
-			s16 patch_x1 = x1 - 1;
-			s16 patch_x2 = tx_last_dy_;
-			s16 patch_y = y2;
-						
-			fill_specrow_virtual(
-				patch_x1, patch_y,
-				patch_x1, patch_y, 
-				patch_x2,
-				0, c_tilesize_//lyf, lyf+dy
-			);			
-		}
-		else
-		{
-			// no change on other axis - speculation should be correct
-		}
-#endif
-					
-		// 00000000
-		// 00000000
-		// 00000000
-		// 00000000
-		// XXXXXXXX
-
-		// amortize any single-pixel remainder to minimize double-column updates
-		if (lyf == c_tilesize_-1)
-			lyf = c_tilesize_;
-		if (yf == c_tilesize_-1)
-			yf = c_tilesize_;
-
-		if (yf == lyf)
-		{
-		}									
-		else if (yf > lyf)
-		{
-			fill_specrow_virtual(
-				vs_fill_x1, y2,
-				vs_fill_x1, y2, 
-				vs_fill_x2,
-				lyf, yf	//lyf+dy
-			);	
-		}
-		else
-		{		
-			if (lyf < c_tilesize_)
-			fill_specrow_virtual(
-				vs_fill_x1, y2 - 1,
-				vs_fill_x1, y2 - 1, 
-				vs_fill_x2, 
-				lyf, c_tilesize_
-			);
-
-			if (yf > 0)	
-			fill_specrow_virtual(
-				vs_fill_x1, y2,
-				vs_fill_x1, y2, 
-				vs_fill_x2, 
-				0, yf
-			);														
-		}		
-	}
-	else if (dy < 0)
-	{
-#if !(SPECULATIVE_FILL_METHOD-1)
-		// calculate portion which may have missed previous speculative updates
-		if (tx_last_dy_ < tx)
-		{
-			// *****XXXX
-			// 00000000*
-			// 00000000*
-			// 00000000*
-			// 00000000*
-						
-			s16 patch_x1 = tx_last_dy_ + visible_tiles_x_;
-			s16 patch_x2 = x2 + 1;
-			s16 patch_y = y1 - 1;
-									
-			// we have scrolled right since the last DX
-			// right tiles may be spoiled
-			fill_specrow_virtual(
-				patch_x1, patch_y,
-				patch_x1, patch_y, 
-				patch_x2,
-				0, c_tilesize_//yf, yf-dy
-			);	
-		}
-		else if (tx_last_dy_ > tx)	// patch upper-left diagonal
-		{
-			// XXXX*****
-			// *00000000
-			// *00000000
-			// *00000000
-			// *00000000
-
-			s16 patch_x1 = x1 - 1;
-			s16 patch_x2 = tx_last_dy_;
-			s16 patch_y = y1 - 1;			
-						
-			// we have scrolled left since the last DX
-			// left tiles may be spoiled
-			fill_specrow_virtual(
-				patch_x1, patch_y,
-				patch_x1, patch_y, 
-				patch_x2,
-				0, c_tilesize_//yf, yf-dy
-			);		
-		}
-		else
-		{
-			// no change on other axis - speculation should be correct
-		}	
-#endif
-		
-		// XXXXXXXX
-		// 00000000
-		// 00000000
-		// 00000000
-		// 00000000
-
-		// amortize any single-pixel remainder to minimize double-column updates
-		if (lyf == 1)
-			lyf = 0;
-		if (yf == 1)
-			yf = 0;
-
-		if (yf == lyf)
-		{
-		}									
-		else if (yf < lyf)
-		{
-			fill_specrow_virtual(
-				vs_fill_x1, y1 - 1,
-				vs_fill_x1, y1 - 1, 
-				vs_fill_x2,
-				yf, lyf	//yf-dy
-			);	
-		}
-		else
-		{		
-			if (lyf > 0)	
-			fill_specrow_virtual(
-				vs_fill_x1, y1,
-				vs_fill_x1, y1, 
-				vs_fill_x2, 
-				0, lyf
-			);
-
-			if (yf < c_tilesize_)	
-			fill_specrow_virtual(
-				vs_fill_x1, y1 - 1,
-				vs_fill_x1, y1 - 1, 
-				vs_fill_x2,
-				yf, c_tilesize_
-			);														
-		}		
-		
-		
-		// fill top edge
-//			fill_rows_virtual(
-//				vs_fill_x1, ty,
-//				vs_fill_x1, ty, 
-//				vs_fill_x2, tyl
-//			);			
-	}
-
-//	prepare_blitter();
-
-	if (dx > 0)
-	{		
-		// fill right edge
-		
-#if !(SPECULATIVE_FILL_METHOD-1)
-		// calculate portion which may have missed previous speculative updates
-		if (ty_last_dx_ < ty)
-		{
-			// 00000000*
-			// 00000000*
-			// 00000000X
-			// 00000000X
-			// ********X
-
-			s16 patch_x = x2;
-			s16 patch_y1 = ty_last_dx_ + visible_tiles_y_;
-			s16 patch_y2 = y2 + 1;
-					
-			// we have scrolled down since the last DX
-			// lower tiles may be spoiled
-			fill_speccolumn_virtual(
-				patch_x, patch_y1, 
-				patch_x, patch_y1, patch_y2,
-				0, c_tilesize_//lxf+dx
-			);				
-		}
-		else if (ty_last_dx_ > ty)
-		{
-			// ********X
-			// 00000000X
-			// 00000000X
-			// 00000000*
-			// 00000000*
-			
-			s16 patch_x = x2;
-			s16 patch_y1 = y1 - 1;
-			s16 patch_y2 = ty_last_dx_;
-			
-			// we have scrolled up since the last DX
-			// upper tiles may be spoiled
-			fill_speccolumn_virtual(
-				patch_x, patch_y1, 
-				patch_x, patch_y1, patch_y2,
-				0, c_tilesize_//lxf+dx
-			);				
-		}
-		else
-		{
-			// no change on other axis - speculation should be correct
-		}
-#endif
-		
-		// 00000000X
-		// 00000000X
-		// 00000000X
-		// 00000000X
-
-		// amortize any single-pixel remainder to minimize double-column updates
-		if (lxf == c_tilesize_-1)
-			lxf = c_tilesize_;
-		if (xf == c_tilesize_-1)
-			xf = c_tilesize_;
-
-		if (xf == lxf)
-		{
-		}
-		else if (xf > lxf)
-		{
-#ifdef TIMING_RASTERS_MAIN
-			reg16(ffff8240) = 0x0ff;
-			reg16(00000064) = 0x0ff;
-#endif		
-			fill_speccolumn_virtual(
-				x2, hs_fill_y1, 
-				x2, hs_fill_y1, hs_fill_y2,
-				lxf, xf//lxf+dx
-			);		
-		}
-		else
-		{
-
-#ifdef TIMING_RASTERS_MAIN		
-			reg16(ffff8240) = 0xfff;
-			reg16(00000064) = 0xfff;
-#endif		
-			if (lxf < c_tilesize_)	
-			fill_speccolumn_virtual(
-				x2 - 1, hs_fill_y1, 
-				x2 - 1, hs_fill_y1, hs_fill_y2,
-				lxf, c_tilesize_
-			);		
-
-#ifdef TIMING_RASTERS_MAIN		
-			reg16(ffff8240) = 0x444;
-			reg16(00000064) = 0x444;
-#endif		
-			if (xf > 0)	
-			fill_speccolumn_virtual(
-				x2, hs_fill_y1, 
-				x2, hs_fill_y1, hs_fill_y2,
-				0, xf
-			);		
-
-		}			
-		
-//			fill_columns_virtual(
-//				(txl + vpage_tiles_x_), hs_fill_y1, 
-//				(txl + vpage_tiles_x_), hs_fill_y1, 
-//				(tx + vpage_tiles_x_), hs_fill_y2
-//			);
-
-	}
-	else if (dx < 0)
-	{
-	
-#if !(SPECULATIVE_FILL_METHOD-1)
-		// calculate portion which may have missed previous speculative updates
-		if (ty_last_dx_ < ty)
-		{
-			// *00000000
-			// *00000000
-			// X00000000
-			// X00000000
-			// X********
-
-			s16 patch_x = x1 - 1;
-			s16 patch_y1 = ty_last_dx_ + visible_tiles_y_;
-			s16 patch_y2 = y2 + 1;
-									
-			// we have scrolled down since the last DX
-			// lower tiles may be spoiled
-			fill_speccolumn_virtual(
-				patch_x, patch_y1, 
-				patch_x, patch_y1, patch_y2,
-				0, c_tilesize_//xf-dx
-			);				
-		}
-		else if (ty_last_dx_ > ty)
-		{
-			// X********
-			// X00000000
-			// X00000000
-			// *00000000
-			// *00000000
-
-			s16 patch_x = x1 - 1;
-			s16 patch_y1 = y1 - 1;
-			s16 patch_y2 = ty_last_dx_;
-						
-			// we have scrolled up since the last DX
-			// upper tiles may be spoiled
-			fill_speccolumn_virtual(
-				patch_x, patch_y1, 
-				patch_x, patch_y1, patch_y2,
-				0, c_tilesize_//xf-dx
-			);					
-		}
-		else
-		{
-			// no change on other axis - speculation should be correct
-		}	
-#endif
-	
-		// X00000000
-		// X00000000
-		// X00000000
-		// X00000000
-
-		// amortize any single-pixel remainder to minimize double-column updates
-		if (lxf == 1)
-			lxf = 0;
-		if (xf == 1)
-			xf = 0;
-
-		if (xf == lxf)
-		{
-		}
-		else if (xf < lxf)
-		{
-#ifdef TIMING_RASTERS_MAIN		
-			reg16(ffff8240) = 0xff0;
-			reg16(00000064) = 0xff0;
-#endif		
-			fill_speccolumn_virtual(
-				x1 - 1, hs_fill_y1, 
-				x1 - 1, hs_fill_y1, hs_fill_y2,
-				xf, lxf	//xf-dx
-			);		
-		}
-		else
-		{
-#ifdef TIMING_RASTERS_MAIN		
-			reg16(ffff8240) = 0xff0;
-			reg16(00000064) = 0xff0;
-#endif		
-			if (lxf > 0)	
-			fill_speccolumn_virtual(
-				x1, hs_fill_y1, 
-				x1, hs_fill_y1, hs_fill_y2,
-				0, lxf
-			);		
-
-#ifdef TIMING_RASTERS_MAIN		
-			reg16(ffff8240) = 0x440;
-			reg16(00000064) = 0x440;
-#endif		
-			if (xf < c_tilesize_)	
-			fill_speccolumn_virtual(
-				x1 - 1, hs_fill_y1, 
-				x1 - 1, hs_fill_y1, hs_fill_y2,
-				xf, c_tilesize_
-			);		
-		}			
-		
-		
-		// fill left edge
-//			fill_columns_virtual(
-//				tx, hs_fill_y1, 
-//				tx, hs_fill_y1, 
-//				txl, hs_fill_y2
-//			);
-	}
-
-	// speculative update requires tracking changes in opposite axis since
-	// new tiles appearing on the other axis will have been missed
-		
-	if ((dy > 0) || (dy < 0))
-	{
-		tx_last_dy_ = tx;
-	}
-
-	if ((dx > 0) || (dx < 0))
-	{
-		ty_last_dx_ = ty;
-	}
-
-#if (0)
-//	prepare_blitter();
-
-	if (tdx != 0 || tdy != 0)
-	{		
-		
-	if (tdy > 0)
-	{	
-		// fill bottom edge
-		fill_rows_virtual(
-			vs_fill_x1, (tyl + vpage_tiles_y_),
-			vs_fill_x1, (tyl + vpage_tiles_y_), 
-			vs_fill_x2, (ty + vpage_tiles_y_)
-		);			
-	}
-	else if (tdy < 0)
-	{
-		// fill top edge
-		fill_rows_virtual(
-			tx, ty,
-			tx, ty, 
-			tx + 1, tyl
-		);			
-
-		fill_rows_virtual(
-			tx + vpage_tiles_x_, ty,
-			tx + vpage_tiles_x_, ty, 
-			tx + vpage_tiles_x_ + 1, tyl
-		);			
-	}
-
-	if (tdx > 0)
-	{
-		// fill right edge
-		fill_columns_virtual(
-			(txl + vpage_tiles_x_), hs_fill_y1, 
-			(txl + vpage_tiles_x_), hs_fill_y1, 
-			(tx + vpage_tiles_x_), hs_fill_y2
-		);
-	}
-	else if (tdx < 0)
-	{
-		// fill left edge
-		fill_columns_virtual(
-			tx, hs_fill_y1, 
-			tx, hs_fill_y1, 
-			txl, hs_fill_y2
-		);
-	}
-
-	last_txpos_ = txpos_;
-	last_typos_ = typos_;
-
-	}
-#else
-
-	last_txpos_ = txpos_;
-	last_typos_ = typos_;
-
-#endif
-	
-	last_xpos_ = xpos_;
-	last_ypos_ = ypos_;
+		last_slice_ = slice_;
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
 
 void hybrid_fill()
 {
@@ -2770,6 +2103,7 @@ void hybrid_fill()
 
 	if ((dx == 0) && c_hbufferspeculation_)
 		dx = tsign16(last_slice_ - slice_);
+//		dx = 1;
 
 	//if ((dx == 0) && 
 	//	(dy == 0))
@@ -2822,6 +2156,7 @@ void hybrid_fill()
 	if ((dx == 0) && 
 		(dy == 0))
 	{
+//		printf("no deltas!\n");
 		return;
 	}
 
@@ -2831,80 +2166,35 @@ void hybrid_fill()
 	s16 tdx = (tx - last_txpos_);
 	s16 tdy = (ty - last_typos_);
 
+	//if (!c_hspeculative_)
+	//{
+	//	if ((tdx == 0) && (dy == 0))
+	//		return;
+	//}
+
 	// software h-scroll requires shifted tiles to be redrawn on any pixel delta
-	if (c_hsoftscroll_)
-		tdx = tsign16(dx);
+	//if (c_hsoftscroll_ && !c_hspeculative_ && !c_hbufferspeculation_)
+	//	if (tdx == 0)
+	//		tdx = tsign16(dx);
+			//tdx = (dx > 0) ? 1 : (dx < 0) ? -1 : 0;
+	if (c_hsoftscroll_ && c_hbufferspeculation_)
+//		tdx = (dx > 0) ? 1 : (dx < 0) ? -1 : 0;
+		tdx = 1;
 
 	// 'last' scroll position derived from new tile deltas
 	s16 txl = tx - tdx;
 	s16 tyl = ty - tdy;
 
-	if ((xabs(tdx) >= visible_tiles_x_) || 
-		(xabs(tdy) >= visible_tiles_y_))
+	const s16 atdx = xabs(tdx);
+	const s16 atdy = xabs(tdy);
+
+	if ((atdx >= visible_tiles_x_) || 
+		(atdy >= visible_tiles_y_))
 	{
-#ifdef TIMING_RASTERS_MAIN		
-		reg16(ffff8240) = 0x400;
-		reg16(00000064) = 0x400;
-#endif		
-
-		// prefill all buffers, prepared for wrap
-#if (1)
-		s16 txp = txpos_-c_hmargin_;
-		s16 typ = typos_-c_vmargin_;
-
-		if (c_scanwalk_ && txp < 0)
-			txp = 0;
-
-	//	int qqq = 200000; while (qqq--) { };
-	
-		if (c_ste_)
-		fill_block_virtual
-		(
-			txp, typ,
-			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, 
-			typos_-c_vmargin_ + vpage_tiles_y_
-		);
-		else
-		shift_block_virtual
-		(
-			txp, typ,
-			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, 
-			typos_-c_vmargin_ + vpage_tiles_y_
-		);
-#endif
-#ifdef TIMING_RASTERS_MAIN		
-		reg16(ffff8240) = 0xf00;
-		reg16(00000064) = 0xf00;
-#endif		
-
-		if (c_hsyncshift_ && c_updatecols_)
-		{
-			STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
-			STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
-		}
-
-		last_txpos_ = txpos_;
-		last_typos_ = typos_;	
-		last_xpos_ = xpos_;
-		last_ypos_ = ypos_;		
-		last_slice_ = slice_;
-		return;
+		warp_catchup();
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
+	else
+	{
 
 	s16 x1 = tx;
 	s16 y1 = ty;
@@ -3306,12 +2596,12 @@ void hybrid_fill()
 				vs_fill_x1, (tyl + vpage_tiles_y_), 
 				vs_fill_x2, (ty + vpage_tiles_y_)
 			);			
-/*			else
+			else
 			shift_rows_virtual(
 				vs_fill_x1, (tyl + vpage_tiles_y_),
 				vs_fill_x1, (tyl + vpage_tiles_y_), 
 				vs_fill_x2, (ty + vpage_tiles_y_)
-			);	*/		
+			);
 		}
 		else if (tdy < 0)
 		{
@@ -3322,12 +2612,12 @@ void hybrid_fill()
 				vs_fill_x1, ty, 
 				vs_fill_x2, tyl
 			);			
-/*			else
+			else
 			shift_rows_virtual(
 				vs_fill_x1, ty,
 				vs_fill_x1, ty, 
 				vs_fill_x2, tyl
-			);*/			
+			);			
 		}
 	}
 
@@ -3420,13 +2710,14 @@ void hybrid_fill()
 			reg16(00000064) = 0x0ff;
 #endif		
 			//if (c_hbufferspeculation_)
-			//shift_speccolumn_virtual(
-			//	x2, hs_fill_y1, 
-			//	x2, hs_fill_y1, hs_fill_y2,
-			//	lxf, xf//lxf+dx
-			//);		
-			//else
+			if (c_ste_)
 			fill_speccolumn_virtual(
+				x2, hs_fill_y1, 
+				x2, hs_fill_y1, hs_fill_y2,
+				lxf, xf//lxf+dx
+			);		
+			else
+			shift_speccolumn_virtual(
 				x2, hs_fill_y1, 
 				x2, hs_fill_y1, hs_fill_y2,
 				lxf, xf//lxf+dx
@@ -3447,7 +2738,14 @@ void hybrid_fill()
 			//	lxf, c_tilesize_
 			//);		
 			//else
+			if (c_ste_)
 			fill_speccolumn_virtual(
+				x2 - 1, hs_fill_y1, 
+				x2 - 1, hs_fill_y1, hs_fill_y2,
+				lxf, c_tilesize_
+			);		
+			else
+			shift_speccolumn_virtual(
 				x2 - 1, hs_fill_y1, 
 				x2 - 1, hs_fill_y1, hs_fill_y2,
 				lxf, c_tilesize_
@@ -3465,11 +2763,18 @@ void hybrid_fill()
 			//	0, xf
 			//);		
 			//else
+			if (c_ste_)
 			fill_speccolumn_virtual(
 				x2, hs_fill_y1, 
 				x2, hs_fill_y1, hs_fill_y2,
 				0, xf
-			);		
+			);
+			else
+			shift_speccolumn_virtual(
+				x2, hs_fill_y1, 
+				x2, hs_fill_y1, hs_fill_y2,
+				0, xf
+			);
 
 		}			
 	}
@@ -3565,7 +2870,14 @@ void hybrid_fill()
 			//	xf, lxf	//xf-dx
 			//);		
 			//else
+			if (c_ste_)
 			fill_speccolumn_virtual(
+				x1 - 1, hs_fill_y1, 
+				x1 - 1, hs_fill_y1, hs_fill_y2,
+				xf, lxf	//xf-dx
+			);		
+			else
+			shift_speccolumn_virtual(
 				x1 - 1, hs_fill_y1, 
 				x1 - 1, hs_fill_y1, hs_fill_y2,
 				xf, lxf	//xf-dx
@@ -3585,7 +2897,14 @@ void hybrid_fill()
 			//	0, lxf
 			//);		
 			//else
+			if (c_ste_)
 			fill_speccolumn_virtual(
+				x1, hs_fill_y1, 
+				x1, hs_fill_y1, hs_fill_y2,
+				0, lxf
+			);		
+			else
+			shift_speccolumn_virtual(
 				x1, hs_fill_y1, 
 				x1, hs_fill_y1, hs_fill_y2,
 				0, lxf
@@ -3603,7 +2922,14 @@ void hybrid_fill()
 			//	xf, c_tilesize_
 			//);		
 			//else
+			if (c_ste_)
 			fill_speccolumn_virtual(
+				x1 - 1, hs_fill_y1, 
+				x1 - 1, hs_fill_y1, hs_fill_y2,
+				xf, c_tilesize_
+			);		
+			else
+			shift_speccolumn_virtual(
 				x1 - 1, hs_fill_y1, 
 				x1 - 1, hs_fill_y1, hs_fill_y2,
 				xf, c_tilesize_
@@ -3613,8 +2939,10 @@ void hybrid_fill()
 	}
 	else // c_hspecultive_
 	{
+//		printf("xxxx\n");
 		if (tdx > 0)
 		{
+//			printf("xpos!\n");
 			// fill right edge
 			if (c_ste_)
 			fill_columns_virtual(
@@ -3624,24 +2952,66 @@ void hybrid_fill()
 			);
 			else
 			{
-/*				if (c_hbufferspeculation_)
-				shift_speccolumn_virtual(
-					(txl + vpage_tiles_x_), hs_fill_y1, 
-					(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
-					slice_+0, slice_+c_preshift_step_
-				);		
+				if (c_hbufferspeculation_)
+				{
+					//0-4			12+4	0+4
+					//4-8			0+4		4+4
+					//8-12		4+4		8+4
+					//12-16		8+4		12+4
+
+//					printf("l-s: %d %d\n", last_slice_, slice_);
+
+					s16 p = (last_slice_ + c_preshift_step_) & (c_tilesize_-1);
+					s16 n = (slice_ + c_preshift_step_);
+
+					if (p == n)
+					{
+//						printf("p-n: %d %d\n", p, n);
+					}
+					else
+					if (n > p)
+					{
+//						printf("p-n: %d %d\n", p, n);
+						// single
+						shift_speccolumn_virtual(
+							(txl + vpage_tiles_x_), hs_fill_y1, 
+							(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
+							p, n
+						);	
+					}
+					else
+					{
+						// split
+//						printf("p-ts: %d %d\n", p, c_tilesize_);
+						shift_speccolumn_virtual(
+							(txl + vpage_tiles_x_), hs_fill_y1, 
+							(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
+							p, c_tilesize_
+						);	
+//						printf("0-n: %d %d\n", 0, n);
+						shift_speccolumn_virtual(
+							(txl + vpage_tiles_x_), hs_fill_y1, 
+							(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
+							0, n
+						);	
+					}
+				}
 				else
-*/				shift_columns_virtual(
+				shift_columns_virtual(
 					(txl + vpage_tiles_x_), hs_fill_y1, 
 					(txl + vpage_tiles_x_), hs_fill_y1, 
 					(tx  + vpage_tiles_x_), hs_fill_y2
 				);
+#if !defined(AGT_CONFIG_STF_NOEDGEMASKING)
 				if (c_hsyncshift_)
-					STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
+					maskedges_ |= 1;
+					//STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
+#endif
 			}
 		}
 		else if (tdx < 0)
 		{
+//			printf("xneg!\n");
 			// fill left edge
 			if (c_ste_)
 			fill_columns_virtual(
@@ -3657,22 +3027,33 @@ void hybrid_fill()
 					txl, hs_fill_y2
 				);
 
+#if !defined(AGT_CONFIG_STF_NOEDGEMASKING)
 				if (c_hsyncshift_)
-					STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
+					maskedges_ |= 2;
+					//STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
+#endif
 			}
+		}
+		else
+		{
+//			printf("l-s: %d %d\n", last_slice_, slice_);
+//			printf("no xdelta!\n");
 		}
 	}
 
+#if !defined(AGT_CONFIG_STF_NOEDGEMASKING)
 	// erase trailing edge
 	if (c_hsyncshift_ && c_updatecols_)
 	{
 		if (dx > 0)
-			STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
+			maskedges_ |= 2;
+			//STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
 		else
 		if (dx < 0)
-			STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
+			maskedges_ |= 1;
+			//STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
 	}
-
+#endif
 
 #if !(SPECULATIVE_FILL_METHOD-1)
 
@@ -3696,7 +3077,8 @@ void hybrid_fill()
 	last_typos_ = typos_;	
 	last_xpos_ = xpos_;
 	last_ypos_ = ypos_;
-	last_slice_ = slice_;
+	last_slice_ = slice_;//(slice_+c_preshift_step_) & 15;
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -3724,6 +3106,32 @@ void hybrid_fill()
 //		dirtytiles_[dirtynum_++] = index;
 //	}
 //}
+
+agt_inline void bgrestore_reset()
+{
+	restorestate_.pstack[0] = 0;
+	restorestate_.ptide = &restorestate_.pstack[1];
+}
+
+agt_inline void bgrestore()
+{
+	if (restorestate_.ptide != &restorestate_.pstack[1])
+	{
+		// todo: store these together as an internal context, pass a pointer to it
+		g_rst_pfb = framebuffer_;
+		g_rst_pflineidx = pfieldcontext_->lineindex_;
+		g_rst_vpageh = wrap_height_;
+		g_rst_vpagebytes = virtual_pagebytes_;
+		g_rst_state = &restorestate_;
+
+		if (c_ste_)
+			AGT_BLiT_PlayfieldRestore();
+		else
+			AGT_STF_PlayfieldRestore();
+
+//	bgrestore_reset();
+	}
+}
 
 agt_inline void multitouch(s16 _x, s16 _y)
 {
@@ -3921,21 +3329,6 @@ void settiles(tileset* _tiles)
 #endif
 
 };
-
-// ---------------------------------------------------------------------------------------------------------------------
-
-#if (0)
-typedef playfield_template
-<
-	/*tilesize=*/4, 
-	/*vscroll=*/VScrollMode_NONE, 
-	/*hscroll=*/HScrollMode_SCANWALK, 
-	/*speculative=*/true, 
-	/*ste_hwscroll=*/true, 
-	/*stf_hsyncshift=*/false, 
-	/*blitter=*/false
-> playfield;
-#endif
 
 // ---------------------------------------------------------------------------------------------------------------------
 

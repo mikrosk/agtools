@@ -4,6 +4,14 @@
 *	Sprite clearing/background-restore mechanism
 *-------------------------------------------------------*
 
+	XREF		_g_rst_pfb
+	XREF		_g_rst_pflineidx
+	XREF		_g_rst_vpagebytes
+	XREF		_g_rst_vpageh
+	XREF		_g_rst_state
+
+*-------------------------------------------------------*
+
 			ifne 	(use_sprite_saverestore)
 spriteclear_stacksize	=	32768
 			else
@@ -18,397 +26,46 @@ spriteclear_stacksize	=	18*256
 *-------------------------------------------------------*
 *	Sprite Clearing: Initialize
 *-------------------------------------------------------*
-_AGT_PlayfieldRestoreInit:
+;_AGT_PlayfieldRestoreInit:
 *-------------------------------------------------------*
-	move.l		#_g_spriteclear_stack_0,_drawcontext+dctx_clearstack_tide
-	move.l		#_g_spriteclear_stack_1,_drawcontext+dctx_clearstack_prvtide
-	move.l		#_g_spriteclear_stack_0,_drawcontext+dctx_clearstack_cur
-	move.l		#_g_spriteclear_stack_1,_drawcontext+dctx_clearstack_prv
-	rts
+;	move.l		#_g_spriteclear_stack_0,_drawcontext+dctx_clearstack_tide
+;	move.l		#_g_spriteclear_stack_1,_drawcontext+dctx_clearstack_prvtide
+;	move.l		#_g_spriteclear_stack_0,_drawcontext+dctx_clearstack_cur
+;	move.l		#_g_spriteclear_stack_1,_drawcontext+dctx_clearstack_prv
+;	rts
 	
 *-------------------------------------------------------*
 *	Sprite Clearing
 *-------------------------------------------------------*
 *	- 4 bitplanes
 *-------------------------------------------------------*
-_AGT_PlayfieldRestoreReset:
+;_AGT_PlayfieldRestoreReset:
 *-------------------------------------------------------*
-			rsreset
+;			rsreset
 *-------------------------------------------------------*
-.savea6:		rs.l	1
-.save:			rs.l	10
-.return:		rs.l	1
+;.savea6:		rs.l	1
+;.save:			rs.l	10
+;.return:		rs.l	1
 *-------------------------------------------------------*
-.frame_:		rs.b	0
+;.frame_:		rs.b	0
 *-------------------------------------------------------*
+;
+*-------------------------------------------------------*
+;	movem.l		d2-d7/a2-a5,-(sp)
+;	link		a6,#-.frame_
+*-------------------------------------------------------*
+;	move.l		_drawcontext+dctx_clearstack_prv,a5
+;	move.l		_drawcontext+dctx_clearstack_cur,a4
+;	clr.l		(a5)
+;	clr.l		(a4)
+;	move.l		a5,_drawcontext+dctx_clearstack_tide
+;	move.l		a4,_drawcontext+dctx_clearstack_prvtide
+*-------------------------------------------------------*
+;	unlk		a6
+;	movem.l		(sp)+,d2-d7/a2-a5
+*-------------------------------------------------------*
+;	rts
 
-*-------------------------------------------------------*
-	movem.l		d2-d7/a2-a5,-(sp)
-	link		a6,#-.frame_
-*-------------------------------------------------------*
-	move.l		_drawcontext+dctx_clearstack_prv,a5
-	move.l		_drawcontext+dctx_clearstack_cur,a4
-	clr.l		(a5)
-	clr.l		(a4)
-	move.l		a5,_drawcontext+dctx_clearstack_tide
-	move.l		a4,_drawcontext+dctx_clearstack_prvtide
-*-------------------------------------------------------*
-	unlk		a6
-	movem.l		(sp)+,d2-d7/a2-a5
-*-------------------------------------------------------*
-	rts
-
-	ifne		(use_sprite_saverestore)
-
-*-------------------------------------------------------*
-*	Sprite Clearing
-*-------------------------------------------------------*
-*	- 4 bitplanes
-*-------------------------------------------------------*
-_STE_SprClear:
-*-------------------------------------------------------*
-			rsreset
-*-------------------------------------------------------*
-.savea6:		rs.l	1
-.save:			rs.l	10
-.return:		rs.l	1
-*-------------------------------------------------------*
-.frame_:		rs.b	0
-*-------------------------------------------------------*
-
-*-------------------------------------------------------*
-	movem.l		d2-d7/a2-a5,-(sp)
-	link		a6,#-.frame_
-	move.l		a6,-(sp)
-*-------------------------------------------------------*
-	move.l		_drawcontext+dctx_clearstack_prvtide,a5
-*-------------------------------------------------------*	
-	move.l		-(a5),d0
-	beq		.cstop
-*-------------------------------------------------------*		
-.ccont:	move.l		d0,a0				; (current)++ restore context
-	move.l		d0,a5				; --(prev) restore context
-	
-	move.l		(a0)+,a1
-	move.w		(a0)+,a4
-	move.w		(a0)+,d6
-	move.w		(a0)+,d7
-	
-	move.w		.jt(pc,d6.w),d6
-	lea		.jt(pc,d6.w),a2
-	jmp		(a2)
-	
-.jt:	dc.w		.x0-.jt
-	dc.w		.x1-.jt
-	dc.w		.x2-.jt
-	dc.w		.x3-.jt
-	dc.w		.x4-.jt
-	dc.w		.x5-.jt
-	dc.w		.x6-.jt
-	dc.w		.x7-.jt
-	dc.w		.x8-.jt
-	dc.w		.x9-.jt
-	dc.w		.xA-.jt
-	dc.w		.xB-.jt
-	dc.w		.xC-.jt
-	dc.w		.xD-.jt
-	dc.w		.xE-.jt
-
-;	todo:	
-	dc.w		.xE-.jt
-	dc.w		.xE-.jt
-	dc.w		.xE-.jt
-	
-	; d0,d1,d2,d3,d4,d5,d6,a2,a3, a6
-
-*-------------------------------------------------------*		
-.xE:	subq.w		#1,d7
-	lea		40(a4),a4
-.xElp:	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	lea		32(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xElp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.xD:	subq.w		#1,d7
-	lea		40(a4),a4
-.xDlp:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	lea		24(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xDlp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.xC:	subq.w		#1,d7
-	lea		40(a4),a4
-.xClp:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+	
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xClp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.xB:	subq.w		#1,d7
-	lea		40(a4),a4
-.xBlp:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xBlp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.xA:	subq.w		#1,d7
-	lea		40(a4),a4
-.xAlp:	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xAlp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x9:	subq.w		#1,d7
-	lea		32(a4),a4
-.x9lp:	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x9lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x8:	subq.w		#1,d7
-	lea		32(a4),a4
-.x8lp:	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	lea		32(a1),a1
-	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x8lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-*-------------------------------------------------------*		
-.x7:	subq.w		#1,d7
-	lea		40(a4),a4
-.x7lp:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x7lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x6:	subq.w		#1,d7
-	lea		40(a4),a4
-.x6lp:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+	
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x6lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x5:	subq.w		#1,d7
-	lea		40(a4),a4
-.x5lp:	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x5lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-*-------------------------------------------------------*		
-.x4:	subq.w		#1,d7
-	lea		32(a4),a4
-.x4lp:	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x4lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x3:	lea		24(a4),a4
-	moveq		#4-1,d0
-	and.w		d7,d0
-	lsr.w		#2,d7
-	add.w		d0,d0
-	jmp		.x3jt(pc,d0.w)
-.x3jt:	bra.s		.x30
-	bra.s		.x31
-	bra.s		.x32
-	bra.s		.x33
-.x34:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	add.l		a4,a1				; + dst lineskip
-.x33:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	add.l		a4,a1				; + dst lineskip
-.x32:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	add.l		a4,a1				; + dst lineskip
-.x31:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	add.l		a4,a1				; + dst lineskip
-.x30:	dbra		d7,.x34
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-*-------------------------------------------------------*		
-.x2:	moveq		#4-1,d0
-	and.w		d7,d0
-	lsr.w		#2,d7
-	add.w		d0,d0
-	jmp		.x2jt(pc,d0.w)
-.x2jt:	bra.s		.x20
-	bra.s		.x21
-	bra.s		.x22
-	bra.s		.x23
-.x24:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x23:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x22:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x21:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x20:	dbra		d7,.x24
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-*-------------------------------------------------------*		
-.x1:	moveq		#4-1,d0
-	and.w		d7,d0
-	lsr.w		#2,d7
-	add.w		d0,d0
-	jmp		.x1jt(pc,d0.w)
-.x1jt:	bra.s		.x10
-	bra.s		.x11
-	bra.s		.x12
-	bra.s		.x13
-.x14:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x13:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x12:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x11:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x10:	dbra		d7,.x14
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-;.ylp:	jmp		(a2)
-;.x9:	sprclear	a0,a1
-;.x8:	sprclear	a0,a1
-;.x7:	sprclear	a0,a1
-;.x6:	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-.x0:	;add.l		a4,a1				; + dst lineskip
-;	dbra		d7,.ylp
-
-	move.l		-(a5),d0
-	bne		.ccont
-*-------------------------------------------------------*
-.cstop:
-*-------------------------------------------------------*
-;	commit current state
-	move.l		_drawcontext+dctx_clearstack_tide,_drawcontext+dctx_clearstack_prvtide
-;	rotate states
-	move.l		_drawcontext+dctx_clearstack_prv,a5
-	move.l		_drawcontext+dctx_clearstack_cur,a4
-	move.l		a4,_drawcontext+dctx_clearstack_prv
-	move.l		a5,_drawcontext+dctx_clearstack_cur	
-;	assign new, empty state
-	move.l		a5,_drawcontext+dctx_clearstack_tide
-*-------------------------------------------------------*
-	move.l		(sp)+,a6
-	unlk		a6
-	movem.l		(sp)+,d2-d7/a2-a5
-*-------------------------------------------------------*
-	rts
-
-	endc
-	
 	
 	ifne		(use_sprite_pagerestore)
 	
@@ -440,21 +97,13 @@ _AGT_CPU_PlayfieldRestore:
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
 *-------------------------------------------------------*
-	move.w		_drawcontext+dctx_vpageh,-(sp)
-	move.l		_drawcontext+dctx_vpagebytes,-(sp)
-	move.l		_drawcontext+dctx_lineidx,-(sp)
-	move.l		_drawcontext+dctx_framebuffer,-(sp)
+	move.w		_g_rst_vpageh,-(sp)
+	move.l		_g_rst_vpagebytes,-(sp)
+	move.l		_g_rst_pflineidx,-(sp)
+	move.l		_g_rst_pfb,-(sp)
 *-------------------------------------------------------*
-;	move.l		_drawcontext+dctx_clearstack_prvtide,d0
-;	beq		.cstop
-;	move.l		d0,a5
-	move.l		_drawcontext+dctx_clearstack_prvtide,a5
-
-;	move.l		_drawcontext+dctx_framebuffer,a4
-;	move.l		_g_pflineidx,a3
-;	move.l		_g_frb,a4
-;	move.l		_g_pfvpagebytes,d6
-
+	move.l		_g_rst_state,a5
+	move.l		rstr_ptide(a5),a5
 *-------------------------------------------------------*	
 	move.l		-(a5),d0
 	beq		.cstop
@@ -606,16 +255,12 @@ _AGT_CPU_PlayfieldRestore:
 *-------------------------------------------------------*
 .cstop:
 *-------------------------------------------------------*
-;	commit current state
-	move.l		_drawcontext+dctx_clearstack_tide,_drawcontext+dctx_clearstack_prvtide
-;	rotate states
-	move.l		_drawcontext+dctx_clearstack_prv,a5
-	move.l		_drawcontext+dctx_clearstack_cur,a4
-	move.l		a4,_drawcontext+dctx_clearstack_prv
-	move.l		a5,_drawcontext+dctx_clearstack_cur	
-;	assign new, empty state
-	move.l		a5,_drawcontext+dctx_clearstack_tide
-*-------------------------------------------------------*
+
+	move.l		_g_rst_state,a4
+	move.l		rstr_pstack(a4),a5
+	clr.l		(a5)+
+	move.l		a5,rstr_ptide(a4)
+
 	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
 	unlk		a6
@@ -918,8 +563,9 @@ _AGT_BLiT_PlayfieldRestore:
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
 *-------------------------------------------------------*
-;	move.w		_g_pfvpageh,-(sp)
-	move.w		_drawcontext+dctx_vpageh,-(sp)
+
+	move.w		_g_rst_vpageh,-(sp)
+
 *-------------------------------------------------------*
 
 	moveq		#2,d0
@@ -933,18 +579,14 @@ _AGT_BLiT_PlayfieldRestore:
 	move.w		d0,BLiTEM3.w
 	
 *-------------------------------------------------------*
-;	move.l		_drawcontext+dctx_clearstack_prvtide,d0
-;	beq		.cstop
-;	move.l		d0,a5
-	move.l		_drawcontext+dctx_clearstack_prvtide,a5
 
-	move.l		_drawcontext+dctx_lineidx,a3
-	move.l		_drawcontext+dctx_framebuffer,a4
-	move.l		_drawcontext+dctx_vpagebytes,d6
-;	move.l		_g_pflineidx,a3
-;	move.l		_g_frb,a4
-;	move.l		_g_pfvpagebytes,d6
-	
+	move.l		_g_rst_vpagebytes,d6
+	move.l		_g_rst_pflineidx,a3
+	move.l		_g_rst_pfb,a4
+
+	move.l		_g_rst_state,a5
+	move.l		rstr_ptide(a5),a5
+
 	moveq		#7,d5
 
 	lea		BLiTCTRL.w,a2
@@ -1109,15 +751,10 @@ _AGT_BLiT_PlayfieldRestore:
 *-------------------------------------------------------*
 .cstop:
 *-------------------------------------------------------*
-;	commit current state
-	move.l		_drawcontext+dctx_clearstack_tide,_drawcontext+dctx_clearstack_prvtide
-;	rotate states
-	move.l		_drawcontext+dctx_clearstack_prv,a5
-	move.l		_drawcontext+dctx_clearstack_cur,a4
-	move.l		a4,_drawcontext+dctx_clearstack_prv
-	move.l		a5,_drawcontext+dctx_clearstack_cur	
-;	assign new, empty state
-	move.l		a5,_drawcontext+dctx_clearstack_tide
+	move.l		_g_rst_state,a4
+	move.l		rstr_pstack(a4),a5
+	clr.l		(a5)+
+	move.l		a5,rstr_ptide(a4)
 *-------------------------------------------------------*
 	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
@@ -1132,10 +769,10 @@ _AGT_BLiT_PlayfieldRestore:
 	data
 *-------------------------------------------------------*
 
-	XDEF		_g_spriteclear_stack_0_bsentinel
-	XDEF		_g_spriteclear_stack_0_esentinel
-	XDEF		_g_spriteclear_stack_1_bsentinel
-	XDEF		_g_spriteclear_stack_1_esentinel
+;	XDEF		_g_spriteclear_stack_0_bsentinel
+;	XDEF		_g_spriteclear_stack_0_esentinel
+;	XDEF		_g_spriteclear_stack_1_bsentinel
+;	XDEF		_g_spriteclear_stack_1_esentinel
 
 ;	todo: formalise
 ;	XDEF		_g_frb
@@ -1176,25 +813,22 @@ _drawcontext		ds.b		dctx_size
 ;	dc.l		_g_spriteclear_stack_1
 	
 
-_g_spriteclear_stack_0_bsentinel:
-	dc.l		$AAAAAAAA
-	dc.l		0				; terminator
-_g_spriteclear_stack_0:	
-	dcb.b		spriteclear_stacksize,0
-_g_spriteclear_stack_0_esentinel:
-	dc.l		$AAAAAAAA
-
-_g_spriteclear_stack_1_bsentinel:
-	dc.l		$AAAAAAAA
-	dc.l		0				; terminator
-_g_spriteclear_stack_1:	
-	dcb.b		spriteclear_stacksize,0
-	dc.l		$AAAAAAAA
-_g_spriteclear_stack_1_esentinel:
-	dc.l		$AAAAAAAA
-	
-	
-;zeroes:	dcb.w		65536,0
+;_g_spriteclear_stack_0_bsentinel:
+;	dc.l		$AAAAAAAA
+;	dc.l		0				; terminator
+;_g_spriteclear_stack_0:	
+;	dcb.b		spriteclear_stacksize,0
+;_g_spriteclear_stack_0_esentinel:
+;	dc.l		$AAAAAAAA
+;
+;_g_spriteclear_stack_1_bsentinel:
+;	dc.l		$AAAAAAAA
+;	dc.l		0				; terminator
+;_g_spriteclear_stack_1:	
+;	dcb.b		spriteclear_stacksize,0
+;	dc.l		$AAAAAAAA
+;_g_spriteclear_stack_1_esentinel:
+;	dc.l		$AAAAAAAA
 	
 *-------------------------------------------------------*
 	text

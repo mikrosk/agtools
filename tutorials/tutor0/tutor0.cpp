@@ -20,7 +20,8 @@
 //	-	only the minimum required AGT systems are pulled in via #include's - the order of these is important!
 //
 //	additional:
-//	+	intended to outline a bare starting point for a valid AGT program (if not a useful one!)
+//	+	not an ideal starting point for a real project - see tutor4 onwards for a more realistic example
+//	+	intended to outline a bare minimum for a valid AGT program (if not a useful one!)
 //	+	a few dummy objects need to be defined for AGT to compile. some of these will disappear in future cleanups.
 //		- a pointer to the active viewport: g_pe_viewport
 //		- the entity dictionary: entity_dictionary[]
@@ -93,7 +94,7 @@ int AGT_EntryPoint()
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools\n");
+	printf("[A]tari [G]ame [T]ools / dml 2017\n");
 
 	printf("Starting point\n");
 

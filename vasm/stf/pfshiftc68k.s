@@ -9,7 +9,8 @@ _PR_shift_column_Npix:
 *-------------------------------------------------------*
 	moveq		#16-1,d0
 	and.w		_g_xpreshift,d0
-	lsl.w		#2,d0
+	add.w		d0,d0
+	add.w		d0,d0
 	jmp		.tab(pc,d0.w)
 .tab:	bra.w		_PR_shift_column_0pix
 	bra.w		_PR_shift_column_1pix
@@ -68,8 +69,8 @@ _PR_shift_column_15pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -117,8 +118,8 @@ _PR_shift_column_14pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -166,8 +167,8 @@ _PR_shift_column_13pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -215,8 +216,8 @@ _PR_shift_column_12pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -264,8 +265,8 @@ _PR_shift_column_11pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -313,8 +314,8 @@ _PR_shift_column_10pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -362,8 +363,8 @@ _PR_shift_column_9pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -405,8 +406,8 @@ _PR_shift_column_8pix:
 	addq.l		#8,a1
 	addq.l		#8,a5
 	
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 ;	add.l		a6,a4
 ;	add.l		a6,a3
 	
@@ -457,8 +458,8 @@ _PR_shift_column_7pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -506,8 +507,8 @@ _PR_shift_column_6pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -556,8 +557,8 @@ _PR_shift_column_5pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -605,8 +606,8 @@ _PR_shift_column_4pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -655,8 +656,8 @@ _PR_shift_column_3pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -704,8 +705,8 @@ _PR_shift_column_2pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -754,8 +755,8 @@ _PR_shift_column_1pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -786,8 +787,8 @@ _PR_shift_column_0pix:
 	move.l		d0,(a4)+
 	move.l		d0,(a3)+
 	
-	lea		160-8(a4),a4
-	lea		160-8(a3),a3
+	add.w		d1,a4
+	add.w		d1,a3
 
 	endr
 
@@ -800,7 +801,8 @@ _P_shift_column_Npix:
 *-------------------------------------------------------*
 	moveq		#16-1,d0
 	and.w		_g_xpreshift,d0
-	lsl.w		#2,d0
+	add.w		d0,d0
+	add.w		d0,d0
 	jmp		.tab(pc,d0.w)
 .tab:	bra.w		_P_shift_column_0pix
 	bra.w		_P_shift_column_1pix
@@ -859,8 +861,8 @@ _P_shift_column_15pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-;	lea		160-8(a3),a3
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -908,8 +910,8 @@ _P_shift_column_14pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-;	lea		160-8(a3),a3
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -957,8 +959,8 @@ _P_shift_column_13pix:
 	
 	endr
 
-	lea		160-8(a4),a4
-;	lea		160-8(a3),a3
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1005,7 +1007,8 @@ _P_shift_column_12pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1055,7 +1058,8 @@ _P_shift_column_11pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1105,7 +1109,8 @@ _P_shift_column_10pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1155,7 +1160,8 @@ _P_shift_column_9pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1244,7 +1250,8 @@ _P_shift_column_7pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1291,7 +1298,8 @@ _P_shift_column_6pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1338,7 +1346,8 @@ _P_shift_column_5pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1385,7 +1394,8 @@ _P_shift_column_4pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1433,7 +1443,8 @@ _P_shift_column_3pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1480,7 +1491,8 @@ _P_shift_column_2pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1527,7 +1539,8 @@ _P_shift_column_1pix:
 	
 	endr
 
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 
 	endr
 
@@ -1553,7 +1566,8 @@ _P_shift_column_0pix:
 
 	move.l		(a1)+,(a4)+
 	move.l		(a1)+,(a4)+	
-	lea		160-8(a4),a4
+	add.w		d1,a4
+;	add.w		d1,a3
 	
 	endr
 

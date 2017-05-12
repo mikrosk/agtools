@@ -29,6 +29,8 @@
 	move.w		spf_h(a0),d4			; h
 	add.w		spf_xo(a0),d1			; +xo
 	add.w		spf_yo(a0),d2			; +yo
+	
+	sub.w		_g_xpreshift,d1
 
 	; sprite clipping window
 	lea		_g_spr_window,a2
@@ -114,11 +116,12 @@
 	; find minimum pixelwords off left edge
 	move.w		d1,d0
 	neg.w		d0				; pixels off left
+	; adjust dest width (ignore FISR part)
+	cmp.w		d0,d3
+	ble		.STF_ISSprDrawClipped_clip_out
 	add.w		d6,d0				;#16-1,d0			; round up
 	and.w		d7,d0				;#-16,d0
-	; adjust dest width (ignore FISR part)
 	sub.w		d0,d3
-	ble		.STF_ISSprDrawClipped_clip_out
 	; adjust source offset and src skip by clipped pixelwords-1 (include FISR part)
 	lsr.w		#1,d0				; in terms of src pixelwords
 	subq.w		#8,d0				; adjust for FISR
@@ -148,15 +151,79 @@
 *-------------------------------------------------------*
 *	right clipped
 *-------------------------------------------------------*
+
 	; find minimum pixelwords off right edge
+;	add.w		d6,d0				;#16-1,d0
+;	and.w		d7,d0				;#-16,d0
+	; adjust dest width
+	cmp.w		d0,d3
+	ble		.STF_ISSprDrawClipped_clip_out
 	add.w		d6,d0				;#16-1,d0
 	and.w		d7,d0				;#-16,d0
-	; adjust dest width
 	sub.w		d0,d3
-	ble		.STF_ISSprDrawClipped_clip_out
 	; adjust src skip
 	lsr.w		#1,d0
 	add.w		d0,a3
+
+	; dst skip: a4
+
+	ifne		(enable_restore)
+	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
+	move.l		usp,a5
+	move.l		a5,a6
+	endc
+	endc
+
+	; constants
+	moveq		#16-1,d6
+	moveq		#-16,d7
+	
+	; dst pixelword xoffset
+	moveq		#-16,d0
+	and.w		d1,d0
+	lsr.w		#1,d0
+	
+	ifne		(enable_restore)
+	ifne		(use_sprite_pagerestore)	
+	move.w		d2,(a5)+
+	move.w		d0,(a5)+
+	endc	
+	endc
+		
+	add.w		d0,a1
+	
+	; dst yoffset (line)
+;	mulu.w		#linebytes,d2
+	mulu.w		_g_linebytes,d2
+	add.l		d2,a1
+	
+	; find destination word width of shifted sprite
+;	moveq		#16-1,d6
+	move.w		d6,d7
+
+	and.w		d1,d6				; rshift
+	move.l		d6,d1
+
+	add.w		d3,d7				; w+round
+;	add.w		spf_w(a0),d7			; w+round
+;	move.w		spf_w(a0),d7			; w
+;	add.w		#16-1,d7			; w+round
+
+	moveq		#-16,d0	
+	add.w		d7,d6				; rshift+w+round
+	and.w		d0,d6				; wceil(rshift+w)
+
+	; NFSR test
+	
+	and.w		d7,d0
+	sub.w		d6,d0
+	beq.s		.zz
+	subq		#8,a3
+.zz:
+
+	bra		.STF_ISSprDrawUnClipped_FSR
+
+
 *-------------------------------------------------------*
 .STF_ISSprDrawClipped_clip_safe_right:
 *-------------------------------------------------------*
@@ -168,7 +235,7 @@
 	; unclipped case is a subset of clipped
 	
 	; dst skip: a4
-
+		
 	include		"stf/spr_svmc_unc.s"
 	
 	bra		.STF_ISSprDrawClipped_recover
