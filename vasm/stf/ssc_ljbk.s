@@ -85,6 +85,7 @@ displayservice_ljbk_upper_a:
 ;	syncscroll event
 
 	bsr		displayservice_ljbk_4pix_impl
+;	subq.w		#1,_g_vbl
 
 ;	TimerB: schedule final scanline
 
@@ -156,10 +157,61 @@ displayservice_ljbk_lower_b:
 	clr.b		tbcr.w					; TimerB CTRL: halt
 ;	bset.b		#0,iera.w				; TimerB IE: enable
 ;	bset.b		#0,imra.w				; TimerB IM: enable
-	move.b		#displayservice_final_delta_tb-1,tbdr.w	; TimerB DATA: count
+	move.b		#displayservice_final_delta_tb,tbdr.w	; TimerB DATA: count
 	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
 	move.l		#displayservice_ljbk_final_b,$120.w
+
+
+	movem.l		(sp)+,d0/a0
+
+	addq.l		#1,$462.w	
+	addq.l		#1,$466.w
+;	subq.w		#1,_g_vbl
+
+	bclr.b		#0,isra.w
+
+	rte
+	
+
+dummy:	rte
+
+
+*-----------------------------------------------------------------------------*
+displayservice_ljbk_final_b:
+*-----------------------------------------------------------------------------*
+	move.l		d0,-(sp)
+	move.l		a0,-(sp)
+*-----------------------------------------------------------------------------*
+
+;	wipe out all colours - black lower border
+
+	moveq		#0,d0
+	lea		$ffff8240.w,a0
+
+.wt:	cmp.b		#displayservice_final_delta_tb,tbdr.w
+	beq.s		.wt
+	
+	ifd		TIMING_RASTERS
+	move.w		$64.w,(a0)+
+	move.w		d0,(a0)+
+	else
+	move.l		d0,(a0)+
+	endc
+
+	move.l		d0,(a0)+
+	move.l		d0,(a0)+
+	move.l		d0,(a0)+
+	move.l		d0,(a0)+
+	move.l		d0,(a0)+
+	move.l		d0,(a0)+
+	move.l		d0,(a0)+
+
+;	no more scanline scheduling this frame - stop TimerB
+
+	move.b		d0,tbcr.w
+
+*-----------------------------------------------------------------------------*
 
 ;	not.w		$ffff8240.w
 	movem.l		d0-a6,-(sp)
@@ -218,62 +270,13 @@ displayservice_ljbk_lower_b:
 
 
 	movem.l		(sp)+,d0-a6
-
-	movem.l		(sp)+,d0/a0
-
-;	subq.w		#1,_g_vbl
-	addq.l		#1,$462.w	
-	addq.l		#1,$466.w
-	subq.w		#1,_g_vbl
-
-	bclr.b		#0,isra.w
-
-	rte
-	
-
-dummy:	rte
-
-
-*-----------------------------------------------------------------------------*
-displayservice_ljbk_final_b:
-*-----------------------------------------------------------------------------*
-	move.l		d0,-(sp)
-	move.l		a0,-(sp)
-*-----------------------------------------------------------------------------*
-
-;	wipe out all colours - black lower border
-
-	moveq		#0,d0
-	lea		$ffff8240.w,a0
-
-.wt:	cmp.b		#displayservice_final_delta_tb-1,tbdr.w
-	beq.s		.wt
-	
-	ifd		TIMING_RASTERS
-	move.w		$64.w,(a0)+
-	move.w		d0,(a0)+
-	else
-	move.l		d0,(a0)+
-	endc
-
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-
-;	no more scanline scheduling this frame - stop TimerB
-
-	move.b		d0,tbcr.w
-
-*-----------------------------------------------------------------------------*
 	
 	ifeq		(use_auto_end_of_interrupt)
 ;	manual EOI
 	bclr.b		#0,isra.w
 	endc	
+
+	subq.w		#1,_g_vbl
 	
 	move.l		(sp)+,a0
 	move.l		(sp)+,d0

@@ -78,7 +78,7 @@ _STF_ConfigureDisplayService:
 ;	if		(use_overscan)
 
 	if		(use_ljbk)
-	move.w		#8,_g_displayservice_consumed_lines
+	move.w		#9,_g_displayservice_consumed_lines
 	else
 	move.w		#8,_g_displayservice_consumed_lines
 	endc

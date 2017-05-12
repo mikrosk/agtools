@@ -299,7 +299,7 @@ int AGT_EntryPoint()
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			myworld.select_buffer(backbuffer_num, 0);
+			myworld.select_buffer(backbuffer_num, /*field=*/0);
 
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);

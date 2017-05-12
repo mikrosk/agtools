@@ -134,7 +134,7 @@ public:
 		drawcontext.clip_window_x1 = drawcontext.vpagex & -16;
 		drawcontext.clip_window_y1 = drawcontext.vpagey;
 		drawcontext.clip_window_x2 = drawcontext.clip_window_x1 + _vpw;// + 16; // STE hscroll only
-		drawcontext.clip_window_y2 = drawcontext.clip_window_y1 + _vph;
+		drawcontext.clip_window_y2 = drawcontext.vpagey + _vph;
 
 		// todo: remove
 		g_spr_window_x1 = drawcontext.clip_window_x1;
