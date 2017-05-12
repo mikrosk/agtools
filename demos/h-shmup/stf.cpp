@@ -166,16 +166,16 @@ typedef playfield_template
 	/*ste_hw=*/false,							// use STE hardware for display/scroll offsets (otherwise STF syncscroll)
 	/*stf_hsyncshift=*/true,					// use STF 4-pixel offsets with LJBK method
 	/*dynamic=*/false							// enable support for runtime-refreshable map tiles
-> playfield_t;						// new name for our playfield definition
+> playfield_t;									// new name for our playfield definition
 
 // define an arena (world) composed of 2 such playfields (double-buffering on STE)
 typedef arena_template
 <
-	/*buffers=*/2,								// number of framebuffers (playfields) required
-	/*singleframe=*/false,	// optimise dualfield to half the framebuffer count, when locked @ 50hz
-	/*dualfield=*/false,							// disable dualfield support at compiletime
+	/*buffers=*/4,								// number of framebuffers (playfields) required
+	/*singleframe=*/false,						// optimise dualfield to half the framebuffer count, when locked @ 50hz
+	/*dualfield=*/false,						// disable dualfield support at compiletime
 	/*playfield_type=*/playfield_t				// playfield config/definition to use for framebuffers
-> arena_t;								// new name for our playfield arena definition
+> arena_t;										// new name for our playfield arena definition
 
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -616,7 +616,7 @@ restart_game:
 
 		// must perform a complete tile-refill on all buffers if the player just died
 		// todo: ugly jump - should fade/blank screen first, but it's only an example..
-		myworld.reset(g_viewport_worldx, g_viewport_worldy);
+		myworld.reset(g_viewport_worldx, g_viewport_worldy, /*nowait=*/true);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create some significant 'static' entities related to the player
