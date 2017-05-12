@@ -902,7 +902,7 @@ mainloop:
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	draw 'all the things'
 
-			EntityDrawVisible(&drawcontext);
+			STF_EntityDrawVisible(&drawcontext);
 
 			TIMING_MAIN(0x0f3);	
 
