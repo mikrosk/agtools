@@ -343,7 +343,7 @@ extern "C" int bmprintf(const char *pFormat, ...);
 #define pprintf(...) { if (0) { printf(__VA_ARGS__) ; } }
 
 // entity printf (entity manager detail)
-#define entprintf(...) { if (0) { printf(__VA_ARGS__) ; } }
+#define entprintf(...) { if (1) { printf(__VA_ARGS__) ; } }
 
 // --------------------------------------------------------------------
 

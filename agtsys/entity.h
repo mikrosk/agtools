@@ -15,6 +15,10 @@
 //----------------------------------------------------------------------------------------------------------------------
 // external configuration
 
+#if defined(ENTITY_TRACKING) // older, deprecated config switch
+#define AGT_CONFIG_ENTITY_TRACKING
+#endif
+
 #if defined(AGT_CONFIG_WORLD_XMAJOR)
 #define ENABLE_SPATIAL_X
 #endif
@@ -313,6 +317,13 @@ static agt_inline void EntityRemove(entity_t *_pent)
 		_pent->f_self |= EntityFlags_KILL;
 		s_entity_removes[s_entity_remove_count++] = _pent;
 	}
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+	else
+	{
+		eprintf("error: EntityRemove repeat calls on same object\n");
+		eprintf("ent:%d type:%d\n", (unsigned int)_pent->id, (int)_pent->type);
+	}
+#endif
 }
 
 // schedule entity to be linked into all relevant chains (SPATIAL,TICKED)	
@@ -386,11 +397,25 @@ static agt_inline void EntityUnLink_Tick(entity_t *_pent)
 {
 	entity_t *pcurr = _pent;
 
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+	if (!pcurr->pprev_tick || !pcurr->pnext_tick)
+	{
+		eprintf("error: EntityUnLink_Tick called on unlinked object\n");
+		eprintf("ent:%d type:%d\n", (unsigned int)pcurr->id, (int)pcurr->type);
+	}
+#endif
+
 	entity_t *pnext = pcurr->pnext_tick;
 	entity_t *pprev = pcurr->pprev_tick;
 
 	pnext->pprev_tick = pprev;
 	pprev->pnext_tick = pnext;
+
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+	pcurr->pprev_tick = 0;
+	pcurr->pnext_tick = 0;
+#endif
+
 }
 
 static agt_inline void EntityUnLink2D(entity_t *_pent)
@@ -398,19 +423,48 @@ static agt_inline void EntityUnLink2D(entity_t *_pent)
 	entity_t *pcurr = _pent;
 
 #if defined(ENABLE_SPATIAL_X)
+
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+	if (!pcurr->pprev_x || !pcurr->pnext_x)
+	{
+		eprintf("error: EntityUnLink2D called on unlinked object\n");
+		eprintf("ent:%d type:%d\n", (unsigned int)pcurr->id, (int)pcurr->type);
+	}
+#endif
+
 	entity_t *pnextx = pcurr->pnext_x;
 	entity_t *pprevx = pcurr->pprev_x;
 
 	pnextx->pprev_x = pprevx;
 	pprevx->pnext_x = pnextx;
+
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+	pcurr->pprev_x = 0;
+	pcurr->pnext_x = 0;
+#endif
+
 #endif
 
 #if defined(ENABLE_SPATIAL_Y)
+
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+	if (!pcurr->pprev_y || !pcurr->pnext_y)
+	{
+		eprintf("error: EntityUnLink2D called on unlinked object\n");
+		eprintf("ent:%d type:%d\n", (unsigned int)pcurr->id, (int)pcurr->type);
+	}
+#endif
+
 	entity_t *pnexty = pcurr->pnext_y;
 	entity_t *pprevy = pcurr->pprev_y;
 
 	pnexty->pprev_y = pprevy;
 	pprevy->pnext_y = pnexty;
+#endif
+
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+	pcurr->pprev_y = 0;
+	pcurr->pnext_y = 0;
 #endif
 }
 
