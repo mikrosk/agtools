@@ -320,8 +320,8 @@ static agt_inline void EntityRemove(entity_t *_pent)
 #if defined(AGT_CONFIG_SAFETY_CHECKS)
 	else
 	{
-		eprintf("error: EntityRemove repeat calls on same object\n");
-		eprintf("ent:%d type:%d\n", (unsigned int)_pent->id, (int)_pent->type);
+		wprintf("warning: EntityRemove repeat calls on same object\n");
+		wprintf("ent:%d type:%d self:%04x\n", (unsigned int)_pent->id, (int)_pent->type, (int)_pent->f_self);
 	}
 #endif
 }

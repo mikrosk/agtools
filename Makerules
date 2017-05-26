@@ -71,6 +71,20 @@ ifeq ($(USE_BROWNELF),yes)
 CODEGENFLAGS += -fleading-underscore
 endif
 
+ifeq ($(USE_CFG),release)
+COMPILERDEFS += -DAGT_RELEASE_BUILD
+else
+ifeq ($(USE_CFG),testing)
+COMPILERDEFS += -DAGT_TESTING_BUILD
+else
+ifeq ($(USE_CFG),debug)
+COMPILERDEFS += -DAGT_DEBUG_BUILD
+else
+COMPILERDEFS += -DAGT_UNKNOWN_BUILD
+endif
+endif
+endif
+
 CFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -Wall -Wno-narrowing -Wno-unused-variable -Wno-multichar
 CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(INCPATHS) -x c++ -std=c++0x -fno-exceptions -fno-rtti -fno-threadsafe-statics -Wall -Wno-reorder -Wno-narrowing -Wno-unused-variable -Wno-multichar
 
