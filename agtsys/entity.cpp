@@ -114,6 +114,7 @@ static void nulltick(entity_t *) { }
 
 s16 g_debugdraw = 0;
 
+static s16 s_spawnrev = 0;
 
 static entity_t s_entity_tick_beforehead;
 static entity_t s_entity_tick_head;
@@ -174,6 +175,8 @@ void EntitySetup(int _numtypes)
 			prng += 21533;
 			prng *= 32971;
 			prng ^= 95862;
+
+			pcurr->rev_self = s_spawnrev-1;
 
 #if defined(AGT_CONFIG_SAFETY_CHECKS)
 			pcurr->pprev_tick = 0;
@@ -950,6 +953,7 @@ entity_t * EntitySpawn(EntityType _etype, s16 px, s16 py)
 		// the other instances.
 		entitydef_t *pdef = &entity_dictionary[_etype];
 		palloc->type = _etype;
+		palloc->rev_self = s_spawnrev++;
 //		qmemcpy(&(palloc->fntick), pdef, sizeof(entitydef_t));
 
 		//__asm __volatile__
@@ -1013,6 +1017,8 @@ entity_t * EntitySpawnFrom(EntityType _etype, entity_t * _pparent)
 		// the other instances.
 		entitydef_t *pdef = &entity_dictionary[_etype];
 		palloc->type = _etype;
+		palloc->rev_self = s_spawnrev++;
+		palloc->rev_parent = _pparent->rev_self;
 //		qmemcpy(&(palloc->fntick), pdef, sizeof(entitydef_t));
 		copy<sizeof(entitydef_t)>(&(palloc->fntick), pdef);
 
@@ -1063,6 +1069,8 @@ entity_t * EntitySpawnRel(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _
 		// the other instances.
 		entitydef_t *pdef = &entity_dictionary[_etype];
 		palloc->type = _etype;
+		palloc->rev_self = s_spawnrev++;
+		palloc->rev_parent = _pparent->rev_self;
 
 		//__asm __volatile__
 		//(
@@ -1125,6 +1133,9 @@ entity_t * EntitySpawnNear(EntityType _etype, entity_t * _pparent, s16 _ox, s16 
 		// the other instances.
 		entitydef_t *pdef = &entity_dictionary[_etype];
 		palloc->type = _etype;
+		palloc->rev_self = s_spawnrev++;
+		palloc->rev_parent = _pparent->rev_self;
+
 //		qmemcpy(&(palloc->fntick), pdef, sizeof(entitydef_t));
 		copy<sizeof(entitydef_t)>(&(palloc->fntick), pdef);
 
@@ -1175,6 +1186,8 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox,
 		// the other instances.
 		entitydef_t *pdef = &entity_dictionary[_etype];
 		palloc->type = _etype;
+		palloc->rev_self = s_spawnrev++;
+		palloc->rev_parent = _pparent->rev_self;
 //		qmemcpy(&(palloc->fntick), pdef, sizeof(entitydef_t));
 		copy<sizeof(entitydef_t)>(&(palloc->fntick), pdef);
 
@@ -1227,6 +1240,7 @@ entity_t * EntityCreateUnlinked(EntityType _etype)
 		// the other instances.
 		entitydef_t *pdef = &entity_dictionary[_etype];
 		palloc->type = _etype;
+		palloc->rev_self = s_spawnrev++;
 //		qmemcpy(&(palloc->fntick), pdef, sizeof(entitydef_t));
 		copy<sizeof(entitydef_t)>(&(palloc->fntick), pdef);
 	}

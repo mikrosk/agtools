@@ -148,16 +148,25 @@ struct entity_t
 	// [linkage]
 	struct entity_t *pnext_tick;
 	struct entity_t *pprev_tick;
+#if defined(ENABLE_SPATIAL_X)
 	struct entity_t *pnext_x;
 	struct entity_t *pprev_x;
+#endif
+#if defined(ENABLE_SPATIAL_Y)
 	struct entity_t *pnext_y;
 	struct entity_t *pprev_y;
+#endif
 	struct entity_t *pparent;
+	struct entity_t *ptrack;
 	struct entity_t *pdlayer_;
 
 	// [identity]
 	s16 id;
 	s16 type;
+	s16 rev_self;
+	s16 rev_parent;
+	s16 rev_track;
+	s16 rev_user;
 
 	// [coordinates]
 	union { s16 wx; s32 fwx; };	\

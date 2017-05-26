@@ -14,14 +14,24 @@
 *-------------------------------------------------------*
 ent_pnext_tick:		rs.l	1
 ent_pprev_tick:		rs.l	1
+			ifd	AGT_CONFIG_WORLD_XMAJOR
 ent_pnext_x:		rs.l	1
 ent_pprev_x:		rs.l	1
+			endc
+			ifd	AGT_CONFIG_WORLD_YMAJOR
 ent_pnext_y:		rs.l	1
 ent_pprev_y:		rs.l	1
+			endc
 ent_pparent:		rs.l	1
+ent_ptrack:		rs.l	1
 ent_layer_:		rs.l	1
+*-------------------------------------------------------*
 ent_id:			rs.w	1
 ent_type:		rs.w	1
+ent_rev_self:		rs.w	1
+ent_rev_parent:		rs.w	1
+ent_rev_track:		rs.w	1
+ent_rev_user:		rs.w	1
 *-------------------------------------------------------*
 ent_fwx:		rs.l	1
 ent_fwy:		rs.l	1
