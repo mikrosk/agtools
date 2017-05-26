@@ -404,7 +404,11 @@ void EntityLink(entity_t *_pent, entity_t *_pnear)
 
 static agt_inline void EntityExecuteRemove_(entity_t *_pent)
 {
+	// unlink from all systems
 	EntityUnLink(_pent);
+	// notify any interested objects that entity identity has changed
+	_pent->rev_self--; 
+	// place it back in the free pool
 	entities_freelist[entities_freelist_count++] = _pent;
 
 #if defined(AGT_CONFIG_ENTITY_TRACKING)
