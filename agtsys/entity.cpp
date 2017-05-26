@@ -148,7 +148,7 @@ s16 entities_freelist_count = 0;
 
 entity_t entities[c_max_entities];
 
-#if defined(ENTITY_TRACKING)
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 // required only for debugging entity counts & lifespans
 static s16 entity_histogram[256];
 #endif
@@ -168,16 +168,30 @@ void EntitySetup(int _numtypes)
 		u32 prng = 19273;
 		for (s16 i = 0; i < c_max_entities; i++)
 		{
-			entities[i].id = (s16)(prng >> 5);
+			entity_t *pcurr = &entities[i];
+
+			pcurr->id = (s16)(prng >> 5);
 			prng += 21533;
 			prng *= 32971;
 			prng ^= 95862;
 
-			*freelist++ = &entities[i];
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+			pcurr->pprev_tick = 0;
+			pcurr->pnext_tick = 0;
+#if defined(ENABLE_SPATIAL_X)
+			pcurr->pprev_x = 0;
+			pcurr->pnext_x = 0;
+#endif
+#if defined(ENABLE_SPATIAL_Y)
+			pcurr->pprev_y = 0;
+			pcurr->pnext_y = 0;
+#endif
+#endif
+			*freelist++ = pcurr;
 		}
 	}
 
-#if defined(ENTITY_TRACKING)
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 	qmemclr(entity_histogram, sizeof(entity_histogram));
 #endif
 
@@ -390,12 +404,14 @@ static agt_inline void EntityExecuteRemove_(entity_t *_pent)
 	EntityUnLink(_pent);
 	entities_freelist[entities_freelist_count++] = _pent;
 
-#if defined(ENTITY_TRACKING)
+#if defined(AGT_CONFIG_ENTITY_TRACKING)
+	entprintf("EntityRemove type(%d):\n", (int)_pent->type);
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 	entity_histogram[_pent->type]--;
-	entprintf("EntityRemove: ");
 	for (s16 i = 0; i < s_max_entities; i++)
 		entprintf("%d ", entity_histogram[i]);
 	entprintf("\n");
+#endif
 #endif
 }
 
@@ -956,13 +972,15 @@ entity_t * EntitySpawn(EntityType _etype, s16 px, s16 py)
 		//EntityLink(palloc, NULL);
 		EntityScheduleLink(palloc, NULL);
 
-#if defined(ENTITY_TRACKING)
+#if defined(AGT_CONFIG_ENTITY_TRACKING)
+		entprintf("EntitySpawn type(%d):\n", (int)_etype);
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		entprintf("EntitySpawn:  ");
 		for (s16 i = 0; i < s_max_entities; i++)
 			entprintf("%d ", entity_histogram[i]);
 		entprintf("\n");
 #endif
+#endif	
 	}
 
 	return palloc;
@@ -979,6 +997,11 @@ entity_t * EntitySpawnFrom(EntityType _etype, entity_t * _pparent)
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
 	{
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+		if (_pparent->f_self & EntityFlags_KILL)
+			wprintf("warning: EntitySpawnFrom creates type(%d) from killed type(%d)\n", (int)_etype, (int)_pparent->type);
+#endif
+
 		// allocate object
 		palloc = entities_freelist[--entities_freelist_count];
 
@@ -1003,13 +1026,15 @@ entity_t * EntitySpawnFrom(EntityType _etype, entity_t * _pparent)
 //		EntityLink(palloc, _pparent);
 		EntityScheduleLink(palloc, _pparent);
 
-#if defined(ENTITY_TRACKING)
+#if defined(AGT_CONFIG_ENTITY_TRACKING)
+		entprintf("EntitySpawnFrom type(%d->%d):\n", (int)_pparent->type, (int)_etype);
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		entprintf("EntitySpawn:  ");
 		for (s16 i = 0; i < s_max_entities; i++)
 			entprintf("%d ", entity_histogram[i]);
 		entprintf("\n");
 #endif
+#endif	
 	}
 
 	return palloc;
@@ -1022,6 +1047,11 @@ entity_t * EntitySpawnRel(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
 	{
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+		if (_pparent->f_self & EntityFlags_KILL)
+			wprintf("warning: EntitySpawnRel creates type(%d) from killed type(%d)\n", (int)_etype, (int)_pparent->type);
+#endif
+
 		// allocate object
 		palloc = entities_freelist[--entities_freelist_count];
 
@@ -1058,13 +1088,15 @@ entity_t * EntitySpawnRel(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _
 //		EntityLink(palloc, _pparent);
 		EntityScheduleLink(palloc, _pparent);
 
-#if defined(ENTITY_TRACKING)
+#if defined(AGT_CONFIG_ENTITY_TRACKING)
+		entprintf("EntitySpawnRel type(%d->%d):\n", (int)_pparent->type, (int)_etype);
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		entprintf("EntitySpawn:  ");
 		for (s16 i = 0; i < s_max_entities; i++)
 			entprintf("%d ", entity_histogram[i]);
 		entprintf("\n");
 #endif
+#endif	
 	}
 
 	return palloc;
@@ -1077,6 +1109,11 @@ entity_t * EntitySpawnNear(EntityType _etype, entity_t * _pparent, s16 _ox, s16 
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
 	{
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+		if (_pparent->f_self & EntityFlags_KILL)
+			wprintf("warning: EntitySpawnNear creates type(%d) from killed type(%d)\n", (int)_etype, (int)_pparent->type);
+#endif
+
 		// allocate object
 		palloc = entities_freelist[--entities_freelist_count];
 
@@ -1101,13 +1138,15 @@ entity_t * EntitySpawnNear(EntityType _etype, entity_t * _pparent, s16 _ox, s16 
 //		EntityLink(palloc, _pparent);
 		EntityScheduleLink(palloc, _pparent);
 
-#if defined(ENTITY_TRACKING)
+#if defined(AGT_CONFIG_ENTITY_TRACKING)
+		entprintf("EntitySpawnNear type(%d->%d):\n", (int)_pparent->type, (int)_etype);
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		entprintf("EntitySpawn:  ");
 		for (s16 i = 0; i < s_max_entities; i++)
 			entprintf("%d ", entity_histogram[i]);
 		entprintf("\n");
 #endif
+#endif	
 	}
 
 	return palloc;
@@ -1120,6 +1159,11 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox,
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
 	{
+#if defined(AGT_CONFIG_SAFETY_CHECKS)
+		if (_pparent->f_self & EntityFlags_KILL)
+			wprintf("warning: EntitySpawnImmediate creates type(%d) from killed type(%d)\n", (int)_etype, (int)_pparent->type);
+#endif
+
 		// allocate object
 		palloc = entities_freelist[--entities_freelist_count];
 
@@ -1143,12 +1187,14 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox,
 		// link entity into world near its parent (much cheaper than a full search-insert on the world)
 		EntityLink_(palloc, _pparent);
 
-#if defined(ENTITY_TRACKING)
+#if defined(AGT_CONFIG_ENTITY_TRACKING)
+		entprintf("EntitySpawnImmediate type(%d->%d):\n", (int)_pparent->type, (int)_etype);
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		entprintf("EntitySpawn:  ");
 		for (s16 i = 0; i < s_max_entities; i++)
 			entprintf("%d ", entity_histogram[i]);
 		entprintf("\n");
+#endif
 #endif	
 	}
 
@@ -1221,8 +1267,8 @@ extern "C" void AGT_Exception_IMSFrame(s16 _frame, spritesheet::sps_header *h)
 {
 	entity_t * pcurr = (entity_t*)(reg32(A8));
 
-	printf("error: IMS frame fault\n")
-	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
+	eprintf("error: IMS frame fault\n")
+	eprintf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->type, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
 }
@@ -1231,8 +1277,8 @@ extern "C" void AGT_Exception_EMSFrame(s16 _frame, spritesheet::sps_header *h)
 {
 	entity_t * pcurr = (entity_t*)(reg32(A8));
 
-	printf("error: EMS frame fault\n")
-	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
+	eprintf("error: EMS frame fault\n")
+	eprintf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->type, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
 }
@@ -1241,8 +1287,8 @@ extern "C" void AGT_Exception_EMXFrame(s16 _frame, spritesheet::sps_header *h)
 {
 	entity_t * pcurr = (entity_t*)(reg32(A8));
 
-	printf("error: EMX frame fault\n")
-	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
+	eprintf("error: EMX frame fault\n")
+	eprintf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->type, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
 }
@@ -1251,8 +1297,8 @@ extern "C" void AGT_Exception_SLSFrame(s16 _frame, slabsheet::sls_header *h)
 {
 	entity_t * pcurr = (entity_t*)(reg32(A8));
 
-	printf("error: Slab (SLS) frame fault\n")
-	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
+	eprintf("error: Slab (SLS) frame fault\n")
+	eprintf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->type, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
 }
@@ -1261,8 +1307,8 @@ extern "C" void AGT_Exception_SLRFrame(s16 _frame, slabsheet::sls_header *h)
 {
 	entity_t * pcurr = (entity_t*)(reg32(A8));
 
-	printf("error: SlabRestore (SLR) frame fault\n")
-	printf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->drawtype, (int)_frame, (int)h->framecount);
+	eprintf("error: SlabRestore (SLR) frame fault\n")
+	eprintf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->type, (int)_frame, (int)h->framecount);
 	xassert(false);
 	while(1) { }
 }
