@@ -14,14 +14,24 @@
 *-------------------------------------------------------*
 ent_pnext_tick:		ds.l	1
 ent_pprev_tick:		ds.l	1
+			.if	^^defined AGT_CONFIG_WORLD_XMAJOR
 ent_pnext_x:		ds.l	1
 ent_pprev_x:		ds.l	1
+			.endif
+			.if	^^defined AGT_CONFIG_WORLD_YMAJOR
 ent_pnext_y:		ds.l	1
 ent_pprev_y:		ds.l	1
+			.endif
 ent_pparent:		ds.l	1
+ent_ptrack:		ds.l	1
 ent_layer_:		ds.l	1
+*-------------------------------------------------------*
 ent_id:			ds.w	1
 ent_type:		ds.w	1
+ent_rev_self:		ds.w	1
+ent_rev_parent:		ds.w	1
+ent_rev_track:		ds.w	1
+ent_rev_user:		ds.w	1
 *-------------------------------------------------------*
 ent_fwx:		ds.l	1
 ent_fwy:		ds.l	1
