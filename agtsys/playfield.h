@@ -643,7 +643,7 @@ public:
 	const u16* tiledata_;
 	tileset* tilesoverlay_;
 	const u16* tileoverlaydata_;
-
+	
 	restorestate_t restorestate_;
 
 	s32 tilecount_;
@@ -655,6 +655,11 @@ public:
 	s16 last_slice_;
 	s16 slice_;
 	s16 maskedges_;
+
+	s16 dtx1_;
+	s16 dty1_;
+	s16 dtx2_;
+	s16 dty2_;
 
 //	s32* dirtytiles_;
 	s16* dirtymask_;
@@ -1614,6 +1619,8 @@ playfield_template()
 	  mul_map_x_(0),
 	  xpreshift_(0), drawshift_(1), 
 	  slice_(0), last_slice_(0),
+	  dtx1_(0x7fff), dty1_(0x7fff),
+	  dtx2_(0x8000), dty2_(0x8000),
 	  //dirtytiles_(0),
 	  //dirtynum_(0),
 	  dirtymask_(0), //layermask_(0),
@@ -1684,7 +1691,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// all systems add one extra visible row when vscroll is active
 	// vertical height always rounded up to next tile
 	if (c_ste_)
-		visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols_ &&*/ c_ste_) ? c_hscrolltiles_ : 0);  // keep horizontal margin for fixed 184 byte line
+	visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols_ &&*/ c_ste_) ? c_hscrolltiles_ : 0);  // keep horizontal margin for fixed 184 byte line
 	else
 		visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) - (c_stf_maskedspeculation_ ? 2 : 0);
 		
@@ -1694,13 +1701,13 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// note: hardcode tile based width to make vpage exactly 184 bytes per line, to accommodate other drawing functions
 	if (c_ste_)
 	{
-		if (c_tilesize_ == 16)
-			vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
-		else
-		if (c_tilesize_ == 8)
+	if (c_tilesize_ == 16)
+		vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
+	else
+	if (c_tilesize_ == 8)
 			vpage_tiles_x_ = visible_tiles_x_ + 4;//(c_hspeculative_ ? 4 : 0);
-		else
-			xassert(false);
+	else
+		xassert(false);
 	}
 	else
 	{
@@ -1943,11 +1950,11 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	else
 	{
 		shift_block_virtual
-		(
-			txp, typ,
-			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
-		);
+	(
+		txp, typ,
+		txp, typ, 
+		txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+	);
 	}
 
 //	last_xpos_ = xpos_;
@@ -2014,14 +2021,14 @@ void fill_abs()
 	if (c_ste_)
 	{
 		fill_block_virtual
-		(
-			txp, typ,
-			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
-		);
-	}
+	(
+		txp, typ,
+		txp, typ, 
+		txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+	);
+}
 	else
-	{
+{		
 		shift_block_virtual
 		(
 			txp, typ,
@@ -2040,7 +2047,7 @@ void fill_abs()
 // ---------------------------------------------------------------------------------------------------------------------
 
 agt_outline void warp_catchup()
-{
+	{
 		// 'warp' by at least viewport dimensions - full refill
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0x400;
@@ -2064,7 +2071,7 @@ agt_outline void warp_catchup()
 			txp, typ, 
 			txpos_-c_hmargin_ + vpage_tiles_x_, 
 			typos_-c_vmargin_ + vpage_tiles_y_
-		);
+			);			
 		else
 		shift_block_virtual
 		(
@@ -2072,9 +2079,9 @@ agt_outline void warp_catchup()
 			txp, typ, 
 			txpos_-c_hmargin_ + vpage_tiles_x_, 
 			typos_-c_vmargin_ + vpage_tiles_y_
-		);
+			);				
 #endif
-#ifdef TIMING_RASTERS_MAIN		
+#ifdef TIMING_RASTERS_MAIN
 		reg16(ffff8240) = 0xf00;
 		reg16(00000064) = 0xf00;
 #endif		
@@ -2085,13 +2092,13 @@ agt_outline void warp_catchup()
 			maskedges_ |= 3;
 			//STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
 			//STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
-		}
+		}	
 #endif
-
-		last_txpos_ = txpos_;
-		last_typos_ = typos_;	
-		last_xpos_ = xpos_;
-		last_ypos_ = ypos_;		
+	
+	last_txpos_ = txpos_;
+	last_typos_ = typos_;
+	last_xpos_ = xpos_;
+	last_ypos_ = ypos_;
 		last_slice_ = slice_;
 }
 
@@ -2137,19 +2144,40 @@ void hybrid_fill()
 	// refresh dirty tiles before incremental updates
 	if (c_ste_ && c_dynamic_)
 	{
-		s16 txp = txpos_-c_hmargin_;
-		s16 typ = typos_-c_vmargin_;
+		if ((dtx1_ < dtx2_) && (dty1_ < dty2_))
+		{
+			// find the viewport rectangle
+			s16 tx1 = txpos_-c_hmargin_;
+			s16 ty1 = typos_-c_vmargin_;
+			// never refresh across map left edge
+			if (c_scanwalk_ && (tx1 < 0))
+				tx1 = 0;
 
-		if (c_scanwalk_ && txp < 0)
-			txp = 0;
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
 
+			// find intersection of 2 rectangles (viewport, edited region)
+			tx1 = xmax(tx1, dtx1_);
+			ty1 = xmax(ty1, dty1_);
+			tx2 = xmin(tx2, dtx2_);
+			ty2 = xmin(ty2, dty2_);
+
+			// refresh only the minmax bounded area
+			if ((tx2 > tx1) && (ty2 > ty1))
+			{
 		dirty_block_virtual
 		(
-			txp, typ,
-			txp, typ, 
-			txpos_-(c_hmargin_) + vpage_tiles_x_, 
-			typos_-(c_vmargin_) + vpage_tiles_y_
+					tx1, ty1,
+					//
+					tx1, ty1, 
+					tx2, ty2
 		);
+	}
+
+			// reset edited region
+			dtx1_ = dty1_ = 0x7fff;
+			dtx2_ = dty2_ = -1;
+		}
 	}
 
 	// shortcut incremental if no movement
@@ -2193,8 +2221,8 @@ void hybrid_fill()
 	{
 		warp_catchup();
 	}
-	else
-	{
+		else
+		{
 
 	s16 x1 = tx;
 	s16 y1 = ty;
@@ -2768,7 +2796,7 @@ void hybrid_fill()
 				x2, hs_fill_y1, 
 				x2, hs_fill_y1, hs_fill_y2,
 				0, xf
-			);
+			);		
 			else
 			shift_speccolumn_virtual(
 				x2, hs_fill_y1, 
@@ -2973,13 +3001,13 @@ void hybrid_fill()
 					{
 //						printf("p-n: %d %d\n", p, n);
 						// single
-						shift_speccolumn_virtual(
-							(txl + vpage_tiles_x_), hs_fill_y1, 
-							(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
+				shift_speccolumn_virtual(
+					(txl + vpage_tiles_x_), hs_fill_y1, 
+					(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
 							p, n
-						);	
+				);		
 					}
-					else
+				else
 					{
 						// split
 //						printf("p-ts: %d %d\n", p, c_tilesize_);
@@ -3033,7 +3061,7 @@ void hybrid_fill()
 					//STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
 #endif
 			}
-		}
+			}
 		else
 		{
 //			printf("l-s: %d %d\n", last_slice_, slice_);
@@ -3133,10 +3161,32 @@ agt_inline void bgrestore()
 	}
 }
 
+agt_inline void touch_reset()
+{
+	dtx1_ = dty1_ = 0x7fff;
+	dtx2_ = dty2_ = 0x8000;
+}
+
+agt_inline void touch_region(s16 _x1, s16 _y1, s16 _x2, s16 _y2)
+{
+	if (_x1 < dtx1_)
+		dtx1_ = _x1;
+	if (_y1 < dty1_)
+		dty1_ = _y1;
+	if (_x2 > dtx2_)
+		dtx2_ = _x2;
+	if (_y2 > dty2_)
+		dty2_ = _y2;
+}
+
+template<bool _autoregion = true>
 agt_inline void multitouch(s16 _x, s16 _y)
 {
 	if (c_dynamic_)
 	{
+		if (_autoregion)
+			touch_region(_x, _y, _x+1, _y+1);
+
 		u16 pattern = 0x8000 >> (_x & 7);
 		s16 xoffset = (_x >> 3);
 		s16 *dirtyline = dirtymasklines_[_y];
@@ -3144,10 +3194,14 @@ agt_inline void multitouch(s16 _x, s16 _y)
 	}
 }
 
-void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
+template<bool _autoregion = true>
+void multitouch_row(s16 _x, s16 _y, s16 _dx)
 {
 	if (c_dynamic_)
 	{
+		if (_autoregion)
+			touch_region(_x, _y, _x+_dx, _y+1);
+
 		// find mask rectangle width
 		s16 bx1 = (_x & ~7);
 		s16 bx2 = (_x + _dx + 7) & ~7;
@@ -3193,11 +3247,15 @@ void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
 	}
 }
 
-void multitouch_column(s16 _x, s16 _y, s16 _dy/*, s32 *_source*/)
+template<bool _autoregion = true>
+void multitouch_column(s16 _x, s16 _y, s16 _dy)
 {
 	// todo: prototype version - move this stuff to 68k
 	if (c_dynamic_)
 	{
+		if (_autoregion)
+			touch_region(_x, _y, _x+1, _y+_dy);
+
 		// update dirty mask
 		u16 pattern = 0x8000 >> (_x & 7);
 		s16 xoffset = (_x >> 3);
@@ -3215,10 +3273,14 @@ void multitouch_column(s16 _x, s16 _y, s16 _dy/*, s32 *_source*/)
 }
 
 // todo: 68k version
-void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
+template<bool _autoregion = true>
+void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy)
 {
 	if (c_dynamic_)
 	{
+		if (_autoregion)
+			touch_region(_x, _y, _x+_dx, _y+_dy);
+
 		// find mask rectangle width
 		s16 bx1 = (_x & ~7);
 		s16 bx2 = (_x + _dx + 7) & ~7;
