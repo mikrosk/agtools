@@ -618,6 +618,11 @@ public:
 	s16 last_slice_;
 	s16 slice_;
 
+	s16 dtx1_;
+	s16 dty1_;
+	s16 dtx2_;
+	s16 dty2_;
+
 //	s32* dirtytiles_;
 	s16* dirtymask_;
 //	s16* layermask_;
@@ -1566,6 +1571,8 @@ playfield_template()
 	  mul_map_x_(0),
 	  xpreshift_(0), drawshift_(1), 
 	  slice_(0), last_slice_(0),
+	  dtx1_(0x7fff), dty1_(0x7fff),
+	  dtx2_(0x8000), dty2_(0x8000),
 	  //dirtytiles_(0),
 	  //dirtynum_(0),
 	  dirtymask_(0), //layermask_(0),
@@ -2796,19 +2803,40 @@ void hybrid_fill()
 	// refresh dirty tiles before incremental updates
 	if (c_ste_ && c_dynamic_)
 	{
-		s16 txp = txpos_-c_hmargin_;
-		s16 typ = typos_-c_vmargin_;
+		if ((dtx1_ < dtx2_) && (dty1_ < dty2_))
+		{
+			// find the viewport rectangle
+			s16 tx1 = txpos_-c_hmargin_;
+			s16 ty1 = typos_-c_vmargin_;
+			// never refresh across map left edge
+			if (c_scanwalk_ && (tx1 < 0))
+				tx1 = 0;
 
-		if (c_scanwalk_ && txp < 0)
-			txp = 0;
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
 
-		dirty_block_virtual
-		(
-			txp, typ,
-			txp, typ, 
-			txpos_-(c_hmargin_) + vpage_tiles_x_, 
-			typos_-(c_vmargin_) + vpage_tiles_y_
-		);
+			// find intersection of 2 rectangles (viewport, edited region)
+			tx1 = xmax(tx1, dtx1_);
+			ty1 = xmax(ty1, dty1_);
+			tx2 = xmin(tx2, dtx2_);
+			ty2 = xmin(ty2, dty2_);
+
+			// refresh only the minmax bounded area
+			if ((tx2 > tx1) && (ty2 > ty1))
+			{
+				dirty_block_virtual
+				(
+					tx1, ty1,
+					//
+					tx1, ty1, 
+					tx2, ty2
+				);
+			}
+
+			// reset edited region
+			dtx1_ = dty1_ = 0x7fff;
+			dtx2_ = dty2_ = -1;
+		}
 	}
 
 	// shortcut incremental if no movement
@@ -3718,10 +3746,32 @@ void hybrid_fill()
 //	}
 //}
 
+agt_inline void touch_reset()
+{
+	dtx1_ = dty1_ = 0x7fff;
+	dtx2_ = dty2_ = 0x8000;
+}
+
+agt_inline void touch_region(s16 _x1, s16 _y1, s16 _x2, s16 _y2)
+{
+	if (_x1 < dtx1_)
+		dtx1_ = _x1;
+	if (_y1 < dty1_)
+		dty1_ = _y1;
+	if (_x2 > dtx2_)
+		dtx2_ = _x2;
+	if (_y2 > dty2_)
+		dty2_ = _y2;
+}
+
+template<bool _autoregion = true>
 agt_inline void multitouch(s16 _x, s16 _y)
 {
 	if (c_dynamic_)
 	{
+		if (_autoregion)
+			touch_region(_x, _y, _x+1, _y+1);
+
 		u16 pattern = 0x8000 >> (_x & 7);
 		s16 xoffset = (_x >> 3);
 		s16 *dirtyline = dirtymasklines_[_y];
@@ -3729,10 +3779,14 @@ agt_inline void multitouch(s16 _x, s16 _y)
 	}
 }
 
-void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
+template<bool _autoregion = true>
+void multitouch_row(s16 _x, s16 _y, s16 _dx)
 {
 	if (c_dynamic_)
 	{
+		if (_autoregion)
+			touch_region(_x, _y, _x+_dx, _y+1);
+
 		// find mask rectangle width
 		s16 bx1 = (_x & ~7);
 		s16 bx2 = (_x + _dx + 7) & ~7;
@@ -3778,11 +3832,15 @@ void multitouch_row(s16 _x, s16 _y, s16 _dx/*, s32 *_source*/)
 	}
 }
 
-void multitouch_column(s16 _x, s16 _y, s16 _dy/*, s32 *_source*/)
+template<bool _autoregion = true>
+void multitouch_column(s16 _x, s16 _y, s16 _dy)
 {
 	// todo: prototype version - move this stuff to 68k
 	if (c_dynamic_)
 	{
+		if (_autoregion)
+			touch_region(_x, _y, _x+1, _y+_dy);
+
 		// update dirty mask
 		u16 pattern = 0x8000 >> (_x & 7);
 		s16 xoffset = (_x >> 3);
@@ -3800,10 +3858,14 @@ void multitouch_column(s16 _x, s16 _y, s16 _dy/*, s32 *_source*/)
 }
 
 // todo: 68k version
-void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy/*, s32 *_source*/)
+template<bool _autoregion = true>
+void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy)
 {
 	if (c_dynamic_)
 	{
+		if (_autoregion)
+			touch_region(_x, _y, _x+_dx, _y+_dy);
+
 		// find mask rectangle width
 		s16 bx1 = (_x & ~7);
 		s16 bx2 = (_x + _dx + 7) & ~7;

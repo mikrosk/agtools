@@ -254,13 +254,37 @@ public:
 			b.fields[1].setpreshift(_xps);
 	}
 
-	//
+	// ------------------------------------------------------------------------
+	// todo: prototype versions - these to 68k
 
-	// todo: prototype version - move this stuff to 68k
+	// mark rectangular region of map as containing dirty tiles
+	agt_hotcode agt_inline void touch_region(s16 _x1, s16 _y1, s16 _x2, s16 _y2)
+	{
+		if (playfield_type::c_dynamic_)
+		{
+			if (c_num_buffers_ > 0)
+				buffers_[0].fields[0].touch_region(_x1, _y1, _x2, _y2);
+			if (c_num_buffers_ > 1)
+				buffers_[1].fields[0].touch_region(_x1, _y1, _x2, _y2);
+		}
+	}
+
+	// mark individual tile as dirty, optionally updating modified region
+	template<bool _autoregion = true>
 	agt_hotcode agt_inline void multitouch(s16 _x, s16 _y)
 	{
 		if (playfield_type::c_dynamic_)
 		{
+			if (_autoregion)
+			{
+				s16 x2 = _x+1;
+				s16 y2 = _y+1;
+				if (c_num_buffers_ > 0)
+					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
+				if (c_num_buffers_ > 1)
+					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+			}
+
 			u16 pattern = 0x8000 >> (_x & 7);
 			s16 xoffset = (_x >> 3);
 
@@ -278,7 +302,8 @@ public:
 		}
 	}
 
-	// todo: prototype version - move this stuff to 68k
+	// mark tile row as dirty, optionally updating modified region
+	template<bool _autoregion = true>
 	agt_hotcode void multitouch_row(s16 _x, s16 _y, s16 _dx)
 	{
 		if (playfield_type::c_dynamic_)
@@ -286,13 +311,23 @@ public:
 			s16 *dirtyline0, *dirtyline1;
 			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
 
+			if (_autoregion)
+			{
+				s16 x2 = _x+_dx;
+				s16 y2 = _y+1;
+				if (c_num_buffers_ > 0)
+					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
+				if (c_num_buffers_ > 1)
+					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+			}
+
 			// find mask rectangle width
 			s16 bx1 = (_x & ~7);
 			s16 bx2 = (_x + _dx + 7) & ~7;
 			s16 bdx = (bx2 - bx1) >> 3;
 
 			// we can deal with 8,16,24,32-wide tile bitmasks
-			if ((bdx > 0)/* && (bdx < 4)*/)
+			if (bdx > 0)
 			{				
 				// access mask buffer
 				s16 xoffset = (_x >> 3);
@@ -375,13 +410,24 @@ public:
 		}
 	}
 
-	// todo: prototype version - move this stuff to 68k
+	// mark tile column as dirty, optionally updating modified region
+	template<bool _autoregion = true>
 	agt_hotcode agt_inline void multitouch_column(s16 _x, s16 _y, s16 _dy)
 	{
 		if (playfield_type::c_dynamic_)
 		{
 			s16 *dirtyline0, *dirtyline1;
 			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
+
+			if (_autoregion)
+			{
+				s16 x2 = _x+1;
+				s16 y2 = _y+_dy;
+				if (c_num_buffers_ > 0)
+					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
+				if (c_num_buffers_ > 1)
+					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+			}
 
 			// update dirty mask
 			u16 pattern = 0x8000 >> (_x & 7);
@@ -405,7 +451,8 @@ public:
 		}
 	}
 
-	// todo: prototype version - move this stuff to 68k
+	// mark tile rectangle as dirty, optionally updating modified region
+	template<bool _autoregion = true>
 	agt_hotcode void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy)
 	{
 		if (playfield_type::c_dynamic_)
@@ -414,13 +461,23 @@ public:
 			s16 *dirtyline0, *dirtyline1;
 			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
 
+			if (_autoregion)
+			{
+				s16 x2 = _x+_dx;
+				s16 y2 = _y+_dy;
+				if (c_num_buffers_ > 0)
+					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
+				if (c_num_buffers_ > 1)
+					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+			}
+
 			// find mask rectangle width
 			s16 bx1 = (_x & ~7);
 			s16 bx2 = (_x + _dx + 7) & ~7;
 			s16 bdx = (bx2 - bx1) >> 3;
 
 			// we can deal with 8,16,24,32-wide tile bitmasks
-			if ((bdx > 0)/* && (bdx < 4)*/)
+			if (bdx > 0)
 			{				
 				// access mask buffer
 				s16 xoffset = (_x >> 3);
@@ -589,107 +646,57 @@ public:
 
 	// modify multiple map tiles before next refresh: single tile at a time (using plain index, i.e. not pre-formatted for map)
 	// note: no dualfield support yet - will implement shared dualfield maps first
-	template<PFLayer _layercode = PFLayer_Base>
+	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	void multimod_idx(s16 _x, s16 _y, s32 _i)
 	{
 		// update map tiles
 		s32 rawidx = _i << (playfield_type::c_tileshift_b_ + (_layercode & PFLayer_Overlay) ? 1 : 0);
 
 		mapctx0_.multimod<_layercode>(_x, _y, rawidx);
-//		mapctx1_.multimod(_x, _y, rawidx); // todo: eliminate dualfield maps!
 
-		multitouch(_x, _y);
-
-		// mark element on all active fields
-		//s16 b = c_num_buffers_-1;
-		//do {
-		//	buffer& rb = buffers_[b];
-		//	rb.fields[0].multitouch(_x, _y);
-		//	//if (dualfield_)
-		//	//	rb.fields[1].multitouch(_x, _y);
-		//} while (--b != -1);		
+		multitouch<_autoregion>(_x, _y);	
 	}
 
 	// modify multiple map tiles before next refresh: single tile at a time
 	// note: no dualfield support yet - will implement shared dualfield maps first
-	template<PFLayer _layercode = PFLayer_Base>
+	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	agt_inline void multimod(s16 _x, s16 _y, s32 _rawidx)
 	{
 		// update map tiles
 		mapctx0_.multimod<_layercode>(_x, _y, _rawidx);
-//		mapctx1_.multimod(_x, _y, _rawidx); // todo: eliminate dualfield maps!
 
-		multitouch(_x, _y);
-
-		//// mark element on all active fields
-		//s16 b = c_num_buffers_-1;
-		//do {
-		//	buffer& rb = buffers_[b];
-		//	rb.fields[0].multitouch(_x, _y);
-		//	//if (dualfield_)
-		//	//	rb.fields[1].multitouch(_x, _y);
-		//} while (--b != -1);
+		multitouch<_autoregion>(_x, _y);
 	}
 
 	// modify multiple map tiles before next refresh: map row
 	// note: no dualfield support yet - will implement shared dualfield maps first
-	template<PFLayer _layercode = PFLayer_Base>
+	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	void multimod_row(s16 _x, s16 _y, s16 _dx, s32 *_source)
 	{
 		// update map tiles
 		mapctx0_.multimod_row<_layercode>(_x, _y, _dx, _source);
-//		mapctx1_.multimod_row(_x, _y, _dx, _source); // todo: eliminate dualfield maps!
 
-		multitouch_row(_x, _y, _dx);
-
-		//// mark row on all active fields
-		//s16 b = c_num_buffers_-1;
-		//do {
-		//	buffer& rb = buffers_[b];
-		//	rb.fields[0].multitouch_row(_x, _y, _dx);
-		//	//if (dualfield_)
-		//	//	rb.fields[1].multitouch_row(_x, _y, _dx);
-		//} while (--b != -1);
+		multitouch_row<_autoregion>(_x, _y, _dx);
 	}
 
 	// modify multiple map tiles before next refresh: map column
 	// note: no dualfield support yet - will implement shared dualfield maps first
-	template<PFLayer _layercode = PFLayer_Base>
+	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	void multimod_column(s16 _x, s16 _y, s16 _dy, s32 *_source)
 	{
 		mapctx0_.multimod_column<_layercode>(_x, _y, _dy, _source);
-//		mapctx1_.multimod_column(_x, _y, _dy, _source); // todo: eliminate dualfield maps!
 
 		multitouch_column(_x, _y, _dy);
-
-		//// mark column on all active fields
-		//s16 b = c_num_buffers_-1;
-		//do {
-		//	buffer& rb = buffers_[b];
-		//	rb.fields[0].multitouch_column(_x, _y, _dy);
-		//	//if (dualfield_)
-		//	//	rb.fields[1].multitouch_column(_x, _y, _dy);
-		//} while (--b != -1);
 	}
 
 	// modify multiple map tiles before next refresh: map rectangle
 	// note: no dualfield support yet - will implement shared dualfield maps first
-	template<PFLayer _layercode = PFLayer_Base>
+	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	void multimod_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
 	{
 		mapctx0_.multimod_rect<_layercode>(_x, _y, _dx, _dy, _source);
-		//mapctx1_.multimod_rect(_x, _y, _dx, _dy, _source); // todo: eliminate dualfield maps!
 
-		multitouch_rect(_x, _y, _dx, _dy);
-
-		//// mark rect on all active fields
-		//s16 b = c_num_buffers_-1;
-		//do {
-		//	buffer& rb = buffers_[b];
-		//	rb.fields[0].multitouch_rect(_x, _y, _dx, _dy);
-		//	//if (dualfield_)
-		//	//	rb.fields[1].multitouch_rect(_x, _y, _dx, _dy);
-		//} while (--b != -1);
+		multitouch_rect<_autoregion>(_x, _y, _dx, _dy);
 	}
 
 	//
