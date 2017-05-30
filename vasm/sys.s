@@ -70,6 +70,10 @@ configure_50hz		=	1
 	XDEF		_blackscreen
 
 *-------------------------------------------------------*
+
+	include		"prf.s"
+
+*-------------------------------------------------------*
 	text
 *-------------------------------------------------------*
 
@@ -154,6 +158,10 @@ _SYS_Configure:
 .not_mste:
 
 .dunno:
+*-------------------------------------------------------*
+	ifd		AGT_CONFIG_PROFILER
+	jsr		_AGT_Sys_ProfilerInit
+	endc
 *-------------------------------------------------------*
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -326,9 +334,6 @@ _SYS_Claim:
 	move.l		a0,$134.w			; TimerA
 	move.l		a0,$13c.w			; GPI7
 
-;	move.l		$11c.w,loader_reroute+2
-;	move.l		#loader_rerouter,$11c.w
-		
 *-------------------------------------------------------*
 *	MFP state
 *-------------------------------------------------------*
@@ -336,6 +341,28 @@ _SYS_Claim:
 	clr.b		$fffffa13.w			; IMA (Timer-A & B)
 	clr.b		$fffffa09.w			; IEB (Timer-C & D)
 	clr.b		$fffffa15.w			; IMB (Timer-C & D)
+
+*-------------------------------------------------------*
+
+	ifd		AGT_CONFIG_PROFILER
+	move.l		#profiler_tc,timerc.w
+	else
+	move.l		#timer_tc,timerc.w
+	endc
+
+	and.b		#%00001111,cdcr.w
+
+	ifd		AGT_CONFIG_PROFILER
+	move.b		#77,tcdr.w		; 2457600/77 = 31916 (/64 = 498Hz)
+	else
+	move.b		#192,tcdr.w		; 2457600/192 = 12800Hz
+	endc
+
+	or.b		#(5<<4),cdcr.w		; 12800/64 = 200Hz
+
+	bset		#5,imrb.w
+	bset		#5,ierb.w
+		
 *-------------------------------------------------------*
 	and.w		#$fbff,sr
 *-------------------------------------------------------*	
@@ -383,11 +410,40 @@ dummy_vbl:
 	rte
 	
 	
-dummy_tc:
+*-------------------------------------------------------*
+timer_tc:	
+*-------------------------------------------------------*
+;dummy_tc:
 	addq.l		#1,$4ba.w
 	bclr		#5,isrb.w
 	rte
 	
+	ifd		AGT_CONFIG_PROFILER
+*-------------------------------------------------------*
+profiler_tc:	
+*-------------------------------------------------------*
+;	todo: 32k align, or could be 256b align if < 64 items (!)
+	move.w		d0,-(sp)
+	move.l		a0,-(sp)
+	move.w		prf_ctx.w,d0
+	add.w		d0,d0
+	add.w		d0,d0
+	lea		prf_contexts(pc,d0.w),a0
+	addq.l		#1,(a0)
+	move.l		(sp)+,a0
+	move.w		(sp)+,d0
+*-------------------------------------------------------*
+	addq.l		#1,_tm_clock
+	addq.l		#1,$4ba.w
+*-------------------------------------------------------*
+	bclr		#5,isrb.w
+	rte
+	
+prf_contexts:		dcb.l	prf_context_max+1,0
+	
+	endc
+
+
 	ifd		ENABLE_AGT_AUDIO	
 	
 ym_td:
@@ -398,11 +454,9 @@ ym_td:
 ;	ori.w		#$0700,sr
 	andi.w		#$fbff,sr
 		
-	ifd		ENABLE_AGT_AUDIO
 	movem.l		d0-a6,-(sp)
 	jsr		_YMSYS_Callback
 	movem.l		(sp)+,d0-a6
-	endc
 
 	;and.b		#$f0,cdcr.w
 	
@@ -542,6 +596,8 @@ vbl_sema:		dc.w	-1
 *-------------------------------------------------------*
 	bss
 *-------------------------------------------------------*
+
+_tm_clock:		ds.l	1
 
 savestate_restorepoint:	ds.l	1
 

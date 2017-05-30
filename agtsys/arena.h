@@ -142,6 +142,8 @@ public:
 	// retrieve digest of draw context fields for low level graphics functions
 	inline void get_context(drawcontext_t& r_ctx, s16 _field, s16 _vpw, s16 _vph)
 	{
+		prf_push(prf_arena_misc);
+
 		const playfield_type &pf = buffers_[buffer_index_].fields[_field];
 
 		r_ctx.p_pfframebuffer = pf.framebuffer_;
@@ -152,10 +154,14 @@ public:
 		r_ctx.pfvpageh = pf.wrap_height_;
 
 		snapview(drawcontext, _vpw, _vph);
+
+		prf_pop();
 	}
 
 	void select_buffer(s16 _index, s16 _field)
 	{
+		prf_push(prf_arena_misc);
+
 		buffer_index_ = _index;
 		field_index_ = _field;
 		pactive_ = &buffers_[buffer_index_];
@@ -164,19 +170,27 @@ public:
 		// publish metrics for writing to this backbuffer
 		g_linebytes = pf0.virtual_linewords_ << 1;
 		g_xpreshift = pf0.xpreshift_;
+
+		prf_pop();
 	}
 	
 	void activate_buffer()
 	{
+		prf_push(prf_arena_misc);
+
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 		b.fields[0].select(shift_);
 		if (dualfield_)
 			b.fields[1].select(shift_);
 		shift_.advance();
+
+		prf_pop();
 	}
 
 	void modview(s16 &r_x, s16 &r_y)
 	{
+		prf_push(prf_arena_misc);
+
 		buffer& b = *pactive_;
 		playfield_type& pf = b.fields[0];
 
@@ -184,10 +198,14 @@ public:
 			r_x = tmod16(pf.xpos_, pf.wrap_width_>>0);
 		if (pf.c_vloop_)
 			r_y = tmod16(pf.ypos_, pf.wrap_height_>>0);
+
+		prf_pop();
 	}
 
 	void setpos(s16 _x, s16 _y)
 	{
+		prf_push(prf_arena_misc);
+
 		// track current scroll position
 		xpos_ = _x;
 		ypos_ = _y;
@@ -196,6 +214,8 @@ public:
 		b.fields[0].setpos(_x, _y);		
 		if (dualfield_)
 			b.fields[1].setpos(_x, _y);		
+
+		prf_pop();
 	}
 		
 	void setmap(s32* _map0, s32* _map1)
@@ -703,6 +723,8 @@ public:
 
 	void fill_abs(bool _force)
 	{
+		prf_push(prf_arena_fill);
+
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
 		if (dualfield_)
@@ -721,10 +743,14 @@ public:
 		{
 			b.fields[0].fill_abs();
 		}
+
+		prf_pop();
 	}	
 
 	void fill(bool _force)
 	{
+		prf_push(prf_arena_fill);
+
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 	
 		if (dualfield_)
@@ -746,10 +772,14 @@ public:
 		//b.fields[0].fill();
 		//if (dualfield_)
 		//	b.fields[1].fill();
+
+		prf_pop();
 	}
 	
 	void speculative_fill(bool _force)
 	{
+		prf_push(prf_arena_fill);
+
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
 		if (dualfield_)
@@ -771,10 +801,14 @@ public:
 //		b.fields[0].speculative_fill();
 //		if (dualfield_)
 //			b.fields[1].speculative_fill();
+
+		prf_pop();
 	}	
 
 	void hybrid_fill(bool _force)
 	{
+		prf_push(prf_arena_fill);
+
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
 		if (dualfield_)
@@ -796,10 +830,14 @@ public:
 		//b.fields[0].hybrid_fill();
 		//if (dualfield_)
 		//	b.fields[1].hybrid_fill();
+
+		prf_pop();
 	}	
 
 	void hybrid_fill_bufferspec()
 	{
+		prf_push(prf_arena_fill);
+
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 		s16 x = b.fields[0].xpos_;
 		s16 y = b.fields[0].ypos_;
@@ -815,10 +853,14 @@ public:
 			sb.fields[0].setslice(s);
 			sb.fields[0].hybrid_fill();
 		}
+
+		prf_pop();
 	}	
 
 	void reset(s16 x, s16 y, bool _nowait = false)
 	{
+		prf_push(prf_arena_misc);
+
 		s16 tb = buffer_index_;
 		//s16 tf = field_index_;
 		s16 curr_vbl = g_vbl;
@@ -838,10 +880,14 @@ public:
 				activate_buffer();
 		}
 		//select_buffer(tb,tf);
+
+		prf_pop();
 	}
 
 	void init(s16 x, s16 y)
 	{
+		prf_push(prf_arena_misc);
+
 		for (s16 b = 0; b < c_num_buffers_; ++b)
 		{
 			buffer& rb = buffers_[b];
@@ -877,6 +923,8 @@ public:
 		select_buffer(buffer_index_, 0);
 		setpos(x,y);
 		//activate_buffer();	
+
+		prf_pop();
 	}
 
 		

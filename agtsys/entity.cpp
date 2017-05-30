@@ -12,6 +12,8 @@
 
 #include "common_cpp.h"
 
+#include "system.h"
+
 #include "spritesheet.h"
 #include "slabsheet.h"
 #include "spritelib.h"
@@ -424,6 +426,8 @@ static agt_inline void EntityExecuteRemove_(entity_t *_pent)
 
 void EntityExecuteAllRemoves()
 {
+	AUTOPRF(ent_links);
+
 	if (s_entity_remove_count > 0)
 	{
 		entity_t **ppremoves = s_entity_removes;
@@ -438,6 +442,8 @@ void EntityExecuteAllRemoves()
 
 void EntityExecuteAllLinks()
 {
+	AUTOPRF(ent_links);
+
 	if (s_entity_link_count > 0)
 	{
 		entity_t **pplinks = s_entity_links;
@@ -595,6 +601,8 @@ pushback:
 
 void EntityTickAll()
 {
+	AUTOPRF(ent_tick);
+
 	// first entity is pointed by list head
 	entity_t *pcurr = s_entity_tick_head.pnext_tick;
 
