@@ -11,7 +11,7 @@
 //	Our AGT headers
 
 #include "common_cpp.h"
-
+#include "system.h"
 #include "shifter.h"
 #include "tileset.h"
 #include "worldmap.h"

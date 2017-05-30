@@ -250,6 +250,7 @@ enable_clipping	set	1				; enable full xy clipping
 	move.l		a5,rstr_ptide(a4)
 	
 	unlk		a6
+	popctxr		a2
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts

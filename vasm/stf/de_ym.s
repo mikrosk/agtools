@@ -57,6 +57,7 @@ _STF_EntityDrawVisibleYM_68k:
 	endc
 *-------------------------------------------------------*
 	movem.l		d2-d7/a2-a5,-(sp)
+	pushctxr	ent_draw,a2
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
 	lea		-.sp_frame_(sp),sp
@@ -266,6 +267,7 @@ enable_clipping	set	1				; enable full xy clipping
 ;	move.l		a5,dctx_clearstack_tide(a4)
 
 	unlk		a6
+	popctxr		a2
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts
@@ -297,6 +299,7 @@ _EntityInteractVisibleYM_68k:
 .sp_frame_:		rs.b	0
 *-------------------------------------------------------*	
 	movem.l		d2-d7/a2-a5,-(sp)
+	pushctxr	ent_interact,a2
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
 	lea		-.sp_frame_(sp),sp
@@ -458,6 +461,7 @@ _EntityInteractVisibleYM_68k:
 	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
 	unlk		a6
+	popctxr		a2	
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts

@@ -58,6 +58,7 @@ _BLiT_EntityDeferVisibleYM_68k:
 	.endif
 *-------------------------------------------------------*	
 	movem.l		d2-d7/a2-a5,-(sp)
+	pushctxr	ent_draw,a2
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
 	lea		-.sp_frame_(sp),sp
