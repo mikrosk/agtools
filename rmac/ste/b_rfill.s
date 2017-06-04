@@ -288,11 +288,12 @@
 	move.w		d4,(a5)				; BLIT: lines
 	move.l		a1,(a6)				; dst
 	move.b		d0,(a2)
+	addq.l		#2,a1
 
 	.if		(use_hog=0)
 .rmlp0:	bset.b		d1,(a2)
 	.if		(use_blitter_nops)
-	nop
+	;nop
 	.endif
 	bne.s		.rmlp0
 	.endif
@@ -302,15 +303,16 @@
 
 ;	plane #1
 
-	addq.l		#2,a1
 	
 	move.w		d4,(a5)				; BLIT: lines
 	move.l		a1,(a6)				; dst	
 	move.b		d0,(a2)
+	addq.l		#2,a1
+
 	.if		(use_hog=0)
 .rmlp1:	bset.b		d1,(a2)
 	.if		(use_blitter_nops)
-	nop
+	;nop
 	.endif
 	bne.s		.rmlp1
 	.endif
@@ -320,15 +322,16 @@
 
 ;	plane #2
 
-	addq.l		#2,a1
 	
 	move.w		d4,(a5)				; BLIT: lines
 	move.l		a1,(a6)				; dst	
 	move.b		d0,(a2)
+	addq.l		#2,a1
+
 	.if		(use_hog=0)
 .rmlp2:	bset.b		d1,(a2)
 	.if		(use_blitter_nops)
-	nop
+	;nop
 	.endif
 	bne.s		.rmlp2
 	.endif
@@ -338,15 +341,15 @@
 
 ;	plane #3
 
-	addq.l		#2,a1
 	
 	move.w		d4,(a5)				; BLIT: lines
 	move.l		a1,(a6)				; dst	
 	move.b		d0,(a2)
+
 	.if		(use_hog=0)
 .rmlp3:	bset.b		d1,(a2)
 	.if		(use_blitter_nops)
-	nop
+	;nop
 	.endif
 	bne.s		.rmlp3
 	.endif
