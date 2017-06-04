@@ -12,7 +12,10 @@
 //		- @ key to recall multiples to ship
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//		- aim to show minimal changes required to convert horizontal scrolling to multiway-scrolling in complex project
+//		- aims only to show minimal changes required to convert horizontal scrolling to multiway-scrolling in a
+//		  fairly complex project.
+//		- this doesn't improve the h-shmup *gameplay* at all - in fact it does the opposite because other changes
+//		  would be necessary to make the game logic, entity clipping etc. fit the larger playfield.
 //----------------------------------------------------------------------------------------------------------------------
 
 #define ENABLE_PLAYER_COLLISIONS (1)
@@ -159,29 +162,28 @@ static const s16 c_dualfield = 1;
 // be maintained.
 static const s16 c_singlevbl = 1;
 
-
 // define a playfield config for horizontal-only scrolling using STE HW HSCROLL
 typedef playfield_template
 <
-	/*tilesize=*/4,								// fixed at 2^4 for 16x16 bg tiles
+	/*tilesize=*/4,								// 2^4 for 16x16 bg tiles
 	/*max_scroll=*/5120,						// maximum scroll distance in pixels (reduce to save a little ram on tables)
-	/*vscroll=*/VScrollMode_LOOPBACK,			// enable vscroll
-	/*hscroll=*/HScrollMode_SCANWALK,			// enable hscroll
+	/*vscroll=*/VScrollMode_LOOPBACK,				// enable full vscroll
+	/*hscroll=*/HScrollMode_SCANWALK,			// enable full hscroll
 	/*restore=*/RestoreMode_PAGERESTORE,		// restore from virtual page (verus save/restore for individual objects)
-	/*speculative=*/true,						// todo: force this as only available mode - others deprecated
-	/*ste_hwscroll=*/true,						// use STE HW scrolling
-	/*stf_hsyncshift=*/false,					// use STF 4pix syncscroll
+	/*updatemode=*/UpdateMode_NORMAL,			// tile update method (normal=full speculative-margin on STE, partial/vertical on STF)
+	/*ste_hw=*/true,							// use STE hardware for display/scroll offsets (otherwise STF syncscroll)
+	/*stf_hsyncshift=*/false,					// use STF 4-pixel offsets with LJBK method
 	/*dynamic=*/false							// enable support for runtime-refreshable map tiles
-> playfield_hvscroll_ste;						// new name for our playfield definition
+> playfield_t;									// new name for our playfield definition
 
 // define an arena (world) composed of 2 such playfields (double-buffering on STE)
 typedef arena_template
 <
-	/*buffers=*/2,								// number of framebuffers required
-	/*singleframe=*/c_singlevbl ? true : false,	// set true for dual-field and single-vbl, for reduced cost. set false for dual-field @ 25hz or less
-	/*playfield_type=*/playfield_hvscroll_ste	// playfield config/definition to use
-> arena_hvscroll_ste;							// new name for our playfield arena definition
-
+	/*buffers=*/2,								// number of framebuffers (playfields) required
+	/*singleframe=*/c_singlevbl ? true : false,	// optimise dualfield to half the framebuffer count, when locked @ 50hz
+	/*dualfield=*/true,							// enable dualfield support at compiletime, otherwise on/off flag will be ignored
+	/*playfield_type=*/playfield_t				// playfield config/definition to use for framebuffers
+> arena_t;	
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	machine state interface (setup/shutdown)
@@ -193,6 +195,8 @@ machine machinestate;
 // ---------------------------------------------------------------------------------------------------------------------
 
 S_SUPER_SSP(AGT_CONFIG_STACK);
+
+AGT_MAIN;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -246,10 +250,14 @@ static s16 g_spawn_wavetype = 0;
 // (e.g. strange glitches can be seen in 8way mode when scroll direction changes too near the left edge of the map)
 static const s16 c_scroll_safety_margin = 32;
 
-// viewport (scroll) starting position in world map
-static s16 g_viewport_worldx = c_scroll_safety_margin; 
+// start position on map
+static s16 c_xstart = c_scroll_safety_margin + 96;
 // start viewport roughly in middle of map's vertical range (upper left corner of viewport)
-static s16 g_viewport_worldy = (352-240)/2;
+static s16 c_ystart = (352-240)/2;
+
+// viewport (scroll) starting position in world map
+static s16 g_viewport_worldx = c_xstart; 
+static s16 g_viewport_worldy = c_ystart;
 
 // clipping margin outside of the scrolling viewport, to accommodate the largest typical sprite before deletion etc.
 static const s16 c_viewport_margin = 32;
@@ -331,31 +339,8 @@ worldmap mymap1;
 //	program start
 // =====================================================================================================================
 
-int main(int argc, char **argv)
+int AGT_EntryPoint()
 {
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	MiNTlib builds switch to SUPERVISOR & switch stacks. otherwise, AGT does it during CRT startup.
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	S_SUPER;
-
-	// ---------------------------------------------------------------------------------------------------------------------
-	//	we can detect Hatari via natfeats API for debug-printf routing, if Hatari started with '--natfeats yes'
-	// ---------------------------------------------------------------------------------------------------------------------
-#if defined(HATARI_NF_PRINTF)
-	int hatariflag = nf_init();
-
-	if (hatariflag)
-	{
-		printf("Hatari NATFEATS detected!\n");
-	}
-	else
-	{
-		printf("Hatari NATFEATS NOT detected... :(\n");
-	}
-#endif
-
-	//printf("sizeof(entity_t) = %d\n", sizeof(entity_t));
 
 	//printf("mperc_last_: %d\n", mperc_last_);
 	//printf("midi_mperc_start_: %d\n", midi_mperc_start_);
@@ -371,9 +356,8 @@ int main(int argc, char **argv)
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools\n");
-	printf("game engine sample #1 (STE)\n");
-	printf("dml / 2016\n\n");
+	printf("[A]tari [G]ame [T]ools / dml 2017\n");
+	printf("Horizontal & vertical SHMUP (STE)\n");
 
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	open scope before we create any interfaces (so we can expect them to be cleaned up before the scope is closed)
@@ -409,9 +393,6 @@ int main(int argc, char **argv)
 		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
-
-		// shut down printfs via BIOS, but continue redirecting to Hatari debugger (natfeats) if enabled
-		g_displaylocked = 1;
 
 		machinestate.save();
 
@@ -459,7 +440,7 @@ int main(int argc, char **argv)
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
 
 		printf("creating world...\n");
-		arena_hvscroll_ste myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
+		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the world buffers.
@@ -666,8 +647,6 @@ int main(int argc, char **argv)
 		//	game restart point
 		// =====================================================================================================================
 
-		AGT_PlayfieldRestoreInit();
-
 #if defined(ENABLE_AGT_AUDIO)
 		{
 			AGT_MusicStop();
@@ -687,18 +666,22 @@ restart_game:
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	reset the sprite clearing stacks so we don't erase bogus rectangles when we restart the game
 
-		AGT_PlayfieldRestoreReset();
+		myworld.bgrestore_reset();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	reset the player & scrolling playfield
 
+		// viewport coords within world
+		g_viewport_worldx = c_xstart;
+		g_viewport_worldy = c_ystart;
+
+		// player coords within the world
+		g_player_worldx = 0; // calculated by controller from viewport coords & scroll
+		g_player_worldy = (240/2)+((352-240)/2);
+
 		// player coords within viewport
 		g_player_viewx = 160;
 		g_player_viewy = g_player_worldy - g_viewport_worldy;
-
-		// viewport coords within world
-		g_viewport_worldx = c_scroll_safety_margin;
-//		g_viewport_worldy = 0;
 
 		// reset game variables
 		g_num_multiples = 0;
@@ -707,12 +690,7 @@ restart_game:
 
 		// must perform a complete tile-refill on all buffers if the player just died
 		// todo: ugly jump - should fade/blank screen first, but it's only an example..
-		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
-		{
-			myworld.select_buffer(b,0);
-			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
-			myworld.fill_abs(true);
-		}
+		myworld.reset(g_viewport_worldx, g_viewport_worldy);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create some significant 'static' entities related to the player
@@ -766,19 +744,15 @@ mainloop:
 					g_deathdelay = 40;
 			}
 
-
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	wait for the current VBL period to elapse
 			//	note: this simplistic approach will cause a hard drop to 25hz if time runs out but we're aiming for 50hz anyway
 
+			TIMING_MAIN(bgcol);			
+
 			s16 field_index = g_vbl;
 			while (g_vbl == field_index) { }
 
-
-#ifdef TIMING_RASTERS_MAIN		
-			// save the current BG colour so we can use raster timing
-			bgcol = reg16(ffff8240);
-#endif
 
 			TIMING_MAIN(0x077);
 
@@ -1110,6 +1084,9 @@ mainloop:
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
 
+			// restore playfield from any previous drawing
+			myworld.bgrestore();
+
 			// fill any background tiles required by this change in coordinates
 			myworld.hybrid_fill(false);
 
@@ -1133,13 +1110,7 @@ mainloop:
 			// - other devious details used to synchronize drawing with playfields
 			// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
-			myworld.get_context(drawcontext, working_field, 320, SCREEN_LINES);
-
-			// ---------------------------------------------------------------------------------------------------------------------
-			//	erase any sprites/slabs previously drawn to this buffer (now that it is no longer the physical display - clearing 
-			//	them sooner than this could cause visible flicker or just produce invisible sprites)
-
-			AGT_BLiT_PlayfieldRestore();
+			myworld.get_context(drawcontext, working_field, 320+16, SCREEN_LINES);
 
 			TIMING_MAIN(0x753);	
 
@@ -1191,8 +1162,6 @@ mainloop:
 				g_viewport_worldx += g_scrolldir;
 			}
 		
-			TIMING_MAIN(bgcol);			
-
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	any remaining CPU time here can be put to good use
 
@@ -1215,14 +1184,11 @@ mainloop:
 	machinestate.restore();
 
 	// ---------------------------------------------------------------------------------------------------------------------
-	//	MiNTlib builds switch to USER & restore stacks. otherwise, AGT does it during CRT pulldown.
-	// ---------------------------------------------------------------------------------------------------------------------
+	// back to TOS
 
-	S_USER;
+	pprintf("terminate...\n");
 
-	// ---------------------------------------------------------------------------------------------------------------------
-
-	printf("terminate...\n");
+	return 0;
 }
 
 

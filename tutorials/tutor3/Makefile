@@ -137,6 +137,7 @@ COMPILERDEFS += \
 # -----------------------------------------------------------------------------
 
 COMPILERDEFS += \
+#		-DAGT_CONFIG_STF_OPT_SIZE \
 #		-DAGT_CONFIG_SAFETY_CHECKS \
 #		-DAGT_CONFIG_DEBUG_CONSOLE \
 #		-DAGT_CONFIG_DEBUGDRAW \
@@ -156,7 +157,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: tutorial_3a tutorial_3b tutorial_3c tutorial_3d
+all: tutor3a tutor3b tutor3c tutor3d
 
 
 # =============================================================================
@@ -174,18 +175,26 @@ include $(AGTROOT)/Makerules
 # - the AGLIB platform to use in the build rules (STF/STE)
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
-tutorial_3a: AGLIB=$(AGLIB_STE)
-tutorial_3a: $(AGLIB_STE) tutor3a.$(EXT)
+tutor3a: AGLIB=$(AGLIB_STE)
+tutor3a: $(AGLIB_STE) tutor3a.$(EXT)
 
-tutorial_3b: AGLIB=$(AGLIB_STE)
-tutorial_3b: $(AGLIB_STE) tutor3b.$(EXT)
+tutor3b: AGLIB=$(AGLIB_STE)
+tutor3b: $(AGLIB_STE) tutor3b.$(EXT)
 
-tutorial_3c: AGLIB=$(AGLIB_STE)
-tutorial_3c: $(AGLIB_STE) tutor3c.$(EXT)
+tutor3c: AGLIB=$(AGLIB_STE)
+tutor3c: $(AGLIB_STE) tutor3c.$(EXT)
 
-tutorial_3d: AGLIB=$(AGLIB_STE)
-tutorial_3d: $(AGLIB_STE) tutor3d.$(EXT)
+tutor3d: AGLIB=$(AGLIB_STE)
+tutor3d: $(AGLIB_STE) tutor3d.$(EXT)
 
+stf: AGLIB=$(AGLIB_STF)
+stf: $(AGLIB_STF) stf.$(EXT)
+
+.PHONY: tutor3a
+.PHONY: tutor3b
+.PHONY: tutor3c
+.PHONY: tutor3d
+.PHONY: stf
 
 # =============================================================================
 #	Build rules for preparing data

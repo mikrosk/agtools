@@ -21,16 +21,20 @@ extern "C" s16 g_spr_window_y1;
 extern "C" s16 g_spr_window_x2;
 extern "C" s16 g_spr_window_y2;
 
+extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
+extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
+
 // ---------------------------------------------------------------------------------------------------------------------
 // arena
 
-template<s16 _num_buffers, bool _singleframe, class _playfield_type>
+template<s16 _num_buffers, bool _singleframe, bool _dualfield, class _playfield_type>
 class arena_template
 {
 public:
 
 	static const int c_num_buffers_ = _num_buffers;
 	static const bool c_singleframe = _singleframe;
+	static const bool c_dualfield_ = _dualfield;
 		
 	s16 display_width_;
 	s16 display_height_;
@@ -56,21 +60,21 @@ public:
 
 	s16 buffer_index_;
 	s16 field_index_;
-	s16 dualfield_;
+	s16 dualfield_mask_;
 	buffer *pactive_;
-	s16 xpos_;
-	s16 ypos_;
+	//s16 xpos_;
+	//s16 ypos_;
 
 	shifter_common& shift_;
 	
-	arena_template(shifter_common& _shift, s16 _display_width, s16 _display_height, int _dualfield)
+	arena_template(shifter_common& _shift, s16 _display_width, s16 _display_height, int _dualfield_mask)
 		: shift_(_shift),
 		  display_width_(_display_width),
 		  display_height_(_display_height),
 		  buffer_index_(0), field_index_(0),
-		  xpos_(0), ypos_(0),
+		  //xpos_(0), ypos_(0),
 		  pactive_(0),
-		  dualfield_(_dualfield)
+		  dualfield_mask_(_dualfield_mask)
 	{
 		// make sure all playfields share common context
 		for (s16 b = 0; b < c_num_buffers_; b++)
@@ -123,14 +127,14 @@ public:
 			r_ctx.pfsnapadjy = 0;
 
 		// produce workbuffer page coordinates which follow any hops performed by the playfield engine
-		drawcontext.vpagex = xpos_ - drawcontext.pfsnapadjx;
-		drawcontext.vpagey = ypos_ - drawcontext.pfsnapadjy;
+		drawcontext.vpagex = pf.xpos_ - drawcontext.pfsnapadjx;
+		drawcontext.vpagey = pf.ypos_ - drawcontext.pfsnapadjy;
 
 		// generate clipping window
 		drawcontext.clip_window_x1 = drawcontext.vpagex & -16;
 		drawcontext.clip_window_y1 = drawcontext.vpagey;
-		drawcontext.clip_window_x2 = drawcontext.clip_window_x1 + _vpw + 16;
-		drawcontext.clip_window_y2 = drawcontext.clip_window_y1 + _vph;
+		drawcontext.clip_window_x2 = drawcontext.clip_window_x1 + _vpw;// + 16; // STE hscroll only
+		drawcontext.clip_window_y2 = drawcontext.vpagey + _vph;
 
 		// todo: remove
 		g_spr_window_x1 = drawcontext.clip_window_x1;
@@ -144,7 +148,7 @@ public:
 	{
 		prf_push(prf_arena_misc);
 
-		const playfield_type &pf = buffers_[buffer_index_].fields[_field];
+		playfield_type &pf = buffers_[buffer_index_].fields[_field];
 
 		r_ctx.p_pfframebuffer = pf.framebuffer_;
 		r_ctx.p_pflinemod = pf.pfieldcontext_->linemod_;
@@ -152,6 +156,7 @@ public:
 
 		r_ctx.pfvpagebytes = pf.virtual_pagebytes_;
 		r_ctx.pfvpageh = pf.wrap_height_;
+		r_ctx.prestorestate = &pf.restorestate_;
 
 		snapview(drawcontext, _vpw, _vph);
 
@@ -174,13 +179,85 @@ public:
 		prf_pop();
 	}
 	
+	void bgrestore_init()
+	{
+		prf_push(prf_arena_bgrestore);
+
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].bgrestore_init();
+			if (c_dualfield_ && dualfield_mask_)
+				rb.fields[1].bgrestore_init();
+		} while (--b != -1);		
+
+		prf_pop();
+	}
+
+	void bgrestore_reset()
+	{
+		prf_push(prf_arena_bgrestore);
+
+		s16 b = c_num_buffers_-1;
+		do {
+			buffer& rb = buffers_[b];
+			rb.fields[0].bgrestore_reset();
+			if (c_dualfield_ && dualfield_mask_)
+				rb.fields[1].bgrestore_reset();
+		} while (--b != -1);		
+
+		prf_pop();
+	}
+
+	void bgrestore_flush()
+	{
+		prf_push(prf_arena_bgrestore);
+
+		buffer& b = *pactive_;
+	
+		if (c_dualfield_ && dualfield_mask_)
+		{
+			// 2 fields at once
+			b.fields[0].bgrestore_reset();
+			b.fields[1].bgrestore_reset();
+		}
+		else
+		{
+			// one field
+			b.fields[0].bgrestore_reset();
+		}		
+
+		prf_pop();
+	}
+
+	void bgrestore()
+	{
+		prf_push(prf_arena_bgrestore);
+
+		buffer& b = *pactive_;
+	
+		if (c_dualfield_ && dualfield_mask_)
+		{
+			// 2 fields at once
+			b.fields[0].bgrestore();
+			b.fields[1].bgrestore();
+		}
+		else
+		{
+			// one field
+			b.fields[0].bgrestore();
+		}
+		
+		prf_pop();
+	}
+
 	void activate_buffer()
 	{
 		prf_push(prf_arena_misc);
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 		b.fields[0].select(shift_);
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 			b.fields[1].select(shift_);
 		shift_.advance();
 
@@ -207,12 +284,12 @@ public:
 		prf_push(prf_arena_misc);
 
 		// track current scroll position
-		xpos_ = _x;
-		ypos_ = _y;
+		//xpos_ = _x;
+		//ypos_ = _y;
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 		b.fields[0].setpos(_x, _y);		
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 			b.fields[1].setpos(_x, _y);		
 
 		prf_pop();
@@ -254,7 +331,7 @@ public:
 	{
 		buffer& b = *pactive_;
 		b.fields[0].settiles(_tiles0);
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 			b.fields[1].settiles(_tiles1);
 	}	
 
@@ -262,7 +339,7 @@ public:
 	{
 		buffer& b = *pactive_;
 		b.fields[0].setoverlaytiles(_tiles0);
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 			b.fields[1].setoverlaytiles(_tiles1);
 	}	
 
@@ -270,7 +347,7 @@ public:
 	{
 		buffer& b = *pactive_;
 		b.fields[0].setpreshift(_xps);
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 			b.fields[1].setpreshift(_xps);
 	}
 
@@ -727,7 +804,7 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 		{
 			if (c_singleframe && !_force)
 			{
@@ -753,7 +830,7 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 	
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 		{
 			if (c_singleframe && !_force)
 			{
@@ -782,7 +859,7 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 		{
 			if (c_singleframe && !_force)
 			{
@@ -811,7 +888,7 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
-		if (dualfield_)
+		if (c_dualfield_ && dualfield_mask_)
 		{
 			if (c_singleframe && !_force)
 			{
@@ -844,18 +921,38 @@ public:
 
 		s16 i = buffer_index_;
 
-		for (s16 s = 0; s < c_num_buffers_; s++)
+		for (s16 s = 0; s < c_num_buffers_-1; s++)
 		{
 			buffer& sb = buffers_[i++];
 			i &= (c_num_buffers_-1);
 
 			sb.fields[0].setpos(x++,y);
 			sb.fields[0].setslice(s);
+			sb.fields[0].bgrestore();
 			sb.fields[0].hybrid_fill();
 		}
 
 		prf_pop();
 	}	
+
+	//void hybrid_fill_dbpreshifts(s16 _strobe)
+	//{
+	//	buffer& b = *pactive_; //buffers_[buffer_index_];
+	//	s16 x = b.fields[0].xpos_;
+	//	s16 y = b.fields[0].ypos_;
+
+	//	s16 i = buffer_index_;
+
+	//	const s16 preshifts = c_num_buffers_>>1;
+	//	for (s16 s = 0; s < preshifts; s++)
+	//	{
+	//		buffer& sb = buffers_[strobe | i++];
+	//		i &= (preshifts-1);
+
+	//		sb.fields[0].setpos(x,y);
+	//		sb.fields[0].hybrid_fill();
+	//	}
+	//}
 
 	void reset(s16 x, s16 y, bool _nowait = false)
 	{
@@ -913,7 +1010,7 @@ public:
 //			}
 
 			rb.fields[0].init(b, 0, display_width_, display_height_, x, y);
-			if (dualfield_)
+			if (c_dualfield_ && dualfield_mask_)
 				rb.fields[1].init(b, 1, display_width_, display_height_, x, y);
 
 			// shortcut to dirty tile masks
@@ -923,6 +1020,24 @@ public:
 		select_buffer(buffer_index_, 0);
 		setpos(x,y);
 		//activate_buffer();	
+
+		prf_pop();
+	}
+
+	// mask left/right edges for stf hardscroll, with optional background auto-restore
+	// note: auto-restore may not always be required depending on scroll type, rate and number of buffers
+	void stf_maskedges(drawcontext_t& _ctx, bool _autorestore)
+	{
+		prf_push(prf_arena_fill);
+
+		STF_MaskEdgeL(_ctx.p_pfframebuffer, _ctx.vpagex, _ctx.vpagey, display_height_);	
+		STF_MaskEdgeR(_ctx.p_pfframebuffer, _ctx.vpagex, _ctx.vpagey, display_height_);
+		if (_autorestore)
+		{
+			s16 xalign = _ctx.vpagex & -16;
+			AGT_MarkDirtyRectangle(_ctx.p_pfframebuffer, xalign,		_ctx.vpagey, 1, display_height_);
+			AGT_MarkDirtyRectangle(_ctx.p_pfframebuffer, xalign+320-16, _ctx.vpagey, 1, display_height_);
+		}
 
 		prf_pop();
 	}

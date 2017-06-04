@@ -95,7 +95,7 @@ static __inline void AGT_ConsoleText(const char* text, void* fb, int c, int r)
 
 void AGT_ConsoleUpdate(void* fb1);
 
-void nf_print(const char *text);
+//long nf_print(const char *text);
 
 #define AGT_CONSOLE_ACTIVEROWS (6)
 #define AGT_CONSOLE_ROWS (32)

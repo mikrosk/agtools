@@ -128,6 +128,13 @@ AGLIB_STE_O =	\
 		$(AGTROOT)/$(ASMROOT)/ste/spritelib.o \
 		$(AGTROOT)/$(ASMROOT)/ste/drawent.o \
 		
+AGLIB_STF_O =	\
+		$(AGTROOT)/agtsys/shifter_stf.o \
+		$(AGTROOT)/$(ASMROOT)/stf/pflib.o \
+		$(AGTROOT)/$(ASMROOT)/stf/display.o \
+		$(AGTROOT)/$(ASMROOT)/stf/spritelib.o \
+		$(AGTROOT)/$(ASMROOT)/stf/drawent.o \
+		
 # -----------------------------------------------------------------------------
 #	Join objects into one list, adding any extra stuff we need
 # -----------------------------------------------------------------------------
@@ -143,6 +150,7 @@ endif
 
 
 AGLIB_STE = $(AGLIB_O) $(AGLIB_STE_O) $(NATFEATS_O)
+AGLIB_STF = $(AGLIB_O) $(AGLIB_STF_O) $(NATFEATS_O)
 
 # =============================================================================
 
@@ -377,6 +385,7 @@ clean:
 	-rm -f $(CRTSEQ_S)
 	-rm -f $(CRTSEQ_E)
 	-rm -f $(AGLIB_STE)
+	-rm -f $(AGLIB_STF)
 	-rm -f $(PROJECT_O)
 	-rm -rf *.o
 	-rm -rf *.lst

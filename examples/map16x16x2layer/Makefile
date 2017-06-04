@@ -157,7 +157,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: project
+all: ste
 
 
 # =============================================================================
@@ -175,13 +175,13 @@ include $(AGTROOT)/Makerules
 # - the AGLIB platform to use in the build rules (STF/STE)
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
-project: AGLIB=$(AGLIB_STE)
-project: $(AGLIB_STE) map16.$(EXT)
+ste: AGLIB=$(AGLIB_STE)
+ste: $(AGLIB_STE) map16.$(EXT)
 
 # treat these names as targets not sourcefiles otherwise bad stuff can get
 # accidentally added to the link line (we have some sourcefiles with the same
 # names as some targets, sending make to confusionland)
-.PHONY: project
+.PHONY: ste
 
 
 # =============================================================================

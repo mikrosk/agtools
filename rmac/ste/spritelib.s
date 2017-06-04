@@ -4,7 +4,8 @@
 *	Blitter 4 bitplane sprites:
 *	- Optional auto-clearing mechanism
 *	- Optional clipping paths
-*	- Compatible with formats produced by AGTCut
+*	- Includes FISR/NFSR read optimizations
+*	- Compatible with .ims/ems/emx files from AGTCut
 *-------------------------------------------------------*
 
 	include		"config.inc"
@@ -61,6 +62,7 @@ within_entitydraw	set	0
 	.globl		_AGT_PlayfieldRestoreInit
 	.globl		_AGT_PlayfieldRestoreReset
 	.globl		_AGT_BLiT_PlayfieldRestore
+	.globl		_AGT_CPU_PlayfieldRestore
 	.endif
 
 ;	clipping window
@@ -146,7 +148,8 @@ _AGT_BLiT_IMSprDrawUnClipped:
 	move.w		.sprframe+2(a6),d0
 	moveq		#0,d7
 
-	move.l		dctx_clearstack_tide(a4),a5
+	move.l		dctx_prestorestate(a4),a5
+	move.l		rstr_ptide(a5),a5
 	move.l		a5,usp
 
 *-------------------------------------------------------*
@@ -163,8 +166,9 @@ use_hog		set	0
 	move.l		(sp)+,a6
 	
 	move.l		.pctx(a6),a4
+	move.l		dctx_prestorestate(a4),a4
 	move.l		usp,a5
-	move.l		a5,dctx_clearstack_tide(a4)
+	move.l		a5,rstr_ptide(a4)
 	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -259,7 +263,8 @@ _AGT_BLiT_EMSprDrawUnClipped:
 	move.w		.sprframe+2(a6),d0
 	moveq		#0,d7
 
-	move.l		dctx_clearstack_tide(a4),a5
+	move.l		dctx_prestorestate(a4),a5
+	move.l		rstr_ptide(a5),a5
 	move.l		a5,usp
 
 *-------------------------------------------------------*
@@ -275,8 +280,9 @@ enable_clipping	set	1
 	move.l		(sp)+,a6
 	
 	move.l		.pctx(a6),a4
+	move.l		dctx_prestorestate(a4),a4
 	move.l		usp,a5
-	move.l		a5,dctx_clearstack_tide(a4)
+	move.l		a5,rstr_ptide(a4)
 
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -331,7 +337,8 @@ _AGT_BLiT_EMXSprDrawUnClipped:
 	move.w		.sprframe+2(a6),d0
 	moveq		#0,d7
 
-	move.l		dctx_clearstack_tide(a4),a5
+	move.l		dctx_prestorestate(a4),a5
+	move.l		rstr_ptide(a5),a5
 	move.l		a5,usp
 
 *-------------------------------------------------------*
@@ -347,8 +354,9 @@ enable_clipping	set	1
 	move.l		(sp)+,a6
 	
 	move.l		.pctx(a6),a4
+	move.l		dctx_prestorestate(a4),a4
 	move.l		usp,a5
-	move.l		a5,dctx_clearstack_tide(a4)
+	move.l		a5,rstr_ptide(a4)
 	
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -531,9 +539,8 @@ _AGT_BLiT_SlabDraw:
 	move.w		.slabframe+2(a6),d0
 	moveq		#0,d7
 	
-use_slab_restore	set	0
-enable_restore	set	1
-preserve_usp	set	0
+enable_slabrestore	set	0
+preserve_usp		set	0
 		
 	include		"ste/b_slab.s"
 
@@ -588,21 +595,22 @@ _AGT_SlabDirtyRegion:
 *-------------------------------------------------------*
 	jsr		_AGT_BLiT_SlabInit
 	
-	move.l		_drawcontext+dctx_clearstack_tide,a5
+	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		rstr_ptide(a4),a5
 	move.l		a5,usp
-
 
 	move.w		.slabframe+2(a6),d0
 	moveq		#0,d7
 	
-use_slab_restore	set	1
-enable_restore		set	1
+enable_slabrestore	set	1
 preserve_usp		set	0
 		
 	include		"ste/b_slabres.s"
 
+
+	move.l		_drawcontext+dctx_prestorestate,a4
 	move.l		usp,a5
-	move.l		a5,_drawcontext+dctx_clearstack_tide
+	move.l		a5,rstr_ptide(a4)
 
 *-------------------------------------------------------*
 	addq.l		#.sp_frame_,sp
@@ -793,6 +801,8 @@ precalculate_spandata:
 
 *-------------------------------------------------------*
 
+enable_restore		set	1
+
 *-------------------------------------------------------*
 _AGT_MarkDirtyRectangle:
 *-------------------------------------------------------*
@@ -832,8 +842,9 @@ _AGT_MarkDirtyRectangle:
 	lsr.w		#1,d3
 	lsr.w		#1,d1
 	
-	.if		(use_sprite_saverestore|use_sprite_pagerestore)
-	move.l		_drawcontext+dctx_clearstack_tide,a5
+	.if		(enable_restore&(use_sprite_saverestore|use_sprite_pagerestore))
+	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		rstr_ptide(a4),a5
 	move.l		a5,d5
 	.endif
 	
@@ -852,7 +863,7 @@ _AGT_MarkDirtyRectangle:
 	mulu.w		_g_linebytes,d7
 	add.l		d7,a1
 	
-	.if		(use_sprite_pagerestore)	
+	.if		(enable_restore&use_sprite_pagerestore)	
 	move.w		d2,(a5)+			; y
 	move.w		d1,(a5)+			; xo
 
@@ -863,9 +874,10 @@ _AGT_MarkDirtyRectangle:
 	.endif	
 
 
-	.if		(use_sprite_saverestore|use_sprite_pagerestore)
+	.if		(enable_restore&(use_sprite_saverestore|use_sprite_pagerestore))
 	move.l		d5,(a5)+
-	move.l		a5,_drawcontext+dctx_clearstack_tide
+	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		a5,rstr_ptide(a4)
 	.endif
 
 *-------------------------------------------------------*

@@ -201,7 +201,7 @@
 
 	move.l		usp,a5				; usp (auto sprite restore) is preserved via a5
 
-	.if		(0=_use_slab_restore_)
+	.if		(0=(enable_slabrestore&(use_sprite_saverestore|use_sprite_pagerestore)))
 	.if		(preserve_usp)			; auto sprite restore is off, so
 	move.l		a5,.sp_save_usp(sp)		; usp needs preserved explicitly
 	.endif
@@ -273,7 +273,7 @@
 
 	move.l		usp,a5				; usp (auto sprite restore) is preserved via a5
 
-	.if		(0=_use_slab_restore_)
+	.if		(0=(enable_slabrestore&(use_sprite_saverestore|use_sprite_pagerestore)))
 	.if		(preserve_usp)			; auto sprite restore is off, so
 	move.l		a5,.sp_save_usp(sp)		; usp needs preserved explicitly
 	.endif
@@ -299,7 +299,7 @@
 .slb_done:
 *-------------------------------------------------------*
 
-	.if		(_use_slab_restore_)
+	.if		((enable_slabrestore&(use_sprite_saverestore|use_sprite_pagerestore)))
 	move.l		a5,usp
 	.else
 	.if		(preserve_usp)			; auto sprite restore is off, so

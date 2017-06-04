@@ -4,6 +4,15 @@
 *	Sprite clearing/background-restore mechanism
 *-------------------------------------------------------*
 
+
+	.globl		_g_rst_pfb
+	.globl		_g_rst_pflineidx
+	.globl		_g_rst_vpagebytes
+	.globl		_g_rst_vpageh
+	.globl		_g_rst_state
+
+*-------------------------------------------------------*
+
 			.if 	(use_sprite_saverestore)
 spriteclear_stacksize	=	32768
 			.else
@@ -18,425 +27,55 @@ spriteclear_stacksize	=	18*256
 *-------------------------------------------------------*
 *	Sprite Clearing: Initialize
 *-------------------------------------------------------*
-_AGT_PlayfieldRestoreInit:
+;_AGT_PlayfieldRestoreInit:
 *-------------------------------------------------------*
-	move.l		#_g_spriteclear_stack_0,_drawcontext+dctx_clearstack_tide
-	move.l		#_g_spriteclear_stack_1,_drawcontext+dctx_clearstack_prvtide
-	move.l		#_g_spriteclear_stack_0,_drawcontext+dctx_clearstack_cur
-	move.l		#_g_spriteclear_stack_1,_drawcontext+dctx_clearstack_prv
-	rts
+;	move.l		#_g_spriteclear_stack_0,_drawcontext+dctx_clearstack_tide
+;	move.l		#_g_spriteclear_stack_1,_drawcontext+dctx_clearstack_prvtide
+;	move.l		#_g_spriteclear_stack_0,_drawcontext+dctx_clearstack_cur
+;	move.l		#_g_spriteclear_stack_1,_drawcontext+dctx_clearstack_prv
+;	rts
 		
 *-------------------------------------------------------*
 *	Sprite Clearing
 *-------------------------------------------------------*
 *	- 4 bitplanes
 *-------------------------------------------------------*
-_AGT_PlayfieldRestoreReset:
+;_AGT_PlayfieldRestoreReset:
 *-------------------------------------------------------*
-			.abs
+;			.abs
 *-------------------------------------------------------*
-.savea6:		ds.l	1
-.save:			ds.l	10
-.return:		ds.l	1
+;.savea6:		ds.l	1
+;.save:			ds.l	10
+;.return:		ds.l	1
 *-------------------------------------------------------*
-.frame_:		
+;.frame_:		
 *-------------------------------------------------------*
-			.text
+;			.text
 *-------------------------------------------------------*
-	movem.l		d2-d7/a2-a5,-(sp)
-	link		a6,#-.frame_
+;	movem.l		d2-d7/a2-a5,-(sp)
+;	link		a6,#-.frame_
 *-------------------------------------------------------*
-	move.l		_drawcontext+dctx_clearstack_prv,a5
-	move.l		_drawcontext+dctx_clearstack_cur,a4
-	clr.l		(a5)
-	clr.l		(a4)
-	move.l		a5,_drawcontext+dctx_clearstack_tide
-	move.l		a4,_drawcontext+dctx_clearstack_prvtide
+;	move.l		_drawcontext+dctx_clearstack_prv,a5
+;	move.l		_drawcontext+dctx_clearstack_cur,a4
+;	clr.l		(a5)
+;	clr.l		(a4)
+;	move.l		a5,_drawcontext+dctx_clearstack_tide
+;	move.l		a4,_drawcontext+dctx_clearstack_prvtide
 *-------------------------------------------------------*
-	unlk		a6
-	movem.l		(sp)+,d2-d7/a2-a5
+;	unlk		a6
+;	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
-	rts
+;	rts
 		
-	.if		(use_sprite_saverestore)
-	
-*-------------------------------------------------------*
-*	Sprite Clearing
-*-------------------------------------------------------*
-*	- 4 bitplanes
-*-------------------------------------------------------*
-_STE_SprClear:
-*-------------------------------------------------------*
-			.abs
-*-------------------------------------------------------*
-.savea6:		ds.l	1
-.save:			ds.l	10
-.return:		ds.l	1
-*-------------------------------------------------------*
-.frame_:		
-*-------------------------------------------------------*
-			.text
-*-------------------------------------------------------*
-	movem.l		d2-d7/a2-a5,-(sp)
-	link		a6,#-.frame_
-	move.l		a6,-(sp)
-*-------------------------------------------------------*
-	move.l		_drawcontext+dctx_clearstack_prvtide,a5
-*-------------------------------------------------------*	
-	move.l		-(a5),d0
-	beq		.cstop
-*-------------------------------------------------------*		
-.ccont:	move.l		d0,a0				; (current)++ restore context
-	move.l		d0,a5				; --(prev) restore context
-	
-	move.l		(a0)+,a1
-	move.w		(a0)+,a4
-	move.w		(a0)+,d6
-	move.w		(a0)+,d7
-	
-	move.w		.jt(pc,d6.w),d6
-	lea		.jt(pc,d6.w),a2
-	jmp		(a2)
-	
-.jt:	dc.w		.x0-.jt
-	dc.w		.x1-.jt
-	dc.w		.x2-.jt
-	dc.w		.x3-.jt
-	dc.w		.x4-.jt
-	dc.w		.x5-.jt
-	dc.w		.x6-.jt
-	dc.w		.x7-.jt
-	dc.w		.x8-.jt
-	dc.w		.x9-.jt
-	dc.w		.xA-.jt
-	dc.w		.xB-.jt
-	dc.w		.xC-.jt
-	dc.w		.xD-.jt
-	dc.w		.xE-.jt
-
-;	todo:	
-	dc.w		.xE-.jt
-	dc.w		.xE-.jt
-	dc.w		.xE-.jt
-	
-	; d0,d1,d2,d3,d4,d5,d6,a2,a3, a6
-
-*-------------------------------------------------------*		
-.xE:	subq.w		#1,d7
-	lea		40(a4),a4
-.xElp:	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	lea		32(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xElp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.xD:	subq.w		#1,d7
-	lea		40(a4),a4
-.xDlp:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	lea		24(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xDlp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.xC:	subq.w		#1,d7
-	lea		40(a4),a4
-.xClp:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+	
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xClp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.xB:	subq.w		#1,d7
-	lea		40(a4),a4
-.xBlp:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xBlp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.xA:	subq.w		#1,d7
-	lea		40(a4),a4
-.xAlp:	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.xAlp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x9:	subq.w		#1,d7
-	lea		32(a4),a4
-.x9lp:	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	lea		40(a1),a1
-	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x9lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x8:	subq.w		#1,d7
-	lea		32(a4),a4
-.x8lp:	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	lea		32(a1),a1
-	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x8lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-*-------------------------------------------------------*		
-.x7:	subq.w		#1,d7
-;	lea		24(a4),a4
-	lea		40(a4),a4
-.x7lp:
-
-;	movem.l		(a0)+,d0-d6/a2
-;	movem.l		d0-d6/a2,(a1)
-;	lea		32(a1),a1
-;	movem.l		(a0)+,d0-d5
-;	movem.l		d0-d5,(a1)
-
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x7lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x6:	subq.w		#1,d7
-	lea		40(a4),a4
-
-	;lea		24(a4),a4
-.x6lp:	;movem.l		(a0)+,d0-d5
-	;movem.l		d0-d5,(a1)
-	;lea		24(a1),a1
-	;movem.l		(a0)+,d0-d5
-	;movem.l		d0-d5,(a1)
-
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+	
-	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x6lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x5:	subq.w		#1,d7
-	lea		40(a4),a4
-.x5lp:	movem.l		(a0)+,d0-d6/a2/a3/a6
-	movem.l		d0-d6/a2/a3/a6,(a1)
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x5lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-*-------------------------------------------------------*		
-.x4:	subq.w		#1,d7
-	lea		32(a4),a4
-.x4lp:	movem.l		(a0)+,d0-d6/a2
-	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a1				; + dst lineskip
-	dbra		d7,.x4lp
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-	
-*-------------------------------------------------------*		
-.x3:	lea		24(a4),a4
-	moveq		#4-1,d0
-	and.w		d7,d0
-	lsr.w		#2,d7
-	add.w		d0,d0
-	jmp		.x3jt(pc,d0.w)
-.x3jt:	bra.s		.x30
-	bra.s		.x31
-	bra.s		.x32
-	bra.s		.x33
-.x34:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	add.l		a4,a1				; + dst lineskip
-.x33:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	add.l		a4,a1				; + dst lineskip
-.x32:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	add.l		a4,a1				; + dst lineskip
-.x31:	movem.l		(a0)+,d0-d5
-	movem.l		d0-d5,(a1)
-	add.l		a4,a1				; + dst lineskip
-.x30:	dbra		d7,.x34
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-*-------------------------------------------------------*		
-.x2:	moveq		#4-1,d0
-	and.w		d7,d0
-	lsr.w		#2,d7
-	add.w		d0,d0
-	jmp		.x2jt(pc,d0.w)
-.x2jt:	bra.s		.x20
-	bra.s		.x21
-	bra.s		.x22
-	bra.s		.x23
-.x24:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x23:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x22:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x21:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x20:	dbra		d7,.x24
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-*-------------------------------------------------------*		
-.x1:	moveq		#4-1,d0
-	and.w		d7,d0
-	lsr.w		#2,d7
-	add.w		d0,d0
-	jmp		.x1jt(pc,d0.w)
-.x1jt:	bra.s		.x10
-	bra.s		.x11
-	bra.s		.x12
-	bra.s		.x13
-.x14:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x13:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x12:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x11:	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	add.l		a4,a1				; + dst lineskip
-.x10:	dbra		d7,.x14
-	move.l		-(a5),d0
-	bne		.ccont
-	bra		.cstop
-
-;.ylp:	jmp		(a2)
-;.x9:	sprclear	a0,a1
-;.x8:	sprclear	a0,a1
-;.x7:	sprclear	a0,a1
-;.x6:	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-.x0:	;add.l		a4,a1				; + dst lineskip
-;	dbra		d7,.ylp
-
-	move.l		-(a5),d0
-	bne		.ccont
-*-------------------------------------------------------*
-.cstop:
-*-------------------------------------------------------*
-;	commit current state
-	move.l		_drawcontext+dctx_clearstack_tide,_drawcontext+dctx_clearstack_prvtide
-;	rotate states
-	move.l		_drawcontext+dctx_clearstack_prv,a5
-	move.l		_drawcontext+dctx_clearstack_cur,a4
-	move.l		a4,_drawcontext+dctx_clearstack_prv
-	move.l		a5,_drawcontext+dctx_clearstack_cur	
-;	assign new, empty state
-	move.l		a5,_drawcontext+dctx_clearstack_tide
-*-------------------------------------------------------*
-	move.l		(sp)+,a6
-	unlk		a6
-	movem.l		(sp)+,d2-d7/a2-a5
-*-------------------------------------------------------*
-	rts
-
-	.endif
-
 
 	.if		(use_sprite_pagerestore)
 
-	.if		(0)
-
 *-------------------------------------------------------*
 *	Sprite Clearing
 *-------------------------------------------------------*
 *	- 4 bitplanes
 *-------------------------------------------------------*
-_STE_SprClear:
+_AGT_CPU_PlayfieldRestore:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
@@ -452,7 +91,6 @@ _STE_SprClear:
 .sp_pflineidx:		ds.l	1
 .sp_pfvpagebytes:	ds.l	1
 .sp_pfvpageh:		ds.w	1
-.sp_pfviewy:		ds.w	1
 *-------------------------------------------------------*
 .sp_frame_:		
 *-------------------------------------------------------*
@@ -462,13 +100,13 @@ _STE_SprClear:
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
 *-------------------------------------------------------*
-	move.w		_g_pfviewy,-(sp)
-	move.w		_g_pfvpageh,-(sp)
-	move.l		_g_pfvpagebytes,-(sp)
-	move.l		_g_pflineidx,-(sp)
-	move.l		_g_frb,-(sp)
+	move.w		_g_rst_vpageh,-(sp)
+	move.l		_g_rst_vpagebytes,-(sp)
+	move.l		_g_rst_pflineidx,-(sp)
+	move.l		_g_rst_pfb,-(sp)
 *-------------------------------------------------------*
-	move.l		_drawcontext+dctx_clearstack_prvtide,a5
+	move.l		_g_rst_state,a5
+	move.l		rstr_ptide(a5),a5
 *-------------------------------------------------------*	
 	move.l		-(a5),d0
 	beq		.cstop
@@ -476,78 +114,101 @@ _STE_SprClear:
 .ccont:	move.l		d0,a0				; (current)++ restore context
 	move.l		d0,a5				; --(prev) restore context
 
-	move.w		(a0)+,d0			; screen-y (pixel)
-	move.w		(a0)+,d1			; screen-x (addr)
-	
+	move.w		(a0)+,d0			; pf-y (pixel)
+	move.w		(a0)+,d1			; pf-x (addr)
+
 	move.l		(a0)+,a1			; clear dstaddr
 	move.w		(a0)+,a4			; dst skip
 	move.w		(a0)+,d6			; pixelword width * 2
 	move.w		(a0)+,d7			; #lines 
 
-;	todo: optimize all of this stuff
+	move.l		.sp_pflineidx(sp),a3
 
 ;	access opposite vpage
 	move.l		.sp_pfvpagebytes(sp),d4
 
-
-;	fby (playfield buffer-y)
-	move.w		.sp_pfviewy(sp),d2
-;	fby+by
-	add.w		d0,d2
-;	fby+by+bys
+;	by (playfield buffer-y)
+	move.w		d0,d2
+;	by+bys
 	add.w		d7,d2
-;	byerr = vpageh-(fby+by+bys)
-	move.w		.sp_pfvpageh(sp),d3
-	sub.w		d2,d3
-	bpl.s		.no_split_y
-
-.split_y:
-;	block restore source region has been split at vpage y-wrap point
-;	so we manipulate the clearing record to crop the block and retry
-;	after first clearing the cropped region
-		
-;	crop original clearing record for retry (should not split next time)
-	add.w		d3,-2(a0)
-;	manipulate record pointer to retry block
-	lea		4(a0),a5
-;	opposite vpage refers backwards, not forwards
-	neg.l		d4
-
-;	now process cropped region separately
-;	todo: not implemented yet! needs proper testing with 8-way scroll...
-
-
-;	move.w		#$753,$ffff8240.w
-;.qqq:	not.w		$ffff8240.w
-;	bra		.qqq
-
+;	byerr = (by+bys)-vpageh
+	sub.w		.sp_pfvpageh(sp),d2		; 288 @ 240disp
+	ble.s		.inside_vpage
 	
 *-------------------------------------------------------*		
-.no_split_y:
+.lower_vpage_overlap:
+*-------------------------------------------------------*		
+*	sprite is at least partly overlapping lower vpage
+*-------------------------------------------------------*		
+*	block restore source region has been split at vpage y-wrap point
+*	so we manipulate the clearing record to crop the block and retry
+*	after first clearing the cropped region
+*-------------------------------------------------------*		
+		
+	cmp.w		d7,d2
+	bge.s		.lower_vpage_only
+
+*-------------------------------------------------------*		
+.vpage_split_y:
+*-------------------------------------------------------*		
+	
+;	sprite straddles both loopback vpages - requires splitting into two clear ops
+
+	sub.w		d2,d7				; size of upper fragment
+
+;	crop original clearing record #lines for retry (should not split next time)
+	
+	move.w		d7,-(a0)
+
+;	manipulate clearing record pointer to retry this block
+
+	lea		4+2(a0),a5
+
+;	adjust source line for lower fragment	
+
+	add.w		d7,d0
+
+;	adjust dest line for lower fragment
+
+	add.w		d7,d7
+	add.w		d7,d7
+	add.l		(a3,d7.w),a1
+
+;	set size of lower fragment
+
+	move.w		d2,d7	
+
+*-------------------------------------------------------*		
+.lower_vpage_only:
+*-------------------------------------------------------*		
+*	sprite is entirely inside lower loopback vpage	
+*	opposite vpage refers backwards, not forwards
 *-------------------------------------------------------*		
 *	block is not split (or has been adjusted so)
 *-------------------------------------------------------*		
 
-;	playfield line
-	move.l		.sp_pflineidx(sp),a0
-;	lsl.w		#2,d0
+;	workbuffer
+	move.l		.sp_pfwork(sp),a0
+;	+ vpage wrap
+	sub.l		d4,a0
+;	+ playfield line
 	add.w		d0,d0
 	add.w		d0,d0
-	move.l		(a0,d0.w),d0
-	
-;	playfield buffer
-	add.l		.sp_pfwork(sp),d0
-;	block restore source is in opposite buffer (+/-vpage)
-	add.l		d4,d0
-	move.l		d0,a0
-	
-;	block x-offset
+	add.l		(a3,d0.w),a0
+;	+ block xoffset
 	add.w		d1,a0
-		
+	
 	move.w		.jt(pc,d6.w),d6
 	lea		.jt(pc,d6.w),a2
 	jmp		(a2)
 	
+;	move.l		-(a5),d0
+;	bne.s		.ccont
+
+*-------------------------------------------------------*		
+
+	bra		.cstop
+
 .jt:	dc.w		.x0-.jt
 	dc.w		.x1-.jt
 	dc.w		.x2-.jt
@@ -569,21 +230,61 @@ _STE_SprClear:
 	dc.w		.xE-.jt
 	dc.w		.xE-.jt
 	
-	; d0,d1,d2,d3,d4,d5,d6,a2,a3, a6
+*-------------------------------------------------------*		
+.inside_vpage:
+*-------------------------------------------------------*		
+*	block is not split (or has been adjusted so)
+*-------------------------------------------------------*		
 
+;	workbuffer
+	move.l		.sp_pfwork(sp),a0
+;	+ vpage wrap
+	add.l		d4,a0
+;	+ playfield line
+	add.w		d0,d0
+	add.w		d0,d0
+	add.l		(a3,d0.w),a0
+;	+ block xoffset
+	add.w		d1,a0
+
+	move.w		.jt(pc,d6.w),d6
+	lea		.jt(pc,d6.w),a2
+	jmp		(a2)
+
+.no_draw:
+
+	move.l		-(a5),d0
+	bne		.ccont
+*-------------------------------------------------------*
+.cstop:
+*-------------------------------------------------------*
+
+	move.l		_g_rst_state,a4
+	move.l		rstr_pstack(a4),a5
+	clr.l		(a5)+
+	move.l		a5,rstr_ptide(a4)
+
+	lea		.sp_frame_(sp),sp
+	move.l		(sp)+,a6
+	unlk		a6
+	movem.l		(sp)+,d2-d7/a2-a5
+*-------------------------------------------------------*
+	rts
+	
+	; d0,d1,d2,d3,d4,d5,d6,a2,a3, a6
+	
 *-------------------------------------------------------*		
 .xE:	subq.w		#1,d7
-	lea		40(a4),a4
 .xElp:	movem.l		(a0)+,d0-d6/a2
 	movem.l		d0-d6/a2,(a1)
 	lea		32(a1),a1
 	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
 	lea		40(a1),a1
-	movem.l		(a0),d0-d6/a2/a3/a6
+	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		40(a1,a4),a1			; + dst lineskip
 	dbra		d7,.xElp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -591,17 +292,16 @@ _STE_SprClear:
 	
 *-------------------------------------------------------*		
 .xD:	subq.w		#1,d7
-	lea		40(a4),a4
 .xDlp:	movem.l		(a0)+,d0-d5
 	movem.l		d0-d5,(a1)
 	lea		24(a1),a1
 	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
 	lea		40(a1),a1
-	movem.l		(a0),d0-d6/a2/a3/a6
+	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		40(a1,a4),a1			; + dst lineskip
 	dbra		d7,.xDlp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -609,7 +309,6 @@ _STE_SprClear:
 	
 *-------------------------------------------------------*		
 .xC:	subq.w		#1,d7
-	lea		40(a4),a4
 .xClp:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
@@ -617,10 +316,10 @@ _STE_SprClear:
 	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
 	lea		40(a1),a1
-	movem.l		(a0),d0-d6/a2/a3/a6
+	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		40(a1,a4),a1			; + dst lineskip
 	dbra		d7,.xClp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -628,16 +327,15 @@ _STE_SprClear:
 	
 *-------------------------------------------------------*		
 .xB:	subq.w		#1,d7
-	lea		40(a4),a4
 .xBlp:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
 	lea		40(a1),a1
-	movem.l		(a0),d0-d6/a2/a3/a6
+	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		40(a1,a4),a1			; + dst lineskip
 	dbra		d7,.xBlp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -645,14 +343,13 @@ _STE_SprClear:
 	
 *-------------------------------------------------------*		
 .xA:	subq.w		#1,d7
-	lea		40(a4),a4
 .xAlp:	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
 	lea		40(a1),a1
-	movem.l		(a0),d0-d6/a2/a3/a6
+	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)	
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		40(a1,a4),a1			; + dst lineskip
 	dbra		d7,.xAlp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -660,14 +357,13 @@ _STE_SprClear:
 	
 *-------------------------------------------------------*		
 .x9:	subq.w		#1,d7
-	lea		32(a4),a4
 .x9lp:	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
 	lea		40(a1),a1
-	movem.l		(a0),d0-d6/a2
+	movem.l		(a0)+,d0-d6/a2
 	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		32(a1,a4),a1			; + dst lineskip
 	dbra		d7,.x9lp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -675,14 +371,13 @@ _STE_SprClear:
 	
 *-------------------------------------------------------*		
 .x8:	subq.w		#1,d7
-	lea		32(a4),a4
 .x8lp:	movem.l		(a0)+,d0-d6/a2
 	movem.l		d0-d6/a2,(a1)
 	lea		32(a1),a1
-	movem.l		(a0),d0-d6/a2
+	movem.l		(a0)+,d0-d6/a2
 	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		32(a1,a4),a1			; + dst lineskip
 	dbra		d7,.x8lp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -690,25 +385,14 @@ _STE_SprClear:
 
 *-------------------------------------------------------*		
 .x7:	subq.w		#1,d7
-;	lea		24(a4),a4
-	lea		40(a4),a4
-.x7lp:
-
-;	movem.l		(a0)+,d0-d6/a2
-;	movem.l		d0-d6/a2,(a1)
-;	lea		32(a1),a1
-;	movem.l		(a0)+,d0-d5
-;	movem.l		d0-d5,(a1)
-
+.x7lp:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	movem.l		(a0),d0-d6/a2/a3/a6
+	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
-
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		40(a1,a4),a1			; + dst lineskip
 	dbra		d7,.x7lp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -716,22 +400,12 @@ _STE_SprClear:
 	
 *-------------------------------------------------------*		
 .x6:	subq.w		#1,d7
-	lea		40(a4),a4
-
-	;lea		24(a4),a4
-.x6lp:	;movem.l		(a0)+,d0-d5
-	;movem.l		d0-d5,(a1)
-	;lea		24(a1),a1
-	;movem.l		(a0)+,d0-d5
-	;movem.l		d0-d5,(a1)
-
-	move.l		(a0)+,(a1)+
+.x6lp:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+	
-	movem.l		(a0),d0-d6/a2/a3/a6
+	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
-	
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		40(a1,a4),a1			; + dst lineskip
 	dbra		d7,.x6lp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -739,11 +413,10 @@ _STE_SprClear:
 	
 *-------------------------------------------------------*		
 .x5:	subq.w		#1,d7
-	lea		40(a4),a4
-.x5lp:	movem.l		(a0),d0-d6/a2/a3/a6
+.x5lp:	movem.l		(a0)+,d0-d6/a2/a3/a6
 	movem.l		d0-d6/a2/a3/a6,(a1)
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		40(a1,a4),a1			; + dst lineskip
 	dbra		d7,.x5lp
 	move.l		-(a5),d0
 	bne		.ccont
@@ -751,18 +424,18 @@ _STE_SprClear:
 
 *-------------------------------------------------------*		
 .x4:	subq.w		#1,d7
-	lea		32(a4),a4
-.x4lp:	movem.l		(a0),d0-d6/a2
+.x4lp:	movem.l		(a0)+,d0-d6/a2
 	movem.l		d0-d6/a2,(a1)
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	lea		32(a1,a4),a1			; + dst lineskip
 	dbra		d7,.x4lp
 	move.l		-(a5),d0
 	bne		.ccont
 	bra		.cstop
 	
 *-------------------------------------------------------*		
-.x3:	lea		24(a4),a4
+.x3:	move.l		a4,a3
+	lea		24(a4),a4
 	moveq		#4-1,d0
 	and.w		d7,d0
 	lsr.w		#2,d7
@@ -772,22 +445,22 @@ _STE_SprClear:
 	bra.s		.x31
 	bra.s		.x32
 	bra.s		.x33
-.x34:	movem.l		(a0),d0-d5
+.x34:	movem.l		(a0)+,d0-d5
 	movem.l		d0-d5,(a1)
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
-.x33:	movem.l		(a0),d0-d5
+	add.w		a3,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
+.x33:	movem.l		(a0)+,d0-d5
 	movem.l		d0-d5,(a1)
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
-.x32:	movem.l		(a0),d0-d5
+	add.w		a3,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
+.x32:	movem.l		(a0)+,d0-d5
 	movem.l		d0-d5,(a1)
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
-.x31:	movem.l		(a0),d0-d5
+	add.w		a3,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
+.x31:	movem.l		(a0)+,d0-d5
 	movem.l		d0-d5,(a1)
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a3,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x30:	dbra		d7,.x34
 	move.l		-(a5),d0
 	bne		.ccont
@@ -807,26 +480,26 @@ _STE_SprClear:
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x23:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x22:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x21:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x20:	dbra		d7,.x24
 	move.l		-(a5),d0
 	bne		.ccont
@@ -844,61 +517,29 @@ _STE_SprClear:
 	bra.s		.x13
 .x14:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x13:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x12:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x11:	move.l		(a0)+,(a1)+
 	move.l		(a0)+,(a1)+
-	add.l		a4,a0				; + src lineskip
-	add.l		a4,a1				; + dst lineskip
+	add.w		a4,a0				; + src lineskip
+	add.w		a4,a1				; + dst lineskip
 .x10:	dbra		d7,.x14
 	move.l		-(a5),d0
 	bne		.ccont
 	bra		.cstop
 
-;.ylp:	jmp		(a2)
-;.x9:	sprclear	a0,a1
-;.x8:	sprclear	a0,a1
-;.x7:	sprclear	a0,a1
-;.x6:	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-;	sprclear	a0,a1
-.x0:	;add.l		a4,a1				; + dst lineskip
-;	dbra		d7,.ylp
-
-	move.l		-(a5),d0
+.x0:	move.l		-(a5),d0
 	bne		.ccont
-*-------------------------------------------------------*
-.cstop:
-*-------------------------------------------------------*
-;	commit current state
-	move.l		_drawcontext+dctx_clearstack_tide,_drawcontext+dctx_clearstack_prvtide
-;	rotate states
-	move.l		_drawcontext+dctx_clearstack_prv,a5
-	move.l		_drawcontext+dctx_clearstack_cur,a4
-	move.l		a4,_drawcontext+dctx_clearstack_prv
-	move.l		a5,_drawcontext+dctx_clearstack_cur	
-;	assign new, empty state
-	move.l		a5,_drawcontext+dctx_clearstack_tide
-*-------------------------------------------------------*
-	lea		.sp_frame_(sp),sp
-	move.l		(sp)+,a6
-	unlk		a6
-	movem.l		(sp)+,d2-d7/a2-a5
-*-------------------------------------------------------*
-	rts
+	bra		.cstop
 
-	.endif
 
 *-------------------------------------------------------*
 *	Sprite Clearing - BLiTTER version
@@ -927,8 +568,9 @@ _AGT_BLiT_PlayfieldRestore:
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
 *-------------------------------------------------------*
-;	move.w		_g_pfvpageh,-(sp)
-	move.w		_drawcontext+dctx_vpageh,-(sp)
+
+	move.w		_g_rst_vpageh,-(sp)
+
 *-------------------------------------------------------*
 
 	moveq		#2,d0
@@ -942,17 +584,13 @@ _AGT_BLiT_PlayfieldRestore:
 	move.w		d0,BLiTEM3.w
 
 *-------------------------------------------------------*
-;	move.l		_drawcontext+dctx_clearstack_prvtide,d0
-;	beq		.cstop
-;	move.l		d0,a5
-	move.l		_drawcontext+dctx_clearstack_prvtide,a5
 
-	move.l		_drawcontext+dctx_lineidx,a3
-	move.l		_drawcontext+dctx_framebuffer,a4
-	move.l		_drawcontext+dctx_vpagebytes,d6
-;	move.l		_g_pflineidx,a3
-;	move.l		_g_frb,a4
-;	move.l		_g_pfvpagebytes,d6
+	move.l		_g_rst_vpagebytes,d6
+	move.l		_g_rst_pflineidx,a3
+	move.l		_g_rst_pfb,a4
+
+	move.l		_g_rst_state,a5
+	move.l		rstr_ptide(a5),a5
 	
 	moveq		#7,d5
 
@@ -1118,15 +756,10 @@ _AGT_BLiT_PlayfieldRestore:
 *-------------------------------------------------------*
 .cstop:
 *-------------------------------------------------------*
-;	commit current state
-	move.l		_drawcontext+dctx_clearstack_tide,_drawcontext+dctx_clearstack_prvtide
-;	rotate states
-	move.l		_drawcontext+dctx_clearstack_prv,a5
-	move.l		_drawcontext+dctx_clearstack_cur,a4
-	move.l		a4,_drawcontext+dctx_clearstack_prv
-	move.l		a5,_drawcontext+dctx_clearstack_cur	
-;	assign new, empty state
-	move.l		a5,_drawcontext+dctx_clearstack_tide
+	move.l		_g_rst_state,a4
+	move.l		rstr_pstack(a4),a5
+	clr.l		(a5)+
+	move.l		a5,rstr_ptide(a4)
 *-------------------------------------------------------*
 	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
@@ -1141,10 +774,10 @@ _AGT_BLiT_PlayfieldRestore:
 	.data
 *-------------------------------------------------------*
 
-	.globl		_g_spriteclear_stack_0_bsentinel
-	.globl		_g_spriteclear_stack_0_esentinel
-	.globl		_g_spriteclear_stack_1_bsentinel
-	.globl		_g_spriteclear_stack_1_esentinel
+;	.globl		_g_spriteclear_stack_0_bsentinel
+;	.globl		_g_spriteclear_stack_0_esentinel
+;	.globl		_g_spriteclear_stack_1_bsentinel
+;	.globl		_g_spriteclear_stack_1_esentinel
 
 ;	todo: formalise
 ;	.globl		_g_frb
@@ -1184,22 +817,22 @@ _drawcontext:		ds.b		dctx_size
 ;	dc.l		_g_spriteclear_stack_1
 	
 
-_g_spriteclear_stack_0_bsentinel:
-	dc.l		$AAAAAAAA
-	dc.l		0				; terminator
-_g_spriteclear_stack_0:	
-	dcb.b		spriteclear_stacksize,0
-_g_spriteclear_stack_0_esentinel:
-	dc.l		$AAAAAAAA
-
-_g_spriteclear_stack_1_bsentinel:
-	dc.l		$AAAAAAAA
-	dc.l		0				; terminator
-_g_spriteclear_stack_1:	
-	dcb.b		spriteclear_stacksize,0
-	dc.l		$AAAAAAAA
-_g_spriteclear_stack_1_esentinel:
-	dc.l		$AAAAAAAA
+;_g_spriteclear_stack_0_bsentinel:
+;	dc.l		$AAAAAAAA
+;	dc.l		0				; terminator
+;_g_spriteclear_stack_0:	
+;	dcb.b		spriteclear_stacksize,0
+;_g_spriteclear_stack_0_esentinel:
+;	dc.l		$AAAAAAAA
+;
+;_g_spriteclear_stack_1_bsentinel:
+;	dc.l		$AAAAAAAA
+;	dc.l		0				; terminator
+;_g_spriteclear_stack_1:	
+;	dcb.b		spriteclear_stacksize,0
+;	dc.l		$AAAAAAAA
+;_g_spriteclear_stack_1_esentinel:
+;	dc.l		$AAAAAAAA
 	
 *-------------------------------------------------------*
 	.text

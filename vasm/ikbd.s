@@ -175,7 +175,7 @@ _AGT_RemoveInputService:
 *-------------------------------------------------------*
 _ST_FlushInput:
 *-------------------------------------------------------*
-	lea		$fffffc00.w,a0
+	lea		key_ctl.w,a0
 	bra.s		.read
 .next:	btst		#0,(a0)
 	bne.s		.read
@@ -242,9 +242,9 @@ _ST_ResumeInput:
 *-------------------------------------------------------*
 write_acia:	
 *-------------------------------------------------------*
-.wait:	btst		#1,$fffffc00.w
+.wait:	btst		#1,key_ctl.w
 	beq.s		.wait
-	move.b		d0,$fffffc02.w
+	move.b		d0,key_dat.w
 	rts
 
 *-------------------------------------------------------*

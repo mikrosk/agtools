@@ -79,8 +79,6 @@ S_SUPER_SSP(AGT_CONFIG_STACK);
 AGT_MAIN;
 
 // ---------------------------------------------------------------------------------------------------------------------
-//	define some space for the display.
-//	CAUTION: this is only meant to be simple for the tutorial - could end up in TTRam on some Ataris and break...
 
 #define SCREEN_LINES (240)
 
@@ -95,19 +93,20 @@ typedef playfield_template
     /*vscroll=*/VScrollMode_LOOPBACK,
     /*hscroll=*/HScrollMode_NONE,
     /*restore=*/RestoreMode_NONE,
-    /*speculative=*/true,
-    /*ste_hwscroll=*/true,
+    /*updatemode=*/UpdateMode_NORMAL,
+    /*ste_hw=*/true,
     /*stf_hsyncshift=*/false,
     /*dynamic=*/false
-> playfield_vscroll_ste;
+> playfield_t;
 
 // define an arena (world) composed of 2 such playfields (double-buffered)
 typedef arena_template
 <
     /*buffers=*/2,
     /*singleframe=*/false,
-    /*playfield_type=*/playfield_vscroll_ste
-> arena_vscroll_ste;
+	/*dualfield=*/false,
+    /*playfield_type=*/playfield_t
+> arena_t;
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	playfield assets
@@ -137,7 +136,7 @@ int AGT_EntryPoint()
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	welcome message
 
-	printf("[A]tari [G]ame [T]ools\n");
+	printf("[A]tari [G]ame [T]ools / dml 2017\n");
 
 	printf("Playfields & The Arena\n");
 
@@ -215,7 +214,7 @@ int AGT_EntryPoint()
 		//	create an isntance of the double-buffered arena (our game world), connected to the shifter interface
 
 		printf("creating world...\n");
-		arena_vscroll_ste myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
+		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the arena playfield(s)
@@ -300,7 +299,7 @@ int AGT_EntryPoint()
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			myworld.select_buffer(backbuffer_num, 0);
+			myworld.select_buffer(backbuffer_num, /*field=*/0);
 
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);

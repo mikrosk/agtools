@@ -137,11 +137,11 @@ COMPILERDEFS += \
 # -----------------------------------------------------------------------------
 
 COMPILERDEFS += \
+#		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
 #		-DAGT_CONFIG_SAFETY_CHECKS \
 #		-DAGT_CONFIG_DEBUG_CONSOLE \
 #		-DAGT_CONFIG_DEBUGDRAW \
 #		-DAGT_CONFIG_STEEM_DEBUG \
-#		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
 #		-DUSE_MEMTRACE \
 
 # -----------------------------------------------------------------------------
@@ -156,7 +156,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: project
+all: ste
 
 
 # =============================================================================
@@ -214,14 +214,14 @@ ASSETS_SAMPLES = \
 # - the AGLIB platform to use in the build rules (STF/STE)
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
-project: AGLIB=$(AGLIB_STE)
-project: $(ASSETS_68K) $(ASSETS_MUSIC) $(ASSETS_SAMPLES)
-project: $(AGLIB_STE) bosscore.$(EXT)
+ste: AGLIB=$(AGLIB_STE)
+ste: $(ASSETS_68K) $(ASSETS_MUSIC) $(ASSETS_SAMPLES)
+ste: $(AGLIB_STE) bosscore.$(EXT)
 
 # treat these names as targets not sourcefiles otherwise bad stuff can get
 # accidentally added to the link line (we have some sourcefiles with the same
 # names as some targets, sending make to confusionland)
-.PHONY: project
+.PHONY: ste
 
 # =============================================================================
 #	Build rules for preparing data

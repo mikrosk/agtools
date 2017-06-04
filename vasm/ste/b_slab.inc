@@ -227,11 +227,11 @@ dospans	macro
 	endm
 *-------------------------------------------------------*
 
-_use_slab_restore_	set	(use_sprite_saverestore|use_sprite_pagerestore)
-
 *-------------------------------------------------------*
 doregions		macro
 *-------------------------------------------------------*
+
+_enable_slabrestore_	set	(use_sprite_saverestore|use_sprite_pagerestore)
 
 *-------------------------------------------------------*
 .start_spanblock\@:	
@@ -335,7 +335,7 @@ doregions		macro
 .do_block\@:
 *-------------------------------------------------------*
 
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)
 	move.l		a5,d2
 	move.w		ssb_y-6(a0),d5
@@ -352,7 +352,7 @@ doregions		macro
 	and.l		d3,d5				; ceil16(x)
 	eor.w		d5,d3				; pixel offset
 	lsr.w		d5	
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)	
 	move.w		d5,(a5)+
 	endc	
@@ -368,7 +368,7 @@ doregions		macro
 
 *-------------------------------------------------------*
 
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)
 
 	; clearing record
@@ -416,7 +416,7 @@ doregions		macro
 .do_sgl\@:
 *-------------------------------------------------------*
 
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)
 	move.l		a5,d2
 	move.w		ssb_y-6(a0),d5
@@ -433,7 +433,7 @@ doregions		macro
 	and.l		d3,d5				; ceil16(x)
 	eor.w		d5,d3				; pixel offset
 	lsr.w		d5
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)	
 	move.w		d5,(a5)+
 	endc	
@@ -449,7 +449,7 @@ doregions		macro
 
 *-------------------------------------------------------*
 
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)
 
 	; clearing record
@@ -492,11 +492,11 @@ doregions		macro
 *-------------------------------------------------------*
 
 
-_use_slab_restore_	set	(use_slab_restore&(use_sprite_saverestore|use_sprite_pagerestore))
-
 *-------------------------------------------------------*
 dospans_rst	macro
 *-------------------------------------------------------*
+
+_enable_slabrestore_	set	(enable_slabrestore&(use_sprite_saverestore|use_sprite_pagerestore))
 
 *-------------------------------------------------------*
 .start_spanblock\@:	
@@ -612,7 +612,7 @@ dospans_rst	macro
 .do_block\@:
 *-------------------------------------------------------*
 
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)
 	move.l		a5,d2
 	move.w		ssb_y-6(a0),d5
@@ -627,7 +627,7 @@ dospans_rst	macro
 	and.l		d3,d5				; ceil16(x)
 	eor.w		d5,d3				; pixel offset
 	lsr.w		d5	
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)	
 	move.w		d5,(a5)+
 	endc	
@@ -647,7 +647,7 @@ dospans_rst	macro
 	move.w		(a0)+,BLiTDYI.w
 *-------------------------------------------------------*
 
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	
 	ifne		(use_sprite_pagerestore)
 
@@ -738,7 +738,7 @@ dospans_rst	macro
 .spanloop_begin\@:
 *-------------------------------------------------------*
 	move.w		d4,BLiTYC.w			; BLIT: planes
-	ifne		(_use_slab_restore_)
+	ifne		(_enable_slabrestore_)
 	move.l		d5,BLiTDST.w			; dst
 	else
 	move.l		d5,(a5)				; dst
@@ -792,7 +792,7 @@ dospans_rst	macro
 .do_sgl\@:
 *-------------------------------------------------------*
 
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)
 	move.l		a5,d6
 	move.w		ssb_y-6(a0),d5
@@ -807,7 +807,7 @@ dospans_rst	macro
 	and.l		d3,d5				; ceil16(x)
 	eor.w		d5,d3				; pixel offset
 	lsr.w		d5
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)	
 	move.w		d5,(a5)+
 	endc	
@@ -821,7 +821,7 @@ dospans_rst	macro
 	add.l		d4,a0	
 	move.b		(a0)+,BLiTSKEW.w
 	move.b		(a0)+,d3
-	ifne		(_use_slab_restore_)
+	ifne		(_enable_slabrestore_)
 	move.w		d3,BLiTXC.w
 	endc
 	move.w		(a0)+,BLiTEM1.w
@@ -831,7 +831,7 @@ dospans_rst	macro
 	
 
 	
-	ifne		(use_slab_restore)
+	ifne		(enable_slabrestore)
 	ifne		(use_sprite_pagerestore)
 	
 	add.w		d3,d3
@@ -909,7 +909,7 @@ dospans_rst	macro
 	
 	
 *-------------------------------------------------------*
-	ifne		(_use_slab_restore_)
+	ifne		(_enable_slabrestore_)
 	move.l		d5,BLiTDST.w			; BLiTDST
 	move.w		#4,BLiTYC.w			; BLiTYC: planes
 	else

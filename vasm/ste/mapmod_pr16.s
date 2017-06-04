@@ -226,7 +226,7 @@ _do_dirtyrect_pr16:	xdef	_do_dirtyrect_pr16
 	movep.l		0(a1),d3			; AA:BB:CC:DD <-[AA:BB:CC:DD]
 	move.l		d3,d0
 	and.l		d5,d3
-	beq.s		.next4
+	beq		.next4
 	eor.l		d3,d0
 	movep.l		d0,0(a1)
 

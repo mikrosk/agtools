@@ -6,7 +6,7 @@
 
 use_sprite_saverestore	=	0			; automatic save/restore of background
 use_sprite_pagerestore	=	1
-use_slab_restore	set	0
+enable_slabrestore	set	0
 use_blitter_nops	=	0			; insert nop before blitter restart as per Atari docs (!?)
 ;use_sanity_checks	set	0
 use_rasters		set	0
