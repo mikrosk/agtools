@@ -43,9 +43,13 @@ within_entitydraw	set	1
 	.globl		_gp_entity_y_aftertail
 	.endif
 
+
 ;	.globl		_BLiT_EntityDrawLayers_68k
+	.globl		_EntityTick_68k
 	.globl		_EntitySpatial_68k
 	.globl		_gp_entity_tick_tail
+	.globl		_gp_entity_tick_head
+	.globl		_gp_entity_tick_aftertail
 ;	.globl		_EntityLink_Tick_Ext
 
 ;	EM-optimized (but not code-generated) blitter sprite routines for <= 32-wide sprites
@@ -163,6 +167,76 @@ EntityLink_Tick_68k:
 	move.l		a0,ent_pnext_tick(a1)
 	rts
 	
+
+
+*-------------------------------------------------------*
+_EntityTick_68k:
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+;.savea6:		ds.l	1
+.save:			ds.l	11
+.return:		ds.l	1
+*-------------------------------------------------------*
+.frame_:
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+*	locals:
+*-------------------------------------------------------*
+*-------------------------------------------------------*
+.sp_frame_:
+*-------------------------------------------------------*	
+			.text
+*-------------------------------------------------------*	
+	movem.l		d2-d7/a2-a6,-(sp)
+*-------------------------------------------------------*
+	pushctxr	ent_tick,a2
+*-------------------------------------------------------*
+	
+	; force-terminate list
+	move.l		_gp_entity_tick_tail,a5
+	move.l		ent_pprev_tick(a5),a4
+	move.l		a4,-(sp)
+	clr.l		ent_pnext_tick(a4)
+
+*-------------------------------------------------------*
+		
+	subq.l		#4,sp
+
+*-------------------------------------------------------*
+	
+	move.l		_gp_entity_tick_head,a6
+	bra.s		.cont
+	
+.next:	move.l		d0,a6
+	move.l		ent_fntick(a6),d0
+	beq.s		.cont				; if (curr.fntick)
+	move.l		d0,a0				; curr.fntick(pcurr);
+	move.l		a6,(sp)
+	jsr		(a0)
+;	illegal
+.cont:	move.l		ent_pnext_tick(a6),d0
+	bne.s		.next
+
+*-------------------------------------------------------*
+
+.done:	addq.l		#4,sp
+
+*-------------------------------------------------------*
+
+	; restore list integrity
+	move.l		(sp)+,a4
+	move.l		_gp_entity_tick_tail,ent_pnext_tick(a4)
+	
+*-------------------------------------------------------*
+	popctxr		a2
+*-------------------------------------------------------*
+	movem.l		(sp)+,d2-d7/a2-a6
+*-------------------------------------------------------*
+	rts
+
+
 
 *-------------------------------------------------------*
 _EntitySpatial_68k:

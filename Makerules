@@ -403,6 +403,10 @@ clean:
 %.o: %.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
+# rule to compile entity tick/collide callback files
+%.o: %.ent
+	$(CXX) -c $(CXXFLAGS) -fno-lto -fcall-used-d2 -fcall-used-d3 -fcall-used-d4 -fcall-used-d5 -fcall-used-d6 -fcall-used-d7 -fcall-used-a2 -fcall-used-a3 -fcall-used-a4 -fcall-used-a5 -o $@ $<
+
 # rules to assemble .gas files -> .o
 %.o: %.gas
 	$(AS) -o $@ $<

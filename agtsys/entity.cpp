@@ -22,6 +22,7 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
+extern "C" void EntityTick_68k();
 extern "C" void EntitySpatial_68k();
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -123,6 +124,8 @@ static entity_t s_entity_tick_head;
 static entity_t s_entity_tick_tail;
 static entity_t s_entity_tick_aftertail;
 entity_t *gp_entity_tick_tail = &s_entity_tick_tail;
+entity_t *gp_entity_tick_head = &s_entity_tick_head;
+entity_t *gp_entity_tick_aftertail = &s_entity_tick_aftertail;
 
 #if defined(ENABLE_SPATIAL_X)
 static entity_t s_entity_x_head;
@@ -603,6 +606,7 @@ void EntityTickAll()
 {
 	AUTOPRF(ent_tick);
 
+#if (0)
 	// first entity is pointed by list head
 	entity_t *pcurr = s_entity_tick_head.pnext_tick;
 
@@ -678,6 +682,9 @@ next_entity:
 	}
 
 complete:
+#endif
+
+	EntityTick_68k();
 
 	// spatial coherence update pass
 	EntitySpatial_68k();
