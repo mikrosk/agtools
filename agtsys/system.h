@@ -332,6 +332,20 @@ int main(int argc, char **argv)					\
 #define TIMING(_rgb_)
 #endif		
 
+#define EXPRESS32(_v_) \
+	__asm__ __volatile__ ("move.l	%0,%%d0; illegal;" \
+		: \
+		: "g"(_v_) \
+		: "cc" \
+	);
+
+#define EXPRESS16(_v_) \
+	__asm__ __volatile__ ("move.w	%0,%%d0; illegal;" \
+		: \
+		: "g"(_v_) \
+		: "cc" \
+	);
+
 // ---------------------------------------------------------------------------------------------------------------------
 // estimate of program end address, for memory tracking
 

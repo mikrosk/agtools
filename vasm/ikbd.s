@@ -35,8 +35,10 @@
 	XDEF		_mouse_dx
 	XDEF		_mouse_dy
 
-	XREF		_show_console
-	XREF		_console_base
+	XREF		_max_console
+	XREF		_min_pconsole
+	XREF		_console_maxbase
+	XREF		_console_minbase
 
 *-------------------------------------------------------*
 	
@@ -608,7 +610,8 @@ i_primary:
 	tst.b		_key_states+$2a
 	bne		.keys
 .con_on:
-	move.l		_console_base,_show_console
+;	move.l		_console_base,_min_pconsole
+	move.l		_console_maxbase,_max_console
 	; continue to process TAB key normally	
 	bra		.keys
 .cc_up:	
@@ -617,11 +620,18 @@ i_primary:
 	beq.s		.con_off	
 .con_tog:
 	; if LSHFT held, toggle on UP
-	tst.l		_show_console
-	beq.s		.con_on
+	tst.l		_min_pconsole
+;	beq.s		.con_on
+	beq.s		.tog_on
+.tog_off:
+	clr.l		_min_pconsole
+	bra		.keys
+.tog_on:	
+	move.l		#_console_minbase,_min_pconsole
+	bra		.keys
 .con_off:
 	; continue to process TAB key normally	
-	clr.l		_show_console
+	clr.l		_max_console
 	bra		.keys
 	endc		;(use_debugconsole)
 

@@ -64,9 +64,11 @@ extern int bmprintf(const char *pFormat, ...);
 //#include "common_c.h"
 
 //short bytewidth = 184;//320*2;
-char* console_base = 0;	
-char* show_console = 0;	
-char* fs_console = 0;	
+char* console_base = 0;
+char* console_minbase = 0;
+char* console_maxbase = 0;
+char* *min_pconsole = 0;	
+char* max_console = 0;	
 extern void etext();
 
 /* used by bmengine.a */
@@ -98,12 +100,14 @@ void AGT_ConsoleUpdate(void* fb1);
 
 //long nf_print(const char *text);
 
-#define AGT_CONSOLE_ACTIVEROWS (6)
-#define AGT_CONSOLE_ROWS (32)
+#define AGT_CONSOLE_MINIROWS (6)
+#define AGT_CONSOLE_MAXIROWS (42)
+
+#define AGT_CONSOLE_ROWS (64)
 #define AGT_CONSOLE_COLUMNS (40)
 #define AGT_CONSOLE_COLUMN_STRIDE (AGT_CONSOLE_COLUMNS+1)
 
-s16 AGT_CONSOLE_activerows = AGT_CONSOLE_ACTIVEROWS;
+s16 AGT_CONSOLE_activerows = AGT_CONSOLE_MAXIROWS;
 
 char AGT_CONSOLE_chars[AGT_CONSOLE_ROWS*AGT_CONSOLE_COLUMN_STRIDE] __attribute__((aligned(2)));
 s16 AGT_CONSOLE_head_row = 0;
@@ -152,15 +156,16 @@ void AGT_Sys_ConsoleMode(int _mode)
 	{
 	default:
 	case 0:
-		show_console = 0;
+		min_pconsole = 0;
+		max_console = 0;
 		break;
 	case 1:
-		fs_console = 0;
-		show_console = console_base;
+		min_pconsole = &console_minbase;
+		max_console = 0;
 		break;
 	case 2:
-		fs_console = console_base;
-		show_console = 0;
+		min_pconsole = 0;
+		max_console = console_maxbase;
 		break;
 	};
 #endif
@@ -178,8 +183,15 @@ agt_used void SYS_Assert(char *_msg)
 #if defined(AGT_CONFIG_DEBUG_CONSOLE)
 void SYS_ConsoleInit()
 {
-	console_base = malloc((184*(((AGT_CONSOLE_ACTIVEROWS+1)*6)+1))+256);
+	s32 size = (184*(((AGT_CONSOLE_MAXIROWS+1)*6)+1))+256;
+	console_base = malloc(size);
+	memset(console_base, 0, size);
+
+	// todo: decouple for free at end
 	console_base = (char*)(((int)console_base + 255) & ~255);
+
+	console_minbase = console_base + (6*184*(AGT_CONSOLE_MAXIROWS-AGT_CONSOLE_MINIROWS));
+	console_maxbase = console_base;
 
 	s16 r = 0;
 	for (; r < AGT_CONSOLE_ROWS; ++r)
