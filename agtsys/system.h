@@ -74,6 +74,18 @@ extern "C"
 #endif
 
 // ---------------------------------------------------------------------------------------------------------------------
+// console
+
+enum AGTConsole
+{
+	AGTConsole_OFF = 0,
+	AGTConsole_MINIMISED = 1,
+	AGTConsole_MAXIMISED = 2
+};
+
+extern "C" void AGT_Sys_ConsoleMode(AGTConsole _mode);
+
+// ---------------------------------------------------------------------------------------------------------------------
 // builtin profiler
 
 extern "C" void AGT_Sys_ProfilerInit();

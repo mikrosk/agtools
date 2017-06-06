@@ -66,6 +66,7 @@ extern int bmprintf(const char *pFormat, ...);
 //short bytewidth = 184;//320*2;
 char* console_base = 0;	
 char* show_console = 0;	
+char* fs_console = 0;	
 extern void etext();
 
 /* used by bmengine.a */
@@ -144,9 +145,30 @@ void printf_console(const char *text)
 		AGT_ConsoleUpdate(console_base + 184);
 }
 
+void AGT_Sys_ConsoleMode(int _mode)
+{
+#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+	switch (_mode)
+	{
+	default:
+	case 0:
+		show_console = 0;
+		break;
+	case 1:
+		fs_console = 0;
+		show_console = console_base;
+		break;
+	case 2:
+		fs_console = console_base;
+		show_console = 0;
+		break;
+	};
+#endif
+}
+
 agt_used void SYS_Assert(char *_msg)
 {
-	show_console = console_base;
+	AGT_Sys_ConsoleMode(/*AGTConsole_MINIMISED*/1);
 	bmprintf("%s\n", _msg);
 	while (1) { }
 	//__builtin_unreachable;
