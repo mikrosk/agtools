@@ -162,8 +162,8 @@ void printf_console_ln(const char *text)
 
 	// force immediate update to physical fb, since next refresh could be some time away
 	// note: can output to console even if not displaying yet - keeps record of early prints during boot
-	if (/*g_displaylocked && */console_base)
-		AGT_ConsoleUpdate(console_base + 184);
+//	if (console_base)
+//		AGT_ConsoleUpdate(console_base + 184);
 }
 
 #define AGT_CONSOLE_LINESPACE (AGT_CONSOLE_COLUMN_STRIDE)
@@ -201,6 +201,10 @@ void printf_console(const char *text)
 	}
 	s_pline = pscanout;
 	s_linelen = len;
+
+	// refresh console framebuffer on every print
+	if (console_base)
+		AGT_ConsoleUpdate(console_base + 184);
 }
 
 void AGT_Sys_ConsoleMode(int _mode)
