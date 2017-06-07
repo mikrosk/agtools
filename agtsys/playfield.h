@@ -1619,8 +1619,13 @@ playfield_template()
 	  mul_map_x_(0),
 	  xpreshift_(0), drawshift_(1), 
 	  slice_(0), last_slice_(0),
+#if defined(AGT_CONFIG_MAPMOD_BOUNDS)
 	  dtx1_(0x7fff), dty1_(0x7fff),
 	  dtx2_(0x8000), dty2_(0x8000),
+#else
+	  dtx1_(0), dty1_(0),
+	  dtx2_(0), dty2_(0),
+#endif
 	  //dirtytiles_(0),
 	  //dirtynum_(0),
 	  dirtymask_(0), //layermask_(0),
@@ -2144,6 +2149,52 @@ void hybrid_fill()
 	// refresh dirty tiles before incremental updates
 	if (c_ste_ && c_dynamic_)
 	{
+
+#define AGT_CONFIG_MAPMOD_BOUNDS
+#define AGT_CONFIG_MAPMOD_SWEEP_SPEED (4)
+
+		// vertical sweep
+
+#if defined(AGT_CONFIG_MAPMOD_SWEEP)
+
+		static const s16 speed = AGT_CONFIG_MAPMOD_SWEEP_SPEED;
+
+		s16 ymin = (typos_ - c_vmargin_) & -AGT_CONFIG_MAPMOD_SWEEP_SPEED;
+		s16 ymax = (ymin + vpage_tiles_y_) & -AGT_CONFIG_MAPMOD_SWEEP_SPEED;
+
+		dty2_ = dty1_ + speed;
+		{
+			// find the viewport rectangle
+			s16 tx1 = txpos_-c_hmargin_;
+			s16 ty1 = typos_-c_vmargin_;
+			// never refresh across map left edge
+			if (c_scanwalk_ && (tx1 < 0))
+				tx1 = 0;
+
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
+
+			// find intersection of 2 rectangles (viewport, edited region)
+			ty1 = xmax(ty1, dty1_);
+			ty2 = xmin(ty2, dty2_);
+
+			if (ty2 > ty1)
+			{
+				dirty_block_virtual
+				(
+					tx1, ty1,
+					//
+					tx1, ty1, 
+					tx2, ty2
+				);
+			}
+		}
+		dty1_ += speed;
+		if (dty1_ > ymax-speed)
+			dty1_ = ymin;
+#endif
+
+#if defined(AGT_CONFIG_MAPMOD_BOUNDS)
 		if ((dtx1_ < dtx2_) && (dty1_ < dty2_))
 		{
 			// find the viewport rectangle
@@ -2165,19 +2216,44 @@ void hybrid_fill()
 			// refresh only the minmax bounded area
 			if ((tx2 > tx1) && (ty2 > ty1))
 			{
-		dirty_block_virtual
-		(
+				dirty_block_virtual
+				(
 					tx1, ty1,
 					//
 					tx1, ty1, 
 					tx2, ty2
-		);
-	}
+				);
+			}
 
 			// reset edited region
 			dtx1_ = dty1_ = 0x7fff;
 			dtx2_ = dty2_ = -1;
 		}
+#endif
+
+#if defined(AGT_CONFIG_MAPMOD_FULL)
+		{
+			// find the viewport rectangle
+			s16 tx1 = txpos_-c_hmargin_;
+			s16 ty1 = typos_-c_vmargin_;
+			// never refresh across map left edge
+			if (c_scanwalk_ && (tx1 < 0))
+				tx1 = 0;
+
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
+
+			{
+				dirty_block_virtual
+				(
+					tx1, ty1,
+					//
+					tx1, ty1, 
+					tx2, ty2
+				);
+			}
+		}
+#endif
 	}
 
 	// shortcut incremental if no movement
@@ -3163,12 +3239,15 @@ agt_inline void bgrestore()
 
 agt_inline void touch_reset()
 {
+#if defined(AGT_CONFIG_MAPMOD_BOUNDS)
 	dtx1_ = dty1_ = 0x7fff;
 	dtx2_ = dty2_ = 0x8000;
+#endif
 }
 
 agt_inline void touch_region(s16 _x1, s16 _y1, s16 _x2, s16 _y2)
 {
+#if defined(AGT_CONFIG_MAPMOD_BOUNDS)
 	if (_x1 < dtx1_)
 		dtx1_ = _x1;
 	if (_y1 < dty1_)
@@ -3177,6 +3256,7 @@ agt_inline void touch_region(s16 _x1, s16 _y1, s16 _x2, s16 _y2)
 		dtx2_ = _x2;
 	if (_y2 > dty2_)
 		dty2_ = _y2;
+#endif
 }
 
 template<bool _autoregion = true>

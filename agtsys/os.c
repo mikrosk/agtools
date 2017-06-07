@@ -232,7 +232,9 @@ void AGT_Sys_ConsoleMode(int _mode)
 agt_used void SYS_Assert(char *_msg)
 {
 	AGT_Sys_ConsoleMode(/*AGTConsole_MINIMISED*/1);
+#if (AGT_CONFIG_ALLOW_PRINT)
 	agtprintf("%s\n", _msg);
+#endif
 	while (1) { }
 	//__builtin_unreachable;
 }
@@ -292,6 +294,7 @@ typedef exstackframe_t exstackframe0001_t;
 
 void AGT_ExceptionHandler_0000(exstackframe0000_t* _pstack)
 {
+#if (AGT_CONFIG_ALLOW_PRINT)
 	agtprintf("FMT0 @ (PC:%08x, VEC:%04x)\n", 
 		_pstack->pc,
 		_pstack->vec
@@ -299,10 +302,12 @@ void AGT_ExceptionHandler_0000(exstackframe0000_t* _pstack)
 	agtprintf("REL: (PC:%08x)\n", 
 		_pstack->pc-(u32)(&program_base)
 	);
+#endif
 }
 
 void AGT_ExceptionHandler_0001(exstackframe0001_t* _pstack)
 {
+#if (AGT_CONFIG_ALLOW_PRINT)
 	agtprintf("FMT1 @ (PC:%08x, VEC:%04x)\n", 
 		_pstack->pc,
 		_pstack->vec
@@ -310,6 +315,7 @@ void AGT_ExceptionHandler_0001(exstackframe0001_t* _pstack)
 	agtprintf("REL: (PC:%08x)\n", 
 		_pstack->pc-(u32)(&program_base)
 	);
+#endif
 }
 
 //
@@ -326,6 +332,7 @@ typedef struct exstackframe0010_s
 
 void AGT_ExceptionHandler_0010(exstackframe0010_t* _pstack)
 {
+#if (AGT_CONFIG_ALLOW_PRINT)
 	agtprintf("FMT2 @ %08x (PC:%08x, VEC:%04x)\n", 
 		_pstack->ins,
 		_pstack->pc,
@@ -335,6 +342,7 @@ void AGT_ExceptionHandler_0010(exstackframe0010_t* _pstack)
 		_pstack->ins-(u32)(&program_base),
 		_pstack->pc-(u32)(&program_base)
 	);
+#endif
 }
 
 //
@@ -353,6 +361,7 @@ typedef struct exstackframe1001_s
 
 void AGT_ExceptionHandler_1001(exstackframe1001_t* _pstack)
 {
+#if (AGT_CONFIG_ALLOW_PRINT)
 	agtprintf("FMT9 @ %08x (PC:%08x, VEC:%04x)\n", 
 		_pstack->ins,
 		_pstack->pc,
@@ -362,6 +371,7 @@ void AGT_ExceptionHandler_1001(exstackframe1001_t* _pstack)
 		_pstack->ins-(u32)(&program_base),
 		_pstack->pc-(u32)(&program_base)
 	);
+#endif
 }
 
 //
@@ -388,7 +398,7 @@ typedef struct exstackframe1010_s
 void AGT_ExceptionHandler_1010(exstackframe1010_t* _pstack)
 {
 	// addr/bus error on instruction boundary
-
+#if (AGT_CONFIG_ALLOW_PRINT)
 	agtprintf("SBERR @ %08x (PC:%08x,SSW:%04x,VEC:%04x)\n", 
 		_pstack->dcfa, _pstack->pc, _pstack->ssw, _pstack->vec);
 
@@ -396,6 +406,7 @@ void AGT_ExceptionHandler_1010(exstackframe1010_t* _pstack)
 		_pstack->dcfa-(u32)(&program_base), 
 		_pstack->pc-(u32)(&program_base)
 	);
+#endif
 }
 
 typedef struct exstackframe1011_s
@@ -433,11 +444,13 @@ void AGT_ExceptionHandler_1011(exstackframe1011_t* _pstack)
 	// addr/bus error while instruction executes
 	int i;
 
+#if (AGT_CONFIG_ALLOW_PRINT)
 	agtprintf("LBERR @ %08x (PC:%08x,SSW:%04x,VEC:%04x)\n", 
 		_pstack->dcfa, _pstack->pc, _pstack->ssw, _pstack->vec);
 	agtprintf("REL: %08x (PC:%08x)\n", 
 		_pstack->dcfa-(u32)(&program_base), 
 		_pstack->pc-(u32)(&program_base));
+#endif
 
 	return;
 
@@ -450,7 +463,9 @@ void AGT_ExceptionHandler_1011(exstackframe1011_t* _pstack)
 		if (val >= (u32)(&program_base) &&
 			val < (u32)(&etext))
 		{
+#if (AGT_CONFIG_ALLOW_PRINT)
 			agtprintf("%08x", val - (u32)(&program_base));
+#endif
 			pcallstack += 4;
 		}
 		else
@@ -482,6 +497,7 @@ void AGT_ExceptionHandler(exstackframe_t* _pstack)
 	psavedn = (u32*)0x384UL;
 	psavean = (u32*)0x3a4UL;
 
+#if (AGT_CONFIG_ALLOW_PRINT)
 	agtprintf("d0:%08x a0:%08x\n", *psavedn++, *psavean++);	
 	agtprintf("d1:%08x a1:%08x\n", *psavedn++, *psavean++);	
 	agtprintf("d2:%08x a2:%08x\n", *psavedn++, *psavean++);	
@@ -493,12 +509,14 @@ void AGT_ExceptionHandler(exstackframe_t* _pstack)
 	agtprintf("usp: %08x\n", *(u32*)(0x3c8UL));	
 //	agtprintf("cacr:%08x\n", *(u32*)(0x3c4UL));	
 //	agtprintf("caar:%08x\n", *(u32*)(0x3ccUL));	
+#endif
 
 //	while (1) { }
 }
 
 #endif
 
+#if (AGT_CONFIG_ALLOW_PRINT)
 int agtprintf(const char *pFormat, ...)
 {
 	int len = 0;
@@ -550,3 +568,9 @@ int agtprintf(const char *pFormat, ...)
 
 	return len;
 }
+#else
+int agtprintf(const char *pFormat, ...)
+{
+	return 0;
+}
+#endif

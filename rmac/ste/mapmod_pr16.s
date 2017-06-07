@@ -5,19 +5,34 @@
 
 .macro	tile_pr16	offs,dst,tmp,dstpgw,dstpgh,tdst,tsrc
 
-	lea		\offs*8(\dst),\tdst
-	lea		\offs*8(\dst,\dstpgh.l),a6
+	moveq		#16,\tmp
+	moveq		#$c0,\dstpgw
+	
+	lea		\offs*8(\dst),\tdst	
+	move.l		\tsrc,BLiTSRC.w
+	move.l		\tdst,BLiTDST.w
+	move.w		\tmp,BLiTYC.w
+	move.b		\dstpgw,BLiTCTRL.w
 
-	.rept		16
-	move.l		(\tsrc)+,\tmp
-	move.l		\tmp,(\tdst)+
-	move.l		\tmp,(a6)+
-	move.l		(\tsrc)+,\tmp
-	move.l		\tmp,(\tdst)+
-	move.l		\tmp,(a6)+
-	lea		dst_linewid-8(\tdst),\tdst
-	lea		dst_linewid-8(a6),a6
-	.endr
+	lea		\offs*8(\dst,\dstpgh.l),a6
+	move.l		\tsrc,BLiTSRC.w
+	move.l		a6,BLiTDST.w
+	move.w		\tmp,BLiTYC.w
+	move.b		\dstpgw,BLiTCTRL.w
+
+;	lea		\offs*8(\dst),\tdst
+;	lea		\offs*8(\dst,\dstpgh.l),a6
+;
+;	.rept		16
+;	move.l		(\tsrc)+,\tmp
+;	move.l		\tmp,(\tdst)+
+;	move.l		\tmp,(a6)+
+;	move.l		(\tsrc)+,\tmp
+;	move.l		\tmp,(\tdst)+
+;	move.l		\tmp,(a6)+
+;	lea		dst_linewid-8(\tdst),\tdst
+;	lea		dst_linewid-8(a6),a6
+;	.endr
 
 	.endm
 
@@ -48,6 +63,17 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
 	.endif
+
+	move.w		#2,BLiTSXI.w
+	move.w		#2,BLiTDXI.w
+	move.w		#2,BLiTSYI.w
+	move.w		#(184-8)+2,BLiTDYI.w	
+	move.l		#-1,BLiTEM1.w
+	move.w		#-1,BLiTEM3.w
+	move.w		#4,BLiTXC.w
+	move.b		#2,BLiTHOP.w
+	move.b		#3,BLiTLOP.w
+	clr.b		BLiTSKEW.w
 	
 ;	bra		.done
 

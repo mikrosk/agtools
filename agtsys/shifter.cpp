@@ -74,6 +74,7 @@ extern "C"
 	volatile shiftgroup* volatile gp_active_group = 0;
 	volatile s16 g_vbl = 0;
 	volatile s16 g_fieldmask = 0;
+	s16 g_frame = 0;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

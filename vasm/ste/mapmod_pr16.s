@@ -5,19 +5,35 @@
 
 tile_pr16		macro	;[offs,]dst,tmp,dstpgw,dstpgh,tdst,tsrc
 
-	lea		\0*8(\1),\5
-	lea		\0*8(\1,\4.l),a6
+	moveq		#16,\2
+	moveq		#$c0,\3
+	
+	lea		\0*8(\1),\5	
+	move.l		\6,BLiTSRC.w
+	move.l		\5,BLiTDST.w
+	move.w		\2,BLiTYC.w
+	move.b		\3,BLiTCTRL.w
 
-	rept		16
-	move.l		(\6)+,\2
-	move.l		\2,(\5)+
-	move.l		\2,(a6)+
-	move.l		(\6)+,\2
-	move.l		\2,(\5)+
-	move.l		\2,(a6)+
-	lea		dst_linewid-8(\5),\5
-	lea		dst_linewid-8(a6),a6
-	endr
+	lea		\0*8(\1,\4.l),a6
+	move.l		\6,BLiTSRC.w
+	move.l		a6,BLiTDST.w
+	move.w		\2,BLiTYC.w
+	move.b		\3,BLiTCTRL.w
+
+
+;	lea		\0*8(\1),\5
+;	lea		\0*8(\1,\4.l),a6
+;
+;	rept		16
+;	move.l		(\6)+,\2
+;	move.l		\2,(\5)+
+;	move.l		\2,(a6)+
+;	move.l		(\6)+,\2
+;	move.l		\2,(\5)+
+;	move.l		\2,(a6)+
+;	lea		dst_linewid-8(\5),\5
+;	lea		dst_linewid-8(a6),a6
+;	endr
 
 	endm
 
@@ -48,6 +64,17 @@ _do_dirtyrect_pr16:	xdef	_do_dirtyrect_pr16
 	move.w		d0,$64.w
 	move.w		d0,$ffff8240.w
 	endc
+
+	move.w		#2,BLiTSXI.w
+	move.w		#2,BLiTDXI.w
+	move.w		#2,BLiTSYI.w
+	move.w		#(184-8)+2,BLiTDYI.w	
+	move.l		#-1,BLiTEM1.w
+	move.w		#-1,BLiTEM3.w
+	move.w		#4,BLiTXC.w
+	move.b		#2,BLiTHOP.w
+	move.b		#3,BLiTLOP.w
+	clr.b		BLiTSKEW.w
 	
 ;	bra		.done
 

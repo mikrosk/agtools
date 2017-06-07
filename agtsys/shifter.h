@@ -50,6 +50,7 @@ extern "C" volatile shiftgroup *g_pgroups[c_max_shiftgroups];
 extern "C" volatile s16 g_active_buffer;
 extern "C" volatile shiftgroup* volatile gp_active_group;
 extern "C" volatile s16 g_vbl;
+extern "C" s16 g_frame;
 
 // ---------------------------------------------------------------------------------------------------------------------
 

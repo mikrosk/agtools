@@ -339,20 +339,28 @@ extern "C" int agtprintf(const char *pFormat, ...);
 #endif
 #endif
 
+#if defined(AGT_CONFIG_QUIET)
+#define AGT_CONFIG_ALLOW_PRINT (0)
+#else
+#define AGT_CONFIG_ALLOW_PRINT (1)
+#endif
+
 // std printf - always emitted
-#define printf(...) { if (1) { agtprintf(__VA_ARGS__) ; } }
+#define printf(...) { if ((1) && AGT_CONFIG_ALLOW_PRINT) { agtprintf(__VA_ARGS__) ; } }
 
 // error printf (debug/testing builds)
-#define eprintf(...) { if (AGT_PRINT_LEVEL_>=1) { printf(__VA_ARGS__) ; } }
+#define eprintf(...) { if ((AGT_PRINT_LEVEL_>=1)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
 // warning printf (debug/testing builds)
-#define wprintf(...) { if (AGT_PRINT_LEVEL_>=1) { printf(__VA_ARGS__) ; } }
+#define wprintf(...) { if ((AGT_PRINT_LEVEL_>=1)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
 // debug printf (debug builds - detailed info only)
-#define dprintf(...) { if (AGT_PRINT_LEVEL_>=2) { printf(__VA_ARGS__) ; } }
+#define dprintf(...) { if ((AGT_PRINT_LEVEL_>=2)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
 
 // progress printf (debug/testing builds - loading/parsing or any significant envents)
-#define pprintf(...) { if (AGT_PRINT_LEVEL_>=1) { printf(__VA_ARGS__) ; } }
+#define pprintf(...) { if ((AGT_PRINT_LEVEL_>=0)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
 // entity printf (entity manager detail)
-#define entprintf(...) { if (AGT_PRINT_LEVEL_>=1) { printf(__VA_ARGS__) ; } }
+#define entprintf(...) { if ((AGT_PRINT_LEVEL_>=1)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
+// mapmod printf (mapmod/multimod detail)
+#define mmprintf(...) { if ((0) && AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
 
 // --------------------------------------------------------------------
 

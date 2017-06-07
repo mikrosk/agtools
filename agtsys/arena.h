@@ -261,6 +261,8 @@ public:
 			b.fields[1].select(shift_);
 		shift_.advance();
 
+		g_frame++;
+
 		prf_pop();
 	}
 
@@ -746,6 +748,9 @@ public:
 	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	void multimod_idx(s16 _x, s16 _y, s32 _i)
 	{
+		mmprintf("multimod_idx(%d,%d,%d) @ frame %d\n",
+			(int)_x, (int)_y, (int)_i, (int)g_frame);
+
 		// update map tiles
 		s32 rawidx = _i << (playfield_type::c_tileshift_b_ + (_layercode & PFLayer_Overlay) ? 1 : 0);
 
@@ -759,6 +764,9 @@ public:
 	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	agt_inline void multimod(s16 _x, s16 _y, s32 _rawidx)
 	{
+		mmprintf("multimod(%d,%d,$%08x) @ frame %d\n",
+			(int)_x, (int)_y, (int)_rawidx, (int)g_frame);
+
 		// update map tiles
 		mapctx0_.multimod<_layercode>(_x, _y, _rawidx);
 
@@ -770,6 +778,9 @@ public:
 	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	void multimod_row(s16 _x, s16 _y, s16 _dx, s32 *_source)
 	{
+		mmprintf("multimod_row(%d,%d,%d) @ frame %d\n",
+			(int)_x, (int)_y, (int)_dx, (int)g_frame);
+
 		// update map tiles
 		mapctx0_.multimod_row<_layercode>(_x, _y, _dx, _source);
 
@@ -781,6 +792,9 @@ public:
 	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	void multimod_column(s16 _x, s16 _y, s16 _dy, s32 *_source)
 	{
+		mmprintf("multimod_column(%d,%d,%d) @ frame %d\n",
+			(int)_x, (int)_y, (int)_dy, (int)g_frame);
+
 		mapctx0_.multimod_column<_layercode>(_x, _y, _dy, _source);
 
 		multitouch_column(_x, _y, _dy);
@@ -791,6 +805,9 @@ public:
 	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
 	void multimod_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
 	{
+		mmprintf("multimod_rect(%d,%d,%d,%d) @ frame %d\n",
+			(int)_x, (int)_y, (int)_dx, (int)_dy, (int)g_frame);
+
 		mapctx0_.multimod_rect<_layercode>(_x, _y, _dx, _dy, _source);
 
 		multitouch_rect<_autoregion>(_x, _y, _dx, _dy);
