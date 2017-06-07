@@ -114,7 +114,28 @@ s16 AGT_CONSOLE_head_row = 0;
 
 void program_base() { }
 
-void printf_console(const char *text)
+#define EXPRESS32(_v_) \
+	__asm__ __volatile__ ("move.l	%0,%%d7; illegal;" \
+		: \
+		: "g"(_v_) \
+		: "%%d7", "cc" \
+	);
+
+#define EXPRESS16(_v_) \
+	__asm__ __volatile__ ("move.w	%0,%%d7; illegal;" \
+		: \
+		: "g"(_v_) \
+		: "%%d7", "cc" \
+	);
+
+#define EXPRESS8(_v_) \
+	__asm__ __volatile__ ("move.b	%0,%%d7; illegal;" \
+		: \
+		: "g"(_v_) \
+		: "%%d7", "cc" \
+	);
+
+void printf_console_ln(const char *text)
 {
 	char* row = &AGT_CONSOLE_chars[AGT_CONSOLE_head_row * AGT_CONSOLE_COLUMN_STRIDE];
 
@@ -128,15 +149,11 @@ void printf_console(const char *text)
 
 	// fill row with text chars
 	memcpy(row, text, tl);
-	row += tl;
 
-	// fill row ends to remove stale chars from framebuffer
 	if (rl > 0)
-		memset(row, ' ', rl);
-	row += rl;
+		memset(&row[tl], ' ', rl);
 
-	// terminate row
-	*row = 0;
+	row[AGT_CONSOLE_COLUMNS] = 0;
 
 	// next row, wrap
 	AGT_CONSOLE_head_row++; 
@@ -147,6 +164,43 @@ void printf_console(const char *text)
 	// note: can output to console even if not displaying yet - keeps record of early prints during boot
 	if (/*g_displaylocked && */console_base)
 		AGT_ConsoleUpdate(console_base + 184);
+}
+
+#define AGT_CONSOLE_LINESPACE (AGT_CONSOLE_COLUMN_STRIDE)
+#define AGT_CONSOLE_LINEMAX (AGT_CONSOLE_LINESPACE-1)
+static char s_linebuf[AGT_CONSOLE_LINESPACE];
+static char *s_pline = s_linebuf;
+static s16 s_linelen = 0;
+
+void printf_console(const char *text)
+{
+	unsigned char c;
+	char *pscanin = text;
+
+	s16 len = s_linelen;
+	char *pscanout = s_pline;
+	while ((c = *pscanin++) != 0)
+	{
+		// trigger line flush only on LF
+		if (c == 10)
+		{
+			// terminate & flush
+			*pscanout = 0;
+			printf_console_ln(s_linebuf);
+
+			// reset line
+			pscanout = s_linebuf;
+			len = 0;
+		}
+		else if (len < AGT_CONSOLE_LINEMAX)
+		{
+			// record characters up to LINEMAX
+			*pscanout++ = c;
+			len++;
+		}
+	}
+	s_pline = pscanout;
+	s_linelen = len;
 }
 
 void AGT_Sys_ConsoleMode(int _mode)

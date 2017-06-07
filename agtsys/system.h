@@ -333,17 +333,24 @@ int main(int argc, char **argv)					\
 #endif		
 
 #define EXPRESS32(_v_) \
-	__asm__ __volatile__ ("move.l	%0,%%d0; illegal;" \
+	__asm__ __volatile__ ("move.l	%0,%%d7; illegal;" \
 		: \
 		: "g"(_v_) \
-		: "cc" \
+		: "%%d7", "cc" \
 	);
 
 #define EXPRESS16(_v_) \
-	__asm__ __volatile__ ("move.w	%0,%%d0; illegal;" \
+	__asm__ __volatile__ ("move.w	%0,%%d7; illegal;" \
 		: \
 		: "g"(_v_) \
-		: "cc" \
+		: "%%d7", "cc" \
+	);
+
+#define EXPRESS8(_v_) \
+	__asm__ __volatile__ ("move.b	%0,%%d7; illegal;" \
+		: \
+		: "g"(_v_) \
+		: "%%d7", "cc" \
 	);
 
 // ---------------------------------------------------------------------------------------------------------------------
