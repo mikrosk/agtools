@@ -319,9 +319,9 @@ extern "C" int qmemclr(void *dest, size_t num);
 extern "C" int qmemset00(void *dest, size_t num);
 extern "C" int qmemsetff(void *dest, size_t num);
 
-extern "C" int bmprintf(const char *pFormat, ...);
+extern "C" int agtprintf(const char *pFormat, ...);
 
-//#define printf bmprintf
+//#define printf agtprintf
 
 //#define eprintf //printf
 //#define wprintf //printf
@@ -340,7 +340,7 @@ extern "C" int bmprintf(const char *pFormat, ...);
 #endif
 
 // std printf - always emitted
-#define printf(...) { if (1) { bmprintf(__VA_ARGS__) ; } }
+#define printf(...) { if (1) { agtprintf(__VA_ARGS__) ; } }
 
 // error printf (debug/testing builds)
 #define eprintf(...) { if (AGT_PRINT_LEVEL_>=1) { printf(__VA_ARGS__) ; } }

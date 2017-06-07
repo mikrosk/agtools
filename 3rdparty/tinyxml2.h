@@ -546,7 +546,7 @@ enum XMLError {
 	XML_ERROR_COUNT
 };
 
-extern "C" int bmprintf(const char *pFormat, ...);
+extern "C" int agtprintf(const char *pFormat, ...);
 extern "C" int snprintf (char *str, size_t count, const char *fmt, ...);
 
 
@@ -579,7 +579,7 @@ public:
     }
     
     inline static bool IsNameStartChar( unsigned char ch ) {
-		//bmprintf("IsNameStartChar[%c]\n", ch);
+		//agtprintf("IsNameStartChar[%c]\n", ch);
         if ( ch >= 128 ) {
             // This is a heuristic guess in attempt to not implement Unicode-aware isalpha()
             return true;
@@ -599,7 +599,7 @@ public:
 
     inline static bool StringEqual( const char* p, const char* q, int nChar=INT_MAX )  {
         if ( p == q ) {
-			//bmprintf("StringEqual:ptreq:%s\n", p);
+			//agtprintf("StringEqual:ptreq:%s\n", p);
             return true;
         }
         TIXMLASSERT( p );
@@ -607,7 +607,7 @@ public:
         TIXMLASSERT( nChar >= 0 );
 		//char buf[256];
 		//snprintf(buf, nChar+1, "%s", p);
-		//bmprintf("StringEqual:cmp: %d %s ? %s\n", nChar, buf, q);
+		//agtprintf("StringEqual:cmp: %d %s ? %s\n", nChar, buf, q);
         return strncmp( p, q, nChar ) == 0;
     }
     
@@ -702,32 +702,32 @@ public:
 
     /// Safely cast to an Element, or null.
     virtual XMLElement*		ToElement()		{
-//		bmprintf("ToElement: default virtual\n");
+//		agtprintf("ToElement: default virtual\n");
         return 0;
     }
     /// Safely cast to Text, or null.
     virtual XMLText*		ToText()		{
-//		bmprintf("ToText: default virtual\n");
+//		agtprintf("ToText: default virtual\n");
         return 0;
     }
     /// Safely cast to a Comment, or null.
     virtual XMLComment*		ToComment()		{
-//		bmprintf("ToComment: default virtual\n");
+//		agtprintf("ToComment: default virtual\n");
         return 0;
     }
     /// Safely cast to a Document, or null.
     virtual XMLDocument*	ToDocument()	{
-//		bmprintf("ToDocument: default virtual\n");
+//		agtprintf("ToDocument: default virtual\n");
         return 0;
     }
     /// Safely cast to a Declaration, or null.
     virtual XMLDeclaration*	ToDeclaration()	{
-//		bmprintf("ToDeclaration: default virtual\n");
+//		agtprintf("ToDeclaration: default virtual\n");
         return 0;
     }
     /// Safely cast to an Unknown, or null.
     virtual XMLUnknown*		ToUnknown()		{
-//		bmprintf("ToUnknown: default virtual\n");
+//		agtprintf("ToUnknown: default virtual\n");
         return 0;
     }
 
@@ -998,11 +998,11 @@ public:
     virtual bool Accept( XMLVisitor* visitor ) const;
 
     virtual XMLText* ToText()			{
-		bmprintf("XMLText:ToText\n");
+		agtprintf("XMLText:ToText\n");
 		return this;
     }
     virtual const XMLText* ToText() const	{
-		bmprintf("XMLText:ToText\n");
+		agtprintf("XMLText:ToText\n");
         return this;
     }
 
@@ -1278,11 +1278,11 @@ public:
     }
 
     virtual XMLElement* ToElement()				{
-//		bmprintf("XMLElement:ToElement\n");
+//		agtprintf("XMLElement:ToElement\n");
         return this;
     }
     virtual const XMLElement* ToElement() const {
-//		bmprintf("XMLElement:ToElement\n");
+//		agtprintf("XMLElement:ToElement\n");
         return this;
     }
     virtual bool Accept( XMLVisitor* visitor ) const;

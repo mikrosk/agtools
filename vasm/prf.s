@@ -7,7 +7,7 @@
 
 	ifd		AGT_CONFIG_PROFILER
 
-	XREF		_bmprintf
+	XREF		_agtprintf
 	XREF		_g_prf_context_refs
 	XREF		_g_prf_context_num
 	
@@ -72,10 +72,10 @@ _AGT_Sys_ProfilerDoReport:
 	pushctxr	profiling,a0
 	
 	pea		txtcrlf
-	jsr		_bmprintf
+	jsr		_agtprintf
 	addq.l		#4,sp	
 	pea		txtreport
-	jsr		_bmprintf
+	jsr		_agtprintf
 	addq.l		#4,sp
 
 	clr.b		first_
@@ -141,7 +141,7 @@ _AGT_Sys_ProfilerDoReport:
 	move.l		numtext_ptr,a0
 
 	pea		(a0)
-	jsr		_bmprintf
+	jsr		_agtprintf
 	addq.l		#4,sp
 
 .n3:	

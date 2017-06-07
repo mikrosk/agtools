@@ -41,7 +41,7 @@ NOTICE:
 
 extern "C" int snprintf (char *str, size_t count, const char *fmt, ...);
 extern "C" int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
-#define printf bmprintf
+#define printf agtprintf
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1400 ) && (!defined WINCE)
 	// Microsoft Visual Studio, version 2005 and higher. Not WinCE.
@@ -692,13 +692,13 @@ char* XMLDocument::Identify( char* p, XMLNode** node )
     if( !*p ) {
         *node = 0;
         TIXMLASSERT( p );
-		//bmprintf("Identify:SkipWhiteSpace:fail\n");
+		//agtprintf("Identify:SkipWhiteSpace:fail\n");
         return p;
     }
 
 	//char buf[256];
 	//snprintf(buf, 8, "%s", p);
-	//bmprintf("Identify:[%s]\n", buf);
+	//agtprintf("Identify:[%s]\n", buf);
 
     // These strings define the matching patterns:
     static const char* xmlHeader		= { "<?" };
@@ -717,19 +717,19 @@ char* XMLDocument::Identify( char* p, XMLNode** node )
     TIXMLASSERT( sizeof( XMLComment ) == sizeof( XMLDeclaration ) );	// use same memory pool
     XMLNode* returnNode = 0;
     if ( XMLUtil::StringEqual( p, xmlHeader, xmlHeaderLen ) ) {
-		//bmprintf("Identify:xmlHeader\n");
+		//agtprintf("Identify:xmlHeader\n");
         returnNode = CreateUnlinkedNode<XMLDeclaration>( _commentPool );
         returnNode->_parseLineNum = _parseCurLineNum;
         p += xmlHeaderLen;
     }
     else if ( XMLUtil::StringEqual( p, commentHeader, commentHeaderLen ) ) {
-		//bmprintf("Identify:commentHeader\n");
+		//agtprintf("Identify:commentHeader\n");
         returnNode = CreateUnlinkedNode<XMLComment>( _commentPool );
         returnNode->_parseLineNum = _parseCurLineNum;
         p += commentHeaderLen;
     }
     else if ( XMLUtil::StringEqual( p, cdataHeader, cdataHeaderLen ) ) {
-		//bmprintf("Identify:dataHeader\n");
+		//agtprintf("Identify:dataHeader\n");
         XMLText* text = CreateUnlinkedNode<XMLText>( _textPool );
         returnNode = text;
         returnNode->_parseLineNum = _parseCurLineNum;
@@ -737,13 +737,13 @@ char* XMLDocument::Identify( char* p, XMLNode** node )
         text->SetCData( true );
     }
     else if ( XMLUtil::StringEqual( p, dtdHeader, dtdHeaderLen ) ) {
-		//bmprintf("Identify:dtdHeader\n");
+		//agtprintf("Identify:dtdHeader\n");
         returnNode = CreateUnlinkedNode<XMLUnknown>( _commentPool );
         returnNode->_parseLineNum = _parseCurLineNum;
         p += dtdHeaderLen;
     }
     else if ( XMLUtil::StringEqual( p, elementHeader, elementHeaderLen ) ) {
-		//bmprintf("Identify:elementHeader\n");
+		//agtprintf("Identify:elementHeader\n");
         returnNode =  CreateUnlinkedNode<XMLElement>( _elementPool );
         returnNode->_parseLineNum = _parseCurLineNum;
         p += elementHeaderLen;
@@ -2158,7 +2158,7 @@ XMLError XMLDocument::LoadFile( const char* filename )
     FILE* fp = callfopen( filename, "rb" );
     if ( !fp ) {
         SetError( XML_ERROR_FILE_NOT_FOUND, filename, 0, 0 );
-		//bmprintf("XML_ERROR_FILE_NOT_FOUND 0\n");
+		//agtprintf("XML_ERROR_FILE_NOT_FOUND 0\n");
         return _errorID;
     }
     LoadFile( fp );
@@ -2196,7 +2196,7 @@ XMLError XMLDocument::LoadFile( FILE* fp )
     fseek( fp, 0, SEEK_SET );
     if ( fgetc( fp ) == EOF && ferror( fp ) != 0 ) {
         SetError( XML_ERROR_FILE_READ_ERROR, 0, 0, 0 );
-		//bmprintf("XML_ERROR_FILE_READ_ERROR 1\n");
+		//agtprintf("XML_ERROR_FILE_READ_ERROR 1\n");
         return _errorID;
     }
 
@@ -2205,7 +2205,7 @@ XMLError XMLDocument::LoadFile( FILE* fp )
     fseek( fp, 0, SEEK_SET );
     if ( filelength == -1L ) {
         SetError( XML_ERROR_FILE_READ_ERROR, 0, 0, 0 );
-		//bmprintf("XML_ERROR_FILE_READ_ERROR 2\n");
+		//agtprintf("XML_ERROR_FILE_READ_ERROR 2\n");
         return _errorID;
     }
     TIXMLASSERT( filelength >= 0 );
@@ -2213,13 +2213,13 @@ XMLError XMLDocument::LoadFile( FILE* fp )
     if ( !LongFitsIntoSizeTMinusOne<>::Fits( filelength ) ) {
         // Cannot handle files which won't fit in buffer together with null terminator
         SetError( XML_ERROR_FILE_READ_ERROR, 0, 0, 0 );
-		//bmprintf("XML_ERROR_FILE_READ_ERROR 3\n");
+		//agtprintf("XML_ERROR_FILE_READ_ERROR 3\n");
         return _errorID;
     }
 
     if ( filelength == 0 ) {
         SetError( XML_ERROR_EMPTY_DOCUMENT, 0, 0, 0 );
-		//bmprintf("XML_ERROR_EMPTY_DOCUMENT 4\n");
+		//agtprintf("XML_ERROR_EMPTY_DOCUMENT 4\n");
         return _errorID;
     }
 
@@ -2229,7 +2229,7 @@ XMLError XMLDocument::LoadFile( FILE* fp )
     size_t read = fread( _charBuffer, 1, size, fp );
     if ( read != size ) {
         SetError( XML_ERROR_FILE_READ_ERROR, 0, 0, 0 );
-		//bmprintf("XML_ERROR_FILE_READ_ERROR 5\n");
+		//agtprintf("XML_ERROR_FILE_READ_ERROR 5\n");
         return _errorID;
     }
 
@@ -2373,7 +2373,7 @@ void XMLDocument::Parse()
     p = const_cast<char*>( XMLUtil::ReadBOM( p, &_writeBOM ) );
     if ( !*p ) {
         SetError( XML_ERROR_EMPTY_DOCUMENT, 0, 0, 0 );
-		//bmprintf("XML_ERROR_EMPTY_DOCUMENT\n");
+		//agtprintf("XML_ERROR_EMPTY_DOCUMENT\n");
         return;
     }
     ParseDeep(p, 0, &_parseCurLineNum );

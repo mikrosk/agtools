@@ -58,7 +58,7 @@ typedef signed char s8;
 typedef signed short s16;
 typedef signed long s32;
 
-extern int bmprintf(const char *pFormat, ...);
+extern int agtprintf(const char *pFormat, ...);
 
 
 //#include "common_c.h"
@@ -232,7 +232,7 @@ void AGT_Sys_ConsoleMode(int _mode)
 agt_used void SYS_Assert(char *_msg)
 {
 	AGT_Sys_ConsoleMode(/*AGTConsole_MINIMISED*/1);
-	bmprintf("%s\n", _msg);
+	agtprintf("%s\n", _msg);
 	while (1) { }
 	//__builtin_unreachable;
 }
@@ -292,22 +292,22 @@ typedef exstackframe_t exstackframe0001_t;
 
 void AGT_ExceptionHandler_0000(exstackframe0000_t* _pstack)
 {
-	bmprintf("FMT0 @ (PC:%08x, VEC:%04x)\n", 
+	agtprintf("FMT0 @ (PC:%08x, VEC:%04x)\n", 
 		_pstack->pc,
 		_pstack->vec
 	);
-	bmprintf("REL: (PC:%08x)\n", 
+	agtprintf("REL: (PC:%08x)\n", 
 		_pstack->pc-(u32)(&program_base)
 	);
 }
 
 void AGT_ExceptionHandler_0001(exstackframe0001_t* _pstack)
 {
-	bmprintf("FMT1 @ (PC:%08x, VEC:%04x)\n", 
+	agtprintf("FMT1 @ (PC:%08x, VEC:%04x)\n", 
 		_pstack->pc,
 		_pstack->vec
 	);
-	bmprintf("REL: (PC:%08x)\n", 
+	agtprintf("REL: (PC:%08x)\n", 
 		_pstack->pc-(u32)(&program_base)
 	);
 }
@@ -326,12 +326,12 @@ typedef struct exstackframe0010_s
 
 void AGT_ExceptionHandler_0010(exstackframe0010_t* _pstack)
 {
-	bmprintf("FMT2 @ %08x (PC:%08x, VEC:%04x)\n", 
+	agtprintf("FMT2 @ %08x (PC:%08x, VEC:%04x)\n", 
 		_pstack->ins,
 		_pstack->pc,
 		_pstack->vec
 	);
-	bmprintf("REL: %08x (PC:%08x)\n", 
+	agtprintf("REL: %08x (PC:%08x)\n", 
 		_pstack->ins-(u32)(&program_base),
 		_pstack->pc-(u32)(&program_base)
 	);
@@ -353,12 +353,12 @@ typedef struct exstackframe1001_s
 
 void AGT_ExceptionHandler_1001(exstackframe1001_t* _pstack)
 {
-	bmprintf("FMT9 @ %08x (PC:%08x, VEC:%04x)\n", 
+	agtprintf("FMT9 @ %08x (PC:%08x, VEC:%04x)\n", 
 		_pstack->ins,
 		_pstack->pc,
 		_pstack->vec
 	);
-	bmprintf("REL: %08x (PC:%08x)\n", 
+	agtprintf("REL: %08x (PC:%08x)\n", 
 		_pstack->ins-(u32)(&program_base),
 		_pstack->pc-(u32)(&program_base)
 	);
@@ -389,10 +389,10 @@ void AGT_ExceptionHandler_1010(exstackframe1010_t* _pstack)
 {
 	// addr/bus error on instruction boundary
 
-	bmprintf("SBERR @ %08x (PC:%08x,SSW:%04x,VEC:%04x)\n", 
+	agtprintf("SBERR @ %08x (PC:%08x,SSW:%04x,VEC:%04x)\n", 
 		_pstack->dcfa, _pstack->pc, _pstack->ssw, _pstack->vec);
 
-	bmprintf("REL: %08x (PC:%08x)\n", 
+	agtprintf("REL: %08x (PC:%08x)\n", 
 		_pstack->dcfa-(u32)(&program_base), 
 		_pstack->pc-(u32)(&program_base)
 	);
@@ -433,9 +433,9 @@ void AGT_ExceptionHandler_1011(exstackframe1011_t* _pstack)
 	// addr/bus error while instruction executes
 	int i;
 
-	bmprintf("LBERR @ %08x (PC:%08x,SSW:%04x,VEC:%04x)\n", 
+	agtprintf("LBERR @ %08x (PC:%08x,SSW:%04x,VEC:%04x)\n", 
 		_pstack->dcfa, _pstack->pc, _pstack->ssw, _pstack->vec);
-	bmprintf("REL: %08x (PC:%08x)\n", 
+	agtprintf("REL: %08x (PC:%08x)\n", 
 		_pstack->dcfa-(u32)(&program_base), 
 		_pstack->pc-(u32)(&program_base));
 
@@ -450,7 +450,7 @@ void AGT_ExceptionHandler_1011(exstackframe1011_t* _pstack)
 		if (val >= (u32)(&program_base) &&
 			val < (u32)(&etext))
 		{
-			bmprintf("%08x", val - (u32)(&program_base));
+			agtprintf("%08x", val - (u32)(&program_base));
 			pcallstack += 4;
 		}
 		else
@@ -482,24 +482,24 @@ void AGT_ExceptionHandler(exstackframe_t* _pstack)
 	psavedn = (u32*)0x384UL;
 	psavean = (u32*)0x3a4UL;
 
-	bmprintf("d0:%08x a0:%08x\n", *psavedn++, *psavean++);	
-	bmprintf("d1:%08x a1:%08x\n", *psavedn++, *psavean++);	
-	bmprintf("d2:%08x a2:%08x\n", *psavedn++, *psavean++);	
-	bmprintf("d3:%08x a3:%08x\n", *psavedn++, *psavean++);	
-	bmprintf("d4:%08x a4:%08x\n", *psavedn++, *psavean++);	
-	bmprintf("d5:%08x a5:%08x\n", *psavedn++, *psavean++);	
-	bmprintf("d6:%08x a6:%08x\n", *psavedn++, *psavean++);	
-	bmprintf("d7:%08x a7:%08x\n", *psavedn++, *psavean++);	
-	bmprintf("usp: %08x\n", *(u32*)(0x3c8UL));	
-//	bmprintf("cacr:%08x\n", *(u32*)(0x3c4UL));	
-//	bmprintf("caar:%08x\n", *(u32*)(0x3ccUL));	
+	agtprintf("d0:%08x a0:%08x\n", *psavedn++, *psavean++);	
+	agtprintf("d1:%08x a1:%08x\n", *psavedn++, *psavean++);	
+	agtprintf("d2:%08x a2:%08x\n", *psavedn++, *psavean++);	
+	agtprintf("d3:%08x a3:%08x\n", *psavedn++, *psavean++);	
+	agtprintf("d4:%08x a4:%08x\n", *psavedn++, *psavean++);	
+	agtprintf("d5:%08x a5:%08x\n", *psavedn++, *psavean++);	
+	agtprintf("d6:%08x a6:%08x\n", *psavedn++, *psavean++);	
+	agtprintf("d7:%08x a7:%08x\n", *psavedn++, *psavean++);	
+	agtprintf("usp: %08x\n", *(u32*)(0x3c8UL));	
+//	agtprintf("cacr:%08x\n", *(u32*)(0x3c4UL));	
+//	agtprintf("caar:%08x\n", *(u32*)(0x3ccUL));	
 
 //	while (1) { }
 }
 
 #endif
 
-int bmprintf(const char *pFormat, ...)
+int agtprintf(const char *pFormat, ...)
 {
 	int len = 0;
 
