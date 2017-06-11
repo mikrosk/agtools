@@ -99,10 +99,11 @@ enum EntityFlags
 
 // entity forward-decl
 struct entity_t;
+typedef entity_t * __restrict entptr_t;
 
 // entity generic function pointer
-typedef void (*fnptr_t)(entity_t *_pe);
-typedef void (*fn2ptr_t)(entity_t *_pe1, entity_t *_pe2);
+typedef void (*fnptr_t)(entptr_t _pe);
+typedef void (*fn2ptr_t)(entptr_t _pe1, entptr_t _pe2);
 
 // static members: defined in entity dictionary AND burst-copied to every spawned entity
 #define STATIC_MEMBERS			\
@@ -156,9 +157,9 @@ struct entity_t
 	struct entity_t *pnext_y;
 	struct entity_t *pprev_y;
 #endif
-	struct entity_t *pparent;
-	struct entity_t *ptrack;
-	struct entity_t *pdlayer_;
+	entptr_t pparent;
+	entptr_t ptrack;
+	void *pdlayer_;
 
 	// [identity]
 	s16 id;
@@ -223,19 +224,19 @@ extern "C" void EntityInteractVisibleYM_68k();
 entity_t * EntitySpawn(EntityType _etype, s16 px, s16 py);
 
 // spawn new entity from parent entity (creates child->parent link)
-entity_t * EntitySpawnFrom(EntityType _etype, entity_t *_pparent);
+entity_t * EntitySpawnFrom(EntityType _etype, entptr_t _pparent);
 
 // spawn new entity from parent entity (creates child->parent link) with x,y relative offset from parent
-entity_t * EntitySpawnRel(EntityType _etype, entity_t *_pparent, s16 _ox, s16 _oy);
+entity_t * EntitySpawnRel(EntityType _etype, entptr_t _pparent, s16 _ox, s16 _oy);
 
 // spawn new entity from parent entity (creates child->parent link) with x,y absolute position - but expected to be close to parent
 // note: knowledge of locality helps accelerate inserts
-entity_t * EntitySpawnNear(EntityType _etype, entity_t *_pparent, s16 _ox, s16 _oy);
+entity_t * EntitySpawnNear(EntityType _etype, entptr_t _pparent, s16 _ox, s16 _oy);
 
 // as EntitySpawnRel but instead of scheduling entity to be linked for next frame, entity is linked immediately and can be ticked
 // on the same frame if tickpriority dictates processing later than its creator
 // note: advanced usage - chance of obscure bugs, so be careful
-entity_t * EntitySpawnImmediate(EntityType _etype, entity_t *_pparent, s16 _ox, s16 _oy);
+entity_t * EntitySpawnImmediate(EntityType _etype, entptr_t _pparent, s16 _ox, s16 _oy);
 
 // entity is created but not linked into relevant chains. the link step must be performed manually at some future date.
 // note: advanced usage - chance of obscure bugs, so be careful
@@ -245,32 +246,32 @@ entity_t * EntityCreateUnlinked(EntityType _etype);
 // entity linkage
 
 // link/unlink entity into all relevant chains (SPATIAL,TICKED)	
-void EntityLink(entity_t *_pent, entity_t *_near);
-static inline void EntityUnLink(entity_t *_pent);
+void EntityLink(entptr_t _pent, entptr_t _near);
+static inline void EntityUnLink(entptr_t _pent);
 
 // link/unlink entity only to TICKED chain
-void EntityLink_Tick(entity_t *_pent, entity_t *_pnear);
-static agt_inline void EntityUnLink_Tick(entity_t *_pent);
+void EntityLink_Tick(entptr_t _pent, entptr_t _pnear);
+static agt_inline void EntityUnLink_Tick(entptr_t _pent);
 
 // link/unlink entity only to SPATIAL chain
-void EntityLink2D(entity_t *_pent, entity_t *_pnear);
-static agt_inline void EntityUnLink2D(entity_t *_pent);
+void EntityLink2D(entptr_t _pent, entptr_t _pnear);
+static agt_inline void EntityUnLink2D(entptr_t _pent);
 
 // schedule entity for linking to world on next EntityExecuteAllLinks()
-static agt_inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent);
+static agt_inline void EntityScheduleLink(entptr_t _pent, entptr_t _pparent);
 // schedule entity for removal from world on next EntityExecuteAllRemoves()
-static agt_inline void EntityRemove(entity_t *_pent);
+static agt_inline void EntityRemove(entptr_t _pent);
 
 // todo: deprecate, no longer necessary!
 // sort individual object after tick
-static agt_inline void EntitySort2D(entity_t *pcurr);
+static agt_inline void EntitySort2D(entptr_t _pcurr);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // space transformations
 
-static agt_inline void EntityMakeRelative(entity_t *_pent, s16 _basisx, s16 _basisy);
-static agt_inline void EntityMakeRelative(entity_t *_pent, s32 _basisfx, s32 _basisfy);
-static agt_inline void EntityWorldFromRelative(entity_t *_pent, s16 _basisx, s16 _basisy);
+static agt_inline void EntityMakeRelative(entptr_t _pent, s16 _basisx, s16 _basisy);
+static agt_inline void EntityMakeRelative(entptr_t _pent, s32 _basisfx, s32 _basisfy);
+static agt_inline void EntityWorldFromRelative(entptr_t _pent, s16 _basisx, s16 _basisy);
 static agt_inline void EntityWorldFromRelative(entity_t &ent, s16 _basisx, s16 _basisy);
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -296,7 +297,7 @@ extern entitydef_t entity_dictionary[];
 // ---------------------------------------------------------------------------------------------------------------------
 // maximum entities allowed in world at any time
 // todo: this should be configured via Makefile
-static const s16 c_max_entities = 128;
+static const s16 c_max_entities = 192;
 
 static const s16 c_entity_max_removes = c_max_entities;
 static const s16 c_entity_max_links = c_max_entities<<1;
@@ -319,7 +320,7 @@ extern entity_t *g_pe_viewport;
 // internal functions
 
 // schedule entity for kill/removal - typically used by AI functions
-static agt_inline void EntityRemove(entity_t *_pent)
+static agt_inline void EntityRemove(entptr_t _pent)
 {
 	if (likely((_pent->f_self & EntityFlags_KILL) == 0))
 	{	
@@ -336,7 +337,7 @@ static agt_inline void EntityRemove(entity_t *_pent)
 }
 
 // schedule entity to be linked into all relevant chains (SPATIAL,TICKED)	
-static agt_inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent)
+static agt_inline void EntityScheduleLink(entptr_t _pent, entptr_t _pparent)
 {
 	s16 c = s_entity_link_count;
 	s_entity_links[c++] = _pent;
@@ -347,9 +348,9 @@ static agt_inline void EntityScheduleLink(entity_t *_pent, entity_t *_pparent)
 // ---------------------------------------------------------------------------------------------------------------------
 // maintain 2D coherence in SPATIAL chain
 
-static agt_inline void EntitySort2D(entity_t *pcurr)
+static agt_inline void EntitySort2D(entptr_t _pcurr)
 {
-	entity_t &curr = *pcurr;
+	entity_t &curr = *_pcurr;
 
 #if defined(ENABLE_SPATIAL_X)
 	if (curr.rx < curr.pprev_x->rx)
@@ -371,8 +372,8 @@ static agt_inline void EntitySort2D(entity_t *pcurr)
 		entity_t *psortnext = psort->pnext_x;
 		curr.pnext_x = psortnext;
 		curr.pprev_x = psort;
-		psortnext->pprev_x = pcurr;
-		psort->pnext_x = pcurr;
+		psortnext->pprev_x = _pcurr;
+		psort->pnext_x = _pcurr;
 	}
 #endif
 
@@ -396,15 +397,15 @@ static agt_inline void EntitySort2D(entity_t *pcurr)
 		entity_t *psortnext = psort->pnext_y;
 		curr.pnext_y = psortnext;
 		curr.pprev_y = psort;
-		psortnext->pprev_y = pcurr;
-		psort->pnext_y = pcurr;
+		psortnext->pprev_y = _pcurr;
+		psort->pnext_y = _pcurr;
 	}
 #endif
 }
 
-static agt_inline void EntityUnLink_Tick(entity_t *_pent)
+static agt_inline void EntityUnLink_Tick(entptr_t _pent)
 {
-	entity_t *pcurr = _pent;
+	entptr_t pcurr = _pent;
 
 #if defined(AGT_CONFIG_SAFETY_CHECKS)
 	if (!pcurr->pprev_tick || !pcurr->pnext_tick)
@@ -427,9 +428,9 @@ static agt_inline void EntityUnLink_Tick(entity_t *_pent)
 
 }
 
-static agt_inline void EntityUnLink2D(entity_t *_pent)
+static agt_inline void EntityUnLink2D(entptr_t _pent)
 {
-	entity_t *pcurr = _pent;
+	entptr_t pcurr = _pent;
 
 #if defined(ENABLE_SPATIAL_X)
 
@@ -477,7 +478,7 @@ static agt_inline void EntityUnLink2D(entity_t *_pent)
 #endif
 }
 
-static inline void EntityUnLink(entity_t *_pent)
+static inline void EntityUnLink(entity_t * __restrict _pent)
 {
 	if (likely(_pent->f_self & EntityFlag_TICKED))
 		EntityUnLink_Tick(_pent);
@@ -486,19 +487,19 @@ static inline void EntityUnLink(entity_t *_pent)
 		EntityUnLink2D(_pent);
 }
 
-static agt_inline void EntityMakeRelative(entity_t *_pent, s16 _basisx, s16 _basisy)
+static agt_inline void EntityMakeRelative(entptr_t _pent, s16 _basisx, s16 _basisy)
 {
 	_pent->wx = _pent->rx - _basisx;
 	_pent->wy = _pent->ry - _basisy;
 }
 
-static agt_inline void EntityMakeRelative(entity_t *_pent, s32 _basisfx, s32 _basisfy)
+static agt_inline void EntityMakeRelative(entptr_t _pent, s32 _basisfx, s32 _basisfy)
 {
 	_pent->fwx = _pent->frx - _basisfx;
 	_pent->fwy = _pent->fry - _basisfy;
 }
 
-static agt_inline void EntityWorldFromRelative(entity_t *_pent, s16 _basisx, s16 _basisy)
+static agt_inline void EntityWorldFromRelative(entptr_t _pent, s16 _basisx, s16 _basisy)
 {
 	_pent->rx = _pent->wx + _basisx;
 	_pent->ry = _pent->wy + _basisy;
@@ -510,7 +511,7 @@ static agt_inline void EntityWorldFromRelative(entity_t &ent, s16 _basisx, s16 _
 	ent.ry = ent.wy + _basisy;
 }
 
-static inline void EntitySwitchAsset_Sprite(entity_t *_pent, spritesheet *_passet)
+static inline void EntitySwitchAsset_Sprite(entptr_t _pent, spritesheet *_passet)
 {
 	spritesheet::sps_header *pspr = _passet->get();
 

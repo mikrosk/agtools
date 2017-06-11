@@ -23,6 +23,13 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+#if defined(AGT_CONFIG_QUIET)
+#define AGT_CONFIG_ALLOW_PRINT (0)
+#else
+#define AGT_CONFIG_ALLOW_PRINT (1)
+#endif
+
+
 // todo: provide common_c.h
 #define reg32(_a_) *(volatile u32*)(0x##_a_)
 #define agt_used __attribute__((used))
@@ -31,6 +38,8 @@ int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
 
 short g_hnf_ok = 0;
 short g_displaylocked = 0;
+short g_lock_consolerefresh = 0;
+short g_console_dirty = 0;
 
 // must be called only in supervisor mode, before user entrypoint
 int AGT_EntryPointPre()
@@ -80,6 +89,44 @@ extern void etext();
 static __inline void AGT_ConsoleText(const char* text, void* fb, int c, int r)
 {
 	// minmal shim to 68k version
+
+/*
+_xprn_print_string:
+; In: a0.l - pointer to null-terminated string (supports $0d as newline)
+;     a1.l - pointer to font file
+;     a2.l - screen pointer, adjusted for x and y (i e where to start rendering chars)
+;            value must be complete with bitplane offset, must be on an even 16-pixel
+;            boundary in X
+;     d0.w - column width in pixels (it's your responsibility this value doesn't clash
+;            with the screen line width)
+;     d1.w - width of screen line in bytes
+;     d2.b - extra line height in pixels (0 = the font's own height, 3 = 3 extra scanlines etc)
+;     d3.b - number of bitplanes in destination screen
+;     d4.b - use blitter? 1 = yes, 0 = no
+*/
+	s32 offsetaddr = (s32)fb + (r * 12 * 184);
+
+	__asm__ __volatile__
+	(
+	"	move.l %0,%%a0;"
+	"	move.l %1,%%a2;"
+	"	move.w #320,%%d0;"
+	"	move.w #184,%%d1;"
+	"	moveq #0,%%d2;"
+	"	moveq #4,%%d3;"
+	"	moveq #1,%%d4;"
+	"	move.l %%a6,-(%%sp);"
+	"	jsr _xprn_print_string;"
+	"	move.l (%%sp)+,%%a6;"
+		: 
+		: "g"(text), "g"(offsetaddr)
+		: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7", 
+		  "%%a0", "%%a1", "%%a2", "%%a3", "%%a4", "%%a5",
+		  "cc"
+	);
+
+
+/*
 	// todo: specify args as explicit registers instead of copying them
 	// todo: can just move the whole console update to 68k
 	__asm__ __volatile__
@@ -94,14 +141,16 @@ static __inline void AGT_ConsoleText(const char* text, void* fb, int c, int r)
 		: "%%d0", "%%d1", "%%d2", "%%a0", "%%a1", "%%a2", 
 		  "cc"
 	);
+*/
 }
 
-void AGT_ConsoleUpdate(void* fb1);
+void AGT_ConsoleUpdate_(void* fb1);
 
 //long nf_print(const char *text);
 
-#define AGT_CONSOLE_MINIROWS (6)
-#define AGT_CONSOLE_MAXIROWS (42)
+#define AGT_CONSOLE_FONTHEIGHT (12)
+#define AGT_CONSOLE_MINIROWS (6/2)
+#define AGT_CONSOLE_MAXIROWS (42/2)
 
 #define AGT_CONSOLE_ROWS (64)
 #define AGT_CONSOLE_COLUMNS (40)
@@ -137,6 +186,8 @@ void program_base() { }
 
 void printf_console_ln(const char *text)
 {
+	g_console_dirty++;
+
 	char* row = &AGT_CONSOLE_chars[AGT_CONSOLE_head_row * AGT_CONSOLE_COLUMN_STRIDE];
 
 	// limit row fill to column count
@@ -163,7 +214,15 @@ void printf_console_ln(const char *text)
 	// force immediate update to physical fb, since next refresh could be some time away
 	// note: can output to console even if not displaying yet - keeps record of early prints during boot
 //	if (console_base)
-//		AGT_ConsoleUpdate(console_base + 184);
+//		AGT_ConsoleUpdate_(console_base + 184);
+}
+
+void AGT_Sys_ConsoleRefresh()
+{
+	if (0 == g_lock_consolerefresh)
+		if (g_console_dirty)
+			if (console_base)
+				AGT_ConsoleUpdate_(console_base + 184);
 }
 
 #define AGT_CONSOLE_LINESPACE (AGT_CONSOLE_COLUMN_STRIDE)
@@ -203,8 +262,12 @@ void printf_console(const char *text)
 	s_linelen = len;
 
 	// refresh console framebuffer on every print
-	if (console_base)
-		AGT_ConsoleUpdate(console_base + 184);
+	AGT_Sys_ConsoleRefresh();
+	//if (0 == g_lock_consolerefresh)
+	//{
+	//	if (console_base)
+	//		AGT_ConsoleUpdate_(console_base + 184);
+	//}
 }
 
 void AGT_Sys_ConsoleMode(int _mode)
@@ -243,14 +306,14 @@ agt_used void SYS_Assert(char *_msg)
 #if defined(AGT_CONFIG_DEBUG_CONSOLE)
 void SYS_ConsoleInit()
 {
-	s32 size = (184*(((AGT_CONSOLE_MAXIROWS+1)*6)+1))+256;
+	s32 size = (184*(((AGT_CONSOLE_MAXIROWS+1)*AGT_CONSOLE_FONTHEIGHT)+1))+256;
 	console_base = malloc(size);
 	memset(console_base, 0, size);
 
 	// todo: decouple for free at end
 	console_base = (char*)(((int)console_base + 255) & ~255);
 
-	console_minbase = console_base + (6*184*(AGT_CONSOLE_MAXIROWS-AGT_CONSOLE_MINIROWS));
+	console_minbase = console_base + (AGT_CONSOLE_FONTHEIGHT*184*(AGT_CONSOLE_MAXIROWS-AGT_CONSOLE_MINIROWS));
 	console_maxbase = console_base;
 
 	s16 r = 0;
@@ -262,8 +325,10 @@ void SYS_ConsoleInit()
 }
 #endif
 
-void AGT_ConsoleUpdate(void* fb1)
+void AGT_ConsoleUpdate_(void* fb1)
 {
+	g_console_dirty = 0;
+
 	s16 r = 0;
 	s16 h = (AGT_CONSOLE_head_row + AGT_CONSOLE_ROWS) - AGT_CONSOLE_activerows;
 	for (; r < AGT_CONSOLE_activerows; ++r)

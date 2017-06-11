@@ -329,18 +329,21 @@ displayservice_ste_vbi:
 	move.b		d1,$ffff820d.w
 	move.b		#(184-160)>>1,$ffff820f.w
 	
-	lea		$ffff8240.w,a0
-	moveq		#0,d0
-	subq.w		#1,d0
-	move.l		d0,(a0)+
-	clr.w		d0
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
+	move.l		#$00340fff,$ffff8240.w
+	clr.w		$ffff8244.w
+
+;	lea		$ffff8240.w,a0
+;	moveq		#0,d0
+;	subq.w		#1,d0
+;	move.l		d0,(a0)+
+;	clr.w		d0
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
 	
 	bra		.skip
 	endc
@@ -593,6 +596,12 @@ displayservice_ste_first_b:
 	move.l		a1,-(sp)
 
 	move.l		ste_palette,a0
+	ifne		(use_debugconsole)
+	tst.w		_max_console
+	beq.s		.ncon
+	lea		con_palette,a0	
+.ncon:	
+	endc
 	
 	lea		tbdr.w,a1
 .wl:	cmp.b		#displayservice_first_delta_tb-(timecritical_pad_tb*2),(a1)
@@ -736,7 +745,7 @@ displayservice_ste_lower_b:
 *-----------------------------------------------------------------------------*
 displayservice_ste_lowerconsole_b:
 *-----------------------------------------------------------------------------*
-	ifne		(use_blitter_compatibility)	
+;	ifne		(use_blitter_compatibility)	
 
 	blitoff
 		
@@ -754,33 +763,36 @@ displayservice_ste_lowerconsole_b:
 .wl:	cmp.b		(a0),d0
 	blo.s		.wl
 
-	nop		; pad until lower border event
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	; 10 nops worth
+	move.l		#$00340fff,$ffff8240.w
+	clr.w		$ffff8244.w
 
-	nop		; HW: almost stable
-	nop		; HW: stable
+;	nop		; pad until lower border event
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
 ;	nop		; HW: almost stable
+;	nop		; HW: stable
+;;	nop		; HW: almost stable
 
 	clr.b		$ffff820a.w			; 60 Hz
 	dcb.w		5,$4e71				; ...wait...
 	move.b		#2,$ffff820a.w			; 50 Hz
 	
-	else		; (use_blitter_compatibility)	
-
-	clr.b		$ffff820a.w			; 60 Hz
-	move.w		#$2700,sr
-	dcb.w		4,$4e71				; ...wait...
-	move.b		#2,$ffff820a.w			; 50 Hz
-	
-	movem.l		d0/d1/a0,-(sp)
-	
-	endc		; (use_blitter_compatibility)	
+;	else		; (use_blitter_compatibility)	
+;
+;	clr.b		$ffff820a.w			; 60 Hz
+;	move.w		#$2700,sr
+;	dcb.w		4,$4e71				; ...wait...
+;	move.b		#2,$ffff820a.w			; 50 Hz
+;	
+;	movem.l		d0/d1/a0,-(sp)
+;	
+;	endc		; (use_blitter_compatibility)	
 
 ;	if console is enabled by build flags, 
 ;	show it in lower border if the console buffer is valid
@@ -791,18 +803,18 @@ displayservice_ste_lowerconsole_b:
 	move.l		d1,$ffff8204.w
 	move.b		#(184-160)>>1,$ffff820f.w
 
-	lea		$ffff8240.w,a0
-	moveq		#0,d0
-	subq.w		#1,d0
-	move.l		d0,(a0)+
-	clr.w		d0
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
+;	lea		$ffff8240.w,a0
+;	moveq		#0,d0
+;	subq.w		#1,d0
+;	move.l		d0,(a0)+
+;	clr.w		d0
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
+;	move.l		d0,(a0)+
 
 	move.b		d0,tbcr.w				; TimerB CTRL: halt
 	
@@ -1529,9 +1541,17 @@ _AGT_ConsoleText_68k:
 
 *-------------------------------------------------------*
 
+	ifne		(use_debugconsole)
+
+	include		"ste\\con_xprn.s"
+	
+	endc
+				
 *-------------------------------------------------------*
 	data
 *-------------------------------------------------------*
+
+con_palette:		dc.w	$034,$fff,$000,$000
 
 ste_palette:		dc.l	empty
 empty:			dcb.w	16,0

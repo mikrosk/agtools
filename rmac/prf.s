@@ -4,12 +4,14 @@
 	.globl		_AGT_Sys_ProfilerInit
 	.globl		_AGT_Sys_ProfilerReset
 	.globl		_AGT_Sys_ProfilerDoReport
+	.globl		_AGT_Sys_ConsoleRefresh
 
 	.if		^^defined AGT_CONFIG_PROFILER
 
 	.globl		_agtprintf
-	.globl		_g_prf_context_refs
+	.globl		_gp_prf_context_refs
 	.globl		_g_prf_context_num
+	.globl		_g_lock_consolerefresh
 	
 	include		"prf.inc"
 
@@ -60,23 +62,34 @@ _AGT_Sys_ProfilerInit:
 	movem.l		(sp)+,d0-a6
 	.endif
 	rts
+	
+amort:	dc.l		0
 
 *-------------------------------------------------------*
 _AGT_Sys_ProfilerDoReport:
 *-------------------------------------------------------*
 	.if		^^defined AGT_CONFIG_PROFILER
 	movem.l		d0-a6,-(sp)
-	
-	move.w		(((15*4)+4)+2)(sp),print_line_count_
-	
+
 	pushctxr	profiling,a0
 	
-	pea		txtcrlf
-	jsr		_agtprintf
-	addq.l		#4,sp	
+	addq.w		#1,_g_lock_consolerefresh
+	
+	move.w		(((15*4)+4)+2)(sp),print_line_count_
+			
+	lea		prf_contexts,a0
+	move.l		prf_profiling*4(a0),amort	; incidence [a]
+	
+;	pea		txtcrlf
+;	jsr		_agtprintf
+;	addq.l		#4,sp	
 	pea		txtreport
 	jsr		_agtprintf
 	addq.l		#4,sp
+;	pea		txtcrlf
+;	jsr		_agtprintf
+;	addq.l		#4,sp	
+;	lea		4*3(sp),sp
 
 	clr.b		first_
 		
@@ -96,7 +109,7 @@ _AGT_Sys_ProfilerDoReport:
 	tst.w		print_line_count_
 	ble.s		.n2
 	
-	lea		txtspace,a0
+	lea		txtcrlf,a0
 	bsr		push_string
 	lea		txtpercent,a0
 	bsr		push_string
@@ -108,10 +121,12 @@ _AGT_Sys_ProfilerDoReport:
 	add.w		d7,a6
 
 	tst.w		print_line_count_
-	ble.s		.n3
+	ble.s		.ignore
 
 	move.l		e_prf_id(a6),d0		; context index
-
+	cmp.w		#prf_profiling,d0
+	beq		.ignore
+	
 	lea		prf_contexts,a0
 	add.w		d0,d0
 	add.w		d0,d0
@@ -119,12 +134,15 @@ _AGT_Sys_ProfilerDoReport:
 	swap		d0
 	clr.w		d0
 	move.l		_tm_clock,d1
+	sub.l		amort,d1
+
 .try:	move.l		d1,d2
 	and.l		#$ffff0000,d2
 	beq.s		.nnrm
 	lsr.l		d0
 	lsr.l		d1
 	bra.s		.try
+
 .nnrm:
 	
 	divu.w		d1,d0
@@ -144,7 +162,7 @@ _AGT_Sys_ProfilerDoReport:
 	jsr		_agtprintf
 	addq.l		#4,sp
 
-.n3:	
+.ignore:	
 	move.w		(sp)+,d7
 
 	tas.b		first_				; can't sort last entry (first iter)
@@ -174,7 +192,12 @@ _AGT_Sys_ProfilerDoReport:
 	
 	dbra		d7,.prf
 	
-.none:	popctxr		a0
+.none:
+	subq.w		#1,_g_lock_consolerefresh
+
+	jsr		_AGT_Sys_ConsoleRefresh
+
+	popctxr		a0
 	
 	movem.l		(sp)+,d0-a6
 	.endif
@@ -294,17 +317,14 @@ profiler_print:
 				.data
 *-------------------------------------------------------*
 	
-_gp_prf_context_refs:		dc.l	_g_prf_context_refs+4
 numtext_ptr:			dc.l	0
 prf_depth:			dc.l	0
 
 ctxstack_data:			dcb.w	prf_context_depth,0
 ctxstack_data_end:
 
-;prf_contexts:			dcb.l	prf_context_max+1,0
-
 txtcrlf:			dc.b	13,10,0	
-txtreport:			dc.b	"Profiler:",0	
+txtreport:			dc.b	10,"Profiler:",10,0	
 txtspace:			dc.b	" ",0	
 txtpercent:			dc.b	"%",0
 txtpoint:			dc.b	".",0

@@ -25,6 +25,10 @@
 extern "C" void EntityTick_68k();
 extern "C" void EntitySpatial_68k();
 
+#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+extern "C" void AGT_Sys_ConsoleRefresh();
+#endif
+
 //----------------------------------------------------------------------------------------------------------------------
 
 template<int c_size>
@@ -407,6 +411,23 @@ void EntityLink(entity_t *_pent, entity_t *_pnear)
 	EntityLink_(_pent, _pnear);
 }
 
+static void EntityDumpHistogram_()
+{
+#if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
+	static s16 s_duty = 0;
+	if (--s_duty >= 0)
+		return;
+	s_duty = 32;
+
+	g_lock_consolerefresh++;
+	entprintf("histogram: %d\n", (c_max_entities-entities_freelist_count));
+	for (s16 i = 0; i < s_max_entities; i++)
+		entprintf("%d ", entity_histogram[i]);
+	g_lock_consolerefresh--;
+	entprintf("\n");
+#endif
+}
+
 static agt_inline void EntityExecuteRemove_(entity_t *_pent)
 {
 	// unlink from all systems
@@ -417,12 +438,12 @@ static agt_inline void EntityExecuteRemove_(entity_t *_pent)
 	entities_freelist[entities_freelist_count++] = _pent;
 
 #if defined(AGT_CONFIG_ENTITY_TRACKING)
+	g_lock_consolerefresh++;
 	entprintf("EntityRemove type(%d):\n", (int)_pent->type);
+	g_lock_consolerefresh--;
 #if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 	entity_histogram[_pent->type]--;
-	for (s16 i = 0; i < s_max_entities; i++)
-		entprintf("%d ", entity_histogram[i]);
-	entprintf("\n");
+	EntityDumpHistogram_();
 #endif
 #endif
 }
@@ -441,6 +462,10 @@ void EntityExecuteAllRemoves()
 	}
 
 	s_entity_remove_count = 0;
+
+#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+	AGT_Sys_ConsoleRefresh();
+#endif
 }
 
 void EntityExecuteAllLinks()
@@ -996,12 +1021,12 @@ entity_t * EntitySpawn(EntityType _etype, s16 px, s16 py)
 		EntityScheduleLink(palloc, NULL);
 
 #if defined(AGT_CONFIG_ENTITY_TRACKING)
+		g_lock_consolerefresh++;
 		entprintf("EntitySpawn type(%d):\n", (int)_etype);
+		g_lock_consolerefresh--;
 #if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		for (s16 i = 0; i < s_max_entities; i++)
-			entprintf("%d ", entity_histogram[i]);
-		entprintf("\n");
+		EntityDumpHistogram_();
 #endif
 #endif	
 	}
@@ -1052,12 +1077,12 @@ entity_t * EntitySpawnFrom(EntityType _etype, entity_t * _pparent)
 		EntityScheduleLink(palloc, _pparent);
 
 #if defined(AGT_CONFIG_ENTITY_TRACKING)
+		g_lock_consolerefresh++;
 		entprintf("EntitySpawnFrom type(%d->%d):\n", (int)_pparent->type, (int)_etype);
+		g_lock_consolerefresh--;
 #if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		for (s16 i = 0; i < s_max_entities; i++)
-			entprintf("%d ", entity_histogram[i]);
-		entprintf("\n");
+		EntityDumpHistogram_();
 #endif
 #endif	
 	}
@@ -1116,12 +1141,12 @@ entity_t * EntitySpawnRel(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _
 		EntityScheduleLink(palloc, _pparent);
 
 #if defined(AGT_CONFIG_ENTITY_TRACKING)
+		g_lock_consolerefresh++;
 		entprintf("EntitySpawnRel type(%d->%d):\n", (int)_pparent->type, (int)_etype);
+		g_lock_consolerefresh--;
 #if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		for (s16 i = 0; i < s_max_entities; i++)
-			entprintf("%d ", entity_histogram[i]);
-		entprintf("\n");
+		EntityDumpHistogram_();
 #endif
 #endif	
 	}
@@ -1169,12 +1194,12 @@ entity_t * EntitySpawnNear(EntityType _etype, entity_t * _pparent, s16 _ox, s16 
 		EntityScheduleLink(palloc, _pparent);
 
 #if defined(AGT_CONFIG_ENTITY_TRACKING)
+		g_lock_consolerefresh++;
 		entprintf("EntitySpawnNear type(%d->%d):\n", (int)_pparent->type, (int)_etype);
+		g_lock_consolerefresh--;
 #if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		for (s16 i = 0; i < s_max_entities; i++)
-			entprintf("%d ", entity_histogram[i]);
-		entprintf("\n");
+		EntityDumpHistogram_();
 #endif
 #endif	
 	}
@@ -1220,12 +1245,12 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox,
 		EntityLink_(palloc, _pparent);
 
 #if defined(AGT_CONFIG_ENTITY_TRACKING)
+		g_lock_consolerefresh++;
 		entprintf("EntitySpawnImmediate type(%d->%d):\n", (int)_pparent->type, (int)_etype);
+		g_lock_consolerefresh--;
 #if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 		entity_histogram[_etype]++;
-		for (s16 i = 0; i < s_max_entities; i++)
-			entprintf("%d ", entity_histogram[i]);
-		entprintf("\n");
+		EntityDumpHistogram_();
 #endif
 #endif	
 	}

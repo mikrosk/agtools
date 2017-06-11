@@ -48,6 +48,7 @@ static inline void halt() { while (1) { } }
 // note: NATFEATS debugging continues to work in this mode!
 
 extern "C" short g_displaylocked;
+extern "C" short g_lock_consolerefresh;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Hatari NATFEATS interface was detected if nonzero
@@ -139,19 +140,6 @@ agt_inline void prf_pop()
 #endif
 }
 
-// profiler auto-context object. profiles current C scope until scope closes or function returns.
-template<int _ctx>
-class autoprf
-{
-public:
-
-	agt_inline autoprf() { prf_push(_ctx); }
-	agt_inline ~autoprf() { prf_pop(); }
-};
-
-// macro wrapper for profiler auto-context
-#define AUTOPRF(id) autoprf<prf_##id> _prf;
-
 enum : int
 {
 	//
@@ -179,39 +167,60 @@ enum : int
 	// start of user-defined profiling tokens
 };
 
-#define prf_context_def(str, uid) \
-extern "C" \
-{ \
-__attribute__((used, section(".rodata"))) const char* const uid##_t_ = str; \
-__attribute__((used, section(".data"))) s32 _##uid##__[2] = { (s32)(uid##_t_), uid }; \
+#if defined(AGT_CONFIG_PROFILER)
+
+// profiler auto-context object. profiles current C scope until scope closes or function returns.
+template<int _ctx>
+class autoprf
+{
+public:
+
+	agt_inline autoprf() { prf_push(_ctx); }
+	agt_inline ~autoprf() { prf_pop(); }
 };
+
+// macro wrapper for profiler auto-context
+#define AUTOPRF(id) autoprf<prf_##id> _prf;
+
+typedef const char* const strptr_t;
+
+// individual profiling context definition
+#define prf_context_def(str, uid) \
+ str, (strptr_t)uid, 
 
 // start of profiling context definitions
 // (+register system-defined profiling contexts)
 #define prf_context_begin \
-extern "C" \
-{ \
-__attribute__((used, section(".data"))) int g_prf_context_refs = 0; \
-}; \
-prf_context_def("undefined...",prf_undefined); \
-prf_context_def("-profiling- ",prf_profiling); \
-prf_context_def("main:loop",prf_mainloop); \
-prf_context_def("main:idle",prf_idle); \
-prf_context_def("arena:misc",prf_arena_misc); \
-prf_context_def("arena:bgrestore",prf_arena_bgrestore); \
-prf_context_def("arena:fill",prf_arena_fill); \
-prf_context_def("ent:tick",prf_ent_tick); \
-prf_context_def("ent:spatial",prf_ent_spatial); \
-prf_context_def("ent:interact",prf_ent_interact); \
-prf_context_def("ent:links",prf_ent_links); \
-prf_context_def("ent:draw",prf_ent_draw);
+extern "C" { \
+__attribute__((used)) strptr_t g_prf_context_refs[] = { \
+prf_context_def("undefined...",prf_undefined) \
+prf_context_def("-profiling- ",prf_profiling) \
+prf_context_def("main:loop",prf_mainloop) \
+prf_context_def("main:idle",prf_idle) \
+prf_context_def("arena:misc",prf_arena_misc) \
+prf_context_def("arena:bgrestore",prf_arena_bgrestore) \
+prf_context_def("arena:fill",prf_arena_fill) \
+prf_context_def("ent:tick",prf_ent_tick) \
+prf_context_def("ent:spatial",prf_ent_spatial) \
+prf_context_def("ent:interact",prf_ent_interact) \
+prf_context_def("ent:links",prf_ent_links) \
+prf_context_def("ent:draw",prf_ent_draw)
 
 // end of profiling context definitions
 #define prf_context_end(n) \
-extern "C" \
-{ \
-__attribute__((used, section(".data"))) int g_prf_context_num = (n); \
+}; \
+__attribute__((used)) s32 gp_prf_context_refs = (s32)g_prf_context_refs; \
+__attribute__((used)) s32 g_prf_context_num = (n); \
 };
+
+#else // defined(AGT_CONFIG_PROFILER)
+
+#define AUTOPRF(id)
+#define prf_context_begin
+#define prf_context_def(str, uid)
+#define prf_context_end(n)
+
+#endif // defined(AGT_CONFIG_PROFILER)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // supervisor/user & USP/SSP management stuff for MiNTlib-specific builds. 'minimal/tiny crt' builds don't require this
