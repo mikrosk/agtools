@@ -474,7 +474,7 @@ const char* XMLUtil::GetCharacterRef( const char* p, char* value, int* length )
         unsigned long ucs = 0;
         TIXMLASSERT( sizeof( ucs ) >= 4 );
         ptrdiff_t delta = 0;
-        unsigned mult = 1;
+        int mult = 1;
         static const char SEMICOLON = ';';
 
         if ( *(p+2) == 'x' ) {
@@ -495,7 +495,7 @@ const char* XMLUtil::GetCharacterRef( const char* p, char* value, int* length )
             --q;
 
             while ( *q != 'x' ) {
-                unsigned int digit = 0;
+                unsigned short digit = 0;
 
                 if ( *q >= '0' && *q <= '9' ) {
                     digit = *q - '0';
@@ -510,11 +510,11 @@ const char* XMLUtil::GetCharacterRef( const char* p, char* value, int* length )
                     return 0;
                 }
                 TIXMLASSERT( digit < 16 );
-                TIXMLASSERT( digit == 0 || mult <= UINT_MAX / digit );
-                const unsigned int digitScaled = mult * digit;
-                TIXMLASSERT( ucs <= ULONG_MAX - digitScaled );
+                TIXMLASSERT( digit == 0 || mult <= INT_MAX / digit );
+                const int digitScaled = mult * digit;
+                TIXMLASSERT( ucs <= LONG_MAX - digitScaled );
                 ucs += digitScaled;
-                TIXMLASSERT( mult <= UINT_MAX / 16 );
+                TIXMLASSERT( mult <= INT_MAX / 16 );
                 mult *= 16;
                 --q;
             }
@@ -538,17 +538,17 @@ const char* XMLUtil::GetCharacterRef( const char* p, char* value, int* length )
 
             while ( *q != '#' ) {
                 if ( *q >= '0' && *q <= '9' ) {
-                    const unsigned int digit = *q - '0';
+                    const unsigned short digit = *q - '0';
                     TIXMLASSERT( digit < 10 );
-                    TIXMLASSERT( digit == 0 || mult <= UINT_MAX / digit );
-                    const unsigned int digitScaled = mult * digit;
-                    TIXMLASSERT( ucs <= ULONG_MAX - digitScaled );
+                    TIXMLASSERT( digit == 0 || mult <= INT_MAX / digit );
+                    const int digitScaled = mult * digit;
+                    TIXMLASSERT( ucs <= LONG_MAX - digitScaled );
                     ucs += digitScaled;
                 }
                 else {
                     return 0;
                 }
-                TIXMLASSERT( mult <= UINT_MAX / 10 );
+                TIXMLASSERT( mult <= INT_MAX / 10 );
                 mult *= 10;
                 --q;
             }

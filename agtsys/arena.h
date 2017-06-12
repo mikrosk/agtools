@@ -754,7 +754,7 @@ public:
 		// update map tiles
 		s32 rawidx = _i << (playfield_type::c_tileshift_b_ + (_layercode & PFLayer_Overlay) ? 1 : 0);
 
-		mapctx0_.multimod<_layercode>(_x, _y, rawidx);
+		mapctx0_.template multimod<_layercode>(_x, _y, rawidx);
 
 		multitouch<_autoregion>(_x, _y);	
 	}
@@ -768,7 +768,7 @@ public:
 			(int)_x, (int)_y, (int)_rawidx, (int)g_frame);
 
 		// update map tiles
-		mapctx0_.multimod<_layercode>(_x, _y, _rawidx);
+		mapctx0_.template multimod<_layercode>(_x, _y, _rawidx);
 
 		multitouch<_autoregion>(_x, _y);
 	}
@@ -782,7 +782,7 @@ public:
 			(int)_x, (int)_y, (int)_dx, (int)g_frame);
 
 		// update map tiles
-		mapctx0_.multimod_row<_layercode>(_x, _y, _dx, _source);
+		mapctx0_.template multimod_row<_layercode>(_x, _y, _dx, _source);
 
 		multitouch_row<_autoregion>(_x, _y, _dx);
 	}
@@ -795,9 +795,9 @@ public:
 		mmprintf("multimod_column(%d,%d,%d) @ frame %d\n",
 			(int)_x, (int)_y, (int)_dy, (int)g_frame);
 
-		mapctx0_.multimod_column<_layercode>(_x, _y, _dy, _source);
+		mapctx0_.template multimod_column<_layercode>(_x, _y, _dy, _source);
 
-		multitouch_column(_x, _y, _dy);
+		multitouch_column<_autoregion>(_x, _y, _dy);
 	}
 
 	// modify multiple map tiles before next refresh: map rectangle
@@ -808,7 +808,7 @@ public:
 		mmprintf("multimod_rect(%d,%d,%d,%d) @ frame %d\n",
 			(int)_x, (int)_y, (int)_dx, (int)_dy, (int)g_frame);
 
-		mapctx0_.multimod_rect<_layercode>(_x, _y, _dx, _dy, _source);
+		mapctx0_.template multimod_rect<_layercode>(_x, _y, _dx, _dy, _source);
 
 		multitouch_rect<_autoregion>(_x, _y, _dx, _dy);
 	}
