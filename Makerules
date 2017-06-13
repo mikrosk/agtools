@@ -8,16 +8,30 @@
 
 ASMROOT = $(USE_ASSEMBLER)
 
-ifeq ($(USE_BROWNELF),yes)
-TOOLCHAIN_PREFIX = m68k-ataribrown-elf-
+ifeq ($(USE_BROWNELF),7)
+TOOLCHAIN_NAME = m68k-ataribrowner-elf
+TOOLCHAIN_VER = 7.1.0
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
 VASM_CFG = -Felf
 RMAC_CFG = -fe
 EXT = elf
 else
-TOOLCHAIN_PREFIX = m68k-atari-mint-
+ifeq ($(USE_BROWNELF),yes)
+TOOLCHAIN_NAME = m68k-ataribrown-elf
+TOOLCHAIN_VER = 6.2.0
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
+VASM_CFG = -Felf
+RMAC_CFG = -fe
+EXT = elf
+else
+# default to mint gcc
+TOOLCHAIN_NAME = m68k-atari-mint
+TOOLCHAIN_VER = 4.6.4
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
 VASM_CFG = -Faout
 RMAC_CFG = -fa
 EXT = tos
+endif
 endif
 
 # can disable auto-optimisations with: -no-opt
@@ -61,13 +75,15 @@ else
 
 CODEOPTFLAGS = $(TARGETFLAGS) -Ofast -fomit-frame-pointer -fstrict-aliasing
 CODEGENFLAGS = $(CODEOPTFLAGS) -fcaller-saves
-ifeq ($(USE_BROWNELF),yes)
+ifeq ($(USE_BROWNELF),no)
+else
 CODEGENFLAGS += -flto -ffunction-sections -fdata-sections
 endif
 
 endif
 
-ifeq ($(USE_BROWNELF),yes)
+ifeq ($(USE_BROWNELF),no)
+else
 CODEGENFLAGS += -fleading-underscore
 endif
 
@@ -154,16 +170,18 @@ AGLIB_STF = $(AGLIB_O) $(AGLIB_STF_O) $(NATFEATS_O)
 
 # =============================================================================
 
-ifeq ($(USE_BROWNELF),yes)
+ifeq ($(USE_BROWNELF),no)
 
 LIBPATHS =	\
-		-L/lib/gcc/m68k-ataribrown-elf/6.2.0/m68000 \
-		-L/usr/m68k-ataribrown-elf/lib/m68000
+		-L/opt/cross-mint/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/ \
+		-L/opt/cross-mint/$(TOOLCHAIN_NAME)/lib/
+
 else
 
 LIBPATHS =	\
-		-L/opt/cross-mint/lib/gcc/m68k-atari-mint/4.6.4/ \
-		-L/opt/cross-mint/m68k-atari-mint/lib/
+		-L/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/m68000 \
+		-L/usr/$(TOOLCHAIN_NAME)/lib/m68000
+
 endif
 
 
@@ -176,7 +194,17 @@ ifeq ($(LINK_MINIMAL),yes)
 
 COMPILERDEFS += -DUSE_TINY_CRT
 
-ifeq ($(USE_BROWNELF),yes)
+ifeq ($(USE_BROWNELF),no)
+
+# GCC4/TOS linking is simpler
+CRTSEQ_S = \
+	$(AGTROOT)/agtsys/libcxx/$(ASMROOT)/zeroboot.o \
+	$(AGTROOT)/agtsys/libcxx/zerolibc.o \
+	$(AGTROOT)/agtsys/libcxx/zerocrtfini.o
+
+LDOPTS = -Wl,--gc-sections
+
+else
 
 CRTSEQ_S = \
 	$(AGTROOT)/agtsys/libcxx/$(ASMROOT)/brownboot.o \
@@ -192,16 +220,6 @@ COMPILERDEFS += -DAGT_GCC6_ELF
 # GCC6/ELF also needs to generate code with base address = 0 for postprocessing
 LDOPTS = -Wl,--emit-relocs -Wl,-e_start -Ttext=0
 
-else
-
-# GCC4/TOS linking is simpler
-CRTSEQ_S = \
-	$(AGTROOT)/agtsys/libcxx/$(ASMROOT)/zeroboot.o \
-	$(AGTROOT)/agtsys/libcxx/zerolibc.o \
-	$(AGTROOT)/agtsys/libcxx/zerocrtfini.o
-
-LDOPTS = -Wl,--gc-sections
-
 endif
 
 # -----------------------------------------------------------------------------
@@ -213,7 +231,15 @@ LDFLAGS += -nostdlib -nostartfiles
 else
 # -----------------------------------------------------------------------------
 
-ifeq ($(USE_BROWNELF),yes)
+ifeq ($(USE_BROWNELF),no)
+
+# GCC4/TOS linking is simpler & C++ static init is injected by compiler so no
+# extra startup stuff required. we just add the c++ lib if required.
+
+LDOPTS = -Wl,--stack,$(STACKSIZE) -Wl,--gc-sections
+LIBS =
+
+else
 
 # GCC6/ELF linking for MiNTlib & C++ is complicated by changes to ctor/dtor
 # list representation, code required to implement them and having to specify
@@ -238,7 +264,7 @@ ifeq ($(USE_BROWNELF),yes)
 #  implements __cxa_atexit/__cxa_finalize needed by C++ static init. missing
 #  from MiNTlib and reused for bare-bones builds on both compilers.
 
-CRTSEQ_G = /usr/m68k-ataribrown-elf/lib/crt0.o
+CRTSEQ_G = /usr/$(TOOLCHAIN_NAME)/lib/crt0.o
 CRTSEQ_S = \
 	$(AGTROOT)/agtsys/libcxx/browncrti.o \
 	$(AGTROOT)/agtsys/libcxx/browncrt++.o \
@@ -250,14 +276,6 @@ CRTSEQ_E = \
 LDOPTS = -Wl,--gc-sections -Wl,--emit-relocs -Wl,-e__start -Ttext=0 -nostdlib -nostartfiles
 LIBS = -lgcc -lc
  
-else
-
-# GCC4/TOS linking is simpler & C++ static init is injected by compiler so no
-# extra startup stuff required. we just add the c++ lib if required.
-
-LDOPTS = -Wl,--stack,$(STACKSIZE) -Wl,--gc-sections
-LIBS =
-
 endif
 
 # -----------------------------------------------------------------------------
@@ -365,9 +383,9 @@ endif
 $(AGTROOT)/agtsys/libcxx/brownmint++.o: $(AGTROOT)/agtsys/libcxx/brownmint++.c
 	$(TOOLCHAIN_PREFIX)gcc -Wall -m68000 -O2 -std=gnu89 -fleading-underscore -nostdinc \
 	-I$(AGTROOT)/agtsys/libcxx \
-	-I/usr/lib/gcc/m68k-ataribrown-elf/6.2.0/include \
-	-I/usr/lib/gcc/m68k-ataribrown-elf/6.2.0/include-fixed \
-	-I/usr/m68k-ataribrown-elf/include \
+	-I/usr/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/include \
+	-I/usr/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/include-fixed \
+	-I/usr/$(TOOLCHAIN_NAME)/include \
 	-DHAVE_CONFIG_H -D_LIBC -D_REENTRANT \
 	-c $< -o $@
 
