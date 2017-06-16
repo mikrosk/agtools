@@ -329,6 +329,7 @@ void AGT_ConsoleUpdate_(void* fb1)
 {
 	g_console_dirty = 0;
 
+#if defined(AGT_CONFIG_DEBUG_CONSOLE)
 	s16 r = 0;
 	s16 h = (AGT_CONSOLE_head_row + AGT_CONSOLE_ROWS) - AGT_CONSOLE_activerows;
 	for (; r < AGT_CONSOLE_activerows; ++r)
@@ -342,6 +343,7 @@ void AGT_ConsoleUpdate_(void* fb1)
 
 		h++;
 	}
+#endif
 }
 
 typedef struct exstackframe_s

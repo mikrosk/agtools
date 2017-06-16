@@ -848,9 +848,17 @@ _AGT_ConsoleText_68k:
 	jmp		(a2)
 
 *-------------------------------------------------------*
+
+	ifne		(use_debugconsole)
+
+	include		"ste\\con_xprn.s"
+	
+	endc
+				
+*-------------------------------------------------------*
 	data
 *-------------------------------------------------------*
-	
+
 _g_displayservice_consumed_lines:	
 			dc.w	0
 ;_g_tshift:		dc.w	0

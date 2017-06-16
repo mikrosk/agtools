@@ -12,7 +12,7 @@
 *	Optimized case for medium/larger objects:
 *-------------------------------------------------------*
 *	- 4 bitplanes
-*	- top,right,bottom clipping only (no FISR/left)
+*	- top,right,bottom clipping only (no FXSR/left)
 *	- fixed shifting
 *	- auto masking with keycolour=0
 *-------------------------------------------------------*
@@ -96,7 +96,7 @@ _AGT_STF_ISSprDrawClipped:
 *	Optimized case for medium/larger objects:
 *-------------------------------------------------------*
 *	- 4 bitplanes
-*	- top,right,bottom clipping only (no FISR/left)
+*	- top,right,bottom clipping only (no FXSR/left)
 *	- fixed shifting
 *	- auto masking with keycolour=0
 *-------------------------------------------------------*

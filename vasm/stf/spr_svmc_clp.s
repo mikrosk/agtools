@@ -102,29 +102,29 @@
 *	left edge
 *-------------------------------------------------------*
 	; NISR: no initial source read (i.e. shiftregisters preloaded with 0)
-	dbramoda	.ylp_nisr,.xctrl
+;	dbramoda	.ylp_nisr,.xctrl
 	cmp.w		clip_x1(a2),d1
 	bpl.s		.STF_ISSprDrawClipped_clip_safe_left
 *-------------------------------------------------------*
 *	left clipped
 *-------------------------------------------------------*
-	; FISR: force initial source read (i.e. shiftregisters preloaded with 1st data word)
-	dbramoda	.ylp_fisr,.xctrl
+	; FXSR: force initial source read (i.e. shiftregisters preloaded with 1st data word)
+;	dbramoda	.ylp_fxsr,.xctrl
 	move.w		clip_x1(a2),d5
 	; relative to clipwindow
 	sub.w		d5,d1
 	; find minimum pixelwords off left edge
 	move.w		d1,d0
 	neg.w		d0				; pixels off left
-	; adjust dest width (ignore FISR part)
+	; adjust dest width (ignore FXSR part)
 	cmp.w		d0,d3
 	ble		.STF_ISSprDrawClipped_clip_out
 	add.w		d6,d0				;#16-1,d0			; round up
 	and.w		d7,d0				;#-16,d0
 	sub.w		d0,d3
-	; adjust source offset and src skip by clipped pixelwords-1 (include FISR part)
+	; adjust source offset and src skip by clipped pixelwords-1 (include FXSR part)
 	lsr.w		#1,d0				; in terms of src pixelwords
-	subq.w		#8,d0				; adjust for FISR
+	subq.w		#8,d0				; adjust for FXSR
 	add.w		d0,a3				; src skip
 	add.w		d0,a0				; src offset		
 	; crop offset, retain shift
@@ -221,7 +221,7 @@
 	subq		#8,a3
 .zz:
 
-	bra		.STF_ISSprDrawUnClipped_FSR
+	bra		.STF_ISSprDrawUnClipped_EFSR
 
 
 *-------------------------------------------------------*
@@ -239,14 +239,6 @@
 	include		"stf/spr_svmc_unc.s"
 	
 	bra		.STF_ISSprDrawClipped_recover
-			
-*-------------------------------------------------------*
-;	move.l		(sp)+,a6
-;	unlk		a6
-;	movem.l		(sp)+,d2-d7/a2-a5
-*-------------------------------------------------------*
-;	rts
-
 
 
 *-------------------------------------------------------*
@@ -261,11 +253,8 @@
 *	for large sprites - use STFM_SprNoClipOpt path
 *	instead
 *-------------------------------------------------------*
-.STF_ISSprDrawClipped_FISR:
+.STF_ISSprDrawClipped_FXSR:
 *-------------------------------------------------------*
-;	if		(use_sprite_saverestore)
-;	move.l		_drawcontext+dctx_clearstack_tide,a5
-;	endc
 
 	ifne		(enable_restore)
 	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
@@ -323,6 +312,7 @@
 	move.l		#$eebaeebb,(a2)+		; ror.l d7,d2; ror.l d7,d3
 .ok:	
 
+
 	; dst skip adjust by dst width	
 	lsr.w		#1,d6
 	sub.w		d6,a4
@@ -337,12 +327,7 @@
 
 	; init shifted combinemask
 
-	moveq		#-1,d0
-	lsr.w		d1,d0
-	not.w		d0
-	move.w		d0,d3
-	swap		d0
-	move.w		d3,d0
+	scrollmaskVMC	d1,d0,d3
 				
 	; width tab scaling				
 	lsr.w		#(4-1)-1,d6			; >>4 *2
@@ -375,33 +360,47 @@
 	dc.w		.x9-.jt
 
 ;	1-128 pixel source width ::> 16->144 pixel dest width under shift
-.ylp_fisr:
-	shiftVMC_FISR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp_fxsr:
+	shiftVMC_B_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
 	jmp		(a2)
-.ylp_nisr:
-	moveq		#0,d4				; wipe shift registers
-	moveq		#0,d5
-	jmp		(a2)
-.x9:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x7:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x5:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x3:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x1:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x8:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x7:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x6:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x5:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x4:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x3:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x2:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x1:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.go:	sub.w		#$100,d7
-.xctrl:	bcc.w		.ylp_nisr
-;	dbra		d7,.ylp_nisr
+.go:
+
+	sub.w		#$100,d7
+.xctrl:	bcc.w		.ylp_fxsr	;.ylp_nisr
 
 	ifne		(enable_restore)
 	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		a6,(a5)+
 	move.l		a5,usp
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
 	endc
 	endc
 	

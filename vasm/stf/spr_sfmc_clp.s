@@ -78,7 +78,7 @@
 
 
 *-------------------------------------------------------*
-*	left edge - safety-clipping only! no FISR!
+*	left edge - safety-clipping only! no FXSR!
 *-------------------------------------------------------*
 
 *-------------------------------------------------------*
@@ -95,16 +95,16 @@
 	; find minimum pixelwords off left edge
 	move.w		d1,d0
 	neg.w		d0				; pixels off left
-	; adjust dest width (ignore FISR part)
+	; adjust dest width (ignore FXSR part)
 	cmp.w		d0,d3
 	ble		.clip_out
 	add.w		d6,d0				;#16-1,d0			; round up
 	and.w		d7,d0				;#-16,d0
 	sub.w		d0,d3
 
-	; adjust source offset and src skip by clipped pixelwords-1 (include FISR part)
+	; adjust source offset and src skip by clipped pixelwords-1 (include FXSR part)
 	lsr.w		#1,d0				; in terms of src pixelwords
-	subq.w		#8,d0				; adjust for FISR
+	subq.w		#8,d0				; adjust for FXSR
 	add.w		d0,a3				; src skip
 	add.w		d0,a0				; src offset		
 	; crop offset, retain shift
@@ -115,8 +115,8 @@
 ;	bra		.clip_go
 
 
-;	duplicate SVMC implementation here for FISR case
-;	SVMC is slower than SFMC but does handle FISR for corrct left edge clip
+;	duplicate SVMC implementation here for FXSR case
+;	SVMC is slower than SFMC but does handle FXSR for corrct left edge clip
 
 *-------------------------------------------------------*
 *	we only get here if sprite is off left edge
@@ -124,11 +124,12 @@
 *	for large sprites - use STFM_SprNoClipOpt path
 *	instead
 *-------------------------------------------------------*
-.STF_ISSprDrawClipped_FISR:
+.STF_ISSprDrawClipped_FXSR:
 *-------------------------------------------------------*
-;	if		(use_sprite_saverestore)
-;	move.l		_drawcontext+dctx_clearstack_tide,a5
-;	endc
+
+*-------------------------------------------------------*
+*	SWBLiT for left-clipped case (FXSR=1)
+*-------------------------------------------------------*
 
 	ifne		(enable_restore)
 	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
@@ -200,12 +201,7 @@
 
 	; init shifted combinemask
 
-	moveq		#-1,d0
-	lsr.w		d1,d0
-	not.w		d0
-	move.w		d0,d3
-	swap		d0
-	move.w		d3,d0
+	scrollmaskVMC	d1,d0,d3
 				
 	; width tab scaling				
 	lsr.w		#(4-1)-1,d6			; >>4 *2
@@ -238,33 +234,45 @@
 	dc.w		.x9-.jt
 
 ;	1-128 pixel source width ::> 16->144 pixel dest width under shift
-.ylp_fisr:
-	shiftVMC_FISR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp_fxsr:
+	shiftVMC_B_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
 	jmp		(a2)
-;.ylp_nisr:
-;	moveq		#0,d4				; wipe shift registers
-;	moveq		#0,d5
-;	jmp		(a2)
-.x9:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x7:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x5:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x3:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x1:	shiftVMC2	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x8:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x7:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x6:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x5:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x4:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x3:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x2:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d4
+	swap		d5
+.x1:	shiftVMC_M_FXSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	sub.w		#$100,d7
-.xctrl:	bcc.w		.ylp_fisr
-;	dbra		d7,.ylp_nisr
+.xctrl:	bcc.w		.ylp_fxsr
 
 	ifne		(enable_restore)
 	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		a6,(a5)+
 	move.l		a5,usp
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
 	endc
 	endc
 	
@@ -294,6 +302,10 @@
 	; adjust src skip
 	lsr.w		#1,d0
 	add.w		d0,a3
+
+*-------------------------------------------------------*
+*	SWBLiT for right-clipped case (NFSR=0)
+*-------------------------------------------------------*
 	
 	; dst skip: a4
 
@@ -360,12 +372,7 @@
 	
 	; init shifted combinemask
 
-	moveq		#-1,d0
-	lsr.w		d1,d0
-	not.w		d0
-	move.w		d0,d3
-	swap		d0
-	move.w		d3,d0
+	scrollmaskVMC	d1,d0,d3
 
 	; width tab scaling				
 	lsr.w		#(4-1)-1,d6			; >>4 *2
@@ -424,15 +431,31 @@
 
 ;	1-128 pixel source width ::> 16->144 pixel dest width under shift
 .fylp:
-.fx9:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx8:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.fx7:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx6:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.fx5:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx4:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.fx3:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx2:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.fx1:	shiftVMC_F	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.fx9:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.fx8:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.fx7:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.fx6:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.fx5:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.fx4:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.fx3:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.fx2:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.fx1:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .fx0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .fgo:	moveq		#0,d2				; wipe shift registers
@@ -442,13 +465,10 @@
 .fxc:	sub.w		a2,d7
 	bcc.w		.fylp
 
-	;dbra		d7,.ylp_nisr
-
 	ifne		(enable_restore)
 	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		a6,(a5)+
 	move.l		a5,usp
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
 	endc
 	endc
 
@@ -457,6 +477,8 @@
 ;	bra.s		STFM_SprOpt4BPL_go
 *-------------------------------------------------------*
 .clip_go:
+*-------------------------------------------------------*
+*	top/bottom clip compatible with main routine
 *-------------------------------------------------------*
 	jsr		STF_ISSprOpt_impl_
 *-------------------------------------------------------*

@@ -77,15 +77,15 @@ nfsr_01_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		1
-.x9:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -116,20 +116,20 @@ nfsr_01_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		1	
-.ylp:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -156,24 +156,24 @@ nfsr_01_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		1	
-.ylp:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -224,15 +224,15 @@ nfsr_02_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		2
-.x9:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -263,20 +263,20 @@ nfsr_02_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		2	
-.ylp:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -303,24 +303,24 @@ nfsr_02_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		2	
-.ylp:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -371,15 +371,15 @@ nfsr_03_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		3
-.x9:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -410,20 +410,20 @@ nfsr_03_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		3	
-.ylp:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -450,24 +450,24 @@ nfsr_03_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		3	
-.ylp:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -518,15 +518,15 @@ nfsr_04_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		4
-.x9:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -557,20 +557,20 @@ nfsr_04_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		4	
-.ylp:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -597,24 +597,24 @@ nfsr_04_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		4	
-.ylp:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -665,15 +665,15 @@ nfsr_05_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		5
-.x9:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -704,20 +704,20 @@ nfsr_05_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		5	
-.ylp:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -744,24 +744,24 @@ nfsr_05_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		5	
-.ylp:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -812,15 +812,15 @@ nfsr_06_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		6
-.x9:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -851,20 +851,20 @@ nfsr_06_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		6	
-.ylp:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -891,24 +891,24 @@ nfsr_06_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		6	
-.ylp:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -959,15 +959,15 @@ nfsr_07_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		7
-.x9:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -998,20 +998,20 @@ nfsr_07_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		7	
-.ylp:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1038,24 +1038,24 @@ nfsr_07_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		7	
-.ylp:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1106,15 +1106,15 @@ nfsr_08_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		8
-.x9:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFLmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFLMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -1145,20 +1145,20 @@ nfsr_08_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		8	
-.ylp:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1185,24 +1185,24 @@ nfsr_08_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		8	
-.ylp:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFLmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFLmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFLmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFLMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFLMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFLMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1253,15 +1253,15 @@ nfsr_09_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		9
-.x9:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -1292,20 +1292,20 @@ nfsr_09_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		9	
-.ylp:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1332,24 +1332,24 @@ nfsr_09_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		9	
-.ylp:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1400,15 +1400,15 @@ nfsr_10_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		10
-.x9:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -1439,20 +1439,20 @@ nfsr_10_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		10	
-.ylp:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1479,24 +1479,24 @@ nfsr_10_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		10	
-.ylp:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1547,15 +1547,15 @@ nfsr_11_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		11
-.x9:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -1586,20 +1586,20 @@ nfsr_11_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		11	
-.ylp:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1626,24 +1626,24 @@ nfsr_11_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		11	
-.ylp:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1694,15 +1694,15 @@ nfsr_12_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		12
-.x9:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -1733,20 +1733,20 @@ nfsr_12_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		12	
-.ylp:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1773,24 +1773,24 @@ nfsr_12_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		12	
-.ylp:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1841,15 +1841,15 @@ nfsr_13_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		13
-.x9:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -1880,20 +1880,20 @@ nfsr_13_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		13	
-.ylp:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1920,24 +1920,24 @@ nfsr_13_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		13	
-.ylp:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -1988,15 +1988,15 @@ nfsr_14_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		14
-.x9:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -2027,20 +2027,20 @@ nfsr_14_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		14	
-.ylp:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -2067,24 +2067,24 @@ nfsr_14_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		14	
-.ylp:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -2135,15 +2135,15 @@ nfsr_15_g:
 .ylp_nisr:
 ;	jmp		(a2)
 .shift	set		15
-.x9:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x8:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x7:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x6:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x5:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x4:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x3:	shiftFHmaskC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.x2:	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.x1:	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x9:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x8:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x7:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x6:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x5:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x4:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x3:	shiftFHMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.x2:	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+.x1:	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .x0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .go:	moveq		#0,d2				; wipe shift registers
@@ -2174,20 +2174,20 @@ nfsr_15_w2:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		15	
-.ylp:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp
@@ -2214,24 +2214,24 @@ nfsr_15_w3:
 	dc.w		.y2-.bt
 	dc.w		.y3-.bt
 .shift	set		15	
-.ylp:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.ylp:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y3:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y3:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y2:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y2:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
-.y1:	shiftFHmaskC_I	a0,a1,d2,d3,d4,d5,d0,d1,d6
-	shiftFHmaskC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-	shiftFHmaskC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.y1:	shiftFHMC_B	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	shiftFHMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	shiftFHMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .y0:	dbra		d7,.ylp

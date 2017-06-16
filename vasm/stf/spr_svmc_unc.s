@@ -56,7 +56,7 @@
 	
 	and.w		d7,d0
 	sub.w		d6,d0
-	beq		.STF_ISSprDrawUnClipped_FSR
+	beq		.STF_ISSprDrawUnClipped_EFSR
 
 *-------------------------------------------------------*
 .STF_ISSprDrawUnClipped_NFSR:
@@ -71,12 +71,7 @@
 
 	; init shifted combinemask
 
-	moveq		#-1,d0
-	lsr.w		d1,d0
-	not.w		d0
-	move.w		d0,d3
-	swap		d0
-	move.w		d3,d0 
+	scrollmaskVMC	d1,d0,d3
 
 	; width tab scaling				
 	lsr.w		#(4-1)-1,d6			; >>4 *2
@@ -136,15 +131,31 @@
 
 ;	1-128 pixel source width ::> 16->144 pixel dest width under shift
 .nylp:
-.nx9:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.nx8:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.nx7:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.nx6:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.nx5:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.nx4:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.nx3:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.nx2:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.nx1:	shiftVMC_N	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.nx9:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.nx8:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.nx7:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.nx6:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.nx5:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.nx4:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.nx3:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.nx2:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.nx1:	shiftVMC_E_NFSR	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .nx0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .ngo:	moveq		#0,d2				; wipe shift registers
@@ -156,20 +167,9 @@
 	
 	bra		.STF_ISSprDrawUnClipped_recover
 	
-;	if		(use_sprite_saverestore)
-;	move.l		a6,(a5)+
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
-;	endc
-;	
-*-------------------------------------------------------*
-;	move.l		(sp)+,a6
-;	unlk		a6
-;	movem.l		(sp)+,d2-d7/a2-a5
-*-------------------------------------------------------*
-;	rts
 	
 *-------------------------------------------------------*
-.STF_ISSprDrawUnClipped_FSR:
+.STF_ISSprDrawUnClipped_EFSR:
 *-------------------------------------------------------*
 
 	; dst skip adjust by dst width	
@@ -181,12 +181,7 @@
 	
 	; init shifted combinemask
 
-	moveq		#-1,d0
-	lsr.w		d1,d0
-	not.w		d0
-	move.w		d0,d3
-	swap		d0
-	move.w		d3,d0
+	scrollmaskVMC	d1,d0,d3
 
 	; width tab scaling				
 	lsr.w		#(4-1)-1,d6			; >>4 *2
@@ -245,15 +240,31 @@
 
 ;	1-128 pixel source width ::> 16->144 pixel dest width under shift
 .fylp:
-.fx9:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx8:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.fx7:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx6:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.fx5:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx4:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.fx3:	shiftVMC	a0,a1,d2,d3,d4,d5,d0,d1,d6
-.fx2:	shiftVMC	a0,a1,d4,d5,d2,d3,d0,d1,d6
-.fx1:	shiftVMC_F	a0,a1,d2,d3,d4,d5,d0,d1,d6
+.fx9:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.fx8:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.fx7:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.fx6:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.fx5:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.fx4:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.fx3:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
+	swap		d2
+	swap		d3
+.fx2:	shiftVMC_M	a0,a1,d4,d5,d2,d3,d0,d1,d6
+	swap		d4
+	swap		d5
+.fx1:	shiftVMC_M	a0,a1,d2,d3,d4,d5,d0,d1,d6
 .fx0:	add.l		a3,a0				; + src skip
 	add.l		a4,a1				; + dst lineskip
 .fgo:	moveq		#0,d2				; wipe shift registers
@@ -263,14 +274,11 @@
 .fxc:	sub.w		a2,d7
 	bcc.w		.fylp
 
-	;dbra		d7,.ylp_nisr
-
 .STF_ISSprDrawUnClipped_recover:
 	
 	ifne		(enable_restore)
 	ifne		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		a6,(a5)+
 	move.l		a5,usp
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
 	endc
 	endc
