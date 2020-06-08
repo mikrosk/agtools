@@ -5073,9 +5073,10 @@ void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
 				if (c == g_allargs.keycol)
-					printf("   ");
+					printf(" ");
 				else
-					printf("%02x ", (int)c);
+//					printf("%02x ", (int)c);
+					printf("%c", (int)(c & 127)+'A');
 			}
 			printf("\n");
 		}
@@ -5114,9 +5115,11 @@ void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
 	if ((cxmax < cxmin) || (cymax < cymin))
 	{
 		cxmin = 0;
-		cxmax = 1;
+		cxmax = 0;
 		cymin = 0;
-		cymax = 1;
+		cymax = 0;
+
+		std::cout << "warning: empty slab frame!" << std::endl;
 	}
 
 	g_sprite_framewidth = cxmax - cxmin;
@@ -5209,8 +5212,59 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 {
 	// preprocess slab to produce fewer, less precise spanblock regions for accelerated clearing
 
-	// 1) quantise spans to 16 pixel (planeword) boundaries
+	int cxmin = 0;
+	int cymin = 0;
+	int cxmax = g_sprite_width;
+	int cymax = g_sprite_height;
+
+	if (1)
 	{
+		cxmin = g_sprite_width;
+		cymin = g_sprite_height;
+		cxmax = 0;
+		cymax = 0;
+
+		// optimize cutting area
+
+		for (int py = 0; py < g_sprite_height; py++)
+		{
+			for (int px = 0; px < g_sprite_width; px++)
+			{
+				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+				if (c != g_allargs.keycol)
+				{
+					// opaque pixel - adjust bounds
+					cxmin = xmin(cxmin, px);
+					cxmax = xmax(cxmax, px + 1);
+					cymin = xmin(cymin, py);
+					cymax = xmax(cymax, py + 1);
+				}
+			}
+		}
+	}
+
+	if ((cxmax < cxmin) || (cymax < cymin))
+	{
+		cxmin = 0;
+		cxmax = 0;
+		cymin = 0;
+		cymax = 0;
+
+		std::cout << "warning: empty slabrestore frame!" << std::endl;
+
+		// now process the quantised frame normally, for an empty frame
+		add_slab_frame(_psource8, _x, _y);
+	}
+	else // !degenerate
+	{
+		// transfer pixel block to work area for preprocessing
+
+		int workarea_w = (g_sprite_width + 15) & -16;
+		int workarea_h = g_sprite_height;
+
+		ubyte_t * workarea = new ubyte_t[workarea_w * workarea_h];
+
 		for (int py = 0; py < g_sprite_height; py++)
 		{
 			// find first solid pixel
@@ -5219,113 +5273,20 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
-				if (c != g_allargs.keycol)
-					break;
-			}
-
-			// round towards left
-			int left = px & -16;
-
-			// find last solid pixel
-			for (px = g_sprite_width-1; px >= 0; px--)
-			{
-				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
-
-				if (c != g_allargs.keycol)
-					break;
-			}
-
-			// last pixel exclusive
-			px++;
-
-			// round towards right
-			int right = (px + 15) & -16;
-
-			// clamp
-			if (right > g_spritesource_w)
-				right = g_spritesource_w;
-
-			// choose random colours for debugging the regions
-//			int cc = py & 15;
-//			if (cc == g_allargs.keycol)
-//				cc = 15 - cc;
-
-			ubyte_t cc = g_allargs.keycol + 1;
-
-			// replace colour for quantised region
-			px = left;
-			for (; px < right; px++)
-			{
-				// final colour doesn't matter, so long as its not keycol
-				_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = cc;
+				workarea[((py + 0) * workarea_w) + (px + 0)] = c;
 			}
 		}
-	}
 
-	// 2) reduce fragmentation of quantised regions
-	{
-		ubyte_t k = g_allargs.keycol;
-		ubyte_t s = k + 1;
-		ubyte_t b = s + 1;
-		// process columns, not rows
-		for (int px = 0; px < g_sprite_width; px += 16)
+		// set workarea as temporary source
+		int tmp_spritesource_w = g_spritesource_w;
+
+		g_spritesource_w = workarea_w;
+		_psource8 = workarea;
+		_x = 0;
+		_y = 0;
+
+		// 1) quantise spans to 16 pixel (planeword) boundaries
 		{
-			// single column
-			for (int py = 0; py < g_sprite_height; py++)
-			{
-				// for each word, look at the above/below flanking word pattern and blur
-
-				// this whole sequence is crap, but it'll do
-
-				int pym2 = xmax(py - 2, 0);
-				int pym1 = xmax(py - 1, 0);
-				int pyp1 = xmin(py + 1, g_sprite_height-1);
-				int pyp2 = xmin(py + 2, g_sprite_height-1);
-
-				ubyte_t cm2 = _psource8[((pym2 + _y) * g_spritesource_w) + (px + _x)];
-				ubyte_t cm1 = _psource8[((pym1 + _y) * g_spritesource_w) + (px + _x)];
-				ubyte_t c00 = _psource8[((py   + _y) * g_spritesource_w) + (px + _x)];
-				ubyte_t cp1 = _psource8[((pyp1 + _y) * g_spritesource_w) + (px + _x)];
-				ubyte_t cp2 = _psource8[((pyp2 + _y) * g_spritesource_w) + (px + _x)];
-
-				if (c00 == k)
-				{
-					if ((cm1 == s && cp2 == s) ||
-						(cm2 == s && cp1 == s) ||
-						(cm1 == s && cp1 == s))
-					{
-						for (int x = px; x < px + 16; x++)
-						{
-							_psource8[((py + _y) * g_spritesource_w) + (x + _x)] = b;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	std::vector<std::pair<int, int> > fragments;
-	fragments.resize(g_sprite_height);
-	std::vector<int> blocksize;
-	blocksize.resize(g_sprite_height);
-
-
-	// 4) merge single-span blocks with neighbour blocks
-	//    most of the overhead is coming from these alone
-	bool changed = true;
-//	for (int p = 0; p < 3; p++)
-	while (changed)
-	{
-		// 4a) recolour/encode by spanblock fragmentation
-		{
-			ubyte_t k = g_allargs.keycol;
-			ubyte_t cc = k + 1;
-
-			int lastleft = -1;
-			int lastright = -1;
-			int spancount = 1;
-			int last_block = 0;
-
 			for (int py = 0; py < g_sprite_height; py++)
 			{
 				// find first solid pixel
@@ -5342,7 +5303,7 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 				int left = px & -16;
 
 				// find last solid pixel
-				for (px = g_sprite_width-1; px >= 0; px--)
+				for (px = g_sprite_width - 1; px >= 0; px--)
 				{
 					ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
@@ -5360,37 +5321,12 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 				if (right > g_spritesource_w)
 					right = g_spritesource_w;
 
-				// record fragment left/right coords
-				fragments[py].first = left;
-				fragments[py].second = right;
+				// choose random colours for debugging the regions
+				//			int cc = py & 15;
+				//			if (cc == g_allargs.keycol)
+				//				cc = 15 - cc;
 
-				if ((left != lastleft) ||
-					(right != lastright))
-				{
-					// change colour
-					cc++;
-
-					// but dodge key colour
-					if (cc == k)
-						cc++;
-
-					lastleft = left;
-					lastright = right;
-
-					for (int s = last_block; s < py; s++)
-					{
-						blocksize[s] = spancount;
-						printf("spancount[%d]: %d\n", s, spancount);
-					}
-
-
-					spancount = 1;
-					last_block = py;
-				}
-				else
-				{
-					spancount++;
-				}
+				ubyte_t cc = g_allargs.keycol + 1;
 
 				// replace colour for quantised region
 				px = left;
@@ -5402,128 +5338,301 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 			}
 		}
 
-		ubyte_t k = g_allargs.keycol;
-		ubyte_t cc = k + 1;
-
-		changed = false;
-
-		for (int py = 0; py < g_sprite_height; py++)
+		// 2) reduce fragmentation of quantised regions
 		{
-
-
-//			continue;
-
-			// 4b) merge spans with neighbours 
-			
-			int pym2 = xmax(py - 2, 0);
-			int pym1 = xmax(py - 1, 0);
-			int pyp1 = xmin(py + 1, g_sprite_height - 1);
-			int pyp2 = xmin(py + 2, g_sprite_height - 1);
-
-			if (
-				(blocksize[py] < 3)
-/*
-				(
-					//difference with m1
-					((pym1 == py) ||
-					 (fragments[pym1].first  != fragments[py].first) ||
-					 (fragments[pym1].second != fragments[py].second))
-					&&
-					//difference with p1
-					((pyp1 == py) ||
-					 (fragments[pyp1].first  != fragments[py].first) ||
-					 (fragments[pyp1].second != fragments[py].second))
-				)
-				||
-				(
-					//difference with m2
-					((pym2 == py) ||
-					 (fragments[pym2].first  != fragments[py].first) ||
-					 (fragments[pym2].second != fragments[py].second))
-					&&
-					//difference with p1
-					((pyp1 == py) ||
-					 (fragments[pyp1].first  != fragments[py].first) ||
-					 (fragments[pyp1].second != fragments[py].second))
-				)
-				||
-				(
-					//difference with m1
-					((pym1 == py) ||
-					 (fragments[pym1].first  != fragments[py].first) ||
-					 (fragments[pym1].second != fragments[py].second))
-					&&
-					//difference with p2
-					((pyp2 == py) ||
-					 (fragments[pyp2].first  != fragments[py].first) ||
-					 (fragments[pyp2].second != fragments[py].second))
-				)
-*/
-			)
+			ubyte_t k = g_allargs.keycol;
+			ubyte_t s = k + 1;
+			ubyte_t b = s + 1;
+			// process columns, not rows
+			for (int px = 0; px < g_sprite_width; px += 16)
 			{
-				// this is a single-span or 2-span block
-
-				// check possibility of merging with upper neighbour
-				bool mu = 
-					(py != pym1) &&
-					(fragments[py].first  >= fragments[pym1].first) &&
-					(fragments[py].second <= fragments[pym1].second);
-
-				// check possibility of merging with lower neighbour
-				bool ml = 
-					(py != pyp1) &&
-					(fragments[py].first  >= fragments[pyp1].first) &&
-					(fragments[py].second <= fragments[pyp1].second);
-
-				// find merge error with each neighbour
-				int erru = mu ? ((fragments[py].first - fragments[pym1].first) + (fragments[pym1].second - fragments[py].second)) : 0x7fffffff;
-				int errl = ml ? ((fragments[py].first - fragments[pyp1].first) + (fragments[pyp1].second - fragments[py].second)) : 0x7fffffff;
-
-				// ignore pre-merged cases
-				if (erru == 0) erru = 0x7fffffff;
-				if (errl == 0) errl = 0x7fffffff;
-
-				// find merge error with lower neighbour
-				if (erru < errl)
+				// single column
+				for (int py = 0; py < g_sprite_height; py++)
 				{
-					if (erru < 0x7fffffff)
-					{
-						ubyte_t col = _psource8[((py + _y) * g_spritesource_w) + (fragments[py].first + _x)];
+					// for each word, look at the above/below flanking word pattern and blur
 
-						int px = fragments[pym1].first;
-						for (; px < fragments[pym1].second; px++)
+					// this whole sequence is crap, but it'll do
+
+					int pym2 = xmax(py - 2, 0);
+					int pym1 = xmax(py - 1, 0);
+					int pyp1 = xmin(py + 1, g_sprite_height - 1);
+					int pyp2 = xmin(py + 2, g_sprite_height - 1);
+
+					ubyte_t cm2 = _psource8[((pym2 + _y) * g_spritesource_w) + (px + _x)];
+					ubyte_t cm1 = _psource8[((pym1 + _y) * g_spritesource_w) + (px + _x)];
+					ubyte_t c00 = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+					ubyte_t cp1 = _psource8[((pyp1 + _y) * g_spritesource_w) + (px + _x)];
+					ubyte_t cp2 = _psource8[((pyp2 + _y) * g_spritesource_w) + (px + _x)];
+
+					if (c00 == k)
+					{
+						if ((cm1 == s && cp2 == s) ||
+							(cm2 == s && cp1 == s) ||
+							(cm1 == s && cp1 == s))
 						{
-							_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = col;
+							for (int x = px; x < px + 16; x++)
+							{
+								_psource8[((py + _y) * g_spritesource_w) + (x + _x)] = b;
+							}
 						}
-						changed = true;
-						break;
 					}
 				}
-				else
-				{
-					if (errl < 0x7fffffff)
-					{
-						ubyte_t col = _psource8[((py + _y) * g_spritesource_w) + (fragments[py].first + _x)];
+			}
+		}
 
-						int px = fragments[pyp1].first;
-						for (; px < fragments[pyp1].second; px++)
+		std::vector<std::pair<int, int> > fragments;
+		fragments.resize(g_sprite_height);
+		std::vector<int> blocksize;
+		blocksize.resize(g_sprite_height);
+
+		//printf("merge spanblocks...(key:%d)\n", g_allargs.keycol);
+
+		// 4) merge single-span blocks with neighbour blocks
+		//    most of the overhead is coming from these alone
+		bool changed = true;
+		//	for (int p = 0; p < 3; p++)
+		while (changed)
+		{
+			// 4a) recolour/encode by spanblock fragmentation
+			{
+				ubyte_t k = g_allargs.keycol;
+				ubyte_t cc = (k + 1) & 255;
+
+				int lastleft = -1;
+				int lastright = -1;
+				int spancount = 1;
+				int last_block = 0;
+
+				for (int py = 0; py < g_sprite_height; py++)
+				{
+					// find first solid pixel
+					int pxl = 0;
+					for (; pxl < g_sprite_width; pxl++)
+					{
+						ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (pxl + _x)];
+
+						if (c != g_allargs.keycol)
+							break;
+					}
+
+					// find last solid pixel
+					int pxr = g_sprite_width - 1;
+					for (; pxr >= 0; pxr--)
+					{
+						ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (pxr + _x)];
+
+						if (c != g_allargs.keycol)
+							break;
+					}
+
+					int left = 0;
+					int right = 0;
+
+					if (pxl > pxr)
+					{
+						//printf("warning: degenerate/empty span!\n");
+						//exit(-1);
+						pxl = 0;
+						pxr = 0;
+					}
+					else
+					{
+						// round towards left
+						left = pxl & -16;
+
+						// last pixel exclusive
+						pxr++;
+						// round towards right
+						right = (pxr + 15) & -16;
+
+						// clamp
+						if (right > g_spritesource_w)
+							right = g_spritesource_w;
+					}
+
+					// record fragment left/right coords
+					fragments[py].first = left;
+					fragments[py].second = right;
+
+					/*				if (left == right)
+									{
+									printf("warning: degenerate word width!\n");
+									//					exit(-1);
+									}
+									*/
+					if ((left != lastleft) ||
+						(right != lastright))
+					{
+						// change colour
+						cc = (cc + 1) & 255;
+
+						// but dodge key colour
+						if (cc == k)
+							cc = (cc + 1) & 255;
+
+
+						lastleft = left;
+						lastright = right;
+
+						for (int s = last_block; s < py; s++)
 						{
-							_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = col;
+							blocksize[s] = spancount;
+							//printf("spancount[%d]: %d\n", s, spancount);
 						}
-						changed = true;
-						break;
+
+
+						spancount = 1;
+						last_block = py;
+					}
+					else
+					{
+						spancount++;
+					}
+
+					// replace colour for quantised region
+					if (right > left)
+					{
+						//printf("recolour x:%d y:%d ww:%d w:%d cc:%d\n", pxl, py, (right - left), (pxr - pxl), cc);
+						int wpx = left;
+						for (; wpx < right; wpx++)
+						{
+							// final colour doesn't matter, so long as its not keycol
+							_psource8[((py + _y) * g_spritesource_w) + (wpx + _x)] = cc;
+						}
 					}
 				}
 			}
 
-		} // py loop
-	}
+			ubyte_t k = g_allargs.keycol;
+			ubyte_t cc = (k + 1) & 255;
 
-	// now process the quantised frame normally
-	add_slab_frame(_psource8, _x, _y);
+			changed = false;
+
+			for (int py = 0; py < g_sprite_height; py++)
+			{
+
+
+				//			continue;
+
+				// 4b) merge spans with neighbours 
+
+				int pym2 = xmax(py - 2, 0);
+				int pym1 = xmax(py - 1, 0);
+				int pyp1 = xmin(py + 1, g_sprite_height - 1);
+				int pyp2 = xmin(py + 2, g_sprite_height - 1);
+
+				if (
+					(blocksize[py] < 3)
+					/*
+									(
+									//difference with m1
+									((pym1 == py) ||
+									(fragments[pym1].first  != fragments[py].first) ||
+									(fragments[pym1].second != fragments[py].second))
+									&&
+									//difference with p1
+									((pyp1 == py) ||
+									(fragments[pyp1].first  != fragments[py].first) ||
+									(fragments[pyp1].second != fragments[py].second))
+									)
+									||
+									(
+									//difference with m2
+									((pym2 == py) ||
+									(fragments[pym2].first  != fragments[py].first) ||
+									(fragments[pym2].second != fragments[py].second))
+									&&
+									//difference with p1
+									((pyp1 == py) ||
+									(fragments[pyp1].first  != fragments[py].first) ||
+									(fragments[pyp1].second != fragments[py].second))
+									)
+									||
+									(
+									//difference with m1
+									((pym1 == py) ||
+									(fragments[pym1].first  != fragments[py].first) ||
+									(fragments[pym1].second != fragments[py].second))
+									&&
+									//difference with p2
+									((pyp2 == py) ||
+									(fragments[pyp2].first  != fragments[py].first) ||
+									(fragments[pyp2].second != fragments[py].second))
+									)
+									*/
+									)
+				{
+					// this is a single-span or 2-span block
+
+					// check possibility of merging with upper neighbour
+					bool mu =
+						(py != pym1) &&
+						(fragments[py].first >= fragments[pym1].first) &&
+						(fragments[py].second <= fragments[pym1].second);
+
+					// check possibility of merging with lower neighbour
+					bool ml =
+						(py != pyp1) &&
+						(fragments[py].first >= fragments[pyp1].first) &&
+						(fragments[py].second <= fragments[pyp1].second);
+
+					// find merge error with each neighbour
+					int erru = mu ? ((fragments[py].first - fragments[pym1].first) + (fragments[pym1].second - fragments[py].second)) : 0x7fffffff;
+					int errl = ml ? ((fragments[py].first - fragments[pyp1].first) + (fragments[pyp1].second - fragments[py].second)) : 0x7fffffff;
+
+					// ignore pre-merged cases
+					if (erru == 0) erru = 0x7fffffff;
+					if (errl == 0) errl = 0x7fffffff;
+
+					// find merge error with lower neighbour
+					if (erru < errl)
+					{
+						if (erru < 0x7fffffff)
+						{
+							ubyte_t col = _psource8[((py + _y) * g_spritesource_w) + (fragments[py].first + _x)];
+
+							int px = fragments[pym1].first;
+							for (; px < fragments[pym1].second; px++)
+							{
+								_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = col;
+							}
+							changed = true;
+							break;
+						}
+					}
+					else
+					{
+						if (errl < 0x7fffffff)
+						{
+							ubyte_t col = _psource8[((py + _y) * g_spritesource_w) + (fragments[py].first + _x)];
+
+							int px = fragments[pyp1].first;
+							for (; px < fragments[pyp1].second; px++)
+							{
+								_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = col;
+							}
+							changed = true;
+							break;
+						}
+					}
+				}
+
+			} // py loop
+		}
+
+		// now process the quantised frame normally, but from the proxy work area
+		add_slab_frame(_psource8, _x, _y);
+
+		// release the work area
+		delete[] workarea;
+
+		// restore source stride/config
+		g_spritesource_w = tmp_spritesource_w;
+
+	} // !degenerate
 }
 
-bool emit_slab_sequence()
+bool emit_slab_sequence(bool _storepixels)
 {
 	int s = 0;
 	for (slablist_t::iterator fit = g_slabframes.begin(); fit != g_slabframes.end(); fit++, s++)
@@ -5605,8 +5714,11 @@ bool emit_slab_sequence()
 		}
 
 		// individual slabs follow
-		for (slablist_t::iterator it = g_slabframes.begin(); it != g_slabframes.end(); it++)
+		int idx = 0;
+		for (slablist_t::iterator it = g_slabframes.begin(); it != g_slabframes.end(); it++, idx++)
 		{
+			std::cout << "slabframe: " << idx << std::endl;
+
 			std::vector<int> spanblock_index;
 			std::vector<int> spanblock_clipper;
 			std::vector<int> clipspandata_ptrs;
@@ -5617,21 +5729,26 @@ bool emit_slab_sequence()
 			slab_index.push_back(tracked_filesize);
 
 			// 2: slab frame pixel width
+			std::cout << " pw: " << it->w_ << std::endl;
 			wv = endianswap16(it->w_);
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 			// 2: slab frame pixel height
+			std::cout << " ph: " << it->h_ << std::endl;
 			wv = endianswap16(it->h_);
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 			// 2: slab frame xoff
 			wv = endianswap16(it->xo_);
+			std::cout << " xo: " << it->xo_ << std::endl;
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 			// 2: slab frame yoff
 			wv = endianswap16(it->yo_);
+			std::cout << " yo: " << it->yo_ << std::endl;
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 			// 2: slab spanblocks
 			wv = endianswap16(s16(it->spans_.size()));
+			std::cout << " spanblocks: " << s16(it->spans_.size()) << std::endl;
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 			//// pointer to spanblock index (patched after writing)
@@ -5731,33 +5848,37 @@ bool emit_slab_sequence()
 			{
 				spandata_index.push_back(tracked_filesize);
 
-				// output spanblock lines
-				for (int l = 0; l < spanit->ys_; l++)
+				if (_storepixels)
 				{
 
-					//if (0) // interleaved planewords (CPU)
-					//{
-					//	// output span plane words for a line
-					//	for (int o = 0; o < spanit->dxw_; o++)
-					//	{
-					//		// write colour words for N planes
-					//		for (int p = 0; p < g_allargs.planes; p++)
-					//		{
-					//			wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
-					//			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-					//		}
-					//	}
-					//}
-					//else // plane-at-a-time scans (blitter)
+					// output spanblock lines
+					for (int l = 0; l < spanit->ys_; l++)
 					{
-						// write colour words for N planes
-						for (int p = 0; p < g_allargs.planes; p++)
+
+						//if (0) // interleaved planewords (CPU)
+						//{
+						//	// output span plane words for a line
+						//	for (int o = 0; o < spanit->dxw_; o++)
+						//	{
+						//		// write colour words for N planes
+						//		for (int p = 0; p < g_allargs.planes; p++)
+						//		{
+						//			wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
+						//			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+						//		}
+						//	}
+						//}
+						//else // plane-at-a-time scans (blitter)
 						{
-							// output span plane words for a line
-							for (int o = 0; o < spanit->dxw_; o++)
+							// write colour words for N planes
+							for (int p = 0; p < g_allargs.planes; p++)
 							{
-								wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
-								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								// output span plane words for a line
+								for (int o = 0; o < spanit->dxw_; o++)
+								{
+									wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								}
 							}
 						}
 					}
@@ -5880,12 +6001,19 @@ bool emit_slab_sequence()
 
 		// patch slab index
 		lv = 0;
-		fseek(hout, slab_index_fpos+4, 0);
-		for (std::vector<int>::iterator it = slab_index.begin(); it != slab_index.end(); it++)
+		size_t index_table_fpos = slab_index_fpos + 4;
+		fseek(hout, index_table_fpos, 0);
 		{
-			lv = (*it) - slab_index_fpos;
-			lv = endianswap32(lv);
-			fwrite(&lv, 1, sizeof(lv), hout);
+			int idx = 0;
+			std::cout << std::hex;
+			for (std::vector<int>::iterator it = slab_index.begin(); it != slab_index.end(); it++, idx++)
+			{
+				lv = (*it) - slab_index_fpos;
+				//std::cout << "patch slab index [" << idx << "] O=0x" << (size_t)lv << " @ 0x" << index_table_fpos << std::endl;
+				lv = endianswap32(lv);
+				fwrite(&lv, 1, sizeof(lv), hout);
+				index_table_fpos += sizeof(lv);
+			}
 		}
 
 		// patch filesize
@@ -6257,10 +6385,10 @@ bool do_sheet()
 				break;
 			//
 			case Cutmode_SLABS:
-				emit_slab_sequence();
+				emit_slab_sequence(true);
 				break;
 			case Cutmode_SLABRESTORE:
-				emit_slab_sequence();
+				emit_slab_sequence(false);
 				break;
 			}
 		}

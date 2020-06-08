@@ -60,7 +60,7 @@
     </Link>
     <PostBuildEvent>
       <Command>cp $(TargetPath) ..\..\bin\.
-cp $(TargetPath) C:\FalconVFS\share\N\AGTsource\bin\.</Command>
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -82,7 +82,7 @@ cp $(TargetPath) C:\FalconVFS\share\N\AGTsource\bin\.</Command>
     </Link>
     <PostBuildEvent>
       <Command>cp $(TargetPath) ..\..\bin\.
-cp $(TargetPath) C:\FalconVFS\share\N\AGTsource\bin\.
+
 </Command>
     </PostBuildEvent>
     <CustomBuildStep>

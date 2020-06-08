@@ -48,6 +48,7 @@
 	
 	move.w		slf_w(a0),d3			; w
 	move.w		slf_h(a0),d4			; h
+	beq		.slb_degen
 	add.w		slf_xo(a0),d1			; +xo
 	add.w		slf_yo(a0),d2			; +yo
 
