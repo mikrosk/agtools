@@ -33,11 +33,11 @@
 * An emulator will help (Hatari, STEEM, SainT) but nothing beats real hardware!
 * *   [Hatari - Windows nightly builds](http://antarctica.no/~hatari/)
 * *   [STEEM Engine](http://steem.atari.st/)
-* *   [STEEM SSE](http://ataristeven.exxoshost.co.uk/Steem.htm)
+* *   STEEM SSE
 
 
 ### Reference ###
 
 * the AGT wiki can be found [here](https://bitbucket.org/d_m_l/agtools/wiki/Home)
-* the RMAC assembler manual can be found [here](http://d-bug.mooo.com/various/rmacman/index.html)
+* the RMAC assembler manual can be found [here](http://rmac.is-slick.com/)
 * the VASM assembler manual can be found [here](http://sun.hasenbraten.de/vasm/release/vasm.html)
