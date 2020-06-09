@@ -123,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.421";
+static const char* const g_version_string = "v0.422";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
