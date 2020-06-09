@@ -334,13 +334,13 @@ _EntityInteractVisibleYM_68k:
 	eor.w		#($0400|$0200),d7		; & (~EntityFlag_VISTRIG) | EntityFlag_TICKED
 	move.w		d7,ent_self(a0)
 
-;	; todo: could optimise this (slightly) with inlined version
-;	; but it's an infrequent trigger event so not much gain...
-;	;
-;	; d0: *
-;	; a0: pself
-;	; a1: pnear
-;	; a3: *
+	; todo: could optimise this (slightly) with inlined version
+	; but it's an infrequent trigger event so not much gain...
+	;
+	; d0: *
+	; a0: pself
+	; a1: pnear
+	; a3: *
 	
 	move.l		_g_pe_viewport,a1
 	jsr		EntityLink_Tick_68k
@@ -407,12 +407,22 @@ _EntityInteractVisibleYM_68k:
 	move.l		ent_pnext_y(a0),a0
 	cmp.w		ent_fry(a0),d2
 	bgt		.next_outer
-	bra.s		.term_outer	
+	bra		.term_outer	
 
 .do_i0:
 	move.l		ent_fncollide(a0),d0
 	beq.s		.no_i0
 	move.l		d0,a6
+
+	tst.w		ent_phiddenasset(a0)
+	bne.s		.indirect_i0
+	tst.w		ent_phiddenasset(a1)
+	beq.s		.direct_i0
+.indirect_i0:
+	bsr		.test_hidden_a0_a1
+	tst.w		d0
+	beq.s		.no_i1
+.direct_i0:
 
 	move.w		d3,-(sp)
 	move.w		d4,-(sp)
@@ -437,6 +447,16 @@ _EntityInteractVisibleYM_68k:
 	beq.s		.no_i1
 	move.l		d0,a6
 
+	tst.w		ent_phiddenasset(a0)
+	bne.s		.indirect_i1
+	tst.w		ent_phiddenasset(a1)
+	beq.s		.direct_i1
+.indirect_i1:
+	bsr		.test_hidden_a0_a1
+	tst.w		d0
+	beq.s		.no_i1
+.direct_i1:
+
 	move.w		d3,-(sp)
 	move.w		d4,-(sp)
 
@@ -453,7 +473,7 @@ _EntityInteractVisibleYM_68k:
 	move.w		.sp_pxmax(sp),d1
 	move.w		.sp_pymax(sp),d2
 	move.w		ent_self(a0),d7
-	bra.s		.no_i1
+	bra		.no_i1
 
 *-------------------------------------------------------*
 .term_outer:
@@ -466,3 +486,185 @@ _EntityInteractVisibleYM_68k:
 *-------------------------------------------------------*
 	rts
 
+
+*-------------------------------------------------------*
+.test_hidden_a0_a1:
+*-------------------------------------------------------*
+	
+	move.l		ent_phiddenasset(a0),d0
+	beq.s		.nha0yha1
+	move.l		ent_phiddenasset(a1),d1
+	beq		.yha0nha1
+
+.yha0yha1:
+
+	; both have hidden assets
+	
+	move.l		d0,a2
+	move.w		ent_frame(a0),d0
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	cmp.w		sps_framecount(a2),d0
+	blo.s		._fok01
+._ffault01:
+	not.w		$ffff8240.w
+	bra.s		._ffault01
+._fok01:
+	.endif		
+	add.w		d0,d0				; todo: game layer can prescale this
+	add.w		d0,d0
+	move.l		sps_frameindex(a2,d0.w),a2	; access sprite frame data
+
+	move.l		d1,a3
+	move.w		ent_frame(a1),d0
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	cmp.w		sps_framecount(a3),d0
+	blo.s		._fok02
+._ffault02:
+	not.w		$ffff8240.w
+	bra.s		._ffault02
+._fok02:
+	.endif		
+	add.w		d0,d0				; todo: game layer can prescale this
+	add.w		d0,d0
+	move.l		sps_frameindex(a3,d0.w),a3	; access sprite frame data
+
+
+	move.w		ent_frx(a1),d1			;   |Bx1n
+	add.w		spf_xo(a3),d1
+
+	move.w		ent_frx(a0),d2			; Ax2n|
+	add.w		spf_xo(a2),d2
+	move.w		spf_w(a2),d0
+;	add.w		spf_w(a2),d2
+	add.w		d0,d2
+	cmp.w		d2,d1
+	bge.s		.cull0	
+	
+	add.w		spf_w(a3),d1			; Bx2n|	
+;	sub.w		spf_w(a2),d2
+	sub.w		d0,d2
+	cmp.w		d2,d1				;    |Ax1n
+	ble.s		.cull0	
+	
+	move.w		ent_fry(a1),d1			;   |By1n
+	add.w		spf_yo(a3),d1
+
+	move.w		ent_fry(a0),d2			; Ay2n|
+	add.w		spf_yo(a2),d2
+	move.w		spf_h(a2),d0
+;	add.w		spf_h(a2),d2
+	add.w		d0,d2
+	cmp.w		d2,d1
+	bge.s		.cull0	
+	
+	add.w		spf_h(a3),d1			; By2n|	
+;	sub.w		spf_h(a2),d2
+	sub.w		d0,d2
+	cmp.w		d2,d1
+	ble.s		.cull0
+
+
+.pass0:	moveq		#-1,d0
+	rts
+	
+.cull0:	moveq		#0,d0
+	rts
+
+
+
+.nha0yha1:
+
+	; a1 has hidden asset
+
+	move.l		ent_phiddenasset(a1),d0		
+	move.l		d0,a3
+	move.w		ent_frame(a1),d0
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	cmp.w		sps_framecount(a3),d0
+	blo.s		._fok1
+._ffault1:
+	not.w		$ffff8240.w
+	bra.s		._ffault0
+._fok1:
+	.endif		
+	add.w		d0,d0				; todo: game layer can prescale this
+	add.w		d0,d0
+	move.l		sps_frameindex(a3,d0.w),a3	; access sprite frame data
+
+	move.w		ent_frx(a1),d1			;   |Bx1n
+	add.w		spf_xo(a3),d1
+	move.w		ent_frx(a0),d2			; Ax2|
+	add.w		ent_sx(a0),d2
+	cmp.w		d2,d1
+	bge.s		.cull1	
+	
+	add.w		spf_w(a3),d1			; Bx2n|	
+	cmp.w		ent_frx(a0),d1			;    |Ax1
+	ble.s		.cull1	
+	
+	move.w		ent_fry(a1),d1			;   |By1n
+	add.w		spf_yo(a3),d1
+	move.w		ent_fry(a0),d2			; Ay2|
+	add.w		ent_sy(a0),d2
+	cmp.w		d2,d1
+	bge.s		.cull1	
+	
+	add.w		spf_h(a3),d1			; By2n|	
+	cmp.w		ent_fry(a0),d1			;    |Ay1
+	ble.s		.cull1	
+	
+.pass1:	moveq		#-1,d0
+	rts
+	
+.cull1:	moveq		#0,d0
+	rts
+
+
+
+
+.yha0nha1:
+
+	; a0 has hidden asset
+
+	move.l		ent_phiddenasset(a0),d0		
+	move.l		d0,a2
+	move.w		ent_frame(a0),d0
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	cmp.w		sps_framecount(a2),d0
+	blo.s		._fok2
+._ffault2:
+	not.w		$ffff8240.w
+	bra.s		._ffault2
+._fok2:
+	.endif		
+	add.w		d0,d0				; todo: game layer can prescale this
+	add.w		d0,d0
+	move.l		sps_frameindex(a2,d0.w),a2	; access sprite frame data
+
+	move.w		ent_frx(a0),d1			;   |Bx1n
+	add.w		spf_xo(a2),d1
+	move.w		ent_frx(a1),d2			; Ax2|
+	add.w		ent_sx(a1),d2
+	cmp.w		d2,d1
+	bge.s		.cull2	
+	
+	add.w		spf_w(a2),d1			; Bx2n|	
+	cmp.w		ent_frx(a1),d1			;    |Ax1
+	ble.s		.cull2	
+	
+	move.w		ent_fry(a0),d1			;   |By1n
+	add.w		spf_yo(a2),d1
+	move.w		ent_fry(a1),d2			; Ay2|
+	add.w		ent_sy(a1),d2
+	cmp.w		d2,d1
+	bge.s		.cull2
+	
+	add.w		spf_h(a2),d1			; By2n|	
+	cmp.w		ent_fry(a1),d1			;    |Ay1
+	ble.s		.cull2	
+	
+.pass2:	moveq		#-1,d0
+	rts
+	
+.cull2:	moveq		#0,d0
+	rts

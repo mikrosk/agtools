@@ -541,19 +541,19 @@ void letter_fntick(entity_t *_pself)
 entitydef_t entity_dictionary[EntityType_MAX_] =
 {
 	// [functions]								[coords]						[control]		[tick state]		[rendering]				[classification properties]
-	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype,drawlayer		f_self,f_interactswith	
+	// tick,collide,asset,hasset				px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype,drawlayer		f_self,f_interactswith	
 
 	// engine objects...
 
 	// viewport
-	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
+	{ 0,0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
 
 	// other objects...
 
 	// letters
-	{ &letter_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_IMSPR,0,		EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
-	{ &letter_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
-	{ &letter_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
-	{ &letter_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &letter_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_IMSPR,0,		EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &letter_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &letter_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &letter_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 };

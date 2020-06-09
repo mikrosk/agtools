@@ -111,6 +111,7 @@ typedef void (*fn2ptr_t)(entptr_t _pe1, entptr_t _pe2);
 	fnptr_t fntick;				\
 	fn2ptr_t fncollide;			\
 	void *passet;				\
+	void *phiddenasset;			\
 								\
 	union { s16 rx; s32 frx; };	\
 	union { s16 ry; s32 fry; };	\
@@ -279,6 +280,7 @@ static agt_inline void EntityWorldFromRelative(entity_t &ent, s16 _basisx, s16 _
 
 // attach sprite asset to entity
 void EntityDefAsset_Sprite(EntityType _etype, spritesheet *_passet);
+void EntityDefAsset_Hidden(EntityType _etype, spritesheet *_passet);
 
 // attach slab 'pair' (draw+restore shapes) to entity
 void EntityDefAsset_Slab(EntityType _etype, sls_pair *_passet);
@@ -522,6 +524,13 @@ static inline void EntitySwitchAsset_Sprite(entptr_t _pent, spritesheet *_passet
 	_pent->ox = pspr->srcwidth>>1;
 	_pent->oy = pspr->srcheight>>1;
 }
+
+static inline void EntitySwitchAsset_Hidden(entptr_t _pent, spritesheet *_passet)
+{
+	spritesheet::sps_header *pspr = _passet->get();
+	_pent->phiddenasset = pspr;
+}
+
 
 // ---------------------------------------------------------------------------------------------------------------------
 // select default entity draw functions based on AGT_CONFIG_STF/AGT_CONFIG_STE (fallback is AGT_CONFIG_STE)

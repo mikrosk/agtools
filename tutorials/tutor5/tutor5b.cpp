@@ -715,30 +715,30 @@ void largeexp_fntick(entity_t *_pself)
 entitydef_t entity_dictionary[EntityType_MAX_] =
 {
 	// [functions]								[coords]						[control]		[tick state]		[rendering]				[classification properties]
-	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype,drawlayer		f_self,f_interactswith	
+	// tick,collide,asset,hasset				px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype,drawlayer		f_self,f_interactswith	
 
 	// engine objects...
 
 	// viewport
-	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
+	{ 0,0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
 
 	// other objects...
 
 	// letters
-	{ &letter_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_IMSPR,0,		EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
-	{ &letter_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
-	{ &letter_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
-	{ &letter_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &letter_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_IMSPR,0,		EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &letter_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &letter_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &letter_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 	// armor powerup
-	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ 0,0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 	// nme craft
-	{ &craft_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &craft_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 	// spinner
-	{ &spinner_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &spinner_fntick,0,0,0,					{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 	// explosions
-	{ &smallexp_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
-	{ &largeexp_fntick,0,0,						{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &smallexp_fntick,0,0,0,					{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &largeexp_fntick,0,0,0,					{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 };

@@ -1306,6 +1306,12 @@ void EntityDefAsset_Sprite(EntityType _etype, spritesheet *_passet)
 	entity_dictionary[_etype].oy = pspr->srcheight>>1;
 }
 
+void EntityDefAsset_Hidden(EntityType _etype, spritesheet *_passet)
+{
+	spritesheet::sps_header *pspr = _passet->get();
+	entity_dictionary[_etype].phiddenasset = pspr;
+}
+
 void EntityDefAsset_Slab(EntityType _etype, sls_pair *_passet)
 {
 	slabsheet::sls_header *pslb = _passet->psls_draw_;

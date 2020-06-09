@@ -41,6 +41,7 @@ ent_fvz:		ds.l	1
 ent_fntick:		ds.l	1
 ent_fncollide:		ds.l	1
 ent_passet:		ds.l	1
+ent_phiddenasset:	ds.l	1
 ent_frx:		ds.l	1
 ent_fry:		ds.l	1
 ent_fvx:		ds.l	1

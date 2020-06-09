@@ -123,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.422";
+static const char* const g_version_string = "v0.423";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -337,6 +337,8 @@ enum
 	OPT_KEYRGB,
 	OPT_KEYGUARD,
 	OPT_KEYTOL,
+	OPT_HITCOL,
+	OPT_HITRGB,
 	OPT_SOURCE,
 	OPT_OUTFILE,
 	OPT_TILETAGS,
@@ -352,6 +354,7 @@ enum
 	OPT_SPRITEGUIDE,
 	OPT_QUICKCUT,
 	OPT_VIS,
+	OPT_HIDDEN,
 	OPT_PREVIEW,
 	OPT_GENMASK,
 	OPT_NOGENMASK,
@@ -407,6 +410,7 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_EMXOPT,		_T("-emxopt"),	 		SO_REQ_SEP	},
 	{ OPT_EMXOPT,		_T("--emx-opt-level"),	SO_REQ_SEP	},
+
 	//
 	{ OPT_KEYCOL,		_T("-key"),	 			SO_REQ_SEP	},
 	{ OPT_KEYCOL,		_T("--key-colour"),		SO_REQ_SEP	},
@@ -417,8 +421,16 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_KEYGUARD,		_T("-kg"),	 			SO_NONE		},
 	{ OPT_KEYGUARD,		_T("--key-guard"),		SO_NONE		},
 	//
-	{ OPT_KEYGUARD,		_T("-kt"),	 			SO_REQ_SEP	},
-	{ OPT_KEYGUARD,		_T("--key-tol"),		SO_REQ_SEP	},
+	{ OPT_KEYTOL,		_T("-kt"),	 			SO_REQ_SEP	},
+	{ OPT_KEYTOL,		_T("--key-tol"),		SO_REQ_SEP	},
+
+	//
+	{ OPT_HITCOL,		_T("-hitkey"),	 		SO_REQ_SEP	},
+	{ OPT_HITCOL,		_T("--hitkey-colour"),	SO_REQ_SEP	},
+	//
+	{ OPT_HITRGB,		_T("-hitkeyrgb"), 		SO_REQ_SEP	},
+	{ OPT_HITRGB,		_T("--hitkey-rgb"),		SO_REQ_SEP	},
+
 	//
 	{ OPT_SOURCE,		_T("-s"),	 			SO_REQ_SEP	},
 	{ OPT_SOURCE,		_T("--src"), 			SO_REQ_SEP	},
@@ -452,6 +464,9 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_SPROPT,		_T("-sopt"), 			SO_REQ_SEP	},
 	{ OPT_SPROPT,		_T("--soptimize"),		SO_REQ_SEP	},
 	{ OPT_SPROPT,		_T("--soptimise"),		SO_REQ_SEP	},
+	//
+	{ OPT_HIDDEN,		_T("-hidden"),		 	SO_NONE	},
+	{ OPT_HIDDEN,		_T("--hidden"), 		SO_NONE	},
 	//
 	{ OPT_SPRXP,		_T("-sxp"),	 			SO_REQ_SEP	},
 	{ OPT_SPRXP,		_T("--sprxpos"),		SO_REQ_SEP	},
@@ -551,6 +566,7 @@ static void usage(int level)
 	std::cout << " -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
 	std::cout << " -nr, --no-remap      > prevent remapping of 8bit images (to 4bit), use first 16 colours only" << std::endl;
 	std::cout << " -fr, --force-remap   > force remapping of 8bit images (to 4bit) so --key-rgb is usable" << std::endl;
+	std::cout << " -hidden, --hidden    > hidden resource (e.g. collision/undraw) - don't store any pixel data" << std::endl;
 	std::cout << " -vis, --visual       > provide feedback/visualisation of cut assets as .tga file" << std::endl;
 	std::cout << std::endl;
 	std::cout << "sprite cutting mode:" << std::endl;
@@ -657,7 +673,9 @@ public:
 		  keyguard(false),
 		  quickcut(false),
 		  visual(false),
+		  hidden(false),
 		  keyrgb_specified(false),
+		  hitkeyrgb_specified(false),
 		  colrenorm(255),
 		  tolerance(0.0f),
 		  keytol(0.01f),
@@ -680,6 +698,7 @@ public:
 		  tilesize(16),
 		  emxoptlevel(DEFAULT_EMX_OPTLEVEL),
 		  keycol(255),
+		  hitkeycol(256),
 		  cut_xpos(0),
 		  cut_ypos(0),
 		  cut_xsize(16),
@@ -699,6 +718,9 @@ public:
 		keyrgb.red = 255;
 		keyrgb.green = 0;
 		keyrgb.blue = 255;
+		hitkeyrgb.red = 0;
+		hitkeyrgb.green = 255;
+		hitkeyrgb.blue = 255;
 	}
 
 	bool verbose;
@@ -710,12 +732,16 @@ public:
 	bool keyguard;
 	bool quickcut;
 	bool visual;
+	bool hidden;
 	bool keyrgb_specified;
+	bool hitkeyrgb_specified;
 	bool translayer;
 	bool stitchmaps;
 
 	ubyte_t keycol;
 	iRGB keyrgb;
+	uword_t hitkeycol;
+	iRGB hitkeyrgb;
 	int colrenorm;
 	int cut_xpos;
 	int cut_ypos;
@@ -1006,6 +1032,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			{
 				_args.visual = true;
 			}
+			else if (args.OptionId() == OPT_HIDDEN)
+			{
+				_args.hidden = true;
+			}
 			else if (args.OptionId() == OPT_SPROPT)
 			{
 				std::string s_arg = args.OptionArg();
@@ -1097,19 +1127,44 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				_args.keyrgb.green = g;
 				_args.keyrgb.blue = b;
 			}
-			else if (args.OptionId() == OPT_KEYCOL)
+
+			else if (args.OptionId() == OPT_HITCOL)
 			{
 				std::string s_arg = args.OptionArg();
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 255)
 				{
-					fprintf(stderr, "error: invalid arg for key colour: %s\n", s_arg.c_str());
+					fprintf(stderr, "error: invalid arg for hitkey colour: %s\n", s_arg.c_str());
 					printf("press any key...\n");
 					getchar();
 					exit(1);
 				}
-				_args.keycol = iarg;	
+				_args.hitkeycol = iarg;	
 			}
+			else if (args.OptionId() == OPT_HITRGB)
+			{
+				_args.hitkeyrgb_specified = true;
+
+				std::string s_arg = args.OptionArg();
+				
+				int r, g, b;
+				sscanf(s_arg.c_str(), "%x:%x:%x", &r, &g, &b);
+
+				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
+				{
+					fprintf(stderr, "error: invalid arg for hitkey rgb: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
+					exit(1);
+				}
+
+				printf("hitkey colour from rgb: r(%x):g(%x):b(%x):\n", r, g, b);
+
+				_args.hitkeyrgb.red = r;
+				_args.hitkeyrgb.green = g;
+				_args.hitkeyrgb.blue = b;
+			}
+
 			else if (args.OptionId() == OPT_TILESIZE)
 			{
 				std::string s_arg = args.OptionArg();
@@ -1434,6 +1489,18 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 	// trounce verbosity in quickcut mode
 	if (g_allargs.quickcut)
 		g_allargs.verbose = false;
+
+	if (g_allargs.hidden)
+	{
+		if (g_allargs.cutmode != Cutmode_SPRITES)
+		{
+			std::cerr << "error: can only apply -hidden optimization in imspr cutmode. (emspr/emxspr can still be used for hidden assets but will always contain pixel data)." << std::endl;
+			printf("press any key...\n");
+			getchar();
+			exit(1);
+		}
+	}
+
 
 	// adjust counts to make sense for common scenarios with terse commandlines
 
@@ -2385,7 +2452,7 @@ static void remap_dictionary_tiles()
 		for (int x = 0; x < g_allargs.tilesize * g_allargs.tilesize; x++)
 		{
 			ubyte_t c = ptile8[x];
-			if (c == g_allargs.keycol)
+			if (g_allargs.keycol == c)
 				c = 128;
 			ptile8[x] = c;
 		}
@@ -4485,7 +4552,7 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 //	emit .sps spritesheet sequence file
 // --------------------------------------------------------------------
 
-bool emit_sprite_sequence()
+bool emit_sprite_sequence(bool _storepixels)
 {
 	std::string fname;
 	if (g_allargs.outfile.length() > 0)
@@ -4595,274 +4662,278 @@ bool emit_sprite_sequence()
 			wv = endianswap16(it->yo_);
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
-			// width of plane in words
-			int wordwidth = (it->w_ + (16 - 1)) >> 4;
-			// size of plane in words
-			int planewords = wordwidth * it->h_;
-
-			// if preshifting is specified, additional indirection table used for preshifted sub-frames
-			if (g_allargs.masklayout == Masklayout_PRESHIFT)
+			if (_storepixels)
 			{
-				// preshifting is present so we need additional indirection for preshifted sub-frames
-				std::vector<int> pscolr_index;
-				std::vector<int> psmask_index;
-				std::vector<int> pscolropt_index;
-				std::vector<int> psmaskopt_index;
 
-				lv = 0xBBBBBBBB;
+				// width of plane in words
+				int wordwidth = (it->w_ + (16 - 1)) >> 4;
+				// size of plane in words
+				int planewords = wordwidth * it->h_;
 
-				// write single offset for plain colourdata (no preshifts yet)
-				int colr_preshift_index_fpos = tracked_filesize;
-				fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
-
-				int colropt_preshift_index_fpos = tracked_filesize;
-				if (g_allargs.cutmode == Cutmode_EMXSPR)
+				// if preshifting is specified, additional indirection table used for preshifted sub-frames
+				if (g_allargs.masklayout == Masklayout_PRESHIFT)
 				{
-					// write single offset for optimized colourdata (no preshifts yet)
+					// preshifting is present so we need additional indirection for preshifted sub-frames
+					std::vector<int> pscolr_index;
+					std::vector<int> psmask_index;
+					std::vector<int> pscolropt_index;
+					std::vector<int> psmaskopt_index;
+
+					lv = 0xBBBBBBBB;
+
+					// write single offset for plain colourdata (no preshifts yet)
+					int colr_preshift_index_fpos = tracked_filesize;
 					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
-				}
 
-				// write N offsets for plain mask preshifts
-				int mask_preshift_index_fpos = tracked_filesize;
-				for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
-				{
-					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
-				}
+					int colropt_preshift_index_fpos = tracked_filesize;
+					if (g_allargs.cutmode == Cutmode_EMXSPR)
+					{
+						// write single offset for optimized colourdata (no preshifts yet)
+						fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+					}
 
-				int maskopt_preshift_index_fpos = tracked_filesize;
-				if (g_allargs.cutmode == Cutmode_EMXSPR)
-				{
-					// write N offsets for optimixed mask preshifts
+					// write N offsets for plain mask preshifts
+					int mask_preshift_index_fpos = tracked_filesize;
 					for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
 					{
 						fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 					}
-				}
 
-				// plain colour 
-				{
-					// track colour preshifts
-					// todo: assumes only one for now
-					pscolr_index.push_back(tracked_filesize);
-
-					// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
-					wv = endianswap16(wordwidth);
-					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-
-					// write colour words for N lines, lines(planes(words))) order
-					for (int y = 0; y < it->h_; y++)
+					int maskopt_preshift_index_fpos = tracked_filesize;
+					if (g_allargs.cutmode == Cutmode_EMXSPR)
 					{
-						// reorder colour data if necessary
-						int realy = y;
-//						if (g_allargs.cutmode == Cutmode_EMXSPR)
-//							realy = it->lineorder[y];
-
-						for (int p = 0; p < g_allargs.planes; p++)
+						// write N offsets for optimixed mask preshifts
+						for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
 						{
-							for (int x = 0; x < wordwidth; x++)
+							fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+						}
+					}
+
+					// plain colour 
+					{
+						// track colour preshifts
+						// todo: assumes only one for now
+						pscolr_index.push_back(tracked_filesize);
+
+						// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
+						wv = endianswap16(wordwidth);
+						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+						// write colour words for N lines, lines(planes(words))) order
+						for (int y = 0; y < it->h_; y++)
+						{
+							// reorder colour data if necessary
+							int realy = y;
+							//						if (g_allargs.cutmode == Cutmode_EMXSPR)
+							//							realy = it->lineorder[y];
+
+							for (int p = 0; p < g_allargs.planes; p++)
 							{
-								wv = endianswap16(it->colr_[(((realy*wordwidth) + x)*g_allargs.planes) + p]);
-								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								for (int x = 0; x < wordwidth; x++)
+								{
+									wv = endianswap16(it->colr_[(((realy*wordwidth) + x)*g_allargs.planes) + p]);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								}
 							}
 						}
 					}
-				}
 
-				// optimized colour
-				if (g_allargs.cutmode == Cutmode_EMXSPR)
-				{
-					// track colour preshifts
-					// todo: assumes only one for now
-					pscolropt_index.push_back(tracked_filesize);
-
-					// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
-//					wv = endianswap16(wordwidth);
-//					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-
-					// write colour words for N lines, lines(planes(words))) order
-					for (int y = 0; y < it->h_; y++)
+					// optimized colour
+					if (g_allargs.cutmode == Cutmode_EMXSPR)
 					{
-						// reorder colour data if necessary
-						int realy = y;
-						//if (g_allargs.cutmode == Cutmode_EMXSPR)
+						// track colour preshifts
+						// todo: assumes only one for now
+						pscolropt_index.push_back(tracked_filesize);
+
+						// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
+						//					wv = endianswap16(wordwidth);
+						//					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+						// write colour words for N lines, lines(planes(words))) order
+						for (int y = 0; y < it->h_; y++)
+						{
+							// reorder colour data if necessary
+							int realy = y;
+							//if (g_allargs.cutmode == Cutmode_EMXSPR)
 							realy = it->lineorder[y];
 
-						for (int p = 0; p < g_allargs.planes; p++)
-						{
-							for (int x = 0; x < wordwidth; x++)
+							for (int p = 0; p < g_allargs.planes; p++)
 							{
-								wv = endianswap16(it->colr_[(((realy*wordwidth) + x)*g_allargs.planes) + p]);
+								for (int x = 0; x < wordwidth; x++)
+								{
+									wv = endianswap16(it->colr_[(((realy*wordwidth) + x)*g_allargs.planes) + p]);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								}
+							}
+						}
+					}
+
+					//for (int o = 0; o < planewords; o++)
+					//{
+					//	// write colour words for N planes, interleaved
+					//	for (int p = 0; p < g_allargs.planes; p++)
+					//	{
+					//		wv = endianswap16(it->colr_[(o*g_allargs.planes) + p]);
+					//		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					//	}
+					//}
+
+					// track mask preshifts
+					for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
+					{
+						psmask_index.push_back(tracked_filesize);
+
+						// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
+						wv = endianswap16(itm->wordwidth_);
+						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+						//if (g_allargs.cutmode == Cutmode_EMXSPR)
+						//{
+						//	fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
+
+						//	// write 68k binary code for this preshift
+						//	fwrite((itm->p68kbin + 32), 1, (itm->size68kbin - 32), hout);
+						//	tracked_filesize += (itm->size68kbin - 32);
+						//}
+						//else
+						{
+							// write whole mask preshift
+							for (int o = 0; o < itm->planewords_; o++)
+							{
+								// write colour words for single mask plane
+								wv = endianswap16(itm->data_[o]);
 								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 							}
 						}
 					}
-				}
 
-				//for (int o = 0; o < planewords; o++)
-				//{
-				//	// write colour words for N planes, interleaved
-				//	for (int p = 0; p < g_allargs.planes; p++)
-				//	{
-				//		wv = endianswap16(it->colr_[(o*g_allargs.planes) + p]);
-				//		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				//	}
-				//}
-
-				// track mask preshifts
-				for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
-				{
-					psmask_index.push_back(tracked_filesize);
-
-					// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
-					wv = endianswap16(itm->wordwidth_);
-					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-
-					//if (g_allargs.cutmode == Cutmode_EMXSPR)
-					//{
-					//	fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
-
-					//	// write 68k binary code for this preshift
-					//	fwrite((itm->p68kbin + 32), 1, (itm->size68kbin - 32), hout);
-					//	tracked_filesize += (itm->size68kbin - 32);
-					//}
-					//else
+					// track mask preshifts
+					if (g_allargs.cutmode == Cutmode_EMXSPR)
 					{
-						// write whole mask preshift
-						for (int o = 0; o < itm->planewords_; o++)
+						for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
 						{
-							// write colour words for single mask plane
-							wv = endianswap16(itm->data_[o]);
+							psmaskopt_index.push_back(tracked_filesize);
+
+							// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
+							//					wv = endianswap16(itm->wordwidth_);
+							//					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+							//					if (g_allargs.cutmode == Cutmode_EMXSPR)
+							{
+								//fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
+
+								// write 68k binary code for this preshift
+								fwrite((itm->p68kbin + 32), 1, (itm->size68kbin - 32), hout);
+								tracked_filesize += (itm->size68kbin - 32);
+							}
+							//else
+							//{
+							//	// write whole mask preshift
+							//	for (int o = 0; o < itm->planewords_; o++)
+							//	{
+							//		// write colour words for single mask plane
+							//		wv = endianswap16(itm->data_[o]);
+							//		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+							//	}
+							//}
+						}
+					}
+
+					// patch colour preshift index
+					{
+						lv = 0;
+						size_t save = ftell(hout);
+						fseek(hout, colr_preshift_index_fpos + 4, 0);
+						for (std::vector<int>::iterator it = pscolr_index.begin(); it != pscolr_index.end(); it++)
+						{
+							lv = (*it) - colr_preshift_index_fpos;
+							lv = endianswap32(lv);
+							fwrite(&lv, 1, 4, hout);
+						}
+						fseek(hout, save, 0);
+					}
+
+					// patch colouropt preshift index
+					if (g_allargs.cutmode == Cutmode_EMXSPR)
+					{
+						lv = 0;
+						size_t save = ftell(hout);
+						fseek(hout, colropt_preshift_index_fpos + 4, 0);
+						for (std::vector<int>::iterator it = pscolropt_index.begin(); it != pscolropt_index.end(); it++)
+						{
+							lv = (*it) - colropt_preshift_index_fpos;
+							lv = endianswap32(lv);
+							fwrite(&lv, 1, 4, hout);
+						}
+						fseek(hout, save, 0);
+					}
+
+					// patch mask preshift index
+					{
+						lv = 0;
+						size_t save = ftell(hout);
+						fseek(hout, mask_preshift_index_fpos + 4, 0);
+						for (std::vector<int>::iterator it = psmask_index.begin(); it != psmask_index.end(); it++)
+						{
+							lv = (*it) - mask_preshift_index_fpos;
+							lv = endianswap32(lv);
+							fwrite(&lv, 1, 4, hout);
+						}
+						fseek(hout, save, 0);
+					}
+
+					// patch maskopt preshift index
+					if (g_allargs.cutmode == Cutmode_EMXSPR)
+					{
+						lv = 0;
+						size_t save = ftell(hout);
+						fseek(hout, maskopt_preshift_index_fpos + 4, 0);
+						for (std::vector<int>::iterator it = psmaskopt_index.begin(); it != psmaskopt_index.end(); it++)
+						{
+							lv = (*it) - maskopt_preshift_index_fpos;
+							lv = endianswap32(lv);
+							fwrite(&lv, 1, 4, hout);
+						}
+						fseek(hout, save, 0);
+					}
+
+				}
+				else // !preshift
+				{
+					// immediate data follows - no preshifting present
+
+					// write mask,colr[n] words
+
+					// in planar-mask mode, we emit the entire mask before the colour data planes
+					if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PLANAR))
+					{
+						for (int o = 0; o < planewords; o++)
+						{
+							// write mask plane data
+							wv = endianswap16(it->mask_[o]);
 							fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 						}
 					}
-				}
 
-				// track mask preshifts
-				if (g_allargs.cutmode == Cutmode_EMXSPR)
-				{
-					for (preshiftlist_t::iterator itm = it->psmask_frames_.begin(); itm != it->psmask_frames_.end(); itm++)
-					{
-						psmaskopt_index.push_back(tracked_filesize);
-
-						// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
-						//					wv = endianswap16(itm->wordwidth_);
-						//					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-
-						//					if (g_allargs.cutmode == Cutmode_EMXSPR)
-						{
-							//fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
-
-							// write 68k binary code for this preshift
-							fwrite((itm->p68kbin + 32), 1, (itm->size68kbin - 32), hout);
-							tracked_filesize += (itm->size68kbin - 32);
-						}
-						//else
-						//{
-						//	// write whole mask preshift
-						//	for (int o = 0; o < itm->planewords_; o++)
-						//	{
-						//		// write colour words for single mask plane
-						//		wv = endianswap16(itm->data_[o]);
-						//		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-						//	}
-						//}
-					}
-				}
-
-				// patch colour preshift index
-				{
-					lv = 0;
-					size_t save = ftell(hout);
-					fseek(hout, colr_preshift_index_fpos + 4, 0);
-					for (std::vector<int>::iterator it = pscolr_index.begin(); it != pscolr_index.end(); it++)
-					{
-						lv = (*it) - colr_preshift_index_fpos;
-						lv = endianswap32(lv);
-						fwrite(&lv, 1, 4, hout);
-					}
-					fseek(hout, save, 0);
-				}
-
-				// patch colouropt preshift index
-				if (g_allargs.cutmode == Cutmode_EMXSPR)
-				{
-					lv = 0;
-					size_t save = ftell(hout);
-					fseek(hout, colropt_preshift_index_fpos + 4, 0);
-					for (std::vector<int>::iterator it = pscolropt_index.begin(); it != pscolropt_index.end(); it++)
-					{
-						lv = (*it) - colropt_preshift_index_fpos;
-						lv = endianswap32(lv);
-						fwrite(&lv, 1, 4, hout);
-					}
-					fseek(hout, save, 0);
-				}
-
-				// patch mask preshift index
-				{
-					lv = 0;
-					size_t save = ftell(hout);
-					fseek(hout, mask_preshift_index_fpos + 4, 0);
-					for (std::vector<int>::iterator it = psmask_index.begin(); it != psmask_index.end(); it++)
-					{
-						lv = (*it) - mask_preshift_index_fpos;
-						lv = endianswap32(lv);
-						fwrite(&lv, 1, 4, hout);
-					}
-					fseek(hout, save, 0);
-				}
-
-				// patch maskopt preshift index
-				if (g_allargs.cutmode == Cutmode_EMXSPR)
-				{
-					lv = 0;
-					size_t save = ftell(hout);
-					fseek(hout, maskopt_preshift_index_fpos + 4, 0);
-					for (std::vector<int>::iterator it = psmaskopt_index.begin(); it != psmaskopt_index.end(); it++)
-					{
-						lv = (*it) - maskopt_preshift_index_fpos;
-						lv = endianswap32(lv);
-						fwrite(&lv, 1, 4, hout);
-					}
-					fseek(hout, save, 0);
-				}
-
-			}
-			else
-			{
-				// immediate data follows - no preshifting present
-
-				// write mask,colr[n] words
-
-				// in planar-mask mode, we emit the entire mask before the colour data planes
-				if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PLANAR))
-				{
 					for (int o = 0; o < planewords; o++)
 					{
-						// write mask plane data
-						wv = endianswap16(it->mask_[o]);
-						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-					}
-				}
+						if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_INTERLEAVED))
+						{
+							// write interleaved mask word BEFORE each group of colour plane words
+							wv = endianswap16(it->mask_[o]);
+							fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+						}
 
-				for (int o = 0; o < planewords; o++)
-				{
-					if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_INTERLEAVED))
-					{
-						// write interleaved mask word BEFORE each group of colour plane words
-						wv = endianswap16(it->mask_[o]);
-						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+						// write colour words for N planes
+						for (int p = 0; p < g_allargs.planes; p++)
+						{
+							wv = endianswap16(it->colr_[(o*g_allargs.planes) + p]);
+							fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+						}
 					}
-
-					// write colour words for N planes
-					for (int p = 0; p < g_allargs.planes; p++)
-					{
-						wv = endianswap16(it->colr_[(o*g_allargs.planes) + p]);
-						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-					}
-				}
-			}
-		}
+				} // preshift
+			} // storepixels
+		} // spriteframes
 
 		// patch sprite index
 		lv = 0;
@@ -6134,9 +6205,9 @@ bool do_sheet()
 
 			if (m_psourcecol)
 			{
-				if (g_allargs.keyrgb_specified)
+				if (g_allargs.keyrgb_specified || g_allargs.hitkeyrgb_specified )
 				{
-					std::cerr << "error: can't use -keyrgb <R:G:B> on non-remapped spritesheet images - use -key <col> instead." << std::endl;
+					std::cerr << "error: can't use -keyrgb or -hitkeyrgb <R:G:B> on non-remapped spritesheet images - use -key/-hitkey <col> instead." << std::endl;
 					printf("press any key...\n");
 					getchar();	
 					exit(1);
@@ -6381,14 +6452,14 @@ bool do_sheet()
 			case Cutmode_SPRITES:
 			case Cutmode_EMSPR:
 				// non-code-generated sprite formats
-				emit_sprite_sequence();
+				emit_sprite_sequence(!g_allargs.hidden);
 				break;
 			//
 			case Cutmode_SLABS:
-				emit_slab_sequence(true);
+				emit_slab_sequence(true/*!g_allargs.hidden*/);
 				break;
-			case Cutmode_SLABRESTORE:
-				emit_slab_sequence(false);
+			case Cutmode_SLABRESTORE: // for now, we don't have a use case for drawing this except maybe to debug it
+				emit_slab_sequence(false/*!g_allargs.hidden*/);
 				break;
 			}
 		}
