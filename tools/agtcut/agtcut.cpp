@@ -123,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.423";
+static const char* const g_version_string = "v0.430";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -337,6 +337,8 @@ enum
 	OPT_KEYRGB,
 	OPT_KEYGUARD,
 	OPT_KEYTOL,
+	OPT_AUTOCUTCOL,
+	OPT_AUTOCUTRGB,
 	OPT_HITCOL,
 	OPT_HITRGB,
 	OPT_SOURCE,
@@ -412,12 +414,6 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_EMXOPT,		_T("--emx-opt-level"),	SO_REQ_SEP	},
 
 	//
-	{ OPT_KEYCOL,		_T("-key"),	 			SO_REQ_SEP	},
-	{ OPT_KEYCOL,		_T("--key-colour"),		SO_REQ_SEP	},
-	//
-	{ OPT_KEYRGB,		_T("-keyrgb"), 			SO_REQ_SEP	},
-	{ OPT_KEYRGB,		_T("--key-rgb"),		SO_REQ_SEP	},
-	//
 	{ OPT_KEYGUARD,		_T("-kg"),	 			SO_NONE		},
 	{ OPT_KEYGUARD,		_T("--key-guard"),		SO_NONE		},
 	//
@@ -425,11 +421,25 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_KEYTOL,		_T("--key-tol"),		SO_REQ_SEP	},
 
 	//
+	{ OPT_KEYCOL,		_T("-key"),	 			SO_REQ_SEP	},
+	{ OPT_KEYCOL,		_T("--key"),			SO_REQ_SEP	},
+	//
+	{ OPT_KEYRGB,		_T("-keyrgb"), 			SO_REQ_SEP	},
+	{ OPT_KEYRGB,		_T("--keyrgb"),			SO_REQ_SEP	},
+
+	//
+	{ OPT_AUTOCUTCOL,	_T("-ackey"),	 		SO_REQ_SEP	},
+	{ OPT_AUTOCUTCOL,	_T("--ackey"),			SO_REQ_SEP	},
+	//
+	{ OPT_AUTOCUTRGB,	_T("-ackeyrgb"),	 	SO_REQ_SEP	},
+	{ OPT_AUTOCUTRGB,	_T("--ackeyrgb"),		SO_REQ_SEP	},
+
+	//
 	{ OPT_HITCOL,		_T("-hitkey"),	 		SO_REQ_SEP	},
-	{ OPT_HITCOL,		_T("--hitkey-colour"),	SO_REQ_SEP	},
+	{ OPT_HITCOL,		_T("--hitkey"),			SO_REQ_SEP	},
 	//
 	{ OPT_HITRGB,		_T("-hitkeyrgb"), 		SO_REQ_SEP	},
-	{ OPT_HITRGB,		_T("--hitkey-rgb"),		SO_REQ_SEP	},
+	{ OPT_HITRGB,		_T("--hitkeyrgb"),		SO_REQ_SEP	},
 
 	//
 	{ OPT_SOURCE,		_T("-s"),	 			SO_REQ_SEP	},
@@ -676,6 +686,7 @@ public:
 		  hidden(false),
 		  keyrgb_specified(false),
 		  hitkeyrgb_specified(false),
+		  autocutkeyrgb_specified(false),
 		  colrenorm(255),
 		  tolerance(0.0f),
 		  keytol(0.01f),
@@ -698,6 +709,7 @@ public:
 		  tilesize(16),
 		  emxoptlevel(DEFAULT_EMX_OPTLEVEL),
 		  keycol(255),
+		  autocutkeycol(256),
 		  hitkeycol(256),
 		  cut_xpos(0),
 		  cut_ypos(0),
@@ -718,6 +730,9 @@ public:
 		keyrgb.red = 255;
 		keyrgb.green = 0;
 		keyrgb.blue = 255;
+		autocutkeyrgb.red = 0;
+		autocutkeyrgb.green = 255;
+		autocutkeyrgb.blue = 0;
 		hitkeyrgb.red = 0;
 		hitkeyrgb.green = 255;
 		hitkeyrgb.blue = 255;
@@ -735,6 +750,7 @@ public:
 	bool hidden;
 	bool keyrgb_specified;
 	bool hitkeyrgb_specified;
+	bool autocutkeyrgb_specified;
 	bool translayer;
 	bool stitchmaps;
 
@@ -742,6 +758,8 @@ public:
 	iRGB keyrgb;
 	uword_t hitkeycol;
 	iRGB hitkeyrgb;
+	uword_t autocutkeycol;
+	iRGB autocutkeyrgb;
 	int colrenorm;
 	int cut_xpos;
 	int cut_ypos;
@@ -1127,6 +1145,44 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				_args.keyrgb.green = g;
 				_args.keyrgb.blue = b;
 			}
+
+			else if (args.OptionId() == OPT_AUTOCUTCOL)
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if (iarg < 0 || iarg > 255)
+				{
+					fprintf(stderr, "error: invalid arg for autocut key colour: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
+					exit(1);
+				}
+				_args.autocutkeycol = iarg;	
+			}
+			else if (args.OptionId() == OPT_AUTOCUTRGB)
+			{
+				_args.autocutkeyrgb_specified = true;
+
+				std::string s_arg = args.OptionArg();
+				
+				int r, g, b;
+				sscanf(s_arg.c_str(), "%x:%x:%x", &r, &g, &b);
+
+				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
+				{
+					fprintf(stderr, "error: invalid arg for autocut key rgb: %s\n", s_arg.c_str());
+					printf("press any key...\n");
+					getchar();
+					exit(1);
+				}
+
+				printf("autocut key colour from rgb: r(%x):g(%x):b(%x):\n", r, g, b);
+
+				_args.autocutkeyrgb.red = r;
+				_args.autocutkeyrgb.green = g;
+				_args.autocutkeyrgb.blue = b;
+			}
+
 
 			else if (args.OptionId() == OPT_HITCOL)
 			{
@@ -1562,6 +1618,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		int cutyi = 0;
 		// [flags]
 		std::string cutflags;
+		// [xbase:right]
+		int cutxbase = 0;
+		// [ybase:bottom]
+		int cutybase = 0;
 		// [cut]
 		int cutcount = 1;
 		int cutxp = 0;
@@ -1605,6 +1665,18 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					if (inspect.find("[cut]") == 0)
 					{
 						cmdmode = 3;
+					}
+					else
+					if (inspect.find("[ybase:bottom]") == 0)
+					{
+						cutybase = 1;
+						// no args
+					}
+					else
+					if (inspect.find("[xbase:right]") == 0)
+					{
+						cutxbase = 1;
+						// no args
 					}
 					else
 					{
@@ -1682,6 +1754,12 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 							column_value = strtol(colval.c_str(), &pdummy, 10);
 							cutyp = column_value;
 
+							if (cutxbase)
+								cutxp -= (cutxs - 1);
+
+							if (cutybase)
+								cutyp -= (cutys - 1);
+
 							// create extra mappings for frames with flags
 							if (cutflags.length() > 0)
 							{
@@ -1726,6 +1804,11 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 			}
 		}
+	}
+	else
+	{
+		// may still be using autocut mode - but we'll build sprite guides after loading & processing the source image
+		// into the required colour format etc.
 	}
 }
 
@@ -4348,10 +4431,14 @@ void init_sprite_sequence(int _xs, int _ys, int _sw, int _sh)
 //	cut a single frame from source image
 // --------------------------------------------------------------------
 
-void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yflip, int _hs, int _vs, RGB* _ppal, RGB* _pvisualrgb)
+void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, bool _xflip, bool _yflip, int _hs, int _vs, RGB* _ppal, RGB* _pvisualrgb)
 {
 	memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
 	memset(g_maskbuffer8, 0xFF, g_sprite_bpwidth * g_sprite_height);
+
+	//_pframemask = 0;
+
+	int frame = g_spriteframes.size() + 1;
 
 	int cxmin = 0;
 	int cymin = 0;
@@ -4372,9 +4459,15 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
-				int frame = g_spriteframes.size();
+				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+					;
+				else
+					c = g_allargs.keycol;
 
-				RGB &pix = _pvisualrgb[(frame * (g_sprite_width*g_sprite_height)) + (lpy*g_sprite_width) + lpx];
+
+				int frameidx = g_spriteframes.size();
+
+				RGB &pix = _pvisualrgb[(frameidx * (g_sprite_width*g_sprite_height)) + (lpy*g_sprite_width) + lpx];
 
 				if (c == g_allargs.keycol)
 				{	
@@ -4400,12 +4493,15 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
-				if (c == g_allargs.keycol)
-					printf("  ");
+				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+					;
 				else
-					printf("%02x", (int)c);
-				if (lpx < g_sprite_width-1)
+					c = g_allargs.keycol;
+
+				if (c == g_allargs.keycol)
 					printf(" ");
+				else
+					printf("%x", (int)(c & 0xF));
 			}
 			printf("|\n");
 		}
@@ -4426,6 +4522,11 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 			for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+					;
+				else
+					c = g_allargs.keycol;
 
 				if (c != g_allargs.keycol)
 				{
@@ -4481,6 +4582,11 @@ void add_sprite_frame(ubyte_t* _psource8, int _x, int _y, bool _xflip, bool _yfl
 			int psxr = _xflip ? ((cxmax - 1) - px) : (cxmin + px);
 
 			ubyte_t c = _psource8[((psyr + _y) * g_spritesource_w) + (psxr + _x)];
+
+			if ((_pframemask == nullptr) || (_pframemask[((psyr + _y) * g_spritesource_w) + (psxr + _x)] == frame))
+				;
+			else
+				c = g_allargs.keycol;
 
 			// colour buffer receives actual colour, or 0 for keycol (so two colours can potentially map to 0)
 			g_colrbuffer8[(py * g_sprite_framebpwidth) + px] = (c == g_allargs.keycol) ? 0x00 : c;
@@ -5124,9 +5230,11 @@ void extract_spanblock(slabframe_t &slab, int _spanblock_firstx, int _spanblock_
 }
 
 
-void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
+void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 {
 	memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+
+	int frame = g_slabframes.size() + 1;
 
 	int cxmin = 0;
 	int cymin = 0;
@@ -5143,11 +5251,15 @@ void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
+				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+					;
+				else
+					c = g_allargs.keycol;
+
 				if (c == g_allargs.keycol)
 					printf(" ");
 				else
-//					printf("%02x ", (int)c);
-					printf("%c", (int)(c & 127)+'A');
+					printf("%x", (int)(c & 0xF));
 			}
 			printf("\n");
 		}
@@ -5169,6 +5281,11 @@ void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
 			for (int px = 0; px < g_sprite_width; px++)
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+					;
+				else
+					c = g_allargs.keycol;
 
 				if (c != g_allargs.keycol)
 				{
@@ -5206,6 +5323,11 @@ void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
 		for (int psx = cxmin, px = 0; psx < cxmax; psx++, px++)
 		{
 			ubyte_t c = _psource8[((psy + _y) * g_spritesource_w) + (psx + _x)];
+
+			if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+				;
+			else
+				c = g_allargs.keycol;
 
 			// colour buffer receives actual colour, or 0 for keycol (so two colours can potentially map to 0)
 			g_colrbuffer8[(py * g_sprite_framebpwidth) + px] = c;// (c == g_allargs.keycol) ? 0x00 : c;
@@ -5279,9 +5401,11 @@ void add_slab_frame(ubyte_t* _psource8, int _x, int _y)
 	g_slabframes.push_back(slab);
 }
 
-void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
+void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 {
 	// preprocess slab to produce fewer, less precise spanblock regions for accelerated clearing
+
+	int frame = g_slabframes.size() + 1;
 
 	int cxmin = 0;
 	int cymin = 0;
@@ -5303,7 +5427,9 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
-				if (c != g_allargs.keycol)
+				if ((c != g_allargs.keycol) && 
+					((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+					)
 				{
 					// opaque pixel - adjust bounds
 					cxmin = xmin(cxmin, px);
@@ -5325,7 +5451,7 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 		std::cout << "warning: empty slabrestore frame!" << std::endl;
 
 		// now process the quantised frame normally, for an empty frame
-		add_slab_frame(_psource8, _x, _y);
+		add_slab_frame(_psource8, _pframemask, _x, _y);
 	}
 	else // !degenerate
 	{
@@ -5343,6 +5469,11 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 			for (; px < g_sprite_width; px++)
 			{
 				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+				
+				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+					;
+				else
+					c = g_allargs.keycol;
 
 				workarea[((py + 0) * workarea_w) + (px + 0)] = c;
 			}
@@ -5692,7 +5823,7 @@ void add_slabrestore_frame(ubyte_t* _psource8, int _x, int _y)
 		}
 
 		// now process the quantised frame normally, but from the proxy work area
-		add_slab_frame(_psource8, _x, _y);
+		add_slab_frame(_psource8, nullptr, _x, _y);
 
 		// release the work area
 		delete[] workarea;
@@ -6102,6 +6233,37 @@ bool emit_slab_sequence(bool _storepixels)
 //	sheet mode
 // --------------------------------------------------------------------
 
+static float rgb_error(const RGB& a, const RGB& b)
+{
+	static const float rn = 1.0f / 255.0f;
+
+	float ar = float(a.red);
+	float ag = float(a.green);
+	float ab = float(a.blue);
+
+	float br = float(b.red);
+	float bg = float(b.green);
+	float bb = float(b.blue);
+
+	float dr = (ar - br) * rn;
+	float dg = (ag - bg) * rn;
+	float db = (ab - bb) * rn;
+
+	float err = (dr * dr) + (dg * dg) + (db * db);
+
+	//printf("err: %.6f\n", err);
+	return err;
+}
+
+static float rgb_error(const RGB& a, const iRGB& b)
+{
+	RGB bb;
+	bb.red = (unsigned int)b.red;
+	bb.green = (unsigned int)b.green;
+	bb.blue = (unsigned int)b.blue;
+	return rgb_error(a, bb);
+}
+
 bool do_sheet()
 {
 	ulong_t sourcew = 0;
@@ -6111,6 +6273,7 @@ bool do_sheet()
 	RGB *m_ppalettergb = 0;
 	ubyte_t *m_psourcecol = 0;
 	ubyte_t *m_poriginalsrccol = 0;
+	ubyte_t *m_framemask = 0;
 	RGB *pvisualrgb = 0;
 	int visualw, visualh;
 
@@ -6205,7 +6368,7 @@ bool do_sheet()
 
 			if (m_psourcecol)
 			{
-				if (g_allargs.keyrgb_specified || g_allargs.hitkeyrgb_specified )
+				if (g_allargs.keyrgb_specified || g_allargs.hitkeyrgb_specified || g_allargs.autocutkeyrgb_specified )
 				{
 					std::cerr << "error: can't use -keyrgb or -hitkeyrgb <R:G:B> on non-remapped spritesheet images - use -key/-hitkey <col> instead." << std::endl;
 					printf("press any key...\n");
@@ -6221,6 +6384,352 @@ bool do_sheet()
 				m_psourcecol = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
 				// reduce source image to indexed colour with fixed palette
 				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol, 0, sourcew, sourceh, sourced, m_ppalettergb);
+			}
+
+			// now generate autocut guides from source image
+
+
+
+			if (g_allargs.autocutkeyrgb_specified)
+			{
+				std::cout << "autocut..." << std::endl;
+
+				std::list<std::pair<int, int>> hotspots;
+
+				// autocut mode - guide script is internally generated from crosshairs and reserved colours
+
+				byte_t *pguidesh = new byte_t[sourcew * sourceh];
+				memset(pguidesh, 0, sizeof(byte_t) * sourcew * sourceh);
+				byte_t *pguidesv = new byte_t[sourcew * sourceh];
+				memset(pguidesv, 0, sizeof(byte_t) * sourcew * sourceh);
+
+				float t = g_allargs.keytol;
+
+				// vertical sweep for horizontal guides
+				for (int y = 0; y < sourceh; y++)
+				{
+					for (int x = 0; x < sourcew-1; x++)
+					{
+						RGB *pcol0 = &m_psourcergb[(y * sourcew) + x];
+						RGB *pcol1 = &m_psourcergb[(y * sourcew) + x + 1];
+
+						if ((rgb_error(*pcol0, g_allargs.autocutkeyrgb) < t) && (rgb_error(*pcol0, *pcol1) < 1e-6))
+						{
+							// horizontal crosshair pixel
+							//std::cout << "h @ " << x << "," << y << std::endl;
+
+							// transfer crosshair to guide buffer
+							for (int xx = x; xx >= 0; xx--)
+							{
+								RGB *pcol = &m_psourcergb[(y * sourcew) + xx];
+								if (rgb_error(*pcol, g_allargs.keyrgb) < t)
+									break;
+
+								// mark guide
+								pguidesh[(y * sourcew) + xx] = 1;
+							}
+							int xe = x + 1;
+							for (; xe < sourcew; xe++)
+							{
+								RGB *pcol = &m_psourcergb[(y * sourcew) + xe];
+								if (rgb_error(*pcol, g_allargs.keyrgb) < t)
+									break;
+
+								// mark guide
+								pguidesh[(y * sourcew) + xe] = 1;
+							}
+
+							// continue scan beyond end of crosshair
+							x = xe - 1;
+						}
+					}
+				}
+
+				// horizontal sweep for vertical guides
+				for (int x = 0; x < sourcew; x++)
+				{
+					for (int y = 0; y < sourceh-1; y++)
+					{
+						RGB *pcol0 = &m_psourcergb[(y * sourcew) + x];
+						RGB *pcol1 = &m_psourcergb[((y + 1) * sourcew) + x];
+
+						if ((rgb_error(*pcol0, g_allargs.autocutkeyrgb) < t) && (rgb_error(*pcol0, *pcol1) < 1e-6))
+						{
+							// vertical crosshair pixel
+							//std::cout << "v @ " << x << "," << y << std::endl;
+
+							// transfer crosshair to guide buffer
+							for (int yy = y; yy >= 0; yy--)
+							{
+								RGB *pcol = &m_psourcergb[(yy * sourcew) + x];
+								if (rgb_error(*pcol, g_allargs.keyrgb) < t)
+									break;
+
+								// mark guide
+								pguidesv[(yy * sourcew) + x] = 1;
+							}
+							int ye = y + 1;
+							for (; ye < sourceh; ye++)
+							{
+								RGB *pcol = &m_psourcergb[(ye * sourcew) + x];
+								if (rgb_error(*pcol, g_allargs.keyrgb) < t)
+									break;
+
+								// mark guide
+								pguidesv[(ye * sourcew) + x] = 1;
+							}
+
+							// continue scan beyond end of crosshair
+							y = ye - 1;
+						}
+					}
+				}
+
+				// find crosshair origins
+				for (int y = 0; y < sourceh; y++)
+				{
+					for (int x = 0; x < sourcew; x++)
+					{
+						byte_t c = 
+							pguidesh[(y*sourcew) + x] & 
+							pguidesv[(y*sourcew) + x];
+
+						if (c)
+						{
+							//std::cout << "hotspot @ " << x << "," << y << std::endl;
+							hotspots.push_back(std::pair<int, int>(x, y));
+						}
+					}
+				}
+				delete[] pguidesv; pguidesv = 0;
+				delete[] pguidesh; pguidesh = 0;
+
+				std::vector<std::pair<int, int>> sorted_hotspots;
+
+				// formally organize hotspots left-right, top-bottom
+				while (!hotspots.empty())
+				{
+					// find lowest x,y
+					// find bounding box for remaining entries
+					// find nearest to 0,0
+					int x1 = 0x7ffff;
+					int y1 = 0x7ffff;
+					int x2 = 0;
+					int y2 = 0;
+
+					for (auto &h : hotspots)
+					{
+						if (h.first < x1)
+							x1 = h.first;
+						if (h.first > x2)
+							x2 = h.first;
+						if (h.second < y1)
+							y1 = h.second;
+						if (h.second > y2)
+							y2 = h.second;
+					}
+
+					auto mi = hotspots.begin();
+					{
+						//int mx = 0x7ffff;
+						//int my = 0x7ffff;
+						int d = 0x7fffffff;
+						for (auto hi = hotspots.begin(); hi != hotspots.end(); hi++)
+						{
+//							if ((hi->first < mx) && (hi->second < my))
+							int dx = (hi->first - x1);
+							int dy = (hi->second - y1);
+							int dd = ((dx * dx) + (dy * dy));
+							if (dd < d)
+							{
+								mi = hi;
+								d = dd;
+							}
+						}
+					}
+
+					auto last_hotspot = *mi;
+					sorted_hotspots.push_back(last_hotspot);
+					hotspots.erase(mi);
+
+					bool ok = true;
+					while (!hotspots.empty() && ok)
+					{
+						// find next x within y tolerance
+						auto mi = hotspots.begin();
+						{
+							int mx = 0x7ffff;
+							int my = 0x7ffff;
+							for (auto hi = hotspots.begin(); hi != hotspots.end(); hi++)
+							{
+								if ((hi->first < mx) && 
+									(hi->first > last_hotspot.first) && 
+									(abs(hi->second - last_hotspot.second) < 32))
+								{
+									mi = hi;
+									mx = hi->first;
+									my = hi->second;
+								}
+							}
+
+							if (mx == 0x7ffff)
+								ok = false;
+						}
+
+						if (ok)
+						{
+							last_hotspot = *mi;
+							sorted_hotspots.push_back(last_hotspot);
+							hotspots.erase(mi);
+						}
+					}
+
+				}
+
+				for (auto & h : sorted_hotspots)
+					std::cout << "hotspot @ " << h.first << "," << h.second << std::endl;
+
+				// find physical bounds of each individual sprite from hotspots
+
+				class rect
+				{
+				public:
+
+					rect(int _x1, int _y1, int _x2, int _y2) 
+						: x1(_x1), y1(_y1), x2(_x2), y2(_y2)
+					{ 
+					}
+
+					int x1, y1;
+					int x2, y2;
+				};
+
+				std::vector<rect> bounds;
+
+				m_framemask = new ubyte_t[sourcew*sourceh];
+				memset(m_framemask, 0, sourcew*sourceh);
+				int index = 0;
+				for (auto & h : sorted_hotspots)
+				{
+					index++;
+
+					// flood fill outwards 
+					static std::vector<std::pair<int, int>> stack;
+					stack.clear();
+					stack.push_back(h);
+
+					int rx1 = 0x7fffff;
+					int rx2 = 0;
+					int ry1 = 0x7fffff;
+					int ry2 = 0;
+
+					while (!stack.empty())
+					{
+						auto p = stack.back();
+						stack.pop_back();
+
+
+						// don't include key colour and don't sample it
+						RGB *pcol = &m_psourcergb[(p.second * sourcew) + p.first];
+						if (rgb_error(*pcol, g_allargs.keyrgb) < t)
+						{
+							// don't sample again, don't include pixel
+							m_framemask[p.first + (p.second * sourcew)] = 255;
+							// don't follow key pixels
+							continue;
+						}
+						if (rgb_error(*pcol, g_allargs.autocutkeyrgb) < t)
+						{
+							// don't sample again, don't include pixel - but do follow crosshair to contact sprite
+							m_framemask[p.first + (p.second * sourcew)] = 255;
+						}
+						else
+						{
+							// don't sample again - mark active pixel with frame index, follow active pixels
+							m_framemask[p.first + (p.second * sourcew)] = index;
+
+							if (p.first < rx1)
+								rx1 = p.first;
+							if (p.first > rx2)
+								rx2 = p.first;
+
+							if (p.second < ry1)
+								ry1 = p.second;
+							if (p.second > ry2)
+								ry2 = p.second;
+						}
+
+						if (p.first > 0)
+							if (0 == m_framemask[p.first - 1 + ((p.second + 0) * sourcew)])
+								stack.push_back(std::pair<int, int>(p.first - 1, p.second + 0));
+						if (p.first < sourcew-1)
+							if (0 == m_framemask[p.first + 1 + ((p.second + 0) * sourcew)])
+								stack.push_back(std::pair<int, int>(p.first + 1, p.second + 0));
+
+						if (p.second > 0)
+							if (0 == m_framemask[p.first + 0 + ((p.second - 1) * sourcew)])
+								stack.push_back(std::pair<int, int>(p.first + 0, p.second - 1));
+						if (p.second < sourceh-1)
+							if (0 == m_framemask[p.first + 0 + ((p.second + 1) * sourcew)])
+								stack.push_back(std::pair<int, int>(p.first + 0, p.second + 1));
+					}
+
+					rx2++;
+					ry2++;
+					std::cout << "frame bound: " << rx1 << "," << ry1 << "..." << rx2 << "," << ry2 << std::endl;
+					bounds.push_back(rect(rx1,ry1,rx2,ry2));
+
+				}
+
+				// find common bound for all sprites
+
+				int cx1 = 0;
+				int cy1 = 0;
+				int cx2 = 0;
+				int cy2 = 0;
+				int f = 0;
+				for (auto & h : sorted_hotspots)
+				{
+					auto & b = bounds[f++];
+
+					int dx1 = b.x1 - h.first;
+					if (dx1 < cx1)
+						cx1 = dx1;
+
+					int dy1 = b.y1 - h.second;
+					if (dy1 < cy1)
+						cy1 = dy1;
+
+					int dx2 = b.x2 - h.first;
+					if (dx2 > cx2)
+						cx2 = dx2;
+
+					int dy2 = b.y2 - h.second;
+					if (dy2 > cy2)
+						cy2 = dy2;
+				}
+
+				std::cout << "sprite bounds: " << cx1 << "," << cy1 << "..." << cx2 << "," << cy2 << std::endl;
+
+				// generate cutting guides
+
+				for (auto & h : sorted_hotspots)
+				{
+					int x1 = h.first + cx1;
+					int y1 = h.second + cy1;
+					g_allargs.guideeventseq.push_back
+					(
+						guideevent
+						(
+							/*cutcount=*/1, 
+							/*cutflags=*/"", 
+							x1, y1,
+							cx2-cx1, cy2-cy1,
+							0, 0
+						)
+					);
+				}
+
 			}
 
 			// sprite cutting loop
@@ -6398,7 +6907,7 @@ bool do_sheet()
 							g_allargs.cutmode == Cutmode_EMXSPR)
 						{
 							std::cout << "cutting sprite frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-							add_sprite_frame(m_psourcecol, cx, cy, xflip, yflip, hs, vs, 
+							add_sprite_frame(m_psourcecol, m_framemask, cx, cy, xflip, yflip, hs, vs, 
 								m_ppalettergb, pvisualrgb);
 						}
 						else
@@ -6406,14 +6915,14 @@ bool do_sheet()
 							{
 								std::cout << "cutting slab frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
 								memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
-								add_slab_frame(m_psourcecol, cx, cy);
+								add_slab_frame(m_psourcecol, m_framemask, cx, cy);
 							}
 							else
 								if (g_allargs.cutmode == Cutmode_SLABRESTORE)
 								{
 									std::cout << "cutting slabrestore frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
 									memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
-									add_slabrestore_frame(m_psourcecol, cx, cy);
+									add_slabrestore_frame(m_psourcecol, m_framemask, cx, cy);
 								}
 
 						// store mappings for each frame, so future frames can refer to these
@@ -6448,6 +6957,7 @@ bool do_sheet()
 			//
 			case Cutmode_EMXSPR:
 				// code-generated preshifted blitter EM sprites
+				std::cout << "optimizing EMX : code generation..." << std::endl;
 				generate_emx_sequence();
 			case Cutmode_SPRITES:
 			case Cutmode_EMSPR:
