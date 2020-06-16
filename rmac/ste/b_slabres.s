@@ -27,12 +27,42 @@
 .slr_frameok:
 	.endif
 	.endif
+
+;	move.w		#32,_drawcontext+dctx_clipwindow_y1
+;	move.w		#240-32,_drawcontext+dctx_clipwindow_y2
+
+	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
 	
 	; access sprite frame table
 	
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sls_frameindex(a0,d0.w),a0	; access sprite frame data
+			
+	move.w		d1,.sp_x(sp)
+	move.w		d2,.sp_y(sp)
+
+	bra.s		.slr_begin
+	
+.slr_component:		
+
+	move.l		d0,a0
+	move.w		.sp_x(sp),d1
+	move.w		.sp_y(sp),d2
+	move.l		.sp_framebuf(sp),a1
+	
+.slr_begin:			
+	move.l		slf_nextcmp(a0),.sp_nextcmp(sp)
+
+;	move.l		slf_nextcmp(a0),d0
+;	beq		.sq
+;	move.l		d0,a0
+;	bra		.get
+;	move.l		slf_nextcmp(a0),d0
+;	move.l		d0,.sp_nextcmp(sp)
+;	beq		.sq
+;	move.l		d0,a0	
+;.sq:
 			
 	; remaining spanblocks
 		
@@ -47,7 +77,13 @@
 	add.w		slf_xo(a0),d1			; +xo
 	add.w		slf_yo(a0),d2			; +yo
 
-	move.w		d2,.sp_yoff(sp)
+	.if		(enable_slabrestore)
+	.if		(use_sprite_pagerestore)
+	move.w		d2,d0
+	sub.w		.sp_yc(sp),d0
+	move.w		d0,.sp_yoff(sp)
+	.endif
+	.endif
 
 	; relative base for offset tables
 	
@@ -55,7 +91,7 @@
 	
 	move.l		a6,a2
 
-	cmp.w		_drawcontext+dctx_clipwindow_y1,d2
+	cmp.w		.sp_yc(sp),d2
 	bpl.s		.slr_clip_safetop
 
 *-------------------------------------------------------*
@@ -66,21 +102,21 @@
 *	count generally, the overhead is neglegible	
 *-------------------------------------------------------*
 
-	sub.w		_drawcontext+dctx_clipwindow_y1,d2
-	neg.w		d2
+	sub.w		.sp_yc(sp),d2
+	neg.w		d2				; frame rect +ve crop
 	cmp.w		d4,d2
 	bge		.slr_degen			; completely cropped?
 	
-	move.w		d2,d5				; total amount to crop
+	move.w		d2,d5				; save crop
 
 	lsl.w		#3,d2
-	lea		(a6,d2.w),a0
+	lea		(a6,d2.w),a0			; index clipper
 
 	add.w		(a0)+,a2			; slc_tyc_offset : first spanblock record = [clipper + yc]
 	move.w		(a0)+,d7			; slc_tyc_remain : spanblocks remaining for this yc
 	subq.w		#1,d7
 
-	moveq		#0,d4
+;	moveq		#0,d4
 ;	move.w		(a0),d4				; slc_tyc_data
 ;	lea		(a6,d4.l),a3			; +64k reach for span pixel data
 	
@@ -98,24 +134,56 @@
 
 ;	real cropping is (y+dy) since dy = optional empty lines at start of block
 
-	sub.w		ssb_y(a0),d5
-	sub.w		ssb_dy(a0),d5
+
+;	-1	dy=2
+;	-1
+;	X1	y=2,ys=3-1
+;	X1
+;	X1
+;	-2	dy=2
+;	-2
+;	X2 	y=7,ys=3-1
+;	X2				; d5(crop)=8
+;	X2
+
+;	srcy = ssb_y+sp_yoff, clamped to 0
+
+	move.w		.sp_yc(sp),d2
+
+;	incorporate skipped region into ytop
+
+	sub.w		ssb_dy(a0),d2
+
+	move.w		ssb_ys(a0),d6
+
+	sub.w		ssb_y(a0),d5	; d5-7=1
+	bmi.s		.slr_nocrop
+	
 
 ;	crop first block size by yc-(y+dy)
 
-	move.w		ssb_ys(a0),d6
 	sub.w		d5,d6
-
+	bmi		.slr_degen
+	
 ;	index source by yc-(y+dy) pixeldata lines
 
 ;	lsl.w		#3,d5
 ;	mulu.w		ssb_dxw(a0),d5
 ;	add.l		d5,a3
 
-;	y origin = clipping edge
+;	slab size is restricted - if clipped at top, 
+;	can't also be clipped at bottom	
 
-	move.w		_drawcontext+dctx_clipwindow_y1,d2
+	bra		.slr_clip_safebot
 	
+.slr_nocrop:
+
+;	bra		*
+	
+;	compensate dsty by -ve cropped amount since skipped region will update dsty before writing spans
+
+	sub.w		d5,d2	
+		
 ;	slab size is restricted - if clipped at top, 
 ;	can't also be clipped at bottom	
 
@@ -169,24 +237,36 @@
 	move.w		d4,d5
 	sub.w		d2,d5
 
+;	d2		slab_y1
+;	d4		slab_y2
+;	d5		slab_ys
+
 ;	byc: amount to crop from full slab height (up to max of slab height)
 	
 	sub.w		_drawcontext+dctx_clipwindow_y2,d4
-;	move.w		d4,.sp_ycrop(sp)
+
+;	d4		+ve crop
 
 ;	byr: amount rmaining of full slab height (up to max of slab height)
 	
 	sub.w		d4,d5
 	move.w		d5,.sp_yrem(sp)
 	
+;	d5		slab_ys_cropped
+
 ;	index clipper to obtain (spanblocks-1)-1 for main, unclipped portion
 
 	lsl.w		#3,d4
 	move.w		slc_byc_remain(a6,d4.w),d7
 
+;	d7		spanblocks_remaining[crop]-1
+
+;	load initial block source
+
+;	move.l		a3,BLiTSRC.w
+
 ;	address initial line
 
-;	move.w		d2,.sp_yoff(sp)
 	mulu.w		_g_linebytes,d2
 	add.l		d2,a1	
 
@@ -220,22 +300,17 @@
 
 	move.l		a6,a0				; spanblock index
 	add.w		(a2)+,a0			; next spanblock
-
-	move.w		ssb_ys(a0),d6
 	
 .slr_bc_no_main:
 
 ;	always render one final (cropped) block - 0 or more full blocks before this
 
-;	actual spans remaining = yrem-(y+dy)
-
 	move.w		.sp_yrem(sp),d6
-	sub.w		ssb_y(a0),d6
-	sub.w		ssb_dy(a0),d6
+	sub.w		ssb_y(a0),d6		; block remainder
 	ble		.slr_done
 
 	subq.w		#1,d6		
-	moveq		#0,d7
+	moveq		#1-1,d7
 	
 ;	(spanblocks-1) in d7
 ;	(spans-1) in d6
@@ -248,10 +323,13 @@
 .slr_clip_safebot:
 *-------------------------------------------------------*
 
+;	load initial block source
+
+;	move.l		a3,BLiTSRC.w
+
 ;	address initial line
 
-;	move.w		d2,.sp_yoff(sp)
-	mulu.w		_g_linebytes,d2
+	muls.w		_g_linebytes,d2
 	add.l		d2,a1
 
 ;	setup
@@ -296,6 +374,16 @@
 *-------------------------------------------------------*
 .slr_degen:
 *-------------------------------------------------------*
+
+	move.l		.sp_nextcmp(sp),d0
+	bne		.slr_component
+	
+;	move.l		d0,a0
+;	move.w		.sp_x(sp),d1
+;	move.w		.sp_y(sp),d2
+;	move.l		.sp_framebuf(sp),a1
+;	bra		.slb_component
+;.sk:
 
 *=======================================================*
 *	exitpoint

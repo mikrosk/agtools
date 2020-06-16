@@ -342,7 +342,8 @@ _enable_slabrestore_	set	(use_sprite_saverestore|use_sprite_pagerestore)
 	add.w		.sp_yoff(sp),d5
 	bpl.s		.qqb\~
 	clr.w		d5
-.qqb\~:	move.w		d5,(a5)+
+.qqb\~:	add.w		.sp_yc(sp),d5
+	move.w		d5,(a5)+
 	.endif
 	.endif
 
@@ -423,7 +424,8 @@ _enable_slabrestore_	set	(use_sprite_saverestore|use_sprite_pagerestore)
 	add.w		.sp_yoff(sp),d5
 	bpl.s		.qqs\~
 	clr.w		d5
-.qqs\~:	move.w		d5,(a5)+
+.qqs\~:	add.w		.sp_yc(sp),d5
+	move.w		d5,(a5)+
 	.endif
 	.endif
 

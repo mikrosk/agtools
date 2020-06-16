@@ -32,9 +32,13 @@ _BLiT_EntityDrawVisibleXM_68k:
 .sp_skew:		ds.w	1			; don't move this one
 .sp_maskwidth:		ds.w	1
 .sp_yoff:		ds.w	1
+.sp_yc:			ds.w	1
 .sp_yrem:		ds.w	1
 .sp_save_usp:		ds.l	1
 .sp_linetable:		ds.l	1
+.sp_nextcmp:		ds.l	1
+.sp_x:			ds.w	1
+.sp_y:			ds.w	1
 *-------------------------------------------------------*
 *	locals: shadow function arguments
 *-------------------------------------------------------*
@@ -607,6 +611,7 @@ _BLiT_EntityDebugVisibleXM_68k:
 .sp_skew:		ds.w	1			; don't move this one
 .sp_maskwidth:		ds.w	1
 .sp_yoff:		ds.w	1
+.sp_yc:			ds.w	1
 .sp_yrem:		ds.w	1
 .sp_save_usp:		ds.l	1
 .sp_linetable:		ds.l	1

@@ -123,12 +123,12 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.430";
+static const char* const g_version_string = "v0.432";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
 
-static const int SLS_VERSION = 0x1100;
+static const int SLS_VERSION = 0x1200;
 
 // --------------------------------------------------------------------
 //	some ...globals (?!)
@@ -337,9 +337,9 @@ enum
 	OPT_KEYRGB,
 	OPT_KEYGUARD,
 	OPT_KEYTOL,
-	OPT_AUTOCUTCOL,
+//	OPT_AUTOCUTCOL,
 	OPT_AUTOCUTRGB,
-	OPT_HITCOL,
+//	OPT_HITCOL,
 	OPT_HITRGB,
 	OPT_SOURCE,
 	OPT_OUTFILE,
@@ -411,7 +411,7 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_MASKLAYOUT,	_T("--mask-layout"),	SO_REQ_SEP	},
 	//
 	{ OPT_EMXOPT,		_T("-emxopt"),	 		SO_REQ_SEP	},
-	{ OPT_EMXOPT,		_T("--emx-opt-level"),	SO_REQ_SEP	},
+	{ OPT_EMXOPT,		_T("--emx-opt"),		SO_REQ_SEP	},
 
 	//
 	{ OPT_KEYGUARD,		_T("-kg"),	 			SO_NONE		},
@@ -425,21 +425,21 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_KEYCOL,		_T("--key"),			SO_REQ_SEP	},
 	//
 	{ OPT_KEYRGB,		_T("-keyrgb"), 			SO_REQ_SEP	},
-	{ OPT_KEYRGB,		_T("--keyrgb"),			SO_REQ_SEP	},
+	{ OPT_KEYRGB,		_T("--key-rgb"),			SO_REQ_SEP	},
 
 	//
-	{ OPT_AUTOCUTCOL,	_T("-ackey"),	 		SO_REQ_SEP	},
-	{ OPT_AUTOCUTCOL,	_T("--ackey"),			SO_REQ_SEP	},
+//	{ OPT_AUTOCUTCOL,	_T("-ackey"),	 		SO_REQ_SEP	},
+//	{ OPT_AUTOCUTCOL,	_T("--ackey"),			SO_REQ_SEP	},
 	//
 	{ OPT_AUTOCUTRGB,	_T("-ackeyrgb"),	 	SO_REQ_SEP	},
-	{ OPT_AUTOCUTRGB,	_T("--ackeyrgb"),		SO_REQ_SEP	},
+	{ OPT_AUTOCUTRGB,	_T("--ackey-rgb"),		SO_REQ_SEP	},
 
 	//
-	{ OPT_HITCOL,		_T("-hitkey"),	 		SO_REQ_SEP	},
-	{ OPT_HITCOL,		_T("--hitkey"),			SO_REQ_SEP	},
+//	{ OPT_HITCOL,		_T("-hitkey"),	 		SO_REQ_SEP	},
+//	{ OPT_HITCOL,		_T("--hitkey"),			SO_REQ_SEP	},
 	//
 	{ OPT_HITRGB,		_T("-hitkeyrgb"), 		SO_REQ_SEP	},
-	{ OPT_HITRGB,		_T("--hitkeyrgb"),		SO_REQ_SEP	},
+	{ OPT_HITRGB,		_T("--hitkey-rgb"),		SO_REQ_SEP	},
 
 	//
 	{ OPT_SOURCE,		_T("-s"),	 			SO_REQ_SEP	},
@@ -555,61 +555,62 @@ static void usage(int level)
 	std::cout << "usage:" << std::endl;
 	std::cout << " atgcut [opts] -s infile" << std::endl;
 	std::cout << std::endl;
-	std::cout << " -?, -h, --help       > show help/usage" << std::endl;
-	std::cout << " -v, --verbose        > more output" << std::endl;
-	std::cout << " -q, --quiet          > less output" << std::endl;
-	std::cout << " -wk, --wait-key      > wait key on exit" << std::endl;
+	std::cout << " -?, -h, --help         > show help/usage" << std::endl;
+	std::cout << " -v, --verbose          > more output" << std::endl;
+	std::cout << " -q, --quiet            > less output" << std::endl;
+	std::cout << " -wk, --wait-key        > wait key on exit" << std::endl;
 	std::cout << std::endl;
 	std::cout << "general:" << std::endl;
-	std::cout << " -s, --src            > source image containing tiles/sprites/slabs:" << std::endl;
-	std::cout << "                      > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)" << std::endl;
-	std::cout << "                      > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
-	std::cout << " -o, --outfile        > output filename" << std::endl;
-	std::cout << " -cm, --cutmode       > cutting mode: tiles,imspr,emspr,emxspr,slabs,slabrestore" << std::endl;
-	std::cout << " -ccf, --ccfields     > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
-	std::cout << " -p, --pal            > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
-	std::cout << " -crn, --colrenorm    > renormalise quantised source RGB to 8bit RGB: 1-255" << std::endl;
-	std::cout << " -bp, --bitplanes     > #bitplanes to generate: 1-8" << std::endl;
-	std::cout << " -key, --key-colour   > colour index assumed to be transarent: 0-255" << std::endl;
-	std::cout << " -keyrgb, --key-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
-	std::cout << " -kg, --key-guard     > guard against reducing colours to key colour" << std::endl;
-	std::cout << " -kt, --key-tol       > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
-	std::cout << " -nr, --no-remap      > prevent remapping of 8bit images (to 4bit), use first 16 colours only" << std::endl;
-	std::cout << " -fr, --force-remap   > force remapping of 8bit images (to 4bit) so --key-rgb is usable" << std::endl;
-	std::cout << " -hidden, --hidden    > hidden resource (e.g. collision/undraw) - don't store any pixel data" << std::endl;
-	std::cout << " -vis, --visual       > provide feedback/visualisation of cut assets as .tga file" << std::endl;
+	std::cout << " -s, --src              > source image containing tiles/sprites/slabs:" << std::endl;
+	std::cout << "                        > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)" << std::endl;
+	std::cout << "                        > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
+	std::cout << " -o, --outfile          > output filename" << std::endl;
+	std::cout << " -cm, --cutmode         > cutting mode: tiles,imspr,emspr,emxspr,slabs,slabrestore" << std::endl;
+	std::cout << " -ccf, --ccfields       > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
+	std::cout << " -p, --pal              > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
+	std::cout << " -crn, --colrenorm      > renormalise quantised source RGB to 8bit RGB: 1-255" << std::endl;
+	std::cout << " -bp, --bitplanes       > #bitplanes to generate: 1-8" << std::endl;
+	std::cout << " -key, --key            > colour index assumed to be transarent: 0-255" << std::endl;
+	std::cout << " -keyrgb, --key-rgb     > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
+	std::cout << " -kg, --key-guard       > guard against reducing colours to key colour" << std::endl;
+	std::cout << " -kt, --key-tol         > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
+	std::cout << " -nr, --no-remap        > prevent remapping of 8bit images (to 4bit), use first 16 colours only" << std::endl;
+	std::cout << " -fr, --force-remap     > force remapping of 8bit images (to 4bit) so --key-rgb is usable" << std::endl;
+	std::cout << " -vis, --visual         > provide feedback/visualisation of cut assets as .tga file" << std::endl;
 	std::cout << std::endl;
 	std::cout << "sprite cutting mode:" << std::endl;
-	std::cout << " -sxp, --sprxpos      > first frame xpos: 0+" << std::endl;
-	std::cout << " -syp, --sprypos      > first frame ypos: 0+" << std::endl;
-	std::cout << " -sxs, --sprxsize     > all frames xsize: 1+" << std::endl;
-	std::cout << " -sys, --sprysize     > all frames ysize: 1+" << std::endl;
-	std::cout << " -sxi, --sprxinc      > x step for next frame in row: 0+" << std::endl;
-	std::cout << " -syi, --spryinc      > y step for next row: 0+" << std::endl;
-	std::cout << " -sxc, --sprxcount    > frames per row: 1+" << std::endl;
-	std::cout << " -syc, --sprycount    > frames per column: 1+" << std::endl;
-	std::cout << " -sc, --sprcount      > total frames to cut, if stopping early: 0+, where 0=ignore" << std::endl;
-	std::cout << " -sm, --sprmap        > map sprite frame from another: -sm new:existing:flipflags" << std::endl;
-	std::cout << " -gm, --gen-mask      > generate 1bpl mask data along with colour data" << std::endl;
-	std::cout << " -nogm, --no-gen-mask > don't generate 1bpl mask data - only colour data (STF)" << std::endl;
-	std::cout << " -ml, --mask-layout   > mask layout strategy: interleaved,planar,preshift" << std::endl;
-	std::cout << " -sopt, --soptimize   > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
-	std::cout << " -qc, --quickcut      > improve cutting speed (reduce optimization) for quicker test/debug turnaround" << std::endl;
-	std::cout << " -ccr                 > cryptochrome colour field remapping: both,high,low" << std::endl;
-	std::cout << " -prv, --preview      > show ASCII preview of extracted colours + masking" << std::endl;
-	std::cout << " -sg, --sprguide      > sprite guide file (ASCII)" << std::endl;
-	std::cout << " -emxopt, --emx-opt   > optimization level for EMX mask delta elimination" << std::endl;
+	std::cout << " -sxp, --sprxpos        > first frame xpos: 0+" << std::endl;
+	std::cout << " -syp, --sprypos        > first frame ypos: 0+" << std::endl;
+	std::cout << " -sxs, --sprxsize       > all frames xsize: 1+" << std::endl;
+	std::cout << " -sys, --sprysize       > all frames ysize: 1+" << std::endl;
+	std::cout << " -sxi, --sprxinc        > x step for next frame in row: 0+" << std::endl;
+	std::cout << " -syi, --spryinc        > y step for next row: 0+" << std::endl;
+	std::cout << " -sxc, --sprxcount      > frames per row: 1+" << std::endl;
+	std::cout << " -syc, --sprycount      > frames per column: 1+" << std::endl;
+	std::cout << " -sc, --sprcount        > total frames to cut, if stopping early: 0+, where 0=ignore" << std::endl;
+	std::cout << " -sm, --sprmap          > map sprite frame from another: -sm new:existing:flipflags" << std::endl;
+	std::cout << " -gm, --gen-mask        > generate 1bpl mask data along with colour data" << std::endl;
+	std::cout << " -nogm, --no-gen-mask   > don't generate 1bpl mask data - only colour data (STF)" << std::endl;
+	std::cout << " -ml, --mask-layout     > mask layout strategy: interleaved,planar,preshift" << std::endl;
+	std::cout << " -sopt, --soptimize     > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
+	std::cout << " -qc, --quickcut        > improve cutting speed (reduce optimization) for quicker test/debug turnaround" << std::endl;
+	std::cout << " -ccr                   > cryptochrome colour field remapping: both,high,low" << std::endl;
+	std::cout << " -prv, --preview        > show ASCII preview of extracted colours + masking" << std::endl;
+	std::cout << " -sg, --sprguide        > sprite guide file (ASCII)" << std::endl;
+	std::cout << " -hidden, --hidden      > hidden resource (e.g. collision/undraw) - don't store any pixel data" << std::endl;
+	std::cout << " -ackeyrgb, --ackey-rgb > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
+	std::cout << " -emxopt, --emx-opt     > optimization level for EMX mask delta elimination" << std::endl;
 	std::cout << std::endl;
 	std::cout << "map & tile cutting mode:" << std::endl;
-	std::cout << " -ts, --tilesize      > tile size: 8,16,32" << std::endl;
-	std::cout << " -ttags, --tiletags   > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
-	std::cout << " -t, --tol            > tile matching tolerance: 0.0+" << std::endl;
-	std::cout << " -mr, --maprect       > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
-	std::cout << " -layer, --layer      > cut map as transparent layer" << std::endl;
-	std::cout << " -stm, --stitch-maps  > import multiple, numbered source images, stack vertically" << std::endl;
-	std::cout << " -om, --outmode       > tile library output mode: direct,degas,rbplus" << std::endl;
+	std::cout << " -ts, --tilesize        > tile size: 8,16,32" << std::endl;
+	std::cout << " -ttags, --tiletags     > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
+	std::cout << " -t, --tol              > tile matching tolerance: 0.0+" << std::endl;
+	std::cout << " -mr, --maprect         > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
+	std::cout << " -layer, --layer        > cut map as transparent layer" << std::endl;
+	std::cout << " -stm, --stitch-maps    > import multiple, numbered source images, stack vertically" << std::endl;
+	std::cout << " -om, --outmode         > tile library output mode: direct,degas,rbplus" << std::endl;
 	std::cout << std::endl;
-	std::cout << "press any key..." << std::endl;
+	std::cout << "press any key..." << std::endl << std::flush;
 		
 	getchar();	
 	exit(1);
@@ -705,6 +706,7 @@ public:
 		  noremap(false),
 		  forceremap(false),
 		  masklayout_lock(false),
+		  compound_slabs(true),
 		  planes(4),
 		  tilesize(16),
 		  emxoptlevel(DEFAULT_EMX_OPTLEVEL),
@@ -753,6 +755,7 @@ public:
 	bool autocutkeyrgb_specified;
 	bool translayer;
 	bool stitchmaps;
+	bool compound_slabs;
 
 	ubyte_t keycol;
 	iRGB keyrgb;
@@ -903,8 +906,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				float farg = (float)atof(s_arg.c_str());
 				if (farg < 0.0f || farg > 1e4f)
 				{
-					fprintf(stderr, "error: invalid arg for tile matching tolerance: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for tile matching tolerance: " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -916,8 +919,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				float farg = (float)atof(s_arg.c_str());
 				if (farg < 0.0f || farg > 1e4f)
 				{
-					fprintf(stderr, "error: invalid arg for key guard tolerance: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for key guard tolerance: " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -969,8 +972,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					fprintf(stderr, "error: invalid arg for cutmode: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for cutmode (tiles/imspr/emspr/emxspr/slabs/slabrestore): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -998,8 +1001,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					fprintf(stderr, "error: invalid arg for outmode: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for outmode (degas/direct/rbplus): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1035,8 +1038,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					}
 					else
 					{
-						fprintf(stderr, "error: invalid arg for masklayout: %s\n", s_arg.c_str());
-						printf("press any key...\n");
+						std::cerr << "error: invalid arg for masklayout (planar/interleaved/preshift): " << s_arg << std::endl;
+						std::cout << "press any key..." << std::endl << std::flush;
 						getchar();
 						exit(1);
 					}
@@ -1069,8 +1072,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					fprintf(stderr, "error: invalid arg for sprite-optimize: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite-optimize (on/off): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1089,8 +1092,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 255)
 				{
-					fprintf(stderr, "error: invalid arg for colrenorm: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for col renorm (max=255): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1102,8 +1105,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 31)
 				{
-					fprintf(stderr, "error: invalid arg for emxopt: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for emxopt (max=31): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1115,8 +1118,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 255)
 				{
-					fprintf(stderr, "error: invalid arg for key colour: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for key colour index (max=255): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1133,8 +1136,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 
 				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
 				{
-					fprintf(stderr, "error: invalid arg for key rgb: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for key rgb (hex RR:GG:BB): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1146,19 +1149,6 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				_args.keyrgb.blue = b;
 			}
 
-			else if (args.OptionId() == OPT_AUTOCUTCOL)
-			{
-				std::string s_arg = args.OptionArg();
-				int iarg = atoi(s_arg.c_str());
-				if (iarg < 0 || iarg > 255)
-				{
-					fprintf(stderr, "error: invalid arg for autocut key colour: %s\n", s_arg.c_str());
-					printf("press any key...\n");
-					getchar();
-					exit(1);
-				}
-				_args.autocutkeycol = iarg;	
-			}
 			else if (args.OptionId() == OPT_AUTOCUTRGB)
 			{
 				_args.autocutkeyrgb_specified = true;
@@ -1170,8 +1160,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 
 				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
 				{
-					fprintf(stderr, "error: invalid arg for autocut key rgb: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for autocut key rgb (hex RR:GG:BB): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1183,20 +1173,6 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				_args.autocutkeyrgb.blue = b;
 			}
 
-
-			else if (args.OptionId() == OPT_HITCOL)
-			{
-				std::string s_arg = args.OptionArg();
-				int iarg = atoi(s_arg.c_str());
-				if (iarg < 0 || iarg > 255)
-				{
-					fprintf(stderr, "error: invalid arg for hitkey colour: %s\n", s_arg.c_str());
-					printf("press any key...\n");
-					getchar();
-					exit(1);
-				}
-				_args.hitkeycol = iarg;	
-			}
 			else if (args.OptionId() == OPT_HITRGB)
 			{
 				_args.hitkeyrgb_specified = true;
@@ -1208,8 +1184,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 
 				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
 				{
-					fprintf(stderr, "error: invalid arg for hitkey rgb: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for hitkey rgb (hex RR:GG:BB): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1227,8 +1203,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if ((iarg != 8) && (iarg != 16) && (iarg != 32))
 				{
-					fprintf(stderr, "error: invalid arg for tile size: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for tile size (8/16/32): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1240,8 +1216,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if ((iarg != 1) && (iarg != 2))
 				{
-					fprintf(stderr, "error: invalid arg for ccfields: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for ccfields (1/2): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1267,8 +1243,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				else
 				{
-					fprintf(stderr, "error: invalid arg for ccr: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for cryptochrome dualfield remap (both/high/low): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1302,8 +1278,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					(mw < 0) ||
 					(mh < 0))
 				{
-					fprintf(stderr, "error: invalid map cutting rectangle: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for map cutting rectangle: " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1327,8 +1303,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > g_maxplanes)
 				{
-					fprintf(stderr, "error: invalid arg for bitplanes/bpp: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for bitplanes/bpp: " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1340,8 +1316,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting position: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting position (max=4096): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1353,8 +1329,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting position: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting position (max=4096): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1366,8 +1342,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 4096)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting size: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting size (max=4096): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1388,8 +1364,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 4096)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting size: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting size (max=4096): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1401,8 +1377,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting increment/step (max=4096): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1414,8 +1390,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 0 || iarg > 4096)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting increment/step: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting increment/step (max=4096): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1427,8 +1403,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting x-count: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting x-count (max=1024): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1440,8 +1416,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting y-count: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting y-count (max=1024): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1453,8 +1429,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				int iarg = atoi(s_arg.c_str());
 				if (iarg < 1 || iarg > 1024)
 				{
-					fprintf(stderr, "error: invalid arg for sprite cutting count: %s\n", s_arg.c_str());
-					printf("press any key...\n");
+					std::cerr << "error: invalid arg for sprite cutting count (max=1024): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -1481,8 +1457,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		}
 		else 
 		{
-			fprintf(stderr, "error: invalid argument: %s\n", args.OptionText());
-			printf("press any key...\n");
+			std::cerr << "error: invalid argument: " << args.OptionText() << std::endl;
+			std::cout << "press any key..." << std::endl << std::flush;
 			getchar();
 			exit(1);
 		}
@@ -1494,8 +1470,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		// can't stitch from a glob if no outfile was specified
 		if (_args.outfile.length() == 0)
 		{
-			fprintf(stderr, "error: must specify -o output filename stub if using multiple source images\n");
-			printf("press any key...\n");
+			std::cerr << "error: must specify -o output filename stub if using multiple source images" << std::endl;
+			std::cout << "press any key..." << std::endl << std::flush;
 			getchar();
 			exit(1);
 		}
@@ -1504,8 +1480,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		CSimpleGlob glob(SG_GLOB_NOCHECK);
 		if (SG_SUCCESS != glob.Add(_args.sourcefile.c_str()))
 		{
-			fprintf(stderr, "error: failed to expand glob\n");
-			printf("press any key...\n");
+			std::cerr << "error: failed to expand wildcard glob" << std::endl;
+			std::cout << "press any key..." << std::endl << std::flush;
 			getchar();
 			exit(1);
 		}
@@ -1513,8 +1489,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		// check infile/outfile specification rules  
 		if (glob.FileCount() == 0)
 		{
-			fprintf(stderr, "error: no input files specified!\n");
-			printf("press any key...\n");
+			std::cerr << "error: no input file specified!" << std::endl;
+			std::cout << "press any key..." << std::endl << std::flush;
 			getchar();
 			exit(1);
 		}
@@ -1550,8 +1526,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 	{
 		if (g_allargs.cutmode != Cutmode_SPRITES)
 		{
-			std::cerr << "error: can only apply -hidden optimization in imspr cutmode. (emspr/emxspr can still be used for hidden assets but will always contain pixel data)." << std::endl;
-			printf("press any key...\n");
+			std::cerr << "can only apply -hidden optimization in imspr cutmode. (emspr/emxspr can still be used for hidden assets but will always contain pixel data)." << std::endl;
+			std::cout << "press any key..." << std::endl << std::flush;
 			getchar();
 			exit(1);
 		}
@@ -1605,7 +1581,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		if (!(sprguide.is_open() && sprguide.good()))
 		{
 			std::cerr << "error: unable to locate or read specified spriteguide file!" << std::endl;
-			printf("press any key...\n");
+			std::cout << "press any key..." << std::endl << std::flush;
 			getchar();
 			exit(1);
 		}
@@ -1681,7 +1657,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					else
 					{
 						std::cerr << "error: unknown spriteguide command: " << inspect.c_str() << std::endl;
-						printf("press any key...\n");
+						std::cout << "press any key..." << std::endl << std::flush;
 						getchar();
 						exit(1);
 					}
@@ -2941,7 +2917,7 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 	else
 	{
 		std::cerr << "error: could not read input palette from palette file or image" << std::endl;
-		printf("press any key...\n");
+		std::cout << "press any key..." << std::endl << std::flush;
 		getchar();	
 		exit(1);
 	}
@@ -3303,7 +3279,7 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 				else
 				{
 					std::cerr << "error: direct mode supports 16x16 or 8x8 tiles only!" << std::endl;
-					printf("press any key...\n");
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();	
 					exit(1);
 				}
@@ -3635,7 +3611,7 @@ bool do_tilemap()
 			)
 			{
 				std::cerr << "error: multiple source files are inconsistent in width or colour depth!" << std::endl;
-				printf("press any key...\n");
+				std::cout << "press any key..." << std::endl << std::flush;
 				getchar();	
 				exit(1);
 			}
@@ -3664,7 +3640,7 @@ bool do_tilemap()
 				if (different)
 				{
 					std::cerr << "error: multiple source files are inconsistent in palette values!" << std::endl;
-					printf("press any key...\n");
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
@@ -3729,7 +3705,7 @@ bool do_tilemap()
 		else
 		{
 			std::cerr << "error: failed to read one or more source images for stitching!" << std::endl;
-			printf("press any key...\n");
+			std::cout << "press any key..." << std::endl << std::flush;
 			getchar();	
 			exit(1);
 		}
@@ -3751,7 +3727,7 @@ bool do_tilemap()
 			if ((sourcew & (g_allargs.tilesize - 1)) || (sourceh & (g_allargs.tilesize - 1)))
 			{
 				std::cerr << "error: source image is not a multiple of " << g_allargs.tilesize << " pixels on both axes - check the map!" << std::endl;
-				printf("press any key...\n");
+				std::cout << "press any key..." << std::endl << std::flush;
 				getchar();	
 				exit(1);
 			}
@@ -4109,7 +4085,7 @@ bool do_tilemap()
 					if (!(tiletags.is_open() && tiletags.good()))
 					{
 						std::cerr << "error: unable to locate or read specified tiletags CSV file!" << std::endl;
-						printf("press any key...\n");
+						std::cout << "press any key..." << std::endl << std::flush;
 						getchar();	
 						exit(1);
 					}
@@ -4151,10 +4127,10 @@ bool do_tilemap()
 								}
 								else
 								{
-									fprintf(stderr, "error: invalid tile index field (%d) in tiletags CSV file!\n", column_value);
-									printf("press any key...\n");
-									getchar();	
-									exit(1);				
+									std::cerr << "error: invalid tile index field " << column_value << " in tiletags CSV file!" << std::endl;
+									std::cout << "press any key..." << std::endl << std::flush;
+									getchar();
+									exit(1);
 								}
 							}
 						}
@@ -4563,7 +4539,7 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 		{
 			std::cerr << "error: max active source width for EMS/EMX sprite is 32 (2x words). this frame has a max source width of " << g_sprite_bpwidth
 				<< std::endl;
-			printf("press any key...\n");
+			std::cout << "press any key..." << std::endl << std::flush;
 			getchar();
 			exit(1);
 		}
@@ -5097,13 +5073,15 @@ public:
 	word_t w_, h_;
 	word_t xo_, yo_;
 	uword_t *colr_;
+	slabframe_t *nextcmp_;
 
 	slabframe_t(int _w, int _h, int _xo, int _yo, uword_t *_colr)
 		: w_(_w),
 		  h_(_h),
 		  xo_(_xo),
 		  yo_(_yo),
-		  colr_(_colr)
+		  colr_(_colr),
+		  nextcmp_(nullptr)
 	{
 	}
 
@@ -5115,6 +5093,8 @@ public:
 	void release()
 	{
 		delete[] colr_; colr_ = 0;
+		if (nextcmp_)
+			nextcmp_->release();
 	}
 
 	std::list<slabspan_t> spans_;
@@ -5243,7 +5223,7 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 
 	if (g_allargs.preview)
 	{
-		printf("\n");
+		printf("\nsource:\n");
 		for (int py = 0; py < g_sprite_height; py++)
 		{
 			printf("\t");
@@ -5334,71 +5314,187 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 		}
 	}
 
-	slabframe_t slab(g_sprite_framewidth, g_sprite_frameheight, cxmin, cymin, NULL);
+	slabframe_t slabframe_head(g_sprite_framewidth, g_sprite_frameheight, cxmin, cymin, NULL);
+	slabframe_t *pframecomponent = &slabframe_head;
 
-	int spanblock_firstx = -1;
-	int spanblock_lastx = -2;
-	int spanblock_firsty = 0;
-	int spanblock_lasty = 0;
-	int prevlasty = 0;
-
-	// process individual spans
-	for (int psy = cymin, py = 0; psy < cymax; psy++, py++)
+	bool components_remaining = true;
+	while (components_remaining)
 	{
-		// find begin/end of solid part of span
-		int firstx = 0;
-		for (int psx = cxmin; psx < cxmax; psx++, firstx++)
-		{
-			ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + firstx];
-			if (c != g_allargs.keycol) break;
-		}
+		int spanblock_firstx = -1;
+		int spanblock_lastx = -2;
+		int spanblock_firsty = 0;
+		int spanblock_lasty = 0;
+		int prevlasty = 0;
 
-		int lastx = cxmax - 1;
-		for (int psx = cxmin; psx < cxmax; psx++, lastx--)
+		// process individual spans
+		for (int psy = cymin, py = 0; psy < cymax; psy++, py++)
 		{
-			ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + lastx];
-			if (c != g_allargs.keycol) break;
-		}
-
-		// terminate spanblock if ends change
-		if ((spanblock_firstx != firstx) || (spanblock_lastx != lastx))
-		{
-			if (spanblock_lastx >= spanblock_firstx)
+			// find begin/end of solid part of span
+			int firstx = 0;
+			for (int psx = cxmin; psx < cxmax; psx++, firstx++)
 			{
-				// completion of non-empty spanblock
+				ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + firstx];
+				if (c != g_allargs.keycol) break;
+			}
 
-				// extract spanblock, left-justified to workbuffer and erase original (for multiple extractions)
-				extract_spanblock(slab, spanblock_firstx, spanblock_lastx, spanblock_firsty, spanblock_lasty, (spanblock_firsty-prevlasty), cxmax);
-				prevlasty = spanblock_lasty;
+			int lastx;
+			// if cutting compound slabs, extract piecewise from the left side, interrupted by keycol
+			if (g_allargs.compound_slabs)
+			{
+				lastx = firstx;
+				for (int psx = lastx; psx < cxmax; psx++, lastx++)
+				{
+					ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + lastx];
+					if (c == g_allargs.keycol) break;
+				}
+				lastx--;
+			}
+			else
+				// otherwise extract everything as a single component, between left and rightmost edge
+			{
+				lastx = cxmax - 1;
+				for (int psx = cxmin; psx < cxmax; psx++, lastx--)
+				{
+					ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + lastx];
+					if (c != g_allargs.keycol) break;
+				}
+			}
+
+			// terminate spanblock if ends change
+			if ((spanblock_firstx != firstx) || (spanblock_lastx != lastx))
+			{
+				if (spanblock_lastx >= spanblock_firstx)
+				{
+					// completion of non-empty spanblock
+
+					// extract spanblock, left-justified to workbuffer and erase original (for multiple extractions)
+					extract_spanblock(*pframecomponent, spanblock_firstx, spanblock_lastx, spanblock_firsty, spanblock_lasty, (spanblock_firsty - prevlasty), cxmax);
+					prevlasty = spanblock_lasty;
+				}
+				else
+				{
+					// completion of empty block
+				}
+
+				// reset run
+				spanblock_firstx = firstx;
+				spanblock_lastx = lastx;
+				spanblock_firsty = py;
 			}
 			else
 			{
-				// completion of empty block
+				// continue run
 			}
 
-			// reset run
-			spanblock_firstx = firstx;
-			spanblock_lastx = lastx;
-			spanblock_firsty = py;
+			spanblock_lasty++;
 		}
-		else
+
+		if (spanblock_lastx >= spanblock_firstx)
 		{
-			// continue run
+			// final spanblock (if any)
+
+			// extract spanblock, left-justified to workbuffer and erase original (for multiple extractions)
+			extract_spanblock(*pframecomponent, spanblock_firstx, spanblock_lastx, spanblock_firsty, spanblock_lasty, (spanblock_firsty - prevlasty), cxmax);
 		}
 
-		spanblock_lasty++;
-	}
+		if (g_allargs.preview)
+		{
+			printf("\nreconstruction:\n");
+			//
 
-	if (spanblock_lastx >= spanblock_firstx)
-	{
-		// final spanblock (if any)
+			int yy = pframecomponent->yo_;
+			for (auto & s : pframecomponent->spans_)
+			{
+				for (int py = yy; py < (yy + s.dy_); py++)
+				{
+					printf("\t");
+					for (int t = 0; t < g_sprite_framewidth; t++)
+						printf("-");
+					printf("\n");
+				}
+				yy += s.dy_;
 
-		// extract spanblock, left-justified to workbuffer and erase original (for multiple extractions)
-		extract_spanblock(slab, spanblock_firstx, spanblock_lastx, spanblock_firsty, spanblock_lasty, (spanblock_firsty-prevlasty), cxmax);
+				for (int py = yy; py < (yy + s.ys_); py++)
+				{
+					printf("\t");
+					for (int t = 0; t < s.xo_; t++)
+						printf(".");
+
+					int px = s.xo_;
+					for (; px < (s.xo_ + s.xs_); px++)
+					{
+						ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+
+						if (c == g_allargs.keycol)
+							printf(" ");
+						else
+							printf("%x", (int)(c & 0xF));
+					}
+					for (int t = px; t < g_sprite_framewidth; t++)
+						printf(".");
+
+					printf("\n");
+				}
+
+				yy += s.ys_;
+			}
+			printf("\n<<<\n");
+		}
+
+		components_remaining = false;
+
+		if (g_allargs.compound_slabs)
+		{
+			// look for any un-cut pixels in g_colrbuffer8
+			for (int y = cymin; (y < cymax) && !components_remaining; y++)
+			{
+				for (int x = cxmin; x < cxmax; x++)
+				{
+					byte_t c = g_colrbuffer8[(y * g_sprite_framebpwidth) + x];
+					if (c != g_allargs.keycol)
+					{
+						components_remaining = true;
+						std::cout << "slab components remaining - performing another cut pass..." << std::endl;
+
+
+						int live_height = -1;
+
+						// find live height of optimized frame area
+						// we don't want the last spanblock to extend beyond the last live line since dy skips are before a spanblock, not after
+						for (int py = (cymax-cymin)-1; (py >= 0) && (live_height < 0); py--)
+						{
+							for (int px = 0; px < (cxmax-cxmin); px++)
+							{
+								ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + px];
+								if (c != g_allargs.keycol)
+								{
+									live_height = py+1;
+									break;
+								}
+							}
+						}
+
+						int cymax = cymin + live_height;
+
+						g_sprite_frameheight = cymax - cymin;
+
+
+						// continue chain of components
+						slabframe_t *pnextcmp = new slabframe_t(g_sprite_framewidth, g_sprite_frameheight, cxmin, cymin, NULL);
+						pframecomponent->nextcmp_ = pnextcmp;
+						pframecomponent = pnextcmp;
+
+						break;
+					}
+				}
+			}
+		}
+
+//		components_remaining = false;
 	}
 
 	std::cout << "created slab frame " << g_slabframes.size() << " from offset [" << cxmin << ", " << cymin << "] size [" << g_sprite_framewidth << " x " << g_sprite_frameheight << "]" << std::endl;
-	g_slabframes.push_back(slab);
+	g_slabframes.push_back(slabframe_head);
 }
 
 void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
@@ -5836,13 +5932,27 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 
 bool emit_slab_sequence(bool _storepixels)
 {
-	int s = 0;
-	for (slablist_t::iterator fit = g_slabframes.begin(); fit != g_slabframes.end(); fit++, s++)
+	if (1)
 	{
-		std::cout << "slab " << s << std::endl;
-		for (std::list<slabspan_t>::iterator sit = fit->spans_.begin(); sit != fit->spans_.end(); sit++)
+		std::cout << "outputting..." << std::endl;
+
+		int s = 0;
+		for (slablist_t::iterator fit = g_slabframes.begin(); fit != g_slabframes.end(); fit++, s++)
 		{
-			std::cout << "spanblock[" << sit->ys_ << "]: " << sit->xo_ << ":" << sit->xs_ << std::endl;
+			slabframe_t & slabframe = *fit;
+			slabframe_t * pslabcomponent = &slabframe;
+
+			int c = 0;
+			while (pslabcomponent)
+			{
+				std::cout << " slab[" << s << "," << c << "]" << std::endl;
+/*				for (std::list<slabspan_t>::iterator sit = pslabcomponent->spans_.begin(); sit != pslabcomponent->spans_.end(); sit++)
+				{
+					std::cout << "  spanblock[" << sit->ys_ << "]: dy:" << sit->dy_ << " y:" << sit->y_ << " xo:" << sit->xo_ << " xs:" << sit->xs_ << std::endl;
+				}
+*/				pslabcomponent = pslabcomponent->nextcmp_;
+				c++;
+			}
 		}
 	}
 
@@ -5871,6 +5981,8 @@ bool emit_slab_sequence(bool _storepixels)
 		int tracked_filesize = 0;
 
 		std::vector<int> slab_index;
+		std::vector<int> slab_nextcmp_chainlinks;
+		std::vector<int> slab_nextcmp_chain;
 
 		// 4: size of file remaining (patched before closing)
 		lv = 0;
@@ -5917,294 +6029,342 @@ bool emit_slab_sequence(bool _storepixels)
 
 		// individual slabs follow
 		int idx = 0;
-		for (slablist_t::iterator it = g_slabframes.begin(); it != g_slabframes.end(); it++, idx++)
+		for (slablist_t::iterator frit = g_slabframes.begin(); frit != g_slabframes.end(); frit++, idx++)
 		{
+			slabframe_t &slabframe = *frit;
+
 			std::cout << "slabframe: " << idx << std::endl;
 
-			std::vector<int> spanblock_index;
-			std::vector<int> spanblock_clipper;
-			std::vector<int> clipspandata_ptrs;
-			std::vector<int> spandata_ptrs;
-			std::vector<int> spandata_index;
-
-			// record file-offset to slab in slab index, for patching later
+			int cmpidx = 0;
+			slabframe_t *pcomponent = &slabframe;
+		
+			// record file-offset to first (head) slab in slab index, for patching later
 			slab_index.push_back(tracked_filesize);
 
-			// 2: slab frame pixel width
-			std::cout << " pw: " << it->w_ << std::endl;
-			wv = endianswap16(it->w_);
-			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-			// 2: slab frame pixel height
-			std::cout << " ph: " << it->h_ << std::endl;
-			wv = endianswap16(it->h_);
-			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-
-			// 2: slab frame xoff
-			wv = endianswap16(it->xo_);
-			std::cout << " xo: " << it->xo_ << std::endl;
-			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-			// 2: slab frame yoff
-			wv = endianswap16(it->yo_);
-			std::cout << " yo: " << it->yo_ << std::endl;
-			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-
-			// 2: slab spanblocks
-			wv = endianswap16(s16(it->spans_.size()));
-			std::cout << " spanblocks: " << s16(it->spans_.size()) << std::endl;
-			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-
-			//// pointer to spanblock index (patched after writing)
-			//int spanblock_indexptr_fpos = tracked_filesize;
-			//lv = 0xEEEEEEEE;
-			//fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
-
-			int indextables_fpos = tracked_filesize;
-
-			// create clipper index (patched after writing)
-			int spanblock_clipper_fpos = tracked_filesize;
-			wv = 0xAAAA;
-//			lv = 0xDDDDDDDD;
-			for (int i = 0; i < it->h_; i++)
+			while (pcomponent)
 			{
-				// 4x 16bit fields per line of slab frame
+				std::cout << " component: " << cmpidx << std::endl;
 
-				// offset to spanblock reference for this line
-				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+				std::vector<int> spanblock_index;
+				std::vector<int> spanblock_clipper;
+				std::vector<int> clipspandata_ptrs;
+				std::vector<int> spandata_ptrs;
+				std::vector<int> spandata_index;
 
-				// remaining spanblocks for this top yc -1
-				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+				// 2: slab frame pixel width
+				std::cout << "  pw: " << pcomponent->w_ << std::endl;
+				wv = endianswap16(pcomponent->w_);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				// 2: slab frame pixel height
+				std::cout << "  ph: " << pcomponent->h_ << std::endl;
+				wv = endianswap16(pcomponent->h_);
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
-				// pointer to spandata for top yc
-				clipspandata_ptrs.push_back(tracked_filesize);
-//				fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
-				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+				// 2: slab frame xoff
+				wv = endianswap16(pcomponent->xo_);
+				std::cout << "  xo: " << pcomponent->xo_ << std::endl;
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				// 2: slab frame yoff
+				wv = endianswap16(pcomponent->yo_);
+				std::cout << "  yo: " << pcomponent->yo_ << std::endl;
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
-				// remaining spanblocks for this bottom yc -1
-				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
-			}
+				// 2: slab spanblocks
+				wv = endianswap16(s16(pcomponent->spans_.size()));
+				std::cout << "  spanblocks: " << s16(pcomponent->spans_.size()) << std::endl;
+				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
-			// create spanblock index (patched after writing)
-			int spanblock_index_fpos = tracked_filesize;
-			wv = 0xBBBB;
-			for (int i = 0; i < it->spans_.size(); i++)
-			{
-				// one 16bit offset per line of frame
-				fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+				// 4: pointer to next component, if present
 
-				//	cy		sbi		sb
-				//	0		A		A
-				//	1		A		-
-				//	2		A		-
-				//	3		B		B
-				//	4		B		-
-				//	5		C		C
-				//	6		D		D
-				//	7		D		-
-			}
-
-			// write out spanblock records
-//			int mapped_line = 0;
-			int last_spanblock = -1;
-			int last_spanblock_y = 0;
-			for (std::list<slabspan_t>::iterator spanit = it->spans_.begin(); spanit != it->spans_.end(); spanit++)
-			{
-				spanblock_index.push_back(tracked_filesize);
-
-				// fill clipper for all lines up to start of new spanblock (if any)
-				// note: take care over initial y skip, which would otherwise fill -1 for last spanblock
-				int last_valid_spanblock = (last_spanblock >= 0) ? last_spanblock : 0;
-				for (; last_spanblock_y < (spanit->y_ - spanit->dy_); last_spanblock_y++)
+				if (1)
 				{
-					spanblock_clipper.push_back(last_valid_spanblock);
+					if (pcomponent->nextcmp_)
+					{
+						slab_nextcmp_chainlinks.push_back(tracked_filesize);
+						std::cout << "  nextcmp: " << (cmpidx + 1) << std::endl;
+					}
+					else
+						std::cout << "  nextcmp: " << 0 << std::endl;
+
+					lv = 0;//endianswap32(nextcmp);
+					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 				}
 
-				last_spanblock++;
+				//// pointer to spanblock index (patched after writing)
+				//int spanblock_indexptr_fpos = tracked_filesize;
+				//lv = 0xEEEEEEEE;
+				//fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
 
-				// 2: spanblock dy (skipped lines)
-				wv = endianswap16(spanit->dy_);
-				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				// 2: spanblock xo
-				wv = endianswap16(spanit->xo_);
-				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				// 2: spanblock xs (<<4 to preshift for blitter lookups)
-				wv = endianswap16(u16(spanit->xs_)<<4);
-				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				// 2: spanblock dxw
-				wv = endianswap16(spanit->dxw_);
-				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				// 2: spanblock y (for skipped then nonskipped lines of spanblock)
-				wv = endianswap16(spanit->y_);
-				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-				// 2: spanblock nonskipped lines (ys-1)
-				wv = endianswap16(spanit->ys_-1);
-				fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+				int indextables_fpos = tracked_filesize;
 
-				// 4: spandata ptr
-				spandata_ptrs.push_back(tracked_filesize);
-				lv = 0xAAAAAAAA;
-				fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
-			}
-
-			// now write pixel data separately, and contiguously
-			for (std::list<slabspan_t>::iterator spanit = it->spans_.begin(); spanit != it->spans_.end(); spanit++)
-			{
-				spandata_index.push_back(tracked_filesize);
-
-				if (_storepixels)
+				// create clipper index (patched after writing)
+				int spanblock_clipper_fpos = tracked_filesize;
+				wv = 0xAAAA;
+				//			lv = 0xDDDDDDDD;
+				std::cout << "  clipper height: " << pcomponent->h_ << std::endl;
+				for (int i = 0; i < pcomponent->h_; i++)
 				{
+					// 4x 16bit fields per line of slab frame
 
-					// output spanblock lines
-					for (int l = 0; l < spanit->ys_; l++)
+					// offset to spanblock reference for this line
+					fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+
+					// remaining spanblocks for this top yc -1
+					fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+
+					// pointer to spandata for top yc
+					clipspandata_ptrs.push_back(tracked_filesize);
+					//				fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
+					fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+
+					// remaining spanblocks for this bottom yc -1
+					fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+				}
+
+				// create spanblock index (patched after writing)
+				int spanblock_index_fpos = tracked_filesize;
+				wv = 0xBBBB;
+				for (int i = 0; i < pcomponent->spans_.size(); i++)
+				{
+					// one 16bit offset per line of frame
+					fwrite(&wv, 1, sizeof(wv), hout); tracked_filesize += sizeof(wv);
+
+					//	cy		sbi		sb
+					//	0		A		A
+					//	1		A		-
+					//	2		A		-
+					//	3		B		B
+					//	4		B		-
+					//	5		C		C
+					//	6		D		D
+					//	7		D		-
+				}
+
+				// write out spanblock records
+				//			int mapped_line = 0;
+				int last_spanblock = -1;
+				int last_spanblock_y = 0;
+				for (std::list<slabspan_t>::iterator spanit = pcomponent->spans_.begin(); spanit != pcomponent->spans_.end(); spanit++)
+				{
+					spanblock_index.push_back(tracked_filesize);
+
+					// fill clipper for all lines up to start of new spanblock (if any)
+					// note: take care over initial y skip, which would otherwise fill -1 for last spanblock
+					int last_valid_spanblock = (last_spanblock >= 0) ? last_spanblock : 0;
+					for (; last_spanblock_y < (spanit->y_ - spanit->dy_); last_spanblock_y++)
+					{
+						spanblock_clipper.push_back(last_valid_spanblock);
+					}
+
+					last_spanblock++;
+
+					// 2: spanblock dy (skipped lines)
+					wv = endianswap16(spanit->dy_);
+					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					// 2: spanblock xo
+					wv = endianswap16(spanit->xo_);
+					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					// 2: spanblock xs (<<4 to preshift for blitter lookups)
+					wv = endianswap16(u16(spanit->xs_) << 4);
+					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					// 2: spanblock dxw
+					wv = endianswap16(spanit->dxw_);
+					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					// 2: spanblock y (for skipped then nonskipped lines of spanblock)
+					wv = endianswap16(spanit->y_);
+					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					// 2: spanblock nonskipped lines (ys-1)
+					wv = endianswap16(spanit->ys_ - 1);
+					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+					// 4: spandata ptr
+					spandata_ptrs.push_back(tracked_filesize);
+					lv = 0xAAAAAAAA;
+					fwrite(&lv, 1, sizeof(lv), hout); tracked_filesize += sizeof(lv);
+				}
+
+				// now write pixel data separately, and contiguously
+				for (std::list<slabspan_t>::iterator spanit = pcomponent->spans_.begin(); spanit != pcomponent->spans_.end(); spanit++)
+				{
+					spandata_index.push_back(tracked_filesize);
+
+					if (_storepixels)
 					{
 
-						//if (0) // interleaved planewords (CPU)
-						//{
-						//	// output span plane words for a line
-						//	for (int o = 0; o < spanit->dxw_; o++)
-						//	{
-						//		// write colour words for N planes
-						//		for (int p = 0; p < g_allargs.planes; p++)
-						//		{
-						//			wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
-						//			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-						//		}
-						//	}
-						//}
-						//else // plane-at-a-time scans (blitter)
+						// output spanblock lines
+						for (int l = 0; l < spanit->ys_; l++)
 						{
-							// write colour words for N planes
-							for (int p = 0; p < g_allargs.planes; p++)
+
+							//if (0) // interleaved planewords (CPU)
+							//{
+							//	// output span plane words for a line
+							//	for (int o = 0; o < spanit->dxw_; o++)
+							//	{
+							//		// write colour words for N planes
+							//		for (int p = 0; p < g_allargs.planes; p++)
+							//		{
+							//			wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
+							//			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+							//		}
+							//	}
+							//}
+							//else // plane-at-a-time scans (blitter)
 							{
-								// output span plane words for a line
-								for (int o = 0; o < spanit->dxw_; o++)
+								// write colour words for N planes
+								for (int p = 0; p < g_allargs.planes; p++)
 								{
-									wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									// output span plane words for a line
+									for (int o = 0; o < spanit->dxw_; o++)
+									{
+										wv = endianswap16(spanit->pspan_[(((l*spanit->dxw_) + o) * 8) + p]);
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									}
 								}
 							}
 						}
 					}
 				}
-			}
 
-			// fill clipper for all lines up to end of last spanblock
-			// note: take care over initial y skip, which would otherwise fill -1 for last spanblock
-			int last_valid_spanblock = (last_spanblock >= 0) ? last_spanblock : 0;
-			for (; last_spanblock_y < it->h_; last_spanblock_y++)
-			{
-				spanblock_clipper.push_back(last_valid_spanblock);
-			}
-
-//			assert(mapped_line == it->h_);
-
-/*			while (mapped_line < it->h_)
-			{
-				spanblock_index.push_back(-1);
-				mapped_line++;
-			}
-*/
-
-			// save seek			
-			int tmp_pos = ftell(hout);
-
-			// patch spanblock record data pointers
-			int yi = 0;
-			for (std::vector<int>::iterator cspit = clipspandata_ptrs.begin(); cspit != clipspandata_ptrs.end(); cspit++, yi++)
-			{
-				int ptr_off = (*cspit);
-				fseek(hout, ptr_off+4, 0);
-				// find spanblock used by this y
-				int pi = spanblock_clipper[yi];
-				// antireloc spandata ptr
-
-				wv = (word_t)(spandata_index[pi] - indextables_fpos);
-//				printf("clipper[%d]:[%08x] %08x\n", yi, ptr_off, lv);
-				wv = endianswap16(wv);
-				fwrite(&wv, 1, sizeof(wv), hout);
-
-//				lv = spandata_index[pi] - indextables_fpos;
-////				printf("clipper[%d]:[%08x] %08x\n", yi, ptr_off, lv);
-//				lv = endianswap32(lv);
-//				fwrite(&lv, 1, sizeof(lv), hout);
-			}
-
-			// patch spanblock record data pointers
-			int pi = 0;
-			for (std::vector<int>::iterator srpit = spandata_ptrs.begin(); srpit != spandata_ptrs.end(); srpit++, pi++)
-			{
-				int ptr_off = (*srpit);
-				fseek(hout, ptr_off+4, 0);
-				// antireloc next spandata ptr
-				lv = spandata_index[pi] - indextables_fpos;
-//				printf("record[%d]: %08x\n", pi, lv);
-				lv = endianswap32(lv);
-				fwrite(&lv, 1, sizeof(lv), hout);
-			}
-
-			// patch clipper index
-			fseek(hout, spanblock_clipper_fpos+4, 0);
-			int yc = 0;
-			for (std::vector<int>::iterator cit = spanblock_clipper.begin(); cit != spanblock_clipper.end(); cit++, yc++)
-			{
-				// spanblock clipper addresses spanblocks, but based on scanline indices
-				// the clipper array contains spanblock indices counting from 0 and we translate 
-				// these into offset from the spanblock index so the drawing routine starts on 
-				// the correct spanblock index entry for any initial yclip
-
-				int clipfirst = (*cit);
-
-//				printf("clipper[%d]: %d\n", ci, clipfirst);
-
-				wv = (spanblock_index_fpos + (clipfirst * sizeof(word_t))) - indextables_fpos;
-				wv = endianswap16(wv);
-				fwrite(&wv, 1, sizeof(wv), hout);
-
-				// remaining spanblocks for top yc, assuming this was the first
-				wv = spanblock_index.size() - clipfirst;
-				wv = endianswap16(wv);
-				fwrite(&wv, 1, sizeof(wv), hout);
-
-				// skip offset, already patched
-				fseek(hout, 2, SEEK_CUR);
-
-				// sum spanblocks until (y2 >= yc)
+				// fill clipper for all lines up to end of last spanblock
+				// note: take care over initial y skip, which would otherwise fill -1 for last spanblock
+				int last_valid_spanblock = (last_spanblock >= 0) ? last_spanblock : 0;
+				for (; last_spanblock_y < pcomponent->h_; last_spanblock_y++)
 				{
-					// ybot recedes as yc advances
-					int ybot = it->h_ - yc;
+					spanblock_clipper.push_back(last_valid_spanblock);
+				}
 
-					int sbcount = 0;
-					for (std::list<slabspan_t>::iterator blkit = it->spans_.begin(); blkit != it->spans_.end(); blkit++)
+				//			assert(mapped_line == it->h_);
+
+				/*			while (mapped_line < it->h_)
+							{
+							spanblock_index.push_back(-1);
+							mapped_line++;
+							}
+							*/
+
+				// save seek			
+				//int tmp_pos = ftell(hout);
+
+				std::vector<word_t> clipspandata_offsets;
+				// patch spanblock record data pointers
+				int yi = 0;
+				for (std::vector<int>::iterator cspit = clipspandata_ptrs.begin(); cspit != clipspandata_ptrs.end(); cspit++, yi++)
+				{
+					int ptr_off = (*cspit);
+					fseek(hout, ptr_off + 4, SEEK_SET);
+					// find spanblock used by this y
+					int pi = spanblock_clipper[yi];
+					// antireloc spandata ptr
+
+					wv = (word_t)(spandata_index[pi] - indextables_fpos);
+					clipspandata_offsets.push_back(wv);
+
+					//				printf("clipper[%d]:[%08x] %08x\n", yi, ptr_off, lv);
+					wv = endianswap16(wv);
+					fwrite(&wv, 1, sizeof(wv), hout);
+
+					//				lv = spandata_index[pi] - indextables_fpos;
+					////				printf("clipper[%d]:[%08x] %08x\n", yi, ptr_off, lv);
+					//				lv = endianswap32(lv);
+					//				fwrite(&lv, 1, sizeof(lv), hout);
+				}
+
+				// patch spanblock record data pointers
+				int pi = 0;
+				for (std::vector<int>::iterator srpit = spandata_ptrs.begin(); srpit != spandata_ptrs.end(); srpit++, pi++)
+				{
+					int ptr_off = (*srpit);
+					fseek(hout, ptr_off + 4, SEEK_SET);
+					// antireloc next spandata ptr
+					lv = spandata_index[pi] - indextables_fpos;
+					//				printf("record[%d]: %08x\n", pi, lv);
+					lv = endianswap32(lv);
+					fwrite(&lv, 1, sizeof(lv), hout);
+				}
+
+				// patch clipper index
+				fseek(hout, spanblock_clipper_fpos + 4, SEEK_SET);
+				int yc = 0;
+				for (std::vector<int>::iterator cit = spanblock_clipper.begin(); cit != spanblock_clipper.end(); cit++, yc++)
+				{
+					// spanblock clipper addresses spanblocks, but based on scanline indices
+					// the clipper array contains spanblock indices counting from 0 and we translate 
+					// these into offset from the spanblock index so the drawing routine starts on 
+					// the correct spanblock index entry for any initial yclip
+
+					int clipfirst = (*cit);
+
+					wv = (spanblock_index_fpos + (clipfirst * sizeof(word_t))) - indextables_fpos;
+					wv = endianswap16(wv);
+					fwrite(&wv, 1, sizeof(wv), hout);
+
+					// remaining spanblocks for top yc, assuming this was the first
+					int remaining_sb = spanblock_index.size() - clipfirst;
+
+					wv = remaining_sb;
+					wv = endianswap16(wv);
+					fwrite(&wv, 1, sizeof(wv), hout);
+
+					// skip offset, already patched
+					fseek(hout, 2, SEEK_CUR);
+
+					// sum spanblocks until (y2 >= yc)
 					{
-						int spanblock_y2 = (blkit->y_ + blkit->dy_ + blkit->ys_);
-						if (spanblock_y2 >= ybot) 
-							break;
-						sbcount++;
-					}
+						// ybot recedes as yc advances
+						int ybot = pcomponent->h_ - yc;
 
-					// remaining spanblocks for bottom yc -1
-					wv = sbcount;
+						int sbcount = 0;
+						for (std::list<slabspan_t>::iterator blkit = pcomponent->spans_.begin(); blkit != pcomponent->spans_.end(); blkit++)
+						{
+							int spanblock_y2 = (blkit->y_ /*+ blkit->dy_*/ + blkit->ys_);
+							if (spanblock_y2 >= ybot)
+								break;
+							sbcount++;
+						}
+/*
+						printf("clipper[%d]: i=%d, rt=%d, o=%d, rb=%d\n", 
+							yc, 
+							clipfirst, 
+							remaining_sb,
+							(int)clipspandata_offsets[yc],
+							sbcount
+							);
+*/
+						// remaining spanblocks for bottom yc -1
+						wv = sbcount;
+						wv = endianswap16(wv);
+						fwrite(&wv, 1, sizeof(wv), hout);
+					}
+				}
+
+				// patch spanblock index
+				fseek(hout, spanblock_index_fpos + 4, SEEK_SET);
+				for (std::vector<int>::iterator spanit = spanblock_index.begin(); spanit != spanblock_index.end(); spanit++)
+				{
+					wv = (*spanit) - indextables_fpos;// spanblock_index_fpos;
 					wv = endianswap16(wv);
 					fwrite(&wv, 1, sizeof(wv), hout);
 				}
-			}
 
-			// patch spanblock index
-			fseek(hout, spanblock_index_fpos+4, 0);
-			for (std::vector<int>::iterator spanit = spanblock_index.begin(); spanit != spanblock_index.end(); spanit++)
-			{
-				wv = (*spanit) - indextables_fpos;// spanblock_index_fpos;
-				wv = endianswap16(wv);
-				fwrite(&wv, 1, sizeof(wv), hout);
-			}
+				// restore seek
+				fseek(hout, 0, SEEK_END);
 
-			// restore seek
-			fseek(hout, tmp_pos, 0);
-		}
+				// next component within frame (if any)
+				pcomponent = pcomponent->nextcmp_;
+				if (pcomponent)
+					slab_nextcmp_chain.push_back(tracked_filesize);
+					
+				cmpidx++;
+
+			} // frame components
+
+		} // slabframes
 
 		// patch slab index
+		// todo: must also patch any non-null nextcmp* offsets
 		lv = 0;
-		size_t index_table_fpos = slab_index_fpos + 4;
-		fseek(hout, index_table_fpos, 0);
+		size_t index_table_fpos = slab_index_fpos;
+		fseek(hout, index_table_fpos+4, SEEK_SET);
 		{
 			int idx = 0;
 			std::cout << std::hex;
@@ -6215,6 +6375,25 @@ bool emit_slab_sequence(bool _storepixels)
 				lv = endianswap32(lv);
 				fwrite(&lv, 1, sizeof(lv), hout);
 				index_table_fpos += sizeof(lv);
+			}
+		}
+
+		// patch slab nextcmp chain index
+		if (1)
+		{
+			int idx = 0;
+			std::cout << std::hex;
+			std::vector<int>::iterator lit = slab_nextcmp_chainlinks.begin();
+			std::vector<int>::iterator it = slab_nextcmp_chain.begin();
+			for (; lit != slab_nextcmp_chainlinks.end(); lit++, it++, idx++)
+			{
+				size_t link_fpos = (*lit);
+				fseek(hout, link_fpos+4, SEEK_SET);
+				size_t cmp_fpos = (*it);
+				lv = cmp_fpos - slab_index_fpos;
+				//std::cout << "patch nextcmp link [" << idx << "] O=0x" << (size_t)lv << " @ 0x" << link_fpos << std::endl;
+				lv = endianswap32(lv);
+				fwrite(&lv, 1, sizeof(lv), hout);
 			}
 		}
 
@@ -6371,7 +6550,7 @@ bool do_sheet()
 				if (g_allargs.keyrgb_specified || g_allargs.hitkeyrgb_specified || g_allargs.autocutkeyrgb_specified )
 				{
 					std::cerr << "error: can't use -keyrgb or -hitkeyrgb <R:G:B> on non-remapped spritesheet images - use -key/-hitkey <col> instead." << std::endl;
-					printf("press any key...\n");
+					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();	
 					exit(1);
 				}
@@ -6811,7 +6990,7 @@ bool do_sheet()
 						// everything else is an error
 						{
 							std::cerr << "error: cutting sequences in spriteguide files must be row or column, not diagonal!" << std::endl;
-							printf("press any key...\n");
+							std::cout << "press any key..." << std::endl << std::flush;
 							getchar();	
 							exit(1);
 						}
@@ -7016,7 +7195,7 @@ int main(int argc, char* argv[])
 			if (g_allargs.tilesize < 16)
 			{
 				std::cerr << "error: rbplus mode only supports tilesize 16x16 or larger" << std::endl;
-				printf("press any key...\n");
+				std::cout << "press any key..." << std::endl << std::flush;
 				getchar();	
 				exit(1);
 			}
@@ -7025,7 +7204,7 @@ int main(int argc, char* argv[])
 			if (g_allargs.tilesize > 16)
 			{
 				std::cerr << "error: direct mode only supports tilesizes 8x8 or 16x16." << std::endl;
-				printf("press any key...\n");
+				std::cout << "press any key..." << std::endl << std::flush;
 				getchar();	
 				exit(1);
 			}
@@ -7048,7 +7227,7 @@ int main(int argc, char* argv[])
 	{
 		// error
 		std::cerr << "error: unsupported cutmode!" << std::endl;
-		printf("press any key...\n");
+		std::cout << "press any key..." << std::endl << std::flush;
 		getchar();	
 		exit(1);
 	}

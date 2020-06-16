@@ -30,6 +30,7 @@ _BLiT_EntityDeferVisibleXM_68k:
 .sp_skew:		ds.w	1			; don't move this one
 .sp_maskwidth:		ds.w	1
 .sp_yoff:		ds.w	1
+.sp_yc:			ds.w	1
 .sp_yrem:		ds.w	1
 .sp_save_usp:		ds.l	1
 .sp_linetable:		ds.l	1

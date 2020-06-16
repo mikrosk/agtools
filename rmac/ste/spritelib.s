@@ -517,9 +517,13 @@ _AGT_BLiT_SlabDraw:
 			.abs
 *-------------------------------------------------------*
 .sp_yoff:		ds.w	1
-;.sp_ycrop:		ds.w	1
+.sp_yc:			ds.w	1
 .sp_yrem:		ds.w	1
 .sp_save_usp:		ds.l	1
+.sp_x:			ds.w	1
+.sp_y:			ds.w	1
+.sp_framebuf:		ds.l	1
+.sp_nextcmp:		ds.l	1
 .sp_frame_:
 *-------------------------------------------------------*
 			.text
@@ -527,7 +531,7 @@ _AGT_BLiT_SlabDraw:
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
-	subq.l		#.sp_frame_,sp
+	lea		-.sp_frame_(sp),sp
 *-------------------------------------------------------*
 	move.l		.psls(a6),a0
 	move.l		.pdst(a6),a1
@@ -535,9 +539,12 @@ _AGT_BLiT_SlabDraw:
 	move.w		.ypos+2(a6),d2
 ;	sub.w		_g_xpreshift,d1
 *-------------------------------------------------------*
+	jsr		_AGT_BLiT_SlabInit
 
+	move.l		a1,.sp_framebuf(sp)
 	move.w		.slabframe+2(a6),d0
 	moveq		#0,d7
+	
 	
 enable_slabrestore	set	0
 preserve_usp		set	0
@@ -545,7 +552,7 @@ preserve_usp		set	0
 	include		"ste/b_slab.s"
 
 *-------------------------------------------------------*
-	addq.l		#.sp_frame_,sp
+	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -577,8 +584,13 @@ _AGT_SlabDirtyRegion:
 			.abs
 *-------------------------------------------------------*
 .sp_yoff:		ds.w	1
+.sp_yc:			ds.w	1
 .sp_yrem:		ds.w	1
 .sp_save_usp:		ds.l	1
+.sp_x:			ds.w	1
+.sp_y:			ds.w	1
+.sp_framebuf:		ds.l	1
+.sp_nextcmp:		ds.l	1
 .sp_frame_:
 *-------------------------------------------------------*
 			.text
@@ -586,7 +598,7 @@ _AGT_SlabDirtyRegion:
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 	move.l		a6,-(sp)
-	subq.l		#.sp_frame_,sp
+	lea		-.sp_frame_(sp),sp
 *-------------------------------------------------------*
 	move.l		.psls(a6),a0
 	move.l		.pdst(a6),a1
@@ -601,6 +613,8 @@ _AGT_SlabDirtyRegion:
 
 	move.w		.slabframe+2(a6),d0
 	moveq		#0,d7
+
+	move.l		a1,.sp_framebuf(sp)
 	
 enable_slabrestore	set	1
 preserve_usp		set	0
@@ -613,7 +627,7 @@ preserve_usp		set	0
 	move.l		a5,rstr_ptide(a4)
 
 *-------------------------------------------------------*
-	addq.l		#.sp_frame_,sp
+	lea		.sp_frame_(sp),sp
 	move.l		(sp)+,a6
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5

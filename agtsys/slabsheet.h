@@ -16,12 +16,15 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// types
 
+	static const int SLS_VERSION = 0x1200;
+
 	// spanblock clipper header
 	struct slc_header
 	{
 		s16 offset;					// poffset from indexbase to first spanblock record for this yc
-		s16	remaining;				// remaining spanblocks to draw for this yc
+		s16	remaining_t;			// remaining spanblocks to draw for this top yc
 		s16 spdoff;					// offset from indexbase to spanblock pixel data
+		s16	remaining_b;			// remaining spanblocks to draw for this bottom yc
 	};
 
 	// spanblock header
@@ -44,6 +47,7 @@ public:
 		s16 xo;						// frame x offset (from source cutting position, if size was optimized)
 		s16 yo;						// frame y offset (from source cutting position, if size was optimized)
 		s16 spanblocks;				// number of spanblocks
+		s32 nextcmp;				// pointer to next slab component (if more than one required to complete this frame)
 		s8 indexbase[8];			// variable sized index & data follows 
 									// ([h]eight * 8 bytes) clipping index to spanblock ssb_headers
 									// followed by (spanblocks * 2 bytes) condensed index to unique spanblock ssb_headers
@@ -119,7 +123,10 @@ public:
 				data_ = (sls_header*)(new u8[size]);
 				// read main part of file
 				fread((char*)data_, 1, size, h);
-									
+
+				if (data_->version == SLS_VERSION)
+				{
+
 				pprintf("created slabsheet:\n\t%dx%d @ %d bpl, %d frames\n", 
 					data_->srcwidth, 
 					data_->srcheight, 
@@ -139,36 +146,71 @@ public:
 					slf_header *pbh = (slf_header*)(addr_base + addr_offset);
 					data_->frameindex[f] = pbh;
 
-					ptrsize_t index_base = (ptrsize_t)&(pbh->indexbase[0]);
-
-					// clipper and spanblock indices remain as offsets to save space
-					// but pixeldata references are pointers so they need relocation
-
-					// clipper table continues from indexbase
-					//slc_header *pclipper = (slc_header*)(&(pbh->indexbase[0]));
-
-					//for (s16 yc = 0; yc < pbh->h; yc++)
-					//{
-					//	//printf("clipper[%d]: %08x\n", (int)yc, pclipper[yc].spandata);
-
-					//	// relocate pixel data vs index base, so each spanblock record points at its own pixels
-					//	pclipper[yc].spandata += index_base;	
-					//}
-
-					// spanblock index follows clipper table, which is (8 bytes * height) in size
-					s16 *pspanblocks = (s16*)&(pbh->indexbase[8 * pbh->h]);
-
-					for (s16 sb = 0; sb < pbh->spanblocks; sb++)
+					// may be more than one component within this frame
+					do
 					{
-						// note: pixeldata offsets are in terms of bytes, not words - meant for 68k lookups.
-						ssb_header *pssb = (ssb_header*)(&pbh->indexbase[pspanblocks[sb]]);
+						ptrsize_t index_base = (ptrsize_t)&(pbh->indexbase[0]);
 
-						//printf("spanrecord[%d]: %08x\n", (int)sb, pssb->spandata);
+						// clipper and spanblock indices remain as offsets to save space
+						// but pixeldata references are pointers so they need relocation
 
-						// relocate pixel data vs index base, so each spanblock record points at its own pixels
-						// note: this is used mainly by the x-clipper to find the source offset in the spanblock
-						pssb->spandata += index_base;		
-					}
+/*						// clipper table continues from indexbase
+						slc_header *pclipper = (slc_header*)(&(pbh->indexbase[0]));
+
+						for (s16 yc = 0; yc < pbh->h; yc++)
+						{
+							printf("clipper[%d]: o=%d rt=%d spd=%d rb=%d\n", 
+								(int)yc, 
+								(int)pclipper[yc].offset, 
+								(int)pclipper[yc].remaining_t, 
+								(int)pclipper[yc].spdoff,
+								(int)pclipper[yc].remaining_b 
+								);
+						}
+*/
+						// spanblock index follows clipper table, which is (8 bytes * height) in size
+						u16 *pspanblocks = (u16*)&(pbh->indexbase[sizeof(slc_header) * pbh->h]);
+
+						for (s16 sb = 0; sb < pbh->spanblocks; sb++)
+						{
+							// note: pixeldata offsets are in terms of bytes, not words - meant for 68k lookups.
+							ssb_header *pssb = (ssb_header*)(&pbh->indexbase[pspanblocks[sb]]);
+
+							//printf("spanrecord[%d]: %08x\n", (int)sb, pssb->spandata);
+
+							// relocate pixel data vs index base, so each spanblock record points at its own pixels
+							// note: this is used mainly by the x-clipper to find the source offset in the spanblock
+							pssb->spandata += index_base;		
+						}
+
+						slf_header *next_pbh = nullptr;
+#if (1)
+						// terminate, unless another component follows
+						ptrsize_t nextcmp_addroffset = (ptrsize_t)pbh->nextcmp;
+
+						if (nextcmp_addroffset)
+						{
+							//printf("next off: %x\n", nextcmp_addroffset);
+							// relocate, if not null
+							next_pbh = (slf_header*)(nextcmp_addroffset + addr_base);
+							//printf("next pbh: %x\n", (ptrsize_t)next_pbh);
+							pbh->nextcmp = (s32)next_pbh;
+						}
+#endif
+						pbh = next_pbh;
+
+					} while (pbh != 0);
+
+					//while (1) { }
+
+				}
+				}
+				else
+				{
+					pprintf("error: slabsheet version (%x != %x) is stale - re-generate data with latest AGTCUT!\n", data_->version, SLS_VERSION);
+
+					delete[] (u8*)data_; 
+					data_ = nullptr;
 				}
 			}
 			fclose(h);

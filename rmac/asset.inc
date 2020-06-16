@@ -93,6 +93,7 @@ slf_h:			ds.w	1
 slf_xo:			ds.w	1
 slf_yo:			ds.w	1
 slf_spanblocks:		ds.w	1
+slf_nextcmp:		ds.l	1
 slf_indexbase:
 *-------------------------------------------------------*
 slf_size:

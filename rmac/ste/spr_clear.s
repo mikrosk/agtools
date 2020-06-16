@@ -577,6 +577,7 @@ _AGT_BLiT_PlayfieldRestore:
 	move.w		d0,BLiTSXI.w
 	move.w		d0,BLiTDXI.w
 	move.b		d0,BLiTHOP.w
+;	move.b		#15,BLiTHOP.w
 	move.b		#3,BLiTLOP.w
 	clr.b		BLiTSKEW.w
 	moveq		#-1,d0
