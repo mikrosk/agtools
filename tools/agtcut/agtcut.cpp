@@ -123,7 +123,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.432";
+static const char* const g_version_string = "v0.433";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0100;
@@ -7136,21 +7136,24 @@ bool do_sheet()
 			//
 			case Cutmode_EMXSPR:
 				// code-generated preshifted blitter EM sprites
-				std::cout << "optimizing EMX : code generation..." << std::endl;
 				generate_emx_sequence();
 			case Cutmode_SPRITES:
 			case Cutmode_EMSPR:
 				// non-code-generated sprite formats
+				std::cout << "outputting data..." << std::endl;
 				emit_sprite_sequence(!g_allargs.hidden);
 				break;
 			//
 			case Cutmode_SLABS:
+				std::cout << "outputting data..." << std::endl;
 				emit_slab_sequence(true/*!g_allargs.hidden*/);
 				break;
 			case Cutmode_SLABRESTORE: // for now, we don't have a use case for drawing this except maybe to debug it
+				std::cout << "outputting data..." << std::endl;
 				emit_slab_sequence(false/*!g_allargs.hidden*/);
 				break;
 			}
+			std::cout << "...done" << std::endl;
 		}
 
 		if (g_allargs.visual && pvisualrgb)

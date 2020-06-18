@@ -10,6 +10,9 @@
 //---------------------------------------------------------------------------------------------------------------------
 
 #define DEBUG_REGISTER_TAGS (0)
+#define DEBUG_REGISTER_TAGS2 (0)
+#define DEBUG_REGISTER_STATES (0)
+#define SIM_ALL_STAGES (0) // 1= don't just simulate final generated code. simulate after every pass, checking for errors (slow!)
 
 // 20 tiles / 320 pix
 // +1 for hscroll margin
@@ -254,6 +257,39 @@ enum OpKind
 	OpKind_Terminate
 };
 
+static const char* const as_str[] =
+{
+	"OpKind_Other",
+	//
+	// generic ops
+	//
+	"OpKind_Nop",
+	//
+	"OpKind_LoadI16",
+	"OpKind_LoadI32",
+	//
+	"OpKind_Lea16",
+	"OpKind_Lea32",
+	//
+	// blitter ops
+	//
+	"OpKind_StoreI16",
+	"OpKind_StoreI32",
+	"OpKind_StoreR16",
+	"OpKind_StoreR32",
+	//
+	"OpKind_DSTAddaR16",
+	"OpKind_DSTSubaR16",
+	"OpKind_DSTLea",
+	//
+	"OpKind_SYSPageRestore",
+	"OpKind_BLITInit",
+	"OpKind_BLITSetup",
+	"OpKind_BLITGo",
+	//
+	"OpKind_Terminate"
+};
+
 enum OpWrite
 {
 	OpWrite_None,
@@ -470,6 +506,7 @@ public:
 		metrics_sim = metrics;
 	}
 
+	void dump_tags();
 	void register_rename(std::list<Operation*>::iterator curr, int _rold, int _rnew);
 
 	DataSource sim_resolve_data16(uword_t _data, int &r_reg_index, bool _injectops);
@@ -516,7 +553,7 @@ public:
 		sim_track_datarefs(_dataL);
 	}
 
-	void try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL);
+	bool try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL);
 
 	bool try_4c_init_transforms(std::list<Operation*>::iterator &curr, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL);
 	bool try_8c_init_transforms(std::list<Operation*>::iterator &curr, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL);
@@ -525,7 +562,7 @@ public:
 	bool try_reg_transforms(std::list<Operation*>::iterator &curr, std::vector<dataregister>::iterator it, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL, int &r_limit, bool _2nd = false);
 //	bool try_8c_reg_transforms(std::list<Operation*>::iterator &curr, std::vector<dataregister>::iterator it, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL, bool _2nd = false);
 
-	void transform_pass();
+	bool transform_pass();
 	void cleanup_pass();
 	void reduce_pass();
 	void tail_pass();
@@ -533,7 +570,7 @@ public:
 	void register_sweep();
 
 	bool tag_collision(std::list<Operation*>::iterator _start, int _rold, int _rnew, OpSize _sz);
-	bool tag_busy(std::list<Operation*>::iterator _start, int _r, OpSize _sz);
+	bool tags_busy(std::list<Operation*>::iterator _start, int _r);
 	int register_count_srcrefs(std::list<Operation*>::iterator _start, int _reg, OpSize _sz);
 	std::list<Operation*>::iterator register_last_written(std::list<Operation*>::iterator _start, int _reg, OpSize _sz);
 
@@ -1094,6 +1131,27 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 	return DataSource_Immediate32;
 }
 
+void Context::dump_tags()
+{
+	register_sweep();
+
+	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end(); it++)
+	{
+		Operation *poper = *it;
+
+		printf("tags:");
+		for (int r = 0; r < registers.size(); r++)
+		{
+			printf(" %s[%02x:%02x](%08x)", 
+				registers[r].name.c_str(), 
+				ubyte_t(poper->alltagsH[r]), ubyte_t(poper->alltagsL[r]),
+				(((ulong_t)registers[r].H << 16) | registers[r].L)
+			);
+		}
+		printf("  %s", poper->describe().c_str());
+	}
+}
+
 void Context::register_rename(std::list<Operation*>::iterator _start, int _regold, int _regnew)
 {
 	if (_regold == _regnew)
@@ -1101,51 +1159,77 @@ void Context::register_rename(std::list<Operation*>::iterator _start, int _regol
 
 	Operation* poper = *_start;
 
-	// both 16 and 32bit users of a register will tag the low word so we use this to remap
-	int tagold = -1;
+	// caution: low and high words of same register can have different tags
+	// also, low and high words of same register may independently live or dead (-1)
+
+	int tagoldH = -1;
+	int tagoldL = -1;
 	if (_regold == poper->sreg)
-		tagold = poper->stagL;
+	{
+		tagoldH = poper->stagH;
+		tagoldL = poper->stagL;
+	}
 	else
 	if (_regold == poper->dreg)
-		tagold = poper->dtagL;
+	{
+		tagoldH = poper->dtagH;
+		tagoldL = poper->dtagL;
+	}
 	else
 	if (_regold == poper->areg)
-		tagold = poper->atag;
+	{
+		tagoldH = poper->atag;
+		tagoldL = poper->atag;
+	}
 
-	if (tagold < 0)
+	// can only rename if some part is live
+	if ((tagoldL < 0) && (tagoldH < 0))
 		return;
 
-	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end(); it++)
-	{
-		Operation *poper = *it;
+	//dump_tags();
 
-		if (poper->stagL == tagold)
+	for (std::list<Operation*>::iterator it = _start/*operations.begin()*/; it != operations.end(); it++)
+	{
+		Operation *poper = *it; 
+
+		if (
+			((poper->stagL >= 0 ) && ((poper->stagL == tagoldL) || (poper->stagL == tagoldH))) ||
+			((poper->stagH >= 0 ) && (/*(poper->stagH == tagoldL) ||*/ (poper->stagH == tagoldH)))
+		)
 		{
 			if (g_allargs.verbose)
 				printf("replacing S:%s with %s\n", registers[poper->sreg].name.c_str(), registers[_regnew].name.c_str());
 			poper->sreg = _regnew;
 		}
 
-		if (poper->dtagL == tagold)
+		if (
+			((poper->dtagL >= 0 ) && ((poper->dtagL == tagoldL) || (poper->dtagL == tagoldH))) ||
+			((poper->dtagH >= 0 ) && (/*(poper->dtagH == tagoldL) ||*/ (poper->dtagH == tagoldH)))
+		)
 		{
 			if (g_allargs.verbose)
 				printf("replacing D:%s with %s\n", registers[poper->dreg].name.c_str(), registers[_regnew].name.c_str());
 			poper->dreg = _regnew;
 		}
 
-		if (poper->atag == tagold)
+		if ((poper->atag >= 0) && (poper->atag == tagoldL))
 		{
 			if (g_allargs.verbose)
 				printf("replacing A:%s with %s\n", registers[poper->areg].name.c_str(), registers[_regnew].name.c_str());
 			poper->areg = _regnew;
 		}
 	}
+
+	//register_sweep();
+
+	//dump_tags();
 }
 
 void Context::register_sweep()
 {
-	std::vector<std::pair<int,int> > tags;
-	tags.resize(registers.size(), std::pair<int,int>(-1,-1));
+	static std::vector<std::pair<int,int> > s_tags;
+	s_tags.clear();
+	s_tags.resize(registers.size(), std::pair<int,int>(-1,-1));
 	int newtag = 0;
 
 #if (DEBUG_REGISTER_TAGS)
@@ -1165,7 +1249,7 @@ void Context::register_sweep()
 			assert(poper->sreg < tags.size());
 
 			// if not yet tagged - generate new tag
-			std::pair<int,int> &optag = tags[poper->sreg];
+			std::pair<int,int> &optag = s_tags[poper->sreg];
 
 /*			23
 			23
@@ -1183,27 +1267,29 @@ void Context::register_sweep()
 				optag.first = newtag++;
 			}
 
-				if (poper->opsize == OpSize_32)
-				{
-					if (optag.second < 0)
-						optag.second = optag.first;
-				}
+			if (poper->opsize == OpSize_32)
+			{
+				if (optag.second < 0)
+					optag.second = optag.first;
+			}
 
 			poper->stagH = optag.second;
 			poper->stagL = optag.first;
 
 #if (DEBUG_REGISTER_TAGS)
 			if (poper->opsize == OpSize_32)
-			printf("referenced: %s (%02d:%02d) [32]\n", 
+			printf("referenced: %s (%02d:%02d) [32] : %s\n", 
 				registers[poper->sreg].name.c_str(), 
 				poper->stagH, 
-				poper->stagL
+				poper->stagL,
+				poper->describe().c_str()
 				);
 			else
-			printf("referenced: %s (%02d:%02d) [16]\n", 
+			printf("referenced: %s (%02d:%02d) [16] : %s\n", 
 				registers[poper->sreg].name.c_str(), 
 				poper->stagH, 
-				poper->stagL
+				poper->stagL,
+				poper->describe().c_str()
 				);
 #endif
 		}
@@ -1215,7 +1301,7 @@ void Context::register_sweep()
 			assert(poper->areg < tags.size());
 
 			// if not yet tagged - generate new tag
-			std::pair<int,int> &optag = tags[poper->areg];
+			std::pair<int,int> &optag = s_tags[poper->areg];
 
 			if (optag.first < 0)
 			{
@@ -1226,9 +1312,10 @@ void Context::register_sweep()
 			poper->atag = optag.first;
 
 #if (DEBUG_REGISTER_TAGS)
-			printf("referenced: %s (%02d)\n", 
+			printf("referenced: %s (%02d) : %s", 
 				registers[poper->areg].name.c_str(), 
-				poper->atag 
+				poper->atag,
+				poper->describe().c_str()
 				);
 #endif
 		}
@@ -1244,7 +1331,7 @@ void Context::register_sweep()
 			assert(poper->dreg < tags.size());
 
 			// if not yet tagged - generate new tag
-			std::pair<int,int> &optag = tags[poper->dreg];
+			std::pair<int,int> &optag = s_tags[poper->dreg];
 
 			if (optag.first < 0)
 			{
@@ -1262,44 +1349,50 @@ void Context::register_sweep()
 
 #if (DEBUG_REGISTER_TAGS)
 			if (poper->opwr == OpWrite_Combine)
-			printf("combined: %s (%02d:%02d)\n", 
+			printf("combined: %s (%02d:%02d) : %s", 
 				registers[poper->dreg].name.c_str(), 
 				poper->dtagH, 
-				poper->dtagL
+				poper->dtagL,
+				poper->describe().c_str()
 				);
 			else
 			if (poper->opwr == OpWrite_Replace && poper->opsize == OpSize_32)
-			printf("replaced: %s (%02d:%02d) [32]\n", 
+			printf("replaced: %s (%02d:%02d) [32] : %s", 
 				registers[poper->dreg].name.c_str(), 
 				poper->dtagH, 
-				poper->dtagL
+				poper->dtagL,
+				poper->describe().c_str()
 				);
 			else
 			if (poper->opwr == OpWrite_Replace && poper->opsize == OpSize_16)
-			printf("replaced: %s (%02d:%02d) [16]\n", 
+			printf("replaced: %s (%02d:%02d) [16] : %s", 
 				registers[poper->dreg].name.c_str(), 
 				poper->dtagH, 
-				poper->dtagL
+				poper->dtagL,
+				poper->describe().c_str()
 				);
 			else
 			if (poper->opwr == OpWrite_ReplaceHCombineL)
-			printf("repHcmbL: %s (%02d:%02d)\n", 
+			printf("repHcmbL: %s (%02d:%02d) : %s", 
 				registers[poper->dreg].name.c_str(), 
 				poper->dtagH, 
-				poper->dtagL
+				poper->dtagL,
+				poper->describe().c_str()
 				);
 			else
 			if (poper->opsize == OpSize_32)
-			printf("modified: %s (%02d:%02d) [32]\n", 
+			printf("modified: %s (%02d:%02d) [32] : %s", 
 				registers[poper->dreg].name.c_str(), 
 				poper->dtagH, 
-				poper->dtagL
+				poper->dtagL,
+				poper->describe().c_str()
 				);
 			else
-			printf("modified: %s (%02d:%02d) [16]\n", 
+			printf("modified: %s (%02d:%02d) [16] : %s", 
 				registers[poper->dreg].name.c_str(), 
 				poper->dtagH, 
-				poper->dtagL
+				poper->dtagL,
+				poper->describe().c_str()
 				);
 #endif
 		}
@@ -1346,7 +1439,7 @@ void Context::register_sweep()
 				replacedH = poper->dreg;
 
 		int r = 0;
-		for (std::vector<std::pair<int,int> >::iterator it = tags.begin(); it != tags.end(); it++, r++)
+		for (std::vector<std::pair<int,int> >::iterator it = s_tags.begin(); it != s_tags.end(); it++, r++)
 		{
 			std::pair<int,int> &tag = *it;
 
@@ -1355,7 +1448,7 @@ void Context::register_sweep()
 			poper->alltagsH[r] = tag.second;
 			poper->alltagsL[r] = tag.first;
 
-#if (DEBUG_REGISTER_TAGS)
+#if (DEBUG_REGISTER_TAGS2)
 			if (tag.first >= 0)
 				printf("%02d:%02d ", tag.second, tag.first);
 			else
@@ -1367,12 +1460,12 @@ void Context::register_sweep()
 		if (replacedL >= 0)
 		{
 			assert(replacedL < tags.size());
-			tags[replacedL].first = -1;
+			s_tags[replacedL].first = -1;
 		}
 		if (replacedH >= 0)
 		{
 			assert(replacedH < tags.size());
-			tags[replacedH].second = -1;
+			s_tags[replacedH].second = -1;
 		}
 
 #if (DEBUG_REGISTER_TAGS)
@@ -1381,36 +1474,50 @@ void Context::register_sweep()
 	}
 }
 
-bool Context::tag_busy(std::list<Operation*>::iterator _start, int _r, OpSize _sz)
+bool Context::tags_busy(std::list<Operation*>::iterator _exepos, int _r)
 {
-	// detect lifespan tag conflicts between two registers
-	Operation *poper = *_start;
+	// detect existing dependency on either part of register _r
+	Operation *poper = *_exepos;
 
 	assert(_r < sizeof(poper->alltagsL));
 
 	if (poper->alltagsL[_r] >= 0)
 		return true;
 
-	if (_sz == OpSize_32)
-		if (poper->alltagsH[_r] >= 0)
-			return true;
+	if (poper->alltagsH[_r] >= 0)
+		return true;
 
 	return false;
 }
 
 bool Context::tag_collision(std::list<Operation*>::iterator _start, int _rold, int _rnew, OpSize _sz)
 {
+	// reg can't collide with itself
 	if (_rnew == _rold)
 		return false;
 
 	assert(_rold >= 0);
 	assert(_rnew >= 0);
+	assert(_rnew < sizeof(poper->alltagsL));
+	assert(_rold < sizeof(poper->alltagsL));
 
-	// detect lifespan tag conflicts between two registers
+	// detecttags lifespan tag conflicts between two registers
 	for (std::list<Operation*>::iterator it = _start; it != operations.end(); it++)
 	{
 		Operation *poper = *it;
 
+		// check if upper word of target register is busy.
+		if (poper->alltagsH[_rnew] >= 0)
+		{
+			// note: if busy, it may still be renamed but *only* if upper words already match!
+			return true; // collision
+		}
+
+		// if lower word of target is busy, can't rename
+		if (poper->alltagsL[_rnew] >= 0)
+			return true; // collision
+
+/*
 		assert(_rold < sizeof(poper->alltagsL));
 		if (poper->alltagsL[_rold] >= 0)
 		{
@@ -1429,7 +1536,7 @@ bool Context::tag_collision(std::list<Operation*>::iterator _start, int _rold, i
 					return true;
 			}
 		}
-
+*/
 	}
 
 	return false;
@@ -1441,11 +1548,11 @@ bool Context::tag_collision(std::list<Operation*>::iterator _start, int _rold, i
 
 
 
-void Context::try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL)
+bool Context::try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL)
 {
 	// can't transform variable registers
 	if (registers[_rold].variable)
-		return;
+		return false;
 
 	uword_t data16 = _dataL;
 	ulong_t data32 = (ulong_t(_dataH) << 16) | _dataL;
@@ -1484,14 +1591,23 @@ void Context::try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsi
 		{
 			for (int imm = -128; imm < 128; imm++)
 			{
-				if (data16 == uword_t(imm))
+//				if (data16 == uword_t(imm))
+//				{
+				uword_t imm_hw = uword_t(imm >> 16);
+				uword_t imm_lw = uword_t(imm);
+
+				if ((data16 == imm_lw) && 
+					// don't perform moveq if it modifies a high word dependency
+					(/*!registers[_rold].stableH*/((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == imm_hw)))
 				{
+
 					if (g_allargs.verbose)
-						printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x]\n",
+						printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x:%04x]\n",
 							data16,
 							registers[_rold].name.c_str(),
 							imm,
 							registers[_rold].name.c_str(),
+							registers[_rold].H,
 							registers[_rold].L
 							);
 
@@ -1573,10 +1689,14 @@ void Context::try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsi
 	//if (try_12c_init_transforms(curr, _opsize, _rold, _dataH, _dataL))
 	//	goto terminate;
 
+	return false;
+
 terminate:;
+
+	return true;
 }
 
-void Context::transform_pass()
+bool Context::transform_pass()
 {
 	reset_sim(true);
 
@@ -1596,7 +1716,8 @@ void Context::transform_pass()
 			DR_LoadI16 *pactual = reinterpret_cast<DR_LoadI16*>(pop);
 			int rold = pactual->dreg;
 
-			try_transforms(curr, OpSize_16, rold, 0, pactual->data);
+			if (try_transforms(curr, OpSize_16, rold, 0, pactual->data))
+				return true;
 		}
 		else
 		if (pop->kind == OpKind_LoadI32)
@@ -1609,7 +1730,8 @@ void Context::transform_pass()
 			//	int a = 0;
 			//}
 
-			try_transforms(curr, OpSize_32, rold, pactual->dataH, pactual->dataL);
+			if (try_transforms(curr, OpSize_32, rold, pactual->dataH, pactual->dataL))
+				return true;
 		}
 
 		// catch up with execution from last insert point
@@ -1620,6 +1742,8 @@ void Context::transform_pass()
 			curr++;
 		}
 	}
+
+	return false;
 }
 
 
@@ -2019,7 +2143,7 @@ void Context::reduce_pass()
 			}
 		}
 
-terminate:
+//terminate:
 
 		// catch up with execution from last insert point
 		while (curr != it)
@@ -2100,9 +2224,90 @@ void Context::tail_pass()
 		}
 	};
 
-terminate:;
+//terminate:;
 }
 
+void run_sim(Context &context, byte_t *livelines, int _frame, int pi, preshift_t &shift, std::vector<int> &best_invpattern, bool _generate)
+{
+	context.reset_sim(false);
+	for (std::list<Operation*>::iterator it = context.operations.begin(); it != context.operations.end(); it++)
+	{
+		Operation *poper = *it;
+
+		poper->execute();
+		if (_generate)
+			poper->emit();
+
+#if (DEBUG_REGISTER_STATES)
+		printf("tags:");
+		for (int r = 0; r < context.registers.size() /*&& r < 6*/; r++)
+		{
+			printf(" %s[%02x:%02x](%08x)", 
+				context.registers[r].name.c_str(), 
+				ubyte_t(poper->alltagsH[r]), ubyte_t(poper->alltagsL[r]),
+				(((ulong_t)context.registers[r].H << 16) | context.registers[r].L)
+			);
+		}
+		printf("  %s", poper->describe().c_str());
+#endif
+	}
+
+//	context.dump_tags();
+
+	// debug the blit
+	//		if (g_allargs.verbose)
+	{
+		if (!g_allargs.quickcut)
+			if (g_allargs.verbose)
+				printf("debug simulation...\n");
+		int errors = 0;
+		for (int v = 0; v < context.srch; v++)
+		{
+			// detect empty lines
+			//uword_t m = 0;
+			//for (int h = 0; h < shift.wordwidth_; h++)
+			//	m |= shift.data_[(v * shift.wordwidth_) + h];
+
+			ubyte_t m = livelines[v];
+
+			for (int h = 0; h < shift.wordwidth_; h++)
+			{
+				uword_t data = context.memory[(v * context.dstww) + h];
+				uword_t expected = shift.data_[(v * shift.wordwidth_) + h];
+
+				if (m && (data != expected))
+					errors++;
+
+				if (!g_allargs.quickcut)
+					if (g_allargs.verbose)
+					{
+						if (m)
+						{
+							print_dataword(expected); printf(":"); print_dataword(data); printf("  ");
+						}
+						else
+						{
+							print_dataword(expected); printf(":----------------  ");
+						}
+					}
+			}
+			if (!g_allargs.quickcut)
+				if (g_allargs.verbose)
+					printf(" blit=%d\n", best_invpattern[v]);
+		}
+
+		if (errors > 0)
+		{
+			std::cerr << "*************************************************" << std::endl;
+			std::cerr << "error: simulation failed on frame " << _frame << " preshift " << pi << std::endl;
+			std::cerr << "this is a bug in agtcut! contact the dml with your datas..." << std::endl;
+			std::cerr << "quickfix: play with -emxopt <level>, or switch to EMS format for this file" << std::endl;
+			printf("press any key...\n");
+			getchar();
+			exit(1);
+		}
+	}
+}
 
 
 void generate_emx_frame(spriteframe_t &spr, int _frame)
@@ -2359,11 +2564,14 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 	{
 		preshift_t &shift = *pit;
 
+		//if (pi != 8)
+		//	continue;
+
 		Context context(shift.wordwidth_, shift.height_);
 
 		if (!g_allargs.quickcut)
 			if (g_allargs.verbose)
-				printf("\n\npreshift %d preview:\n", pi);
+				printf("\n\nframe %d preshift %d preview:\n", _frame, pi);
 
 		// output the source image pattern
 		if (!g_allargs.quickcut)
@@ -3539,84 +3747,42 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		context.operations.push_back(new Terminate(context));
 		context.operations.back()->execute();
 
+#if (SIM_ALL_STAGES)
+		run_sim(context, livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
+#endif
 		// peephole passes
 
 		// immediate loads to registers with register-derived values
 		if (!g_allargs.quickcut)
-			context.transform_pass();
+		{
+			while (context.transform_pass())
+			{
+#if (SIM_ALL_STAGES)
+				run_sim(context, livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
+#endif
+			}
+		}
 
 		//if (!g_allargs.quickcut)
 			context.cleanup_pass();
+#if (SIM_ALL_STAGES)
+		run_sim(context, livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
+#endif
 
 		//if (!g_allargs.quickcut)
 			context.reduce_pass();
+#if (SIM_ALL_STAGES)
+		run_sim(context, livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
+#endif
 
 		// optimize instruction tail / blitter overlaps
 		if (!g_allargs.quickcut)
 			context.tail_pass();
 
 		//
+		run_sim(context, livelines, _frame, pi, shift, best_invpattern, /*generate=*/true);
 
-		context.reset_sim(false);
-		for (std::list<Operation*>::iterator it = context.operations.begin(); it != context.operations.end(); it++)
-		{
-			(*it)->execute();
-			(*it)->emit();
-		}
 
-		// debug the blit
-//		if (g_allargs.verbose)
-		{
-			if (!g_allargs.quickcut)
-				if (g_allargs.verbose)
-					printf("debug simulation...\n");
-			int errors = 0;
-			for (int v = 0; v < context.srch; v++)
-			{
-				// detect empty lines
-				//uword_t m = 0;
-				//for (int h = 0; h < shift.wordwidth_; h++)
-				//	m |= shift.data_[(v * shift.wordwidth_) + h];
-
-				ubyte_t m = livelines[v];
-
-				for (int h = 0; h < shift.wordwidth_; h++)
-				{
-					uword_t data = context.memory[(v * context.dstww) + h];
-					uword_t expected = shift.data_[(v * shift.wordwidth_) + h];
-
-					if (m && (data != expected))
-						errors++;
-
-					if (!g_allargs.quickcut)
-						if (g_allargs.verbose)
-						{
-							if (m)
-							{
-								print_dataword(expected); printf(":"); print_dataword(data); printf("  ");
-							}
-							else
-							{
-								print_dataword(expected); printf(":----------------  ");
-							}
-						}
-				}
-				if (!g_allargs.quickcut)
-					if (g_allargs.verbose)
-					printf(" blit=%d\n", best_invpattern[v]);
-			}
-
-			if (errors > 0)
-			{
-				std::cerr << "*************************************************" << std::endl;
-				std::cerr << "error: simulation failed on frame " << _frame << " preshift " << pi << std::endl;
-				std::cerr << "this is a bug in agtcut! contact the dml with your datas..." << std::endl;
-				std::cerr << "quickfix: play with -emxopt <level>, or switch to EMS format for this file" << std::endl;
-				printf("press any key...\n");
-				getchar();
-				exit(1);			
-			}
-		}
 
 		ubyte_t *p68kbin = 0;
 		size_t size68kbin = 0;
@@ -3649,6 +3815,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 bool generate_emx_sequence()
 {
+	std::cout << "optimizing EMX frames: " << std::endl;
+
 	// individual sprites follow
 	spritelist_t::iterator it = g_spriteframes.begin();
 //	for (int x = 0; x < 4; x++, it++);
@@ -3656,9 +3824,15 @@ bool generate_emx_sequence()
 	int f = 0;
 	for (; it != g_spriteframes.end(); it++, f++)
 	{
+//		if (f != 3)
+//			continue;
 		generate_emx_frame(*it, f);
 //		break;
+		//if (g_allargs.verbose)
+		//	printf(".");
 	}
+	//if (g_allargs.verbose)
+	//	printf("\n");
 
 	return true;
 }

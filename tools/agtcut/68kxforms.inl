@@ -43,8 +43,32 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 	)
 	{
 		// ensures upper word of target register is stable and correct when replacing 32bit loads
-		bool equalH = ((_opsize == OpSize_16) || 
-						(it_treg->stableH && (it_treg->H == _dataH)));
+		//bool equalH = ((_opsize == OpSize_16) || 
+		//				(it_treg->stableH && (it_treg->H == _dataH)));
+
+		// rnew must have unused H, or OpSize_16 + rnew.H == rold.H
+
+		Operation * poper = *curr;
+
+		bool equalH = false;
+
+		if (_opsize == OpSize_16)
+		{
+			equalH =
+				(poper->alltagsH[_rold] < 0) ||			// any new H will suffice if old H is not a dependency
+				(
+					(it_treg->stableH) &&				// rnew.H has stable value
+					(it_treg->H == registers[_rold].H)	// rnew.H == rold.H		
+				)
+			;
+		}
+		else
+		{
+			equalH = 
+				(it_treg->stableH) &&			// rnew.H has stable value
+				(it_treg->H == _dataH)			// rnew.H == new_dataH			
+				;
+		}
 
 		// ensure mid byte of target register is correct when performing low-byte tests
 		bool equalM = ((it_treg->L & 0xFF00) == (_dataL & 0xFF00));
@@ -260,19 +284,21 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				if (g_allargs.verbose)
 					if (_opsize == OpSize_16)
 					{
-						printf("transform: move.w #$%04x,%s -> ext.w %s [$SS%02x]\n",
+						printf("transform: move.w #$%04x,%s -> ext.w %s[$%04x] [$SS%02x]\n",
 							data16,
 							registers[_rold].name.c_str(),
 							it_treg->name.c_str(),
+							treg16 & 0xFFFF,
 							treg16 & 0xFF
 							);
 					}
 					else
 					{
-						printf("transform: move.l #$%08x,%s -> ext.w %s [$%04x][$SS%02x]\n",
+						printf("transform: move.l #$%08x,%s -> ext.w %s[$%04x] [$%04x][$SS%02x]\n",
 							data32,
 							registers[_rold].name.c_str(),
 							it_treg->name.c_str(),
+							treg32 & 0xFFFF,
 							treg32 >> 16,
 							treg32 & 0xFF
 							);
@@ -290,11 +316,20 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 			{
 				// note: looking to replace a 16bit load, but SWAP is a 32bit operation
 				// OPPORTUNITY: (SWAP Rx.W == EXPECTED)
-				if ((it_treg->regclass == RegClass_Data) && it_treg->stableH &&
-					(data16 == it_treg->H)
+
+//				if ((it_treg->regclass == RegClass_Data) && it_treg->stableH &&
+//					(data16 == it_treg->H)
+//				)
+//				{
+
+				if ((it_treg->regclass == RegClass_Data) && 
+					it_treg->stableH && (it_treg->H == data16) &&
+					// don't perform swap if it modifies a high word dependency
+					((*curr)->alltagsH[_rold] < 0)
 				)
 				{
-					if (g_allargs.verbose)
+
+				if (g_allargs.verbose)
 					printf("transform: move.w #$%04x,%s -> swap %s [$%04x<:>$%04x]\n",
 						data16,
 						registers[_rold].name.c_str(),
@@ -1977,7 +2012,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							int rs = it_sreg->index;
 
 							// don't modify Rs if involved in another operation
-							if (tag_busy(curr, rs, OpSize_32))
+							if (tags_busy(curr, rs/*, OpSize_32*/))
 								continue;
 
 							uword_t sreg16 = it_sreg->L;
@@ -2724,10 +2759,19 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 							ulong_t result = it_treg->L * registers[rs].L;
 
+							uword_t result_hw = uword_t(result >> 16);
+							uword_t result_lw = uword_t(result);
+
 							if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
-								(data16 == (result & 0x0000FFFF))
-								)
+								(data16 == result_lw) && 
+								// don't perform moveq if it modifies a high word dependency
+								(((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == result_hw)))
 							{
+
+//							if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
+//								(data16 == (result & 0x0000FFFF))
+//								)
+//							{
 								if (g_allargs.verbose)
 								printf("transform: move.w #$%04x,%s -> mulu.w %s,%s [$%04x*$%04x]\n",
 									data16,
@@ -2780,10 +2824,19 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 							long_t result = word_t(it_treg->L) * word_t(registers[rs].L);
 
+							uword_t result_hw = uword_t(result >> 16);
+							uword_t result_lw = uword_t(result);
+
 							if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
-								(data16 == uword_t(result & 0x0000FFFF))
-								)
+								(data16 == result_lw) && 
+								// don't perform moveq if it modifies a high word dependency
+								(((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == result_hw)))
 							{
+
+//							if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
+//								(data16 == uword_t(result & 0x0000FFFF))
+//								)
+//							{
 								if (g_allargs.verbose)
 								printf("transform: move.w #$%04x,%s -> muls.w %s,%s [$%04x*$%04x]\n",
 									data16,
@@ -3310,8 +3363,11 @@ bool Context::try_4c_init_transforms(std::list<Operation*>::iterator &curr, OpSi
 		// prefer SWAP to CLR/MOVEQ because it moves data around to help other transforms
 		// note: looking to replace a 16bit load, but SWAP is a 32bit operation
 		// OPPORTUNITY: (SWAP Rx.W == EXPECTED)
-		if ((registers[_rold].regclass == RegClass_Data) && registers[_rold].stableH &&
-			(data16 == registers[_rold].H)
+
+		if ((registers[_rold].regclass == RegClass_Data) && 
+			registers[_rold].stableH && (registers[_rold].H == data16) &&
+			// don't perform swap if it modifies a high word dependency
+			((*curr)->alltagsH[_rold] < 0)
 		)
 		{
 			if (g_allargs.verbose)
@@ -3336,18 +3392,24 @@ bool Context::try_4c_init_transforms(std::list<Operation*>::iterator &curr, OpSi
 //#if (USE_MOVEQ_INITS)
 			for (int imm = -128; imm < 128; imm++)
 			{
-				if (data16 == uword_t(imm))
+//				if (data16 == uword_t(imm))
+				uword_t imm_hw = uword_t(imm >> 16);
+				uword_t imm_lw = uword_t(imm);
+
+				if ((data16 == imm_lw) && 
+					// don't perform moveq if it modifies a high word dependency
+					(/*!registers[_rold].stableH*/((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == imm_hw)))
 				{
 					if (g_allargs.verbose)
-					printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x]\n",
+					printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x:%04x]\n",
 						data16,
 						registers[_rold].name.c_str(),
 						imm,
 						registers[_rold].name.c_str(),
+						registers[_rold].H,
 						registers[_rold].L
 						);
 
-					// replace operation with equivalent CLR.W
 					curr = operations.erase(curr);
 					curr = operations.insert(curr, new DR_MoveQ32(*this, imm, _rold));
 					return true;

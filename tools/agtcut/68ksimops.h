@@ -73,6 +73,12 @@ public:
 		ctx.genout << ctx.buf;
 	}
 
+	std::string describe()
+	{
+		onEmit();
+		return std::string(ctx.buf);
+	}
+
 	int alltagsH[max_registers];
 	int alltagsL[max_registers];
 
