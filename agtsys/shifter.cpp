@@ -46,7 +46,7 @@ void shifter_common::restore_common()
 	// todo: should save/restore regs instead of using this API - lazy today
 	for (int f = 0; f < c_max_shiftfields; f++)
 	{
-		setdisplay(f, (u32)save_physbase, 160, 160, 0, 0); //update();	
+		setdisplay(f, (u32)save_physbase, 320, 320, 0, 0); //update();	
 		//setdisplay(1, (u32)save_physbase, 160, 160, 0, 0); //update();
 	}
 	advance();

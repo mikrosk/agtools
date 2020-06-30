@@ -31,6 +31,8 @@ dctx_clipwindow_x1:	ds.w	1
 dctx_clipwindow_y1:	ds.w	1
 dctx_clipwindow_x2:	ds.w	1
 dctx_clipwindow_y2:	ds.w	1
+dctx_clipwindow_x1p:	ds.w	1
+dctx_clipwindow_y2p:	ds.w	1
 *-------------------------------------------------------*
 dctx_size:		
 *-------------------------------------------------------*

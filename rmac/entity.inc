@@ -73,7 +73,9 @@ ent_header_:
 EntityDraw_NONE		=	0
 EntityDraw_SPRITE	=	1
 EntityDraw_EMSPR	=	2
-EntityDraw_EMXSPR	=	3
-EntityDraw_SLAB		=	4
-EntityDraw_CUSTOM	=	5
-EntityDraw_RFILL	=	6
+EntityDraw_EMSPRQ	=	3
+EntityDraw_EMXSPR	=	4
+EntityDraw_EMXSPRQ	=	5
+EntityDraw_SLAB		=	6
+EntityDraw_CUSTOM	=	7
+EntityDraw_RFILL	=	8

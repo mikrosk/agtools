@@ -101,7 +101,81 @@ _BLiT_EntityDrawVisibleYM_68k:
 
 	move.w		#-1,.sp_drawtype(sp)
 	
-	bra		.STE_EntityDrawVisibleYM_EMXSPR_done
+	bra		.STE_EntityDrawVisibleYM_EMXSPRQ_done
+
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=EMXSPR
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMXSPRQ_next:
+*-------------------------------------------------------*
+
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityDrawVisibleYM_evaluate
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMXSPRQ_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1
+;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
+
+	; compensate for loopback buffer
+
+;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; access sprite frame
+
+	move.w		ent_frame(a0),d0
+
+	; decrement 'hitflash' counter on this object
+
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
+
+	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+	move.l		.sp_framebuf(sp),a1
+
+	; include raw drawing function here (configure it first)
+
+enable_restore	set	1				; enable sprite-restore
+enable_clipping	set	1				; enable full xy clipping
+
+	include		"ste/b_emxg_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMXSPRQ_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pymax(sp),d2
+	blt		.STE_EntityDrawVisibleYM_EMXSPRQ_next
+	bra		.STE_EntityDrawVisibleYM_complete
+*-------------------------------------------------------*
+*	[drawtype] has suddenly changed to EMXSPRQ
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMXSPRQ_setup:
+*-------------------------------------------------------*
+	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
+	bra		.STE_EntityDrawVisibleYM_EMXSPRQ_go
+
+
 
 *=======================================================*
 *	dedicated iterator for [drawtype]=EMXSPR
@@ -133,10 +207,10 @@ _BLiT_EntityDrawVisibleYM_68k:
 
 	; decrement 'hitflash' counter on this object
 
-	clr.w		d7
-	sub.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	subx.w		d7,d7				; $0000 / $FFFF
-	add.w		d7,ent_draw_hitflash(a0)
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
 
 	; asset/framebuffer
 
@@ -153,7 +227,7 @@ _BLiT_EntityDrawVisibleYM_68k:
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_emx_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+	include		"ste/b_emxc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
 
 	move.l		.sp_savea0(sp),a0
 
@@ -176,7 +250,79 @@ enable_clipping	set	1				; enable full xy clipping
 
 
 *=======================================================*
-*	dedicated iterator for [drawtype]=EMXSPR
+*	dedicated iterator for [drawtype]=EMSPRQ
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMSPRQ_next:
+*-------------------------------------------------------*
+
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityDrawVisibleYM_evaluate
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMSPRQ_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1
+;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
+
+	; compensate for loopback buffer
+
+;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; access sprite frame
+
+	move.w		ent_frame(a0),d0
+
+	; decrement 'hitflash' counter on this object
+
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
+
+	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+	move.l		.sp_framebuf(sp),a1
+
+	; include raw drawing function here (configure it first)
+
+enable_restore	set	1				; enable sprite-restore
+enable_clipping	set	1				; enable full xy clipping
+
+	include		"ste/b_emg_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMSPRQ_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pymax(sp),d2
+	blt		.STE_EntityDrawVisibleYM_EMSPRQ_next
+	bra		.STE_EntityDrawVisibleYM_complete
+*-------------------------------------------------------*
+*	[drawtype] has suddenly changed to EMSPRQ
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMSPRQ_setup:
+*-------------------------------------------------------*
+	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
+	bra		.STE_EntityDrawVisibleYM_EMSPRQ_go
+
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=EMSPR
 *-------------------------------------------------------*
 .STE_EntityDrawVisibleYM_EMSPR_next:
 *-------------------------------------------------------*
@@ -205,10 +351,10 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 
-	clr.w		d7
-	sub.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	subx.w		d7,d7				; $0000 / $FFFF
-	add.w		d7,ent_draw_hitflash(a0)
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
 
 	; asset/framebuffer
 
@@ -225,7 +371,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_em_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+	include		"ste/b_emc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
 
 	move.l		.sp_savea0(sp),a0
 
@@ -277,10 +423,10 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 	
-	clr.w		d7
-	sub.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	subx.w		d7,d7				; $0000 / $FFFF
-	add.w		d7,ent_draw_hitflash(a0)
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
 	
 	; asset/framebuffer
 
@@ -347,10 +493,10 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 	
-	clr.w		d7
-	sub.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	subx.w		d7,d7				; $0000 / $FFFF
-	add.w		d7,ent_draw_hitflash(a0)
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
 	
 	; asset/framebuffer
 
@@ -462,7 +608,9 @@ preserve_usp		set	0
 .types:	bra.w		.STE_EntityDrawVisibleYM_NONE_setup
 	bra.w		.STE_EntityDrawVisibleYM_SPRITE_setup
 	bra.w		.STE_EntityDrawVisibleYM_EMSPR_setup
+	bra.w		.STE_EntityDrawVisibleYM_EMSPRQ_setup
 	bra.w		.STE_EntityDrawVisibleYM_EMXSPR_setup
+	bra.w		.STE_EntityDrawVisibleYM_EMXSPRQ_setup
 	bra.w		.STE_EntityDrawVisibleYM_SLAB_setup
 	bra.w		.STE_EntityDrawVisibleYM_CUSTOM_setup
 	bra.w		.STE_EntityDrawVisibleYM_RFILL_setup
@@ -501,10 +649,10 @@ preserve_usp		set	0
 	
 	; decrement 'hitflash' counter on this object
 	
-	clr.w		d7
-	sub.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	subx.w		d7,d7				; $0000 / $FFFF
-	add.w		d7,ent_draw_hitflash(a0)
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
 	
 	; asset/framebuffer
 
@@ -703,10 +851,10 @@ _BLiT_EntityDebugVisibleYM_68k:
 	
 	; decrement 'hitflash' counter on this object
 	
-	clr.w		d7
-	sub.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	subx.w		d7,d7				; $0000 / $FFFF
-	add.w		d7,ent_draw_hitflash(a0)
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
 	
 	; asset/framebuffer
 

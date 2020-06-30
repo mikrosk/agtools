@@ -123,6 +123,8 @@ extern "C" s16 g_spr_window_x1;
 extern "C" s16 g_spr_window_y1;
 extern "C" s16 g_spr_window_x2;
 extern "C" s16 g_spr_window_y2;
+extern "C" s16 g_spr_window_x1p;
+extern "C" s16 g_spr_window_x2p;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // some internal stuff: todo: clean this up

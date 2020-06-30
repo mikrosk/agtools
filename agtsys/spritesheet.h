@@ -16,6 +16,8 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// types
 
+	static const int SPS_VERSION = 0x0200;
+
 	// sprite frame header (one per sprite frame)
 	struct spf_header
 	{
@@ -106,6 +108,9 @@ public:
 				// read main part of file
 				fread((char*)data_, 1, size, h);
 
+				if (data_->version == SPS_VERSION)
+				{
+
 				pprintf("created spritesheet:\n\t%dx%d @ %d bpl, %d frames\n", 
 					data_->srcwidth, 
 					data_->srcheight, 
@@ -138,7 +143,11 @@ public:
 							for (s16 p = 0; p < 1; p++)
 							{
 								ptrsize_t addr_offset = psubindex[p];
-								psubindex[p] = addr_base + addr_offset;
+								//pprintf("note: colourplanes:%x!\n", addr_offset);
+								if (addr_offset > 0)
+								{
+									psubindex[p] = addr_base + addr_offset;
+								}
 								subindex_base += 4;
 							}
 						}
@@ -163,8 +172,13 @@ public:
 							for (s16 p = 0; p < 16; p++)
 							{
 								ptrsize_t addr_offset = psubindex[p];
-								ptrsize_t addr_abs = addr_base + addr_offset;
-								psubindex[p] = addr_abs;
+								//pprintf("note: psmask:%x!\n", addr_offset);
+
+								if (addr_offset > 0)
+								{
+									ptrsize_t addr_abs = addr_base + addr_offset;
+									psubindex[p] = addr_abs;
+								}
 								subindex_base += 4;
 							}
 						}
@@ -184,10 +198,17 @@ public:
 						}
 					}
 				}
+				success = true;
+				}
+				else
+				{
+					pprintf("error: spritesheet version (%x != %x) is stale - re-generate data with latest AGTCUT!\n", data_->version, SPS_VERSION);
+
+					delete[] (u8*)data_; 
+					data_ = nullptr;
+				}
 			}
 			fclose(h);
-
-			success = true;
 		}
 		else
 		{

@@ -41,8 +41,10 @@ enum EntityDraw
 	EntityDraw_NONE,		// invisible/no-draw
 	EntityDraw_IMSPR,		// standard [I]nterleaved, [M]asked sprite (software or blitter)
 	EntityDraw_SPRITE = EntityDraw_IMSPR, // another name for IMSPR
-	EntityDraw_EMSPR,		// blitter [E]nd[M]ask sprite up to 32pixels wide
-	EntityDraw_EMXSPR,		// blitter [E]nd[M]ask (extreme optimization) sprite up to 32pixels wide
+	EntityDraw_EMSPR,		// blitter [E]nd[M]ask sprite, any width, only guardband clipping on x
+	EntityDraw_EMSPRQ,		// blitter [E]nd[M]ask sprite up to 32pixels wide, only guardband clipping
+	EntityDraw_EMXSPR,		// blitter [E]nd[M]ask (extreme optimization) sprite, any width, only guardband clipping on x
+	EntityDraw_EMXSPRQ,		// blitter [E]nd[M]ask (extreme optimization) sprite up to 32pixels wide, only guardband clipping
 	EntityDraw_SLAB,		// blitter slab shape for large irregular fill areas
 	EntityDraw_CUSTOM,		// user-defined draw function
 	EntityDraw_RFILL		// rectangle fill
@@ -122,7 +124,7 @@ typedef void (*fn2ptr_t)(entptr_t _pe1, entptr_t _pe2);
 	s16 ox, oy;					\
 								\
 	s16 tick_priority;			\
-	s16 draw_hitflash;			\
+	u16 draw_hitflash;			\
 								\
 	s16 health;					\
 	s16 damage;					\

@@ -64,20 +64,20 @@
 *	left edge
 *-------------------------------------------------------*
 	; NISR: no initial source read (i.e. shiftregisters preloaded with 0)
-	cmp.w		clip_x1(a2),d1
+	cmp.w		clip_x1p(a2),d1
 	bpl.s		.rfill_clip_safe_left
 *-------------------------------------------------------*
 *	left clipped
 *-------------------------------------------------------*
 
 	; relative to clipwindow
-	sub.w		clip_x1(a2),d1
+	sub.w		clip_x1p(a2),d1
 
 	add.w		d1,d3
 	ble		.AGT_BLiT_RFillDrawUnClipped_end
 	
 	; relative to world
-	move.w		clip_x1(a2),d1	
+	move.w		clip_x1p(a2),d1	
 	; ASSUMPTION: sprite is not big enough to cross left+right
 ;	bra		.rfill_clip_safe_right
 	bra		.rfill_clip_unsafe_left
@@ -92,7 +92,7 @@
 *-------------------------------------------------------*
 	move.w		d1,d0
 	add.w		d3,d0				; xr	
-	sub.w		clip_x2(a2),d0			; xr - cx2
+	sub.w		clip_x2p(a2),d0			; xr - cx2
 	ble		.AGT_BLiT_RFillDrawUnClipped_go	;.rfill_clip_safe_right
 *-------------------------------------------------------*
 *	right clipped

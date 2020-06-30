@@ -1909,6 +1909,8 @@ public:
 	{
 		char buf[1024];
 		sprintf(ctx.buf,	" move.w #$%04x,%s\t;%d\n", ctx.blitter.dyinc, ctx.BLiTDYI_name.c_str(), 16);
+			sprintf(buf,		" move.w #$%04x,%s\t;%d\n", ctx.blitter.syinc, ctx.BLiTSYI_name.c_str(), 16);
+			strcat(ctx.buf, buf);
 		sprintf(buf,		" move.w #$%04x,%s\t;%d\n", ctx.blitter.xcount, ctx.BLiTXC_name.c_str(), 16);
 		strcat(ctx.buf, buf);
 		sprintf(buf,		" move.b #$%02x,%s\t;%d\n", ctx.blitter.skew, ctx.BLiTSKEW_name.c_str(), 16);
@@ -2009,8 +2011,10 @@ class BLiT_Go : public Operation
 {
 public:
 
-	BLiT_Go(Context &_ctx, int _sreg)
-		: Operation(_ctx, OpKind_BLITGo, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 0)
+	BLiT_Go(Context &_ctx, int _sreg, int _sline, int _dline)
+		: Operation(_ctx, OpKind_BLITGo, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 0),
+		  sline(_sline),
+		  dline(_dline)
 	{
 		sreg = _sreg;
 	}
@@ -2018,12 +2022,13 @@ public:
 	virtual void onEmit()
 	{
 		sprintf
-		(
-			ctx.buf,	
-			" move.b %s,%s\t;%d\n", 
+			(
+			ctx.buf,
+			" move.b %s,%s\t;%d BLiT(s=%d,d=%d)\n",
 			ctx.registers[sreg].name.c_str(), 
 			ctx.BLiTCTRL_name.c_str(), 
-			8
+			8,
+			sline, dline
 		);
 	}
 
@@ -2042,6 +2047,37 @@ public:
 			ctx.memory[ctx.dstaddr + 2] = ctx.blitter.em[2];
 		}
 	}
+
+	int sline;
+	int dline;
+};
+
+class SRC_Skip : public Operation
+{
+public:
+
+	SRC_Skip(Context &_ctx, int _skips)
+		: Operation(_ctx, OpKind_SRCSkip, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2),
+		  delta(_skips)
+	{
+	}
+
+	virtual void onEmit()
+	{
+		sprintf
+			(
+			ctx.buf,
+			" add.l #%d,$ffff8a24\n",
+			delta * (ctx.srccolww * 8)
+		);
+	}
+
+	virtual void onExecute()
+	{
+		//ctx.memaddr += delta * ctx.dstww;
+	}
+
+	int delta;
 };
 
 class DST_Lea : public Operation

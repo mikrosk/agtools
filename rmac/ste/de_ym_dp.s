@@ -111,6 +111,8 @@ _BLiT_EntityDeferVisibleYM_68k:
 	bra.w		.EntityDeferVisibleYM_DEFER_setup
 	bra.w		.EntityDeferVisibleYM_DEFER_setup
 	bra.w		.EntityDeferVisibleYM_DEFER_setup
+	bra.w		.EntityDeferVisibleYM_DEFER_setup
+	bra.w		.EntityDeferVisibleYM_DEFER_setup
 
 *=======================================================*
 *	dedicated iterator for [drawtype]=ANY

@@ -138,7 +138,7 @@
 *	left edge
 *-------------------------------------------------------*
 	; NISR: no initial source read (i.e. shiftregisters preloaded with 0)
-	cmp.w		clip_x1(a2),d1
+	cmp.w		clip_x1p(a2),d1
 	bpl.s		.ims_clip_safe_left
 *-------------------------------------------------------*
 *	left clipped
@@ -149,7 +149,7 @@
 	or.b		#$80,.sp_skew(sp)
 
 	; relative to clipwindow
-	sub.w		clip_x1(a2),d1
+	sub.w		clip_x1p(a2),d1
 	; find minimum pixelwords off left edge
 ;	move.w		d1,d0
 ;	neg.w		d0				; pixels off left
@@ -201,7 +201,7 @@
 	lea		-10(a3,d0.w),a3
 	
 	; relative to world
-	move.w		clip_x1(a2),d1	
+	move.w		clip_x1p(a2),d1	
 	; ASSUMPTION: sprite is not big enough to cross left+right
 ;	bra		.ims_clip_safe_right
 	bra		.ims_clip_unsafe_left
@@ -218,7 +218,7 @@
 *-------------------------------------------------------*
 	move.w		d1,d0
 	add.w		d3,d0				; xr	
-	sub.w		clip_x2(a2),d0			; xr - cx2
+	sub.w		clip_x2p(a2),d0			; xr - cx2
 	ble		.AGT_BLiT_IMSprDrawUnClipped_go	;.ims_clip_safe_right
 *-------------------------------------------------------*
 *	right clipped

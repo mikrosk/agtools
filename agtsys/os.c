@@ -72,7 +72,6 @@ extern int agtprintf(const char *pFormat, ...);
 
 //#include "common_c.h"
 
-//short bytewidth = 184;//320*2;
 char* console_base = 0;
 char* console_minbase = 0;
 char* console_maxbase = 0;

@@ -204,6 +204,7 @@ public:
 					//while (1) { }
 
 				}
+				success = true;
 				}
 				else
 				{
@@ -214,8 +215,6 @@ public:
 				}
 			}
 			fclose(h);
-
-			success = true;
 		}
 		else
 		{

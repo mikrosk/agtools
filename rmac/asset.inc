@@ -25,6 +25,8 @@ clip_x1:		ds.w	1
 clip_y1:		ds.w	1
 clip_x2:		ds.w	1
 clip_y2:		ds.w	1
+clip_x1p:		ds.w	1
+clip_x2p:		ds.w	1
 
 *-------------------------------------------------------*
 *	spritesheet .sps main header
@@ -53,17 +55,34 @@ spf_w:			ds.w	1
 spf_h:			ds.w	1
 spf_xo:			ds.w	1
 spf_yo:			ds.w	1
+;spf_numcmp:		ds.w	1
 spf_data:		ds.l	0
 *-------------------------------------------------------*
 			.abs	spf_data
 spf_em_colour:		ds.l	1
 spf_em_psmask:		ds.l	16
+			.abs
+spf_psm_wordwidth:	ds.w	1
+spf_psm_bskew:		ds.w	1
+spf_psm_bsyi:		ds.w	1
+spf_psm_bdyi:		ds.w	1
+spf_psm_wordoffset:	ds.w	1
+spf_psm_nextcmp:	ds.l	1
+spf_psm_data:
+
 *-------------------------------------------------------*
 			.abs	spf_data
 spf_emx_colour:		ds.l	1
 spf_emx_colouropt:	ds.l	1
 spf_emx_psmask:		ds.l	16
 spf_emx_psmaskopt:	ds.l	16
+			.abs
+spf_psmo_wordwidth:	ds.w	1
+spf_psmo_wordoffset:	ds.w	1
+spf_psmo_dstyskip:	ds.w	1
+spf_psmo_dstwords:	ds.w	1
+spf_psmo_nextcmp:	ds.l	1
+spf_psmo_codegen:
 
 *-------------------------------------------------------*
 *	slabsheet .sls main header

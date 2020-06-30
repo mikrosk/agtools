@@ -20,6 +20,8 @@ extern "C" s16 g_spr_window_x1;
 extern "C" s16 g_spr_window_y1;
 extern "C" s16 g_spr_window_x2;
 extern "C" s16 g_spr_window_y2;
+extern "C" s16 g_spr_window_x1p;
+extern "C" s16 g_spr_window_x2p;
 
 extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
 extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
@@ -131,15 +133,20 @@ public:
 		drawcontext.vpagey = pf.ypos_ - drawcontext.pfsnapadjy;
 
 		// generate clipping window
-		drawcontext.clip_window_x1 = drawcontext.vpagex & -16;
-		drawcontext.clip_window_y1 = drawcontext.vpagey;
-		drawcontext.clip_window_x2 = drawcontext.clip_window_x1 + _vpw;// + 16; // STE hscroll only
-		drawcontext.clip_window_y2 = drawcontext.vpagey + _vph;
+		s16 guardx = playfield_type::c_guardx;
+		drawcontext.clip_window_x1p = (drawcontext.vpagex & -16);
+		drawcontext.clip_window_x1 =  (drawcontext.vpagex & -16) - guardx;
+		drawcontext.clip_window_y1 =  drawcontext.vpagey;
+		drawcontext.clip_window_x2p = (drawcontext.clip_window_x1p + _vpw);
+		drawcontext.clip_window_x2 =  (drawcontext.clip_window_x1 + _vpw) + (guardx*2);
+		drawcontext.clip_window_y2 =  drawcontext.vpagey + _vph;
 
 		// todo: remove
 		g_spr_window_x1 = drawcontext.clip_window_x1;
+		g_spr_window_x1p = drawcontext.clip_window_x1p;
 		g_spr_window_y1 = drawcontext.clip_window_y1;
 		g_spr_window_x2 = drawcontext.clip_window_x2;
+		g_spr_window_x2p = drawcontext.clip_window_x2p;
 		g_spr_window_y2 = drawcontext.clip_window_y2;
 	}
 

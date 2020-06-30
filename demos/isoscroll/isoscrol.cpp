@@ -935,7 +935,7 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// villager
 	//	summary:
 	//	- bouncy, run, bouncy!
-	{ &villager_fntick,&villager_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &villager_fntick,&villager_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 };
 

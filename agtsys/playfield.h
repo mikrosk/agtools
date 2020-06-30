@@ -223,6 +223,9 @@ template
 	bool _dynamic,
 	// either 1 or 2 playfield layers
 	s16 _layers = 1,
+	// guardband regions
+	int _hidden_h_margin = 32,
+	int _hidden_v_margin = 0, // not yet supported (can be done manually by just enabling v-scroll and offsetting y)
 	//
 	class mapmul_t = s16
 >
@@ -233,6 +236,9 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// configure behaviour
 	// ---------------------------------------------------------------------------------------------------------------------
+
+	static const int c_guardx = _hidden_h_margin;
+	static const int c_dst_linewid = (20+1+((c_guardx+15)>>4)) << 3;
 
 	// todo: remove
 	static const bool _blitter = false;
@@ -791,7 +797,7 @@ public:
 		if (c_vloop_)
 			my = tmod16(my, wrap_height_);
 
-		_shift.setdisplay(field_, addr, display_width_, virtual_width_, mx, my);
+		_shift.setdisplay(field_, addr, 320/*display_width_*/, virtual_width_, mx, my);
 
 /*		if (c_scanwalk_)
 			// todo: fast mod here
@@ -1706,13 +1712,13 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// note: hardcode tile based width to make vpage exactly 184 bytes per line, to accommodate other drawing functions
 	if (c_ste_)
 	{
-	if (c_tilesize_ == 16)
-		vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
-	else
-	if (c_tilesize_ == 8)
-			vpage_tiles_x_ = visible_tiles_x_ + 4;//(c_hspeculative_ ? 4 : 0);
-	else
-		xassert(false);
+		if (c_tilesize_ == 16)
+			vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
+		else
+		if (c_tilesize_ == 8)
+				vpage_tiles_x_ = visible_tiles_x_ + 4;//(c_hspeculative_ ? 4 : 0);
+		else
+			xassert(false);
 	}
 	else
 	{
@@ -1761,13 +1767,17 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	virtual_pagebytes_ = virtual_linebytes_ * wrap_height_;	
 	
 	// words per virtual playfield buffer
+
+	bufferwords_ = virtual_linewords_ * virtual_height_;
+
 	if (c_scanwalk_)
 	{
 		// pad by ~100 extra scanlines in scanwalk mode, to eliminate loopback buffer
-		bufferwords_ = (virtual_linewords_ * virtual_height_) + (c_max_vt_ * c_tilelinewords_);
+		bufferwords_ += (c_max_vt_ * c_tilelinewords_);
 	}
-	else
-		bufferwords_ = virtual_linewords_ * virtual_height_;
+
+	// pad for left guardband
+	bufferwords_ += ((c_guardx + 15) >> 4) << 2;
 
 
 	pprintf("init playfield:\n");
@@ -1924,7 +1934,17 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// address for writing graphics. in this way no memory is wasted.
 
 	s16 displaysvc_consumed_words = (g_displayservice_consumed_lines * virtual_linewords_) + (c_stf_maskedspeculation_ ? 4 : 0);
-	display_ = (u16*)(((u32)(display_alloc_) - (displaysvc_consumed_words<<1) + 255) & -256);
+	display_ = (u16*)
+	(
+		(
+			(
+				(u32)(display_alloc_) - (displaysvc_consumed_words<<1)
+			) 
+			+ (((c_guardx + 15) >> 4) << 3)
+			+ 255
+		) 
+		& -256
+	);
 	framebuffer_ = display_ + displaysvc_consumed_words;
 
 //	qmemclr(display_, bufferwords_<<1);

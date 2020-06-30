@@ -1176,7 +1176,7 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// alien monster
 	//	summary:
 	//	- run around in 8 directions, avoiding solid walls and each other
-	{ &alien_fntick,&alien_fncol,0,0,			{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,				EntityDraw_EMSPR,0,		EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
+	{ &alien_fntick,&alien_fncol,0,0,			{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,				EntityDraw_EMSPRQ,0,		EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
 
 };
 

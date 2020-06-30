@@ -62,7 +62,7 @@ inline void PR16m_fill_specrow_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2,
 			move.l	%[ptiles1],%%d5;		 	\
 			move.l	%[ptiles2],%%d7;		 	\
 												\
-			move.w	#184-8,%%d2;				\
+			move.w	%[c_dlw]-8,%%d2;			\
 												\
 			move.l	%%a1,%%usp;					\
 			move.l	%%a6,smc_t%=+2;				\
@@ -294,7 +294,8 @@ smc_t%=:	lea		0x123456,%%a6;				\
 		  [ptiles1] "m"(ptiles), 
 		  [ptiles2] "m"(ptilesoverlay),  
 		  [dstaddr] "m"(dstaddr), 
-		  [virtual_pagebytes] "m"(virtual_pagebytes_)
+		  [virtual_pagebytes] "m"(virtual_pagebytes_),
+		  [c_dlw] "g" (c_dst_linewid)
 		: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 		  "%%a0", "%%a2", "%%a3", "%%a4", "%%a5",
 		  "cc"

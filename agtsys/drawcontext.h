@@ -45,6 +45,9 @@ typedef struct drawcontext_s
 	s16 clip_window_y1;
 	s16 clip_window_x2;
 	s16 clip_window_y2;
+	// physical clip area for IMS and some other stuff
+	s16 clip_window_x1p;
+	s16 clip_window_x2p;
 
 } drawcontext_t;
 

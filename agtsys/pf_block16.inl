@@ -303,49 +303,49 @@ xl%=:										\
 			move.l	%%d0,%%a5;					\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;		\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;		\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 											\
@@ -354,49 +354,49 @@ xl%=:										\
 			move.l	%%d0,%%a5;					\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 											\
@@ -405,49 +405,49 @@ xl%=:										\
 			move.l	%%d0,%%a5;					\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 											\
@@ -457,49 +457,49 @@ xl%=:										\
 			move.l	%%d0,%%a5;					\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 											\
@@ -548,7 +548,8 @@ syl%=:		dbra	%%d4,yl%=; 				\
 			  "m"(mi), "m"(mj), 
 			  "m"(map_tiles_x_), "m"(map_tiles_y_), 
 			  "m"(pmap), "m"(ptiles), "m"(dstaddr), "m"(dstrowskip),
-			  "m"(srcywrap_), "m"(virtual_linebytes_), "m"(visible_linebytes_), "m"(virtual_pagebytes_)
+			  "m"(srcywrap_), "m"(virtual_linebytes_), "m"(visible_linebytes_), "m"(virtual_pagebytes_),
+			  [c_dlw] "g" (c_dst_linewid)
 			: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 			  "%%a0", "%%a2", "%%a3", "%%a4", "%%a5",
 			  "cc"
@@ -800,49 +801,49 @@ xl%=:										\
 			move.l	%%d0,%%a5;					\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 											\
@@ -851,49 +852,49 @@ xl%=:										\
 			move.l	%%d0,%%a5;					\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 											\
@@ -942,7 +943,8 @@ syl%=:		dbra	%%d4,yl%=; 				\
 			  "m"(mi), "m"(mj), 
 			  "m"(map_tiles_x_), "m"(map_tiles_y_), 
 			  "m"(pmap), "m"(ptiles), "m"(dstaddr), "m"(dstrowskip),
-			  "m"(srcywrap_), "m"(virtual_linebytes_), "m"(visible_linebytes_), "m"(virtual_pagebytes_)
+			  "m"(srcywrap_), "m"(virtual_linebytes_), "m"(visible_linebytes_), "m"(virtual_pagebytes_),
+			  [c_dlw] "g" (c_dst_linewid)
 			: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 			  "%%a0", "%%a2", "%%a3", "%%a4", "%%a5",
 			  "cc"
@@ -1192,7 +1194,7 @@ yl%=:											\
 "										
 #endif
 "												\
-			move.w	#184-8,%%d7;				\
+			move.w	%[c_dlw]-8,%%d7;			\
 												\
 			move.w	%%d5,%%d3; 					\
 			move.l	%%d1,%%a0;					\
@@ -1383,7 +1385,8 @@ syl%=:		dbra	%%d4,yl%=; 					\
 			  "m"(mi), "m"(mj), 
 			  "m"(map_tiles_x_), "m"(map_tiles_y_), 
 			  "m"(pmap), "m"(ptiles), "m"(dstaddr), "m"(dstrowskip),
-			  "m"(srcywrap_), "m"(virtual_linebytes_), "m"(visible_linebytes_), "m"(virtual_pagebytes_)
+			  "m"(srcywrap_), "m"(virtual_linebytes_), "m"(visible_linebytes_), "m"(virtual_pagebytes_),
+			  [c_dlw] "g" (c_dst_linewid)
 			: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 			  "%%a0", "%%a2", "%%a3", "%%a4", "%%a5",
 			  "cc"
@@ -1609,49 +1612,49 @@ xl%=:										\
 			move.l	%%d0,%%a5;					\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
-			lea		184-8(%%a3),%%a3;			\
+			lea		%[c_dlw]-8(%%a3),%%a3;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 			move.l	(%%a5)+,(%%a3)+;			\
 											\
@@ -1701,7 +1704,8 @@ syl%=:		dbra	%%d4,yl%=; 				\
 			  "m"(mi), "m"(mj), 
 			  "m"(map_tiles_x_), "m"(map_tiles_y_), 
 			  "m"(pmap), "m"(ptiles), "m"(dstaddr), "m"(dstrowskip),
-			  "m"(srcywrap_), "m"(virtual_linebytes_), "m"(visible_linebytes_), "m"(virtual_pagebytes_)
+			  "m"(srcywrap_), "m"(virtual_linebytes_), "m"(visible_linebytes_), "m"(virtual_pagebytes_),
+			  [c_dlw] "g" (c_dst_linewid)
 			: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 			  "%%a0", "%%a2", "%%a3", "%%a4", "%%a5",
 			  "cc"

@@ -2595,7 +2595,7 @@ void powerup1_fncol(entity_t *_pself, entity_t *_pother)
 			if (g_num_multiples < c_max_multiples)
 			{
 				// turn on the multiple
-				g_pe_options[g_num_multiples]->drawtype = EntityDraw_EMXSPR;
+				g_pe_options[g_num_multiples]->drawtype = EntityDraw_EMXSPRQ;
 
 				// increment the count, for shooting control etc.
 				g_num_multiples++;
@@ -2838,7 +2838,7 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// player																					// tick player first...
 	//	summary:
 	//	- the player!
-	{ &play_fntick,&play_fncol,0,0,				{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_POWERUP },
+	{ &play_fntick,&play_fncol,0,0,				{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_PLAYER|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_POWERUP },
 	// options																					// ...options second
 	//	summary:
 	//	- glowing inert blob which follows player, mimics weaponry
@@ -2846,18 +2846,18 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// laser weapon																				// ...then everything else
 	//	summary:
 	//	- fast moving laser, speed = 32
-	{ &laser_fntick,&laser_fncol,0,0,			{0},{0},{32},{0},0,0,0,0,		2,0,			8,15,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
-	{ &laser_fntick,&laser_fncol,0,0,			{0},{0},{32},{0},0,0,0,0,		2,0,			8,15,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
-	{ &laser_fntick,&laser_fncol,0,0,			{0},{0},{32},{0},0,0,0,0,		2,0,			8,15,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
+	{ &laser_fntick,&laser_fncol,0,0,			{0},{0},{32},{0},0,0,0,0,		2,0,			8,15,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
+	{ &laser_fntick,&laser_fncol,0,0,			{0},{0},{32},{0},0,0,0,0,		2,0,			8,15,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
+	{ &laser_fntick,&laser_fncol,0,0,			{0},{0},{32},{0},0,0,0,0,		2,0,			8,15,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
 	// bullet weapon																			// ...then everything else
 	//	summary:
 	//	- normal bullet with speed = 16
-	{ &bullet_fntick,&laser_fncol,0,0,			{0},{0},{16},{0},0,0,0,0,		2,0,			0,15,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
+	{ &bullet_fntick,&laser_fncol,0,0,			{0},{0},{16},{0},0,0,0,0,		2,0,			0,15,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
 	// missile weapon																			// ...then everything else
 	//	summary:
 	//	- missile with diagonal trajectory
 	//	- slow firing rate, but lots of damage!
-	{ &missile_fntick,&laser_fncol,0,0,			{0},{0},{4},{4},0,0,0,0,		2,0,			2,50,2,0,			EntityDraw_EMXSPR,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
+	{ &missile_fntick,&laser_fncol,0,0,			{0},{0},{4},{4},0,0,0,0,		2,0,			2,50,2,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_BULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_NME },
 	// smartbomb weapon																			// smartbomb ticks last, after it works
 	//	summary:
 	//	- big invisible collider which briefly covers the screen, damages all enemies and dies a frame later
@@ -2868,12 +2868,12 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// weapon spark [DISABLED]
 	//	summary:
 	//	- spark animation when player weapon contacts something (currently more of a 'splat')
-	{ &wspark_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		2,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &wspark_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		2,0,			0,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 	// death flame
 	//	summary:
 	//	- trail produced by player ship upon destruction
-	{ &dflame_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		2,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+	{ &dflame_fntick,0,0,0,						{0},{0},{0},{0},0,0,0,0,		2,0,			0,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
 
 
 	// powerups...
@@ -2881,12 +2881,12 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// powerup cell #1 (yellow)
 	//	summary:
 	//	- adds to player weaponry in fixed sequence
-	{ &powerup1_fntick,&powerup1_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_POWERUP|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
+	{ &powerup1_fntick,&powerup1_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			0,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_POWERUP|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
 
 	// powerup cell #2 (blue)
 	//	summary:
 	//	- smartbomb, affects only enemy objects currently onscreen
-	{ &powerup2_fntick,&powerup2_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			0,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_POWERUP|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
+	{ &powerup2_fntick,&powerup2_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			0,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_POWERUP|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
 
 
 	// enemy objects...
@@ -2906,88 +2906,88 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// nme:pellet
 	//	summary:
 	//	- generic round bullet fired by most enemies
-	{ &nmepellet_fntick,0,0,0,					{0},{0},{0},{0},0,0,0,0,		2,0,			0,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NMEBULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
+	{ &nmepellet_fntick,0,0,0,					{0},{0},{0},{0},0,0,0,0,		2,0,			0,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NMEBULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
 
 	// nme:laser
 	//	summary:
 	//	- horizontal beam fired by a few enemies
-	{ &nmelaser_fntick,0,0,0,					{0},{0},{-2},{0},0,0,0,0,		2,0,			0,12,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NMEBULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
+	{ &nmelaser_fntick,0,0,0,					{0},{0},{-2},{0},0,0,0,0,		2,0,			0,12,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NMEBULLET|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER },
 
 	// nme:walker
 	// summary: 
 	//	- enters from right 
 	//	- wanders along ground
-	{ &walker_fntick,&nmegeneric_fncol,0,0,		{0},{0},{-1},{0},0,0,0,0,		2,0,			200,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &walker_fntick,&nmegeneric_fncol,0,0,		{0},{0},{-1},{0},0,0,0,0,		2,0,			200,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:spinny
 	// summary: 
 	//	- enters from right in wave formation
 	//	- zig-zags in predictable pattern
-	{ &nmespinny_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmespinny_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:fly
 	//	summary:
 	//	- 360' zrotation
 	//	- seeks player, tries to avoid player's primary weapon
 	//	- leaves trail of diamonds, which damage on contact
-	{ &nmefly_fntick,&nmegeneric_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			20,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmefly_fntick,&nmegeneric_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			20,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:fly2
 	//	summary: 
 	//	- 360' zrotation
 	//	- advances from right, tries to ram player
 	//	- shoots pellets
-	{ &nmefly2_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmefly2_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:amoeba
 	//	summary: 
 	//	- wobbles roughly towards player, very tough, rushes player when damaged
 	//	- has custom death/explode animation
 	//	- can convert to rock obstacle
-	{ &nmeamoeba_fntick,&nmeamoeba_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			50,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmeamoeba_fntick,&nmeamoeba_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			50,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:quad
 	//	summary: 
 	//	- materializes in groups around player
 	//	- once materialized, will try to ram player but can't steer once set in motion
 	//	- can't harm player while materializing, but can be shot
-	{ &nmequad_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &nmequad_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 
 	// nme:square
 	//	summary: 
 	//	- appear in vertical waves from spawnpoint at top/bottom of map
 	//	- proximity mine, explodes if player gets too near
 	//	- very tough. nudged when shot.
-	{ &nmesquare_fntick,&nmesquare_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			80,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &nmesquare_fntick,&nmesquare_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			80,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 
 	// nme:mine
 	//	summary: 
 	//	- diamond-shaped obstacle left behind by other enemies
 	//	- causes damage on contact
-	{ &nmemine_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			0,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmemine_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			0,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:tie
 	//	summary: 
 	//	- drifts in from right in waves, in a straight line
 	//	- shoots horizontal laser beams
-	{ &nmetie_fntick,&nmegeneric_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			100,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmetie_fntick,&nmegeneric_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			100,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:jelly
 	//	summary: 
 	//	- gets in the way, absorbing bullets
 	//	- doesn't harm player on contact
-	{ &nmejelly_fntick,&nmejelly_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			350,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &nmejelly_fntick,&nmejelly_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			350,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 
 	// nme:drone
 	//	summary: 
 	//	- drifts in from right in waves, in a straight line
 	//	- leaves behind diamonds
-	{ &nmedrone_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			200,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmedrone_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			200,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:cylon
 	//	summary: 
 	//	- drifts in from right in waves, in a wobbly formation
-	{ &nmecylon_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmecylon_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 };
 
 //----------------------------------------------------------------------------------------------------------------------

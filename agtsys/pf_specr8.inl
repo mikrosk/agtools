@@ -71,29 +71,29 @@ inline void PR8_fill_specrow_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, s
 			dc.b	7;							\
 												\
 xl%=:		move.l	4*7(%%a5),%%d0;				\
-			movep.l	%%d0,184*7(%%a3);			\
-			movep.l	%%d0,184*7(%%a1);			\
+			movep.l	%%d0,%[c_dlw]*7(%%a3);			\
+			movep.l	%%d0,%[c_dlw]*7(%%a1);			\
 			move.l	4*6(%%a5),%%d0;				\
-			movep.l	%%d0,184*6(%%a3);			\
-			movep.l	%%d0,184*6(%%a1);			\
+			movep.l	%%d0,%[c_dlw]*6(%%a3);			\
+			movep.l	%%d0,%[c_dlw]*6(%%a1);			\
 			move.l	4*5(%%a5),%%d0;				\
-			movep.l	%%d0,184*5(%%a3);			\
-			movep.l	%%d0,184*5(%%a1);			\
+			movep.l	%%d0,%[c_dlw]*5(%%a3);			\
+			movep.l	%%d0,%[c_dlw]*5(%%a1);			\
 			move.l	4*4(%%a5),%%d0;				\
-			movep.l	%%d0,184*4(%%a3);			\
-			movep.l	%%d0,184*4(%%a1);			\
+			movep.l	%%d0,%[c_dlw]*4(%%a3);			\
+			movep.l	%%d0,%[c_dlw]*4(%%a1);			\
 			move.l	4*3(%%a5),%%d0;				\
-			movep.l	%%d0,184*3(%%a3);			\
-			movep.l	%%d0,184*3(%%a1);			\
+			movep.l	%%d0,%[c_dlw]*3(%%a3);			\
+			movep.l	%%d0,%[c_dlw]*3(%%a1);			\
 			move.l	4*2(%%a5),%%d0;				\
-			movep.l	%%d0,184*2(%%a3);			\
-			movep.l	%%d0,184*2(%%a1);			\
+			movep.l	%%d0,%[c_dlw]*2(%%a3);			\
+			movep.l	%%d0,%[c_dlw]*2(%%a1);			\
 			move.l	4*1(%%a5),%%d0;				\
-			movep.l	%%d0,184*1(%%a3);			\
-			movep.l	%%d0,184*1(%%a1);			\
+			movep.l	%%d0,%[c_dlw]*1(%%a3);			\
+			movep.l	%%d0,%[c_dlw]*1(%%a1);			\
 			move.l	4*0(%%a5),%%d0;				\
-			movep.l	%%d0,184*0(%%a3);			\
-			movep.l	%%d0,184*0(%%a1);			\
+			movep.l	%%d0,%[c_dlw]*0(%%a3);			\
+			movep.l	%%d0,%[c_dlw]*0(%%a1);			\
 jt1%=:											\
 												\
 sxl%=:		move.l	%%d5,%%a5;					\
@@ -125,7 +125,8 @@ smc%=:		dbra	%%d3,xl%=; 					\
 		  [pmap1] "m"(pmap), 
 		  [ptiles1] "m"(ptiles),   
 		  [dstaddr] "m"(dstaddr), 
-		  [virtual_pagebytes] "m"(virtual_pagebytes_)
+		  [virtual_pagebytes] "m"(virtual_pagebytes_),
+		  [c_dlw] "g" (c_dst_linewid)
 		: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 		  "%%a0", "%%a2", "%%a3", "%%a4", "%%a5",
 		  "cc"

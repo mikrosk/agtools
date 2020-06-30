@@ -71,6 +71,8 @@ within_entitydraw	set	0
 	.globl		_g_spr_window_y1
 	.globl		_g_spr_window_x2
 	.globl		_g_spr_window_y2
+	.globl		_g_spr_window_x1p
+	.globl		_g_spr_window_x2p
 	
 	
 	.globl		_g_linebytes
@@ -916,6 +918,8 @@ _g_spr_window_x1:	ds.w		1
 _g_spr_window_y1:	ds.w		1
 _g_spr_window_x2:	ds.w		1
 _g_spr_window_y2:	ds.w		1
+_g_spr_window_x1p:	ds.w		1
+_g_spr_window_x2p:	ds.w		1
 
 spandata_skew:		ds.b		1
 spandata_wordwidth:	ds.b		1
