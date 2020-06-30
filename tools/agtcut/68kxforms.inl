@@ -7,6 +7,24 @@
 //	  lifespan, address registers and locked/constant registers
 //---------------------------------------------------------------------------------------------------------------------
 
+bool Context::safe_rename_H(std::list<Operation*>::iterator curr, std::vector<dataregister>::iterator it_treg, int _rold)
+{
+	return
+	(
+		((*curr)->alltagsH[_rold] < 0) ||
+		(it_treg->stableH && registers[_rold].stableH && (it_treg->H == registers[_rold].H))
+	);
+}
+
+bool Context::safe_rename_H(std::list<Operation*>::iterator curr, uword_t _dataH, int _rold)
+{
+	return
+	(
+		((*curr)->alltagsH[_rold] < 0) ||
+		(registers[_rold].stableH && (_dataH == registers[_rold].H))
+	);
+}
+
 bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vector<dataregister>::iterator it_treg, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL, int& r_limit, bool _2nd)
 {
 	// don't transform constant registers
@@ -326,6 +344,8 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					it_treg->stableH && (it_treg->H == data16) &&
 					// don't perform swap if it modifies a high word dependency
 					((*curr)->alltagsH[_rold] < 0)
+					// don't permit rename if it affects a high word dependency - unless high words are stable and equal
+					//safe_rename_H(curr, it_treg, _rold)
 				)
 				{
 
@@ -1219,10 +1239,20 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						// OPPORTUNITY: (BCHG Rx,Ry.W == EXPECTED)
 						// note: looking to replace a 16bit load, but BCHG is a 32bit operation so we filter a bit
 						if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
+							// try register has valid data
 							valid_treg16 &&
-							((registers[rs].L & 31) < 16) && // filter out side effects on H word
-							(data16 == (it_treg->L ^ (1 << (registers[rs].L & 31))))
-							)
+							// filter out side effects of BCHG on H word
+							((registers[rs].L & 31) < 16) &&
+							// desired data matches BCHG output
+							(data16 == (it_treg->L ^ (1 << (registers[rs].L & 31)))) &&
+							// don't permit rename if it affects a high word dependency - unless high words are stable and equal
+							safe_rename_H(curr, it_treg, _rold)
+						)
+//						if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
+//							valid_treg16 &&
+//							((registers[rs].L & 31) < 16) && // filter out side effects on H word
+//							(data16 == (it_treg->L ^ (1 << (registers[rs].L & 31))))
+//							)
 						{
 							if (g_allargs.verbose)
 							printf("transform: move.w #$%04x,%s -> bchg %s,%s [$%04x^$%04x]\n",
@@ -2765,7 +2795,9 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
 								(data16 == result_lw) && 
 								// don't perform moveq if it modifies a high word dependency
-								(((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == result_hw)))
+								//(((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == result_hw)))
+								// don't permit rename if it affects a high word dependency - unless high words are stable and equal
+								safe_rename_H(curr, result_hw, _rold))
 							{
 
 //							if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
@@ -2830,7 +2862,9 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
 								(data16 == result_lw) && 
 								// don't perform moveq if it modifies a high word dependency
-								(((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == result_hw)))
+								//(((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == result_hw)))
+								// don't permit rename if it affects a high word dependency - unless high words are stable and equal
+								safe_rename_H(curr, result_hw, _rold))
 							{
 
 //							if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
@@ -3398,7 +3432,9 @@ bool Context::try_4c_init_transforms(std::list<Operation*>::iterator &curr, OpSi
 
 				if ((data16 == imm_lw) && 
 					// don't perform moveq if it modifies a high word dependency
-					(/*!registers[_rold].stableH*/((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == imm_hw)))
+					//(/*!registers[_rold].stableH*/((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == imm_hw)))
+					// don't permit rename if it affects a high word dependency - unless high words are stable and equal
+					safe_rename_H(curr, imm_hw, _rold))
 				{
 					if (g_allargs.verbose)
 					printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x:%04x]\n",

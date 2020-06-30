@@ -11,8 +11,11 @@
 
 #define DEBUG_REGISTER_TAGS (0)
 #define DEBUG_REGISTER_TAGS2 (0)
+
 #define DEBUG_REGISTER_STATES (0)
 #define SIM_ALL_STAGES (0) // 1= don't just simulate final generated code. simulate after every pass, checking for errors (slow!)
+#define DEBUG_FRAME (-1)
+#define DEBUG_PRESHIFT (-1)
 
 // 20 tiles / 320 pix
 // +1 for hscroll margin
@@ -568,6 +571,9 @@ public:
 
 	bool try_reg_transforms(std::list<Operation*>::iterator &curr, std::vector<dataregister>::iterator it, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL, int &r_limit, bool _2nd = false);
 //	bool try_8c_reg_transforms(std::list<Operation*>::iterator &curr, std::vector<dataregister>::iterator it, OpSize _opsize, int _rold, uword_t _dataH, uword_t _dataL, bool _2nd = false);
+
+	bool safe_rename_H(std::list<Operation*>::iterator curr, std::vector<dataregister>::iterator it_treg, int _rold);
+	bool safe_rename_H(std::list<Operation*>::iterator curr, uword_t dataH, int _rold);
 
 	bool transform_pass();
 	bool cleanup_pass();
@@ -2386,7 +2392,7 @@ void run_sim(Context &context, ubyte_t *livelines, int _frame, int pi, preshift_
 
 #if (DEBUG_REGISTER_STATES)
 		printf("tags:");
-		for (int r = 0; r < context.registers.size() /*&& r < 6*/; r++)
+		for (int r = 0; r < context.registers.size() && r < 6; r++)
 		{
 			printf(" %s[%02x:%02x](%08x)", 
 				context.registers[r].name.c_str(), 
@@ -2724,9 +2730,12 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				partial_line_count++;
 		}
 */
-		printf("live lines = %d\n", live_line_count);
-		//printf("partial lines = %d\n", partial_line_count);
-		printf("empty lines = %d\n", empty_line_count);
+		if (g_allargs.verbose)
+		{
+			printf("live lines = %d\n", live_line_count);
+			//printf("partial lines = %d\n", partial_line_count);
+			printf("empty lines = %d\n", empty_line_count);
+		}
 
 		// optimize the line order for NON EMPTY LINES to minimize changes to EM registers
 		// the empty lines are already at the end of the sequence so optimization works on a shorter sequence (up to live_line_count)
@@ -2926,7 +2935,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					//std::cout << "noise factor:" << std::hex << noise_factor << std::endl;
 #endif
 				}
-				printf("\nconverged or exhausted %d trials @ loadcost=%d (totalcost=%f)\n", 
+				printf("converged or exhausted %d trials @ loadcost=%d (totalcost=%f)\n", 
 					last_improvement, 
 					best_loadcost,
 					dbest_cost
@@ -3013,8 +3022,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		{
 			preshift_t &shift = *pit;
 
-			//if (pi != 8)
-			//	continue;
+			if ((DEBUG_PRESHIFT >= 0) && (pi != DEBUG_PRESHIFT))
+				continue;
 
 			Context context(shift.wordwidth_, shift.height_, /*srccol_wordwidth*/((spr.w_ + 15) >> 4), /*guardxs=*/g_allargs.emguardx);
 
@@ -4283,7 +4292,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			if (!g_allargs.quickcut)
 				context.tail_pass();
 
-			std::cout << "preshift " << pi << " codegen optimization transforms: " << xform_passes << std::endl;
+			if (!g_allargs.quickcut)
+				std::cout << "preshift " << pi << " codegen optimization transforms: " << xform_passes << std::endl;
 		
 			//
 			run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/true);
@@ -4333,8 +4343,8 @@ bool generate_emx_sequence()
 	int f = 0;
 	for (; it != g_spriteframes.end(); it++, f++)
 	{
-//		if (f != 3)
-//			continue;
+		if ((DEBUG_FRAME >= 0) && (f != DEBUG_FRAME))
+			continue;
 		generate_emx_frame(*it, f);
 //		break;
 		//if (g_allargs.verbose)

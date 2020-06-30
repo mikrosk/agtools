@@ -128,7 +128,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.433";
+static const char* const g_version_string = "v0.441";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0200;
@@ -477,6 +477,7 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_CCFIELDS,		_T("--ccfields"), 		SO_REQ_SEP	},
 	//
 	{ OPT_CCREMAP,		_T("-ccr"),	 			SO_REQ_SEP	},
+	{ OPT_CCREMAP,		_T("-cc-remap"),	 	SO_REQ_SEP	},
 	//
 	{ OPT_NOREMAP,		_T("-nr"),	 			SO_NONE		},
 	{ OPT_NOREMAP,		_T("--no-remap"),		SO_NONE		},
@@ -580,60 +581,64 @@ static void usage(int level)
 	std::cout << "usage:" << std::endl;
 	std::cout << " atgcut [opts] -s infile" << std::endl;
 	std::cout << std::endl;
-	std::cout << " -?, -h, --help         > show help/usage" << std::endl;
-	std::cout << " -v, --verbose          > more output" << std::endl;
-	std::cout << " -q, --quiet            > less output" << std::endl;
-	std::cout << " -wk, --wait-key        > wait key on exit" << std::endl;
+	std::cout << " -?, -h, --help           > show help/usage" << std::endl;
+	std::cout << " -v, --verbose            > more output" << std::endl;
+	std::cout << " -q, --quiet              > less output" << std::endl;
+	std::cout << " -wk, --wait-key          > wait key on exit" << std::endl;
 	std::cout << std::endl;
 	std::cout << "general:" << std::endl;
-	std::cout << " -s, --src              > source image containing tiles/sprites/slabs:" << std::endl;
-	std::cout << "                        > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)" << std::endl;
-	std::cout << "                        > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
-	std::cout << " -o, --outfile          > output filename" << std::endl;
-	std::cout << " -cm, --cutmode         > cutting mode: tiles,imspr,emspr,emxspr,slabs,slabrestore" << std::endl;
-	std::cout << " -ccf, --ccfields       > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
-	std::cout << " -p, --pal              > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
-	std::cout << " -crn, --colrenorm      > renormalise quantised source RGB to 8bit RGB: 1-255" << std::endl;
-	std::cout << " -bp, --bitplanes       > #bitplanes to generate: 1-8" << std::endl;
-	std::cout << " -key, --key            > colour index assumed to be transarent: 0-255" << std::endl;
-	std::cout << " -keyrgb, --key-rgb     > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
-	std::cout << " -kg, --key-guard       > guard against reducing colours to key colour" << std::endl;
-	std::cout << " -kt, --key-tol         > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
-	std::cout << " -nr, --no-remap        > prevent remapping of 8bit images (to 4bit), use first 16 colours only" << std::endl;
-	std::cout << " -fr, --force-remap     > force remapping of 8bit images (to 4bit) so --key-rgb is usable" << std::endl;
-	std::cout << " -vis, --visual         > provide feedback/visualisation of cut assets as .tga file" << std::endl;
+	std::cout << " -s, --src                > source image containing tiles/sprites/slabs:" << std::endl;
+	std::cout << "                          > pre-mapped: png,bmp (i.e. use indexed 4/8bit colour w/no remapping)" << std::endl;
+	std::cout << "                          > unmapped:   png,bmp,jpg,psd,tga,gif,hdr,pic,ppm/pgm/pnm" << std::endl;
+	std::cout << " -o, --outfile            > output filename" << std::endl;
+	std::cout << " -cm, --cutmode           > cutting mode: tiles,imspr,emspr,emxspr,slabs,slabrestore" << std::endl;
+	std::cout << " -ccf, --ccfields         > cryptochrome fields: 1 or 2 (for dual-field gfx)" << std::endl;
+	std::cout << " -p, --pal                > fixed palette to use: pi1,pal(riff),bmp,png" << std::endl;
+	std::cout << " -crn, --colrenorm        > renormalise quantised source RGB to 8bit RGB: 1-255" << std::endl;
+	std::cout << " -bp, --bitplanes         > #bitplanes to generate: 1-8" << std::endl;
+	std::cout << " -key, --key              > colour index assumed to be transarent: 0-255" << std::endl;
+	std::cout << " -keyrgb, --key-rgb       > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
+	std::cout << " -kg, --key-guard         > guard against reducing colours to key colour" << std::endl;
+	std::cout << " -kt, --key-tol           > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
+	std::cout << " -ccr, --cc-remap         > cryptochrome colour field remapping: both,high,low" << std::endl;
+	std::cout << " -nr, --no-remap          > prevent remapping of 8bit images (to 4bit), use first 16 colours only" << std::endl;
+	std::cout << " -fr, --force-remap       > force remapping of 8bit images (to 4bit) so --key-rgb is usable" << std::endl;
+	std::cout << " -vis, --visual           > provide feedback/visualisation of cut assets as .tga file" << std::endl;
 	std::cout << std::endl;
 	std::cout << "sprite cutting mode:" << std::endl;
-	std::cout << " -sxp, --sprxpos        > first frame xpos: 0+" << std::endl;
-	std::cout << " -syp, --sprypos        > first frame ypos: 0+" << std::endl;
-	std::cout << " -sxs, --sprxsize       > all frames xsize: 1+" << std::endl;
-	std::cout << " -sys, --sprysize       > all frames ysize: 1+" << std::endl;
-	std::cout << " -sxi, --sprxinc        > x step for next frame in row: 0+" << std::endl;
-	std::cout << " -syi, --spryinc        > y step for next row: 0+" << std::endl;
-	std::cout << " -sxc, --sprxcount      > frames per row: 1+" << std::endl;
-	std::cout << " -syc, --sprycount      > frames per column: 1+" << std::endl;
-	std::cout << " -sc, --sprcount        > total frames to cut, if stopping early: 0+, where 0=ignore" << std::endl;
-	std::cout << " -sm, --sprmap          > map sprite frame from another: -sm new:existing:flipflags" << std::endl;
-	std::cout << " -gm, --gen-mask        > generate 1bpl mask data along with colour data" << std::endl;
-	std::cout << " -nogm, --no-gen-mask   > don't generate 1bpl mask data - only colour data (STF)" << std::endl;
-	std::cout << " -ml, --mask-layout     > mask layout strategy: interleaved,planar,preshift" << std::endl;
-	std::cout << " -sopt, --soptimize     > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
-	std::cout << " -qc, --quickcut        > improve cutting speed (reduce optimization) for quicker test/debug turnaround" << std::endl;
-	std::cout << " -ccr                   > cryptochrome colour field remapping: both,high,low" << std::endl;
-	std::cout << " -prv, --preview        > show ASCII preview of extracted colours + masking" << std::endl;
-	std::cout << " -sg, --sprguide        > sprite guide file (ASCII)" << std::endl;
-	std::cout << " -hidden, --hidden      > hidden resource (e.g. collision/undraw) - don't store any pixel data" << std::endl;
-	std::cout << " -ackeyrgb, --ackey-rgb > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
-	std::cout << " -emxopt, --emx-opt     > optimization level for EMX mask delta elimination" << std::endl;
+	std::cout << " -sxp, --sprxpos          > first frame xpos: 0+" << std::endl;
+	std::cout << " -syp, --sprypos          > first frame ypos: 0+" << std::endl;
+	std::cout << " -sxs, --sprxsize         > all frames xsize: 1+" << std::endl;
+	std::cout << " -sys, --sprysize         > all frames ysize: 1+" << std::endl;
+	std::cout << " -sxi, --sprxinc          > x step for next frame in row: 0+" << std::endl;
+	std::cout << " -syi, --spryinc          > y step for next row: 0+" << std::endl;
+	std::cout << " -sxc, --sprxcount        > frames per row: 1+" << std::endl;
+	std::cout << " -syc, --sprycount        > frames per column: 1+" << std::endl;
+	std::cout << " -sc, --sprcount          > total frames to cut, if stopping early: 0+, where 0=ignore" << std::endl;
+	std::cout << " -sm, --sprmap            > map sprite frame from another: -sm new:existing:flipflags" << std::endl;
+	std::cout << " -gm, --gen-mask          > generate 1bpl mask data along with colour data" << std::endl;
+	std::cout << " -nogm, --no-gen-mask     > don't generate 1bpl mask data - only colour data (STF)" << std::endl;
+	std::cout << " -ml, --mask-layout       > mask layout strategy: interleaved,planar,preshift" << std::endl;
+	std::cout << " -sopt, --soptimize       > optimize away unused pixels: on/off (compensated w/offsets)" << std::endl;
+	std::cout << " -qc, --quickcut          > improve cutting speed (reduce optimization) for quicker test/debug turnaround" << std::endl;
+	std::cout << " -prv, --preview          > show ASCII preview of extracted colours + masking" << std::endl;
+	std::cout << " -sg, --sprguide          > sprite guide file (ASCII)" << std::endl;
+	std::cout << " -hidden, --hidden        > hidden resource (e.g. collision/undraw) - don't store any pixel data" << std::endl;
+	std::cout << " -ackeyrgb, --ackey-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
+	std::cout << " -hitkeyrgb, --hitkey-rgb > rgb value used to express hidden hitboxes: <RR:GG:BB> in hex" << std::endl;
+	std::cout << " -emxopt, --emx-opt       > optimization level for EMX mask delta elimination" << std::endl;
+	std::cout << " -emgx, --emguardx        > configure x-guardband width for EMX sprites (default:32)" << std::endl;
+	std::cout << " -emc, --emc              > allow compound (large >32 wide) EMS/EMX sprites to be cut" << std::endl;
+	std::cout << " -nc, --no-clip           > indicate sprite do *not* require clipping (on y axis), reduces EMX storage size" << std::endl;
 	std::cout << std::endl;
 	std::cout << "map & tile cutting mode:" << std::endl;
-	std::cout << " -ts, --tilesize        > tile size: 8,16,32" << std::endl;
-	std::cout << " -ttags, --tiletags     > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
-	std::cout << " -t, --tol              > tile matching tolerance: 0.0+" << std::endl;
-	std::cout << " -mr, --maprect         > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
-	std::cout << " -layer, --layer        > cut map as transparent layer" << std::endl;
-	std::cout << " -stm, --stitch-maps    > import multiple, numbered source images, stack vertically" << std::endl;
-	std::cout << " -om, --outmode         > tile library output mode: direct,degas,rbplus" << std::endl;
+	std::cout << " -ts, --tilesize          > tile size: 8,16,32" << std::endl;
+	std::cout << " -ttags, --tiletags       > list of tile indices to tag (CSV file - one hex value per row)" << std::endl;
+	std::cout << " -t, --tol                > tile matching tolerance: 0.0+" << std::endl;
+	std::cout << " -mr, --maprect           > map rectangle to extract (-mr x:y:w:h ..or.. -mr x:y)" << std::endl;
+	std::cout << " -layer, --layer          > cut map as transparent layer" << std::endl;
+	std::cout << " -stm, --stitch-maps      > import multiple, numbered source images, stack vertically" << std::endl;
+	std::cout << " -om, --outmode           > tile library output mode: direct,degas,rbplus" << std::endl;
 	std::cout << std::endl;
 	std::cout << "press any key..." << std::endl << std::flush;
 		
@@ -4453,7 +4458,8 @@ public:
 					)
 				);
 
-				std::cout << " mask preshift " << s << " component " << component << " @ wordwidth " << dst_wordwidth << std::endl;
+				if (g_allargs.verbose)
+					std::cout << " mask preshift " << s << " component " << component << " @ wordwidth " << dst_wordwidth << std::endl;
 
 				consumed_dst_wordwidth += dst_wordwidth;
 				component++;
