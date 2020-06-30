@@ -1709,17 +1709,23 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 		
 	visible_tiles_y_ = ((display_height_ + (c_tilesize_-1)) / c_tilesize_) + (c_updaterows_ ? 1 : 0);
 
+	int tiles_per_word = (c_tilesize_ == 8) ? 2 : 1;
+
 	// dimensions for virtual page size used for tile updating - larger than display area + scroll margin
 	// note: hardcode tile based width to make vpage exactly 184 bytes per line, to accommodate other drawing functions
+
 	if (c_ste_)
 	{
-		if (c_tilesize_ == 16)
+		vpage_tiles_x_ = visible_tiles_x_ + tiles_per_word * 2;
+
+/*		if (c_tilesize_ == 16)
 			vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
 		else
 		if (c_tilesize_ == 8)
 				vpage_tiles_x_ = visible_tiles_x_ + 4;//(c_hspeculative_ ? 4 : 0);
 		else
 			xassert(false);
+*/
 	}
 	else
 	{
@@ -1727,6 +1733,10 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	}
 
 	vpage_tiles_y_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
+
+	// incorporate guardband in virtual playfield
+	vpage_tiles_x_ += ((c_guardx - 32) >> 4) * tiles_per_word;
+
 
 	pfieldcontext_->prepare(vpage_tiles_x_, vpage_tiles_y_);
 	quant_vpage_x_ = pfieldcontext_->quant_vpage_x_;
