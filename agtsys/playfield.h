@@ -224,8 +224,8 @@ template
 	// either 1 or 2 playfield layers
 	s16 _layers = 1,
 	// guardband regions
-	int _hidden_h_margin = 32,
-	int _hidden_v_margin = 0, // not yet supported (can be done manually by just enabling v-scroll and offsetting y)
+	int _h_guardband = 32,
+	int _v_guardband = 32, // not yet supported in hardware, uses software clipping or cull clipping
 	//
 	class mapmul_t = s16
 >
@@ -237,7 +237,8 @@ public:
 	// configure behaviour
 	// ---------------------------------------------------------------------------------------------------------------------
 
-	static const int c_guardx = _hidden_h_margin;
+	static const int c_guardx = _h_guardband;
+	static const int c_guardy = _v_guardband;
 	static const int c_dst_linewid = (20+1+((c_guardx+15)>>4)) << 3;
 
 	// todo: remove

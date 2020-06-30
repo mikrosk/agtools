@@ -23,9 +23,6 @@
 .slb_frameok:
 	.endif
 	
-;	move.w		#32,_drawcontext+dctx_clipwindow_y1
-;	move.w		#240-32,_drawcontext+dctx_clipwindow_y2
-
 	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
 
 	; 'hitflash' for strobing shape to single colour on damage etc.

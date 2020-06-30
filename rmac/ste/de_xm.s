@@ -75,6 +75,7 @@ _BLiT_EntityDrawVisibleXM_68k:
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
 	move.w		dctx_snapadjy(a4),.sp_snapy(sp)	
+;	move.w		dctx_guardx(a4),.sp_guardx(sp)
 ;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
 ;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
 ;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto
@@ -84,7 +85,9 @@ _BLiT_EntityDrawVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
-	add.w		#320+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+;	add.w		#320+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+	add.w		dctx_clipwindow_x2(a4),d0
+	sub.w		dctx_clipwindow_x1(a4),d0
 	move.w		d0,.sp_pxmax(sp)
 *-------------------------------------------------------*
 *	initial conditions
@@ -805,7 +808,9 @@ _BLiT_EntityDebugVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
-	add.w		#320+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+;	add.w		#320+(32*2),d0
+	add.w		dctx_clipwindow_x2(a4),d0
+	sub.w		dctx_clipwindow_x1(a4),d0
 	move.w		d0,.sp_pxmax(sp)
 *-------------------------------------------------------*
 *	initial conditions
@@ -928,6 +933,11 @@ _EntityInteractVisibleXM_68k:
 .save:			ds.l	10
 .return:		ds.l	1
 *-------------------------------------------------------*
+.vxs:			ds.l	1
+.vxg:			ds.l	1
+.vys:			ds.l	1
+.vyg:			ds.l	1
+*-------------------------------------------------------*
 .frame_:		
 *-------------------------------------------------------*
 			.abs
@@ -955,12 +965,26 @@ _EntityInteractVisibleXM_68k:
 *-------------------------------------------------------*
 
 	move.l		_g_pe_viewport,a2
+
 	move.w		ent_frx(a2),d1
-	add.w		#320+(32*2),d1			; todo: hardcoded visibility margin - make configurable
+;	add.w		dctx_clipwindow_x2(a4),d1
+;	sub.w		dctx_clipwindow_x1(a4),d1	
+;	add.w		#320+(32*2),d1			; todo: hardcoded visibility margin - make configurable
+	add.w		.vxs+2(a6),d1
+	add.w		.vxg+2(a6),d1
+	add.w		.vxg+2(a6),d1
 	move.w		d1,.sp_pxmax(sp)		; pxmax
-	
+
 	move.w		ent_fry(a2),d2
-	add.w		#240+(32*2),d2
+;	add.w		#240+(32*2),d2
+;	todo: y guardband not implemented yet in hardware
+;	add.w		dctx_clipwindow_y2(a4),d2
+;	sub.w		dctx_clipwindow_y1(a4),d2
+;	add.w		dctx_guardy(a4),d2	
+;	add.w		dctx_guardy(a4),d2	
+	add.w		.vys+2(a6),d2
+	add.w		.vyg+2(a6),d2
+	add.w		.vyg+2(a6),d2
 	move.w		d2,.sp_pymax(sp)		; pymax
 
 	move.l		ent_pnext_x(a2),a0		; pcurr

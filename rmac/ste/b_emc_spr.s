@@ -1,9 +1,9 @@
 *=======================================================*
 *	[A]tari [G]ame [T]ools / dml 2016
 *=======================================================*
-* 	EMSPR blitter sprite implementation
+* 	EMSPR compound blitter sprite implementation
 *-------------------------------------------------------*
-*	max source xsize: 32
+*	max source xsize: -
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
 

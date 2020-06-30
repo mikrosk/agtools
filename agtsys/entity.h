@@ -217,8 +217,8 @@ extern "C" void STF_EntityDeferVisibleYM_68k(drawcontext_t *_pctx);
 
 // interact/collide all entities within viewport rectangle
 // note: instead call EntityInteractVisible() wrapper from mainloop
-extern "C" void EntityInteractVisibleXM_68k();
-extern "C" void EntityInteractVisibleYM_68k();
+extern "C" void EntityInteractVisibleXM_68k(int _xs, int _xg, int _ys, int _yg);
+extern "C" void EntityInteractVisibleYM_68k(int _xs, int _xg, int _ys, int _yg);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // spawning

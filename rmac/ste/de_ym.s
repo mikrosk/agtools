@@ -84,7 +84,11 @@ _BLiT_EntityDrawVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_fry(a0),d0
-	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+;	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+	add.w		dctx_clipwindow_y2(a4),d0
+	sub.w		dctx_clipwindow_y1(a4),d0
+	add.w		dctx_guardy(a4),d0
+	add.w		dctx_guardy(a4),d0
 	move.w		d0,.sp_pymax(sp)
 *-------------------------------------------------------*
 *	initial conditions
@@ -803,7 +807,11 @@ _BLiT_EntityDebugVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_fry(a0),d0
-	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+;	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+	add.w		dctx_clipwindow_y2(a4),d0
+	sub.w		dctx_clipwindow_y1(a4),d0
+	add.w		dctx_guardy(a4),d0
+	add.w		dctx_guardy(a4),d0
 	move.w		d0,.sp_pymax(sp)
 *-------------------------------------------------------*
 *	initial conditions
@@ -926,6 +934,11 @@ _EntityInteractVisibleYM_68k:
 .save:			ds.l	10
 .return:		ds.l	1
 *-------------------------------------------------------*
+.vxs:			ds.l	1
+.vxg:			ds.l	1
+.vys:			ds.l	1
+.vyg:			ds.l	1
+*-------------------------------------------------------*
 .frame_:		
 *-------------------------------------------------------*
 			.abs
@@ -951,14 +964,26 @@ _EntityInteractVisibleYM_68k:
 *-------------------------------------------------------*
 *	load C args to local frame
 *-------------------------------------------------------*
-
+	
 	move.l		_g_pe_viewport,a2
 	move.w		ent_frx(a2),d1
-	add.w		#320+(32*2),d1			; todo: hardcoded visibility margin - make configurable
+;	add.w		#320+(32*2),d1			; todo: hardcoded visibility margin - make configurable
+;	add.w		dctx_clipwindow_x2(a4),d1
+;	sub.w		dctx_clipwindow_x1(a4),d1
+	add.w		.vxs+2(a6),d1
+	add.w		.vxg+2(a6),d1
+	add.w		.vxg+2(a6),d1
 	move.w		d1,.sp_pxmax(sp)		; pxmax
 	
 	move.w		ent_fry(a2),d2
-	add.w		#240+(32*2),d2
+;	add.w		#240+(32*2),d2
+;	add.w		dctx_clipwindow_y2(a4),d2
+;	sub.w		dctx_clipwindow_y1(a4),d2
+;	add.w		dctx_guardy(a4),d2
+;	add.w		dctx_guardy(a4),d2
+	add.w		.vys+2(a6),d2
+	add.w		.vyg+2(a6),d2
+	add.w		.vyg+2(a6),d2
 	move.w		d2,.sp_pymax(sp)		; pymax
 
 	move.l		ent_pnext_y(a2),a0		; pcurr

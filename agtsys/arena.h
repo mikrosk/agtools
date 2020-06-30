@@ -134,12 +134,20 @@ public:
 
 		// generate clipping window
 		s16 guardx = playfield_type::c_guardx;
+		s16 guardy = playfield_type::c_guardy;
+		drawcontext.guardx = guardx;
+		drawcontext.guardy = guardy;
+		// physical clipping (IMS,RFILL)
 		drawcontext.clip_window_x1p = (drawcontext.vpagex & -16);
+		drawcontext.clip_window_x2p = (drawcontext.clip_window_x1p + _vpw);
+		// general clipping
 		drawcontext.clip_window_x1 =  (drawcontext.vpagex & -16) - guardx;
 		drawcontext.clip_window_y1 =  drawcontext.vpagey;
-		drawcontext.clip_window_x2p = (drawcontext.clip_window_x1p + _vpw);
 		drawcontext.clip_window_x2 =  (drawcontext.clip_window_x1 + _vpw) + (guardx*2);
 		drawcontext.clip_window_y2 =  drawcontext.vpagey + _vph;
+		// guard clipping (viewport processing)
+//		drawcontext.clip_window_y1g = drawcontext.vpagey - guardy;
+//		drawcontext.clip_window_y2g = drawcontext.vpagey + _vph + guardy;
 
 		// todo: remove
 		g_spr_window_x1 = drawcontext.clip_window_x1;

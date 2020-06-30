@@ -154,7 +154,8 @@ spritesheet o_asset;
 //	playfield world coordinates
 
 // clipping margin outside of the scrolling viewport, to accommodate the largest typical sprite before deletion etc.
-static const s16 c_viewport_margin = 32;
+static const s16 c_viewport_xmargin = playfield_t::c_guardx;
+static const s16 c_viewport_ymargin = playfield_t::c_guardy;
 
 // world map safety margin (in pixels) for speculative scrolling algorithm
 static const int c_scroll_safety_margin = 16;
@@ -340,7 +341,7 @@ int AGT_EntryPoint()
 		//	create entities needed for this session - Viewport
 
 		// create a viewport entity so we can track its relationship with everything else in the world
-		g_pe_viewport = EntitySpawn(EntityType_VIEWPORT, g_viewport_worldx, g_viewport_worldy-c_viewport_margin);
+		g_pe_viewport = EntitySpawn(EntityType_VIEWPORT, g_viewport_worldx, g_viewport_worldy-c_viewport_ymargin);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create entities needed for this session - 'X e n o n'
@@ -413,8 +414,8 @@ int AGT_EntryPoint()
 			//	'ticked' entities get sorted automatically by the tick system.
 
 			// manually update the viewport first. we don't need a full tick for this but we do need to keep the viewport sorted
-			g_pe_viewport->rx = g_viewport_worldx;
-			g_pe_viewport->ry = g_viewport_worldy - c_viewport_margin;
+			g_pe_viewport->rx = g_viewport_worldx - c_viewport_xmargin;
+			g_pe_viewport->ry = g_viewport_worldy - c_viewport_ymargin;
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	tick all currently linked objects

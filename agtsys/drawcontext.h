@@ -32,6 +32,8 @@ typedef struct drawcontext_s
 	s16 pfsnapadjy;
 	s16 vpagex;
 	s16 vpagey;
+	s16 guardx; // virtual guardband - always in hardware
+	s16 guardy; // virtual guardband - independent of hardware
 
 	restorestate_t *prestorestate;
 
@@ -48,6 +50,9 @@ typedef struct drawcontext_s
 	// physical clip area for IMS and some other stuff
 	s16 clip_window_x1p;
 	s16 clip_window_x2p;
+	// guard clip area for y axis (todo: swap for physical y clip above)
+	//s16 clip_window_y1g;
+	//s16 clip_window_y2g;
 
 } drawcontext_t;
 

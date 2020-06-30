@@ -172,7 +172,8 @@ static s16 g_viewport_worldx = c_scroll_safety_margin;
 static s16 g_viewport_worldy = 0;
 
 // clipping margin outside of the scrolling viewport, to accommodate the largest typical sprite before deletion etc.
-static const s16 c_viewport_margin = 32;
+static const s16 c_viewport_xmargin = playfield_t::c_guardx;
+static const s16 c_viewport_ymargin = playfield_t::c_guardy;
 
 // pseudorandom number generator
 mersenne_twister prng;
@@ -603,8 +604,8 @@ mainloop:
 			// ---------------------------------------------------------------------------------------------------------------------
 			// update the viewport first
 
-			g_pe_viewport->rx = g_viewport_worldx;// - c_viewport_margin;
-			g_pe_viewport->ry = g_viewport_worldy - c_viewport_margin;
+			g_pe_viewport->rx = g_viewport_worldx - c_viewport_xmargin;
+			g_pe_viewport->ry = g_viewport_worldy - c_viewport_ymargin;
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	tick all currently linked objects
@@ -630,7 +631,7 @@ mainloop:
 			//	the interaction is reciprocal, so both entities will perform the same test on each other with their own flags.
 			//	a particular interaction order is not guaranteed although it will be stable.
 
-//			EntityInteractVisible();
+//			EntityInteractVisible(320, c_viewport_xmargin, 240, c_viewport_ymargin);
 
 			TIMING_MAIN(0x707);	
 

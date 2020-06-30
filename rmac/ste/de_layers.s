@@ -152,8 +152,7 @@ _BLiT_EntityDrawLayers_68k:
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	;include		"ste\\b_emx_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
-	include		"ste\\b_emxg_spr.s"
+	include		"ste\\b_emxg_spr.s"		; body for generic EMX sprite routine (w<=32)
 
 	move.l		.sp_savea0(sp),a0
 
@@ -224,8 +223,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-;	include		"ste\\b_emx_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
-	include		"ste\\b_emxc_spr.s"
+	include		"ste\\b_emxc_spr.s"		; body for compound EMX sprite routine
 
 	move.l		.sp_savea0(sp),a0
 
@@ -297,7 +295,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste\\b_emg_spr.s"		; body for EM optimized blitter sprites (0<width<=32)
+	include		"ste\\b_emg_spr.s"		; body for generic EM sprite routine (w<=32)
 
 	move.l		.sp_savea0(sp),a0
 
@@ -369,7 +367,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste\\b_emc_spr.s"		; body for EM optimized blitter sprites (0<width<=32)
+	include		"ste\\b_emc_spr.s"		; body for compound EM sprite routine
 
 	move.l		.sp_savea0(sp),a0
 
@@ -512,7 +510,7 @@ preserve_usp		set	1
 
 	move.l		lpair_first(a0),a0
 	
-	include		"ste\\b_slabopt.s"
+	include		"ste\\b_slabopt.s"		; body for optimized slabs
 	
 	; restore step - only if restore asset is present
 
@@ -536,7 +534,7 @@ preserve_usp		set	0
 
 	move.l		d3,a0
 
-	include		"ste\\b_slabres.s"
+	include		"ste\\b_slabres.s"		; body for slab restore routine
 
 .no_restore:
 
@@ -666,7 +664,7 @@ preserve_usp		set	0
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste\\b_rfill.s"		; body for normal blitter sprites
+	include		"ste\\b_rfill.s"		; body for rectangle fill routine
 
 	move.l		.sp_savea0(sp),a0
 

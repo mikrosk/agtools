@@ -66,7 +66,7 @@ _BLiT_EntityDeferVisibleYM_68k:
 *-------------------------------------------------------*
 *	load C args to local frame
 *-------------------------------------------------------*
-
+	move.l		.pctx(sp),a4
 *-------------------------------------------------------*
 *	Reset layer chains
 *-------------------------------------------------------*
@@ -81,7 +81,11 @@ _BLiT_EntityDeferVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_fry(a0),d0
-	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+;	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
+	add.w		dctx_clipwindow_y2(a4),d0
+	sub.w		dctx_clipwindow_y1(a4),d0
+	add.w		dctx_guardy(a4),d0
+	add.w		dctx_guardy(a4),d0
 	move.w		d0,.sp_pxymax(sp)
 *-------------------------------------------------------*
 *	initial conditions

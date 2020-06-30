@@ -41,7 +41,7 @@
 # specify palette source (chunky8.ccs from PCS)
 # specify cutting coordinates & frame count
 
-../../bin/agtcut -cm emxspr -nc -prv -key 0 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s player.png -o vicviper.emx -p chunky8.ccs -sxp 46 -syp 2 -sxs 23 -sys 16 -syi 18 -sc 9
+../../bin/agtcut -cm emxspr -prv -key 0 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s player.png -o vicviper.emx -p chunky8.ccs -sxp 46 -syp 2 -sxs 23 -sys 16 -syi 18 -sc 9
 
 
 # cut options sprite animation

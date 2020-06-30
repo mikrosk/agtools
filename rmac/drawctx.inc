@@ -24,6 +24,8 @@ dctx_snapadjx:		ds.w	1
 dctx_snapadjy:		ds.w	1
 dctx_vpagex:		ds.w	1
 dctx_vpagey:		ds.w	1
+dctx_guardx:		ds.w	1
+dctx_guardy:		ds.w	1
 *-------------------------------------------------------*
 dctx_prestorestate:	ds.l	1
 *-------------------------------------------------------*
@@ -33,6 +35,8 @@ dctx_clipwindow_x2:	ds.w	1
 dctx_clipwindow_y2:	ds.w	1
 dctx_clipwindow_x1p:	ds.w	1
 dctx_clipwindow_y2p:	ds.w	1
+;dctx_clipwindow_y1g:	ds.w	1
+;dctx_clipwindow_y2g:	ds.w	1
 *-------------------------------------------------------*
 dctx_size:		
 *-------------------------------------------------------*
