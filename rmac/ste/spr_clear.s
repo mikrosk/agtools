@@ -569,6 +569,8 @@ _AGT_BLiT_PlayfieldRestore:
 	move.l		a6,-(sp)
 *-------------------------------------------------------*
 
+	pushraster	#$510
+
 	move.w		_g_rst_vpageh,-(sp)
 
 *-------------------------------------------------------*
@@ -604,7 +606,10 @@ _AGT_BLiT_PlayfieldRestore:
 	move.l		-(a5),d0
 	beq		.cstop
 *-------------------------------------------------------*		
-.ccont:	move.l		d0,a0				; (current)++ restore context
+.ccont:
+	altraster	#$220
+
+	move.l		d0,a0				; (current)++ restore context
 	move.l		d0,a5				; --(prev) restore context
 
 	move.w		(a0)+,d0			; pf-y (pixel)
@@ -757,6 +762,9 @@ _AGT_BLiT_PlayfieldRestore:
 *-------------------------------------------------------*
 .cstop:
 *-------------------------------------------------------*
+
+	popraster
+	
 	move.l		_g_rst_state,a4
 	move.l		rstr_pstack(a4),a5
 	clr.l		(a5)+

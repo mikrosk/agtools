@@ -34,7 +34,7 @@ dctx_clipwindow_y1:	ds.w	1
 dctx_clipwindow_x2:	ds.w	1
 dctx_clipwindow_y2:	ds.w	1
 dctx_clipwindow_x1p:	ds.w	1
-dctx_clipwindow_y2p:	ds.w	1
+dctx_clipwindow_x2p:	ds.w	1
 ;dctx_clipwindow_y1g:	ds.w	1
 ;dctx_clipwindow_y2g:	ds.w	1
 *-------------------------------------------------------*
@@ -52,4 +52,40 @@ rstr_ptide:		ds.l	1
 
 *-------------------------------------------------------*
 	.text
+*-------------------------------------------------------*
+
+
+*-------------------------------------------------------*
+*	common var stackframe used by drawing routines
+*-------------------------------------------------------*
+.macro	emitframe_draw_vars
+*-------------------------------------------------------*
+*	locals: used by sprite routines
+*-------------------------------------------------------*
+.sp_skew:		ds.w	1			; don't move this one
+.sp_maskwidth:		ds.w	1
+.sp_yoff:		ds.w	1
+.sp_yc:			ds.w	1
+.sp_yrem:		ds.w	1
+.sp_save_usp:		ds.l	1
+.sp_linetable:		ds.l	1
+.sp_nextcmp:		ds.l	1
+.sp_x:			ds.w	1
+.sp_y:			ds.w	1
+*-------------------------------------------------------*
+*	locals: shadow function arguments
+*-------------------------------------------------------*
+.sp_framebuf:		ds.l	1
+.sp_snapx:		ds.w	1
+.sp_snapy:		ds.w	1
+*-------------------------------------------------------*
+*	locals: used by algorithm
+*-------------------------------------------------------*
+.sp_asset:		ds.l	1
+.sp_pxymax_:		ds.l	1
+.sp_savea0:		ds.l	1
+.sp_layers:		ds.l	1
+.sp_drawtype:		ds.l	1
+*-------------------------------------------------------*
+	.endm
 *-------------------------------------------------------*

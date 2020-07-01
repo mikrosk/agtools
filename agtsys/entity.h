@@ -104,6 +104,7 @@ struct entity_t;
 typedef entity_t * __restrict entptr_t;
 
 // entity generic function pointer
+typedef void (*fnvptr_t)(void);
 typedef void (*fnptr_t)(entptr_t _pe);
 typedef void (*fn2ptr_t)(entptr_t _pe1, entptr_t _pe2);
 
@@ -163,6 +164,7 @@ struct entity_t
 	entptr_t pparent;
 	entptr_t ptrack;
 	void *pdlayer_;
+	fnvptr_t fncustomdraw;
 
 	// [identity]
 	s16 id;
@@ -219,6 +221,12 @@ extern "C" void STF_EntityDeferVisibleYM_68k(drawcontext_t *_pctx);
 // note: instead call EntityInteractVisible() wrapper from mainloop
 extern "C" void EntityInteractVisibleXM_68k(int _xs, int _xg, int _ys, int _yg);
 extern "C" void EntityInteractVisibleYM_68k(int _xs, int _xg, int _ys, int _yg);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// special custom entitydraw methods
+
+// draw entity using EMX but clear it using SlabRestore (.slr), requires sps_pair asset container to hold both assets
+extern "C" void FNEntityDraw_EMXSlabRestore();
 
 // ---------------------------------------------------------------------------------------------------------------------
 // spawning

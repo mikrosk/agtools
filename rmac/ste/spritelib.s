@@ -64,7 +64,7 @@ within_entitydraw	set	0
 	.globl		_AGT_BLiT_PlayfieldRestore
 	.globl		_AGT_CPU_PlayfieldRestore
 	.endif
-
+	
 ;	clipping window
 	.globl		_g_spr_window
 	.globl		_g_spr_window_x1
@@ -123,10 +123,11 @@ _AGT_BLiT_IMSprDrawUnClipped:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-.sp_skew:		ds.w	1
-.sp_maskwidth:		ds.w	1
-.sp_flags:		ds.w	1
-.sp_linetable:		ds.l	1
+	emitframe_draw_vars
+;.sp_skew:		ds.w	1
+;.sp_maskwidth:		ds.w	1
+;.sp_flags:		ds.w	1
+;.sp_linetable:		ds.l	1
 .sp_frame_:
 *-------------------------------------------------------*
 			.text
@@ -238,10 +239,11 @@ _AGT_BLiT_EMSprDrawUnClipped:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-.sp_skew:		ds.w	1
-.sp_maskwidth:		ds.w	1
-.sp_flags:		ds.w	1
-.sp_linetable:		ds.l	1
+	emitframe_draw_vars
+;.sp_skew:		ds.w	1
+;.sp_maskwidth:		ds.w	1
+;.sp_flags:		ds.w	1
+;.sp_linetable:		ds.l	1
 .sp_frame_:
 *-------------------------------------------------------*
 			.text
@@ -312,10 +314,11 @@ _AGT_BLiT_EMXSprDrawUnClipped:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-.sp_skew:		ds.w	1
-.sp_maskwidth:		ds.w	1
-.sp_flags:		ds.w	1
-.sp_linetable:		ds.l	1
+;.sp_skew:		ds.w	1
+;.sp_maskwidth:		ds.w	1
+;.sp_flags:		ds.w	1
+;.sp_linetable:		ds.l	1
+	emitframe_draw_vars
 .sp_frame_:
 *-------------------------------------------------------*
 			.text
@@ -392,17 +395,12 @@ _AGT_BLiT_EMSprDrawString:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-.sp_skew:		ds.w	1
-.sp_maskwidth:		ds.w	1
-.sp_flags:		ds.w	1
-.sp_linetable:		ds.l	1
+	emitframe_draw_vars
 *-------------------------------------------------------*
 .sp_store:		ds.l	1
 .sp_psps:		ds.l	1
-.sp_pdst:		ds.l	1
-.sp_x:			ds.w	1
-.sp_y:			ds.w	1
-;.sp_z:			ds.w	1
+.sp_pdst:		ds.l	1	
+*-------------------------------------------------------*
 .sp_frame_:
 *-------------------------------------------------------*
 			.text
@@ -518,14 +516,8 @@ _AGT_BLiT_SlabDraw:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-.sp_yoff:		ds.w	1
-.sp_yc:			ds.w	1
-.sp_yrem:		ds.w	1
-.sp_save_usp:		ds.l	1
-.sp_x:			ds.w	1
-.sp_y:			ds.w	1
-.sp_framebuf:		ds.l	1
-.sp_nextcmp:		ds.l	1
+	emitframe_draw_vars
+*-------------------------------------------------------*
 .sp_frame_:
 *-------------------------------------------------------*
 			.text
@@ -585,14 +577,8 @@ _AGT_SlabDirtyRegion:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-.sp_yoff:		ds.w	1
-.sp_yc:			ds.w	1
-.sp_yrem:		ds.w	1
-.sp_save_usp:		ds.l	1
-.sp_x:			ds.w	1
-.sp_y:			ds.w	1
-.sp_framebuf:		ds.l	1
-.sp_nextcmp:		ds.l	1
+	emitframe_draw_vars
+*-------------------------------------------------------*
 .sp_frame_:
 *-------------------------------------------------------*
 			.text

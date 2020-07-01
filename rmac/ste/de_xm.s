@@ -27,31 +27,7 @@ _BLiT_EntityDrawVisibleXM_68k:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-*	locals: used by sprite routines
-*-------------------------------------------------------*
-.sp_skew:		ds.w	1			; don't move this one
-.sp_maskwidth:		ds.w	1
-.sp_yoff:		ds.w	1
-.sp_yc:			ds.w	1
-.sp_yrem:		ds.w	1
-.sp_save_usp:		ds.l	1
-.sp_linetable:		ds.l	1
-.sp_nextcmp:		ds.l	1
-.sp_x:			ds.w	1
-.sp_y:			ds.w	1
-*-------------------------------------------------------*
-*	locals: shadow function arguments
-*-------------------------------------------------------*
-.sp_framebuf:		ds.l	1
-.sp_snapx:		ds.w	1
-.sp_snapy:		ds.w	1
-*-------------------------------------------------------*
-*	locals: used by algorithm
-*-------------------------------------------------------*
-.sp_asset:		ds.l	1
-.sp_pxmax:		ds.l	1
-.sp_savea0:		ds.l	1
-.sp_drawtype:		ds.w	1
+	emitframe_draw_vars
 *-------------------------------------------------------*
 .sp_frame_:		
 *-------------------------------------------------------*
@@ -86,9 +62,10 @@ _BLiT_EntityDrawVisibleXM_68k:
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
 ;	add.w		#320+(32*2),d0			; todo: hardcoded visibility margin - make configurable
-	add.w		dctx_clipwindow_x2(a4),d0
-	sub.w		dctx_clipwindow_x1(a4),d0
-	move.w		d0,.sp_pxmax(sp)
+	add.w		dctx_guardx(a4),d0
+	add.w		dctx_clipwindow_x2p(a4),d0
+	sub.w		dctx_clipwindow_x1p(a4),d0
+	move.w		d0,.sp_pxymax_(sp)
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*
@@ -168,7 +145,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDrawVisibleXM_EMXSPRQ_next
 	bra		.STE_EntityDrawVisibleXM_complete
 *-------------------------------------------------------*
@@ -241,7 +218,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDrawVisibleXM_EMXSPR_next
 	bra		.STE_EntityDrawVisibleXM_complete
 *-------------------------------------------------------*
@@ -313,7 +290,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDrawVisibleXM_EMSPRQ_next
 	bra		.STE_EntityDrawVisibleXM_complete
 *-------------------------------------------------------*
@@ -385,7 +362,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDrawVisibleXM_EMSPR_next
 	bra		.STE_EntityDrawVisibleXM_complete
 *-------------------------------------------------------*
@@ -457,7 +434,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDrawVisibleXM_SPRITE_next
 	bra		.STE_EntityDrawVisibleXM_complete
 *-------------------------------------------------------*
@@ -555,7 +532,7 @@ preserve_usp		set	0
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDrawVisibleXM_SLAB_next
 	bra		.STE_EntityDrawVisibleXM_complete
 *-------------------------------------------------------*
@@ -584,14 +561,19 @@ preserve_usp		set	0
 	move.l		a0,g_dbg_curr_entity
 	.endif
 
-;	move.l		ent_fndraw(a0),a6		; todo
-;	jsr		(a6)
+	move.l		a0,.sp_savea0(sp)
+
+	move.l		ent_fncustomdraw(a0),a6
+	jsr		(a6)
+
+	move.l		.sp_savea0(sp),a0
+
 *-------------------------------------------------------*
 .STE_EntityDrawVisibleXM_CUSTOM_done:
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDrawVisibleXM_CUSTOM_next
 	bra		.STE_EntityDrawVisibleXM_complete
 *-------------------------------------------------------*
@@ -683,7 +665,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDrawVisibleXM_RFILL_next
 	bra		.STE_EntityDrawVisibleXM_complete
 *-------------------------------------------------------*
@@ -713,7 +695,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt.s		.STE_EntityDrawVisibleXM_NONE_next
 	bra		.STE_EntityDrawVisibleXM_complete
 	
@@ -740,7 +722,7 @@ enable_clipping	set	1				; enable full xy clipping
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts
-	
+
 
 	.if		^^defined AGT_CONFIG_DEBUGDRAW
 
@@ -768,6 +750,9 @@ _BLiT_EntityDebugVisibleXM_68k:
 .sp_yrem:		ds.w	1
 .sp_save_usp:		ds.l	1
 .sp_linetable:		ds.l	1
+.sp_nextcmp:		ds.l	1
+.sp_x:			ds.w	1
+.sp_y:			ds.w	1
 *-------------------------------------------------------*
 *	locals: shadow function arguments
 *-------------------------------------------------------*
@@ -778,9 +763,10 @@ _BLiT_EntityDebugVisibleXM_68k:
 *	locals: used by algorithm
 *-------------------------------------------------------*
 .sp_asset:		ds.l	1
-.sp_pxmax:		ds.l	1
+.sp_pxymax_:		ds.l	1
 .sp_savea0:		ds.l	1
-.sp_drawtype:		ds.w	1
+.sp_layers:		ds.l	1
+.sp_drawtype:		ds.l	1
 *-------------------------------------------------------*
 .sp_frame_:		
 *-------------------------------------------------------*
@@ -809,9 +795,10 @@ _BLiT_EntityDebugVisibleXM_68k:
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
 ;	add.w		#320+(32*2),d0
-	add.w		dctx_clipwindow_x2(a4),d0
-	sub.w		dctx_clipwindow_x1(a4),d0
-	move.w		d0,.sp_pxmax(sp)
+	add.w		dctx_clipwindow_x2p(a4),d0
+	sub.w		dctx_clipwindow_x1p(a4),d0
+	add.w		dctx_guardx(a4),d0
+	move.w		d0,.sp_pxymax_(sp)
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*
@@ -887,7 +874,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxmax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.STE_EntityDebugVisibleXM_RDEBUG_next
 	bra		.STE_EntityDebugVisibleXM_complete
 *-------------------------------------------------------*

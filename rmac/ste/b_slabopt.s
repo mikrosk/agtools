@@ -25,6 +25,8 @@
 	.endif
 	.endif
 	
+	pushraster	#$515	
+	
 	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
 
 	; 'hitflash' for strobing shape to single colour on damage etc.
@@ -405,3 +407,5 @@
 *=======================================================*
 *	exitpoint
 *=======================================================*
+
+	popraster

@@ -21,6 +21,8 @@
 	.endif
 	.endif
 	
+	pushraster	#$227
+		
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
@@ -612,3 +614,5 @@
 *-------------------------------------------------------*
 .AGT_BLiT_IMSprDrawUnClipped_end:
 *-------------------------------------------------------*
+
+	popraster

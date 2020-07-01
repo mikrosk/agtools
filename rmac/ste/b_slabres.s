@@ -28,6 +28,8 @@
 	.endif
 	.endif
 
+	pushraster	#$367
+
 	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
 	
 	; access sprite frame table
@@ -381,6 +383,8 @@
 ;	move.l		.sp_framebuf(sp),a1
 ;	bra		.slb_component
 ;.sk:
+
+	popraster
 
 *=======================================================*
 *	exitpoint

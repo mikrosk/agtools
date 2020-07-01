@@ -7,6 +7,8 @@
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
 
+	pushraster	#$305
+
 ;	use provided rectangle dimensions, ignore sprite frame info
 	
 	; sprite clipping window
@@ -361,3 +363,5 @@
 *-------------------------------------------------------*
 .AGT_BLiT_RFillDrawUnClipped_end:
 *-------------------------------------------------------*
+
+	popraster

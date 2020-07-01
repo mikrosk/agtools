@@ -27,32 +27,7 @@ _BLiT_EntityDrawLayers_68k:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-*	locals: used by sprite routines
-*-------------------------------------------------------*
-.sp_skew:		ds.w	1			; don't move this one
-.sp_maskwidth:		ds.w	1
-.sp_yoff:		ds.w	1
-.sp_yc:			ds.w	1
-.sp_yrem:		ds.w	1
-.sp_save_usp:		ds.l	1
-.sp_linetable:		ds.l	1
-.sp_nextcmp:		ds.l	1
-.sp_x:			ds.w	1
-.sp_y:			ds.w	1
-*-------------------------------------------------------*
-*	locals: shadow function arguments
-*-------------------------------------------------------*
-.sp_framebuf:		ds.l	1
-.sp_snapx:		ds.w	1
-.sp_snapy:		ds.w	1
-*-------------------------------------------------------*
-*	locals: used by algorithm
-*-------------------------------------------------------*
-.sp_asset:		ds.l	1
-.sp_pxymax_:		ds.l	1
-.sp_savea0:		ds.l	1
-.sp_layers:		ds.l	1
-.sp_drawtype:		ds.w	1
+	emitframe_draw_vars
 *-------------------------------------------------------*
 .sp_frame_:
 *-------------------------------------------------------*
@@ -574,8 +549,13 @@ preserve_usp		set	0
 	move.l		a0,g_dbg_curr_entity
 	.endif
 
-;	move.l		ent_fndraw(a0),a6		; todo
-;	jsr		(a6)
+	move.l		a0,.sp_savea0(sp)
+
+	move.l		ent_fncustomdraw(a0),a6
+	jsr		(a6)
+
+	move.l		.sp_savea0(sp),a0
+	
 *-------------------------------------------------------*
 .STE_EntityDrawLayers_CUSTOM_done:
 *-------------------------------------------------------*
@@ -714,6 +694,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	rts
 	
+
 	
 *-------------------------------------------------------*
 	data

@@ -26,7 +26,8 @@ use_debugconsole	=	0
 
 *-------------------------------------------------------*
 
-
+BGRAST			=	$64
+BGRSAVE			=	$34
 VBServiceVec		=	$a0
 DMAFlag			=	$a4
 g_dbg_curr_entity	=	$a8
@@ -39,4 +40,42 @@ g_dbg_curr_entity	=	$a8
 	andi		#~2,ccr
 	bvc.s		*
 	.endm
+
+.macro	pushraster	bgc
+	.if		(use_rasters)
+	move.w		BGRAST.w,BGRSAVE.w
+	move.w		\bgc,$ffff8240.w
+	move.w		\bgc,BGRAST.w
+	.endif
+	.endm
+
+.macro	setraster	bgc
+	.if		(use_rasters)
+	move.w		\bgc,BGRAST.w
+	move.w		\bgc,$ffff8240.w
+	.endif
+	.endm
+
+.macro	addraster	bgc
+	.if		(use_rasters)
+	add.w		\bgc,BGRAST.w
+	move.w		BGRAST.w,$ffff8240.w
+	.endif
+	.endm
+
+
+.macro	altraster	bgc
+	.if		(use_rasters)
+	eor.w		\bgc,BGRAST.w
+	move.w		BGRAST.w,$ffff8240.w
+	.endif
+	.endm
+	
+.macro	popraster
+	.if		(use_rasters)
+	move.w		BGRSAVE.w,BGRAST.w
+	move.w		BGRSAVE.w,$ffff8240.w
+	.endif
+	.endm
+
 	

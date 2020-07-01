@@ -22,6 +22,8 @@
 	.endif
 	.endif
 
+	pushraster	#$062
+
 
 	; todo: opt
 	
@@ -43,10 +45,7 @@
 
 ;	move.w		sps_flags(a0),.sp_flags(sp)
 
-	.if		(use_rasters)
-;	not.w		$ffff8240.w
-	add.w		#23,$ffff8240.w
-	.endif
+
 *-------------------------------------------------------*
 
 	add.w		d0,d0				; todo: game layer can prescale this
@@ -515,6 +514,8 @@
 
 	move.w		.emxyc_cmp_h,d4
 	move.w		.sp_maskwidth(sp),d6
+
+	altraster	#$021
 	
 	bra		.BLiT_EMXCSpr_YC_unclipped_blit
 
@@ -598,11 +599,6 @@
 *-------------------------------------------------------*
 
 ;	move.b		#15,BLiTLOP.w
-
-	.if		(use_rasters)
-	move.w		$ffff8240.w,$ffff8242.w
-	move.w		#-1,$ffff8240.w
-	.endif
 
 	; skew
 	moveq		#16-1,d6
@@ -706,10 +702,6 @@
 	move.l		a1,.emxc_frame_buffer
 
 .resume_emx2:
-
-	.if		(use_rasters)
-	move.w		$ffff8242.w,$ffff8240.w
-	.endif
 	
 	jsr		(a6)
 		
@@ -756,6 +748,8 @@
 	
 	; next component
 
+	altraster	#$021
+
 	bra.s		.resume_emx2
 	
 ;.emxc_pos:
@@ -777,3 +771,6 @@
 *-------------------------------------------------------*
 .BLiT_EMXCSpr_4BPL_end:
 *-------------------------------------------------------*
+
+	popraster
+

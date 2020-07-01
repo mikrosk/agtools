@@ -25,29 +25,7 @@ _BLiT_EntityDeferVisibleXM_68k:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-*	locals: used by sprite routines
-*-------------------------------------------------------*
-.sp_skew:		ds.w	1			; don't move this one
-.sp_maskwidth:		ds.w	1
-.sp_yoff:		ds.w	1
-.sp_yc:			ds.w	1
-.sp_yrem:		ds.w	1
-.sp_save_usp:		ds.l	1
-.sp_linetable:		ds.l	1
-*-------------------------------------------------------*
-*	locals: shadow function arguments
-*-------------------------------------------------------*
-.sp_framebuf:		ds.l	1
-.sp_snapx:		ds.w	1
-.sp_snapy:		ds.w	1
-*-------------------------------------------------------*
-*	locals: used by algorithm
-*-------------------------------------------------------*
-.sp_asset:		ds.l	1
-.sp_pxymax:		ds.l	1
-.sp_savea0:		ds.l	1
-.sp_layers:		ds.l	1
-.sp_drawtype:		ds.w	1
+	emitframe_draw_vars
 *-------------------------------------------------------*
 .sp_frame_:
 *-------------------------------------------------------*
@@ -83,8 +61,9 @@ _BLiT_EntityDeferVisibleXM_68k:
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
 ;	add.w		#320+(32*2),d0			; todo: hardcoded visibility margin - make configurable
-	add.w		dctx_clipwindow_x2(a4),d0
-	sub.w		dctx_clipwindow_x1(a4),d0
+	add.w		dctx_clipwindow_x2p(a4),d0
+	sub.w		dctx_clipwindow_x1p(a4),d0
+	add.w		dctx_guardx(a4),d0
 	move.w		d0,.sp_pxymax(sp)
 *-------------------------------------------------------*
 *	initial conditions

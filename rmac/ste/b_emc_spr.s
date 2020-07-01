@@ -21,6 +21,7 @@
 	.endif
 	.endif
 
+	pushraster	#$062
 
 	; todo: opt
 
@@ -464,7 +465,9 @@
 
 	move.w		.emsc_cmp_h,d4
 	move.w		.sp_maskwidth(sp),d6
-	
+
+	altraster	#$021
+		
 	bra		.BLiT_EMCSpr_Clip_4BPL_unclipped_blit
 
 .emsc_cmp_src:
@@ -483,3 +486,6 @@
 .BLiT_EMCSpr_4BPL_end_all:
 
 	move.w		#2,BLiTSYI.w	; reset for default 32w EMS/EMX
+	
+	popraster
+	

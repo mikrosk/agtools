@@ -27,31 +27,7 @@ _BLiT_EntityDrawVisibleYM_68k:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-*	locals: used by sprite routines
-*-------------------------------------------------------*
-.sp_skew:		ds.w	1			; don't move this one
-.sp_maskwidth:		ds.w	1
-.sp_yoff:		ds.w	1
-.sp_yc:			ds.w	1
-.sp_yrem:		ds.w	1
-.sp_save_usp:		ds.l	1
-.sp_linetable:		ds.l	1
-.sp_nextcmp:		ds.l	1
-.sp_x:			ds.w	1
-.sp_y:			ds.w	1
-*-------------------------------------------------------*
-*	locals: shadow function arguments
-*-------------------------------------------------------*
-.sp_framebuf:		ds.l	1
-.sp_snapx:		ds.w	1
-.sp_snapy:		ds.w	1
-*-------------------------------------------------------*
-*	locals: used by algorithm
-*-------------------------------------------------------*
-.sp_asset:		ds.l	1
-.sp_pymax:		ds.l	1
-.sp_savea0:		ds.l	1
-.sp_drawtype:		ds.w	1
+	emitframe_draw_vars
 *-------------------------------------------------------*
 .sp_frame_:		
 *-------------------------------------------------------*
@@ -88,8 +64,7 @@ _BLiT_EntityDrawVisibleYM_68k:
 	add.w		dctx_clipwindow_y2(a4),d0
 	sub.w		dctx_clipwindow_y1(a4),d0
 	add.w		dctx_guardy(a4),d0
-	add.w		dctx_guardy(a4),d0
-	move.w		d0,.sp_pymax(sp)
+	move.w		d0,.sp_pxymax_(sp)
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*
@@ -168,7 +143,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.STE_EntityDrawVisibleYM_EMXSPRQ_next
 	bra		.STE_EntityDrawVisibleYM_complete
 *-------------------------------------------------------*
@@ -240,7 +215,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.STE_EntityDrawVisibleYM_EMXSPR_next
 	bra		.STE_EntityDrawVisibleYM_complete
 *-------------------------------------------------------*
@@ -312,7 +287,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.STE_EntityDrawVisibleYM_EMSPRQ_next
 	bra		.STE_EntityDrawVisibleYM_complete
 *-------------------------------------------------------*
@@ -384,7 +359,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.STE_EntityDrawVisibleYM_EMSPR_next
 	bra		.STE_EntityDrawVisibleYM_complete
 *-------------------------------------------------------*
@@ -456,7 +431,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.STE_EntityDrawVisibleYM_SPRITE_next
 	bra		.STE_EntityDrawVisibleYM_complete
 *-------------------------------------------------------*
@@ -554,7 +529,7 @@ preserve_usp		set	0
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.STE_EntityDrawVisibleYM_SLAB_next
 	bra		.STE_EntityDrawVisibleYM_complete
 *-------------------------------------------------------*
@@ -583,14 +558,19 @@ preserve_usp		set	0
 	move.l		a0,g_dbg_curr_entity
 	.endif
 
-;	move.l		ent_fndraw(a0),a6		; todo
-;	jsr		(a6)
+	move.l		a0,.sp_savea0(sp)
+
+	move.l		ent_fncustomdraw(a0),a6
+	jsr		(a6)
+
+	move.l		.sp_savea0(sp),a0
+	
 *-------------------------------------------------------*
 .STE_EntityDrawVisibleYM_CUSTOM_done:
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.STE_EntityDrawVisibleYM_CUSTOM_next
 	bra		.STE_EntityDrawVisibleYM_complete
 *-------------------------------------------------------*
@@ -682,7 +662,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.STE_EntityDrawVisibleYM_RFILL_next
 	bra		.STE_EntityDrawVisibleYM_complete
 *-------------------------------------------------------*
@@ -712,7 +692,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt.s		.STE_EntityDrawVisibleYM_NONE_next
 	bra		.STE_EntityDrawVisibleYM_complete
 
@@ -767,6 +747,9 @@ _BLiT_EntityDebugVisibleYM_68k:
 .sp_yrem:		ds.w	1
 .sp_save_usp:		ds.l	1
 .sp_linetable:		ds.l	1
+.sp_nextcmp:		ds.l	1
+.sp_x:			ds.w	1
+.sp_y:			ds.w	1
 *-------------------------------------------------------*
 *	locals: shadow function arguments
 *-------------------------------------------------------*
@@ -777,9 +760,10 @@ _BLiT_EntityDebugVisibleYM_68k:
 *	locals: used by algorithm
 *-------------------------------------------------------*
 .sp_asset:		ds.l	1
-.sp_pymax:		ds.l	1
+.sp_pxymax_:		ds.l	1
 .sp_savea0:		ds.l	1
-.sp_drawtype:		ds.w	1
+.sp_layers:		ds.l	1
+.sp_drawtype:		ds.l	1
 *-------------------------------------------------------*
 .sp_frame_:		
 *-------------------------------------------------------*
@@ -810,7 +794,6 @@ _BLiT_EntityDebugVisibleYM_68k:
 ;	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
 	add.w		dctx_clipwindow_y2(a4),d0
 	sub.w		dctx_clipwindow_y1(a4),d0
-	add.w		dctx_guardy(a4),d0
 	add.w		dctx_guardy(a4),d0
 	move.w		d0,.sp_pymax(sp)
 *-------------------------------------------------------*

@@ -60,6 +60,8 @@ within_entitydraw	set	1
 	.globl		_AGT_BLiT_IMSprInit
 	.globl		_AGT_SlabDirtyRegion
 	.globl		_AGT_BLiT_SlabInit
+	
+	.globl		_FNEntityDraw_EMXSlabRestore
 
 ;	safety checks
 
@@ -86,6 +88,7 @@ within_entitydraw	set	1
 	.if		^^defined AGT_CONFIG_DEBUGDRAW
 	.globl		_g_debugdraw
 	.endif
+
 
 *-------------------------------------------------------*
 *	Direct 68k version to support VISTRIG links
@@ -383,6 +386,101 @@ _EntitySpatial_68k:
 	include		"ste\\de_layers.s"
 	.endif
 	
+	
+
+*-------------------------------------------------------*
+_FNEntityDraw_EMXSlabRestore:
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+	emitframe_draw_vars			
+*-------------------------------------------------------*
+.sp_frame_:
+*-------------------------------------------------------*
+			.text
+*-------------------------------------------------------*
+	move.l		(sp)+,.tailcall+2
+*-------------------------------------------------------*
+	
+	; could be moved to custom init, but we don't have one yet
+	
+	jsr		_AGT_BLiT_EMSprInit
+
+	; access coordinates
+
+;	move.w		ent_frx(a0),d1			; we already fetched this in preamble
+	move.w		ent_fry(a0),d2
+
+	; compensate for loopback buffer
+
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; access sprite frame
+
+	move.w		ent_frame(a0),d0
+
+	; decrement 'hitflash' counter on this object
+
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
+
+	; asset/framebuffer
+
+	move.l		ent_passet(a0),a0
+	
+	move.l		.sp_framebuf(sp),a1
+
+	; include raw drawing function here (configure it first)
+
+	.if		(1)
+	
+enable_restore	set	0				; enable sprite-restore
+enable_clipping	set	1				; enable full xy clipping
+
+	move.l		lpair_first(a0),a0
+
+	include		"ste/b_emxc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+
+	.endif
+		
+	.if		(1)
+	
+	; restore step - only if restore asset is present
+
+	move.l		.sp_savea0(sp),a0
+
+	move.l		ent_passet(a0),a1
+	move.l		lpair_second(a1),d3
+	beq		.no_restore
+	
+	move.w		ent_frx(a0),d1
+	move.w		ent_fry(a0),d2
+	sub.w		.sp_snapy(sp),d2
+	move.w		ent_frame(a0),d0
+
+	move.l		.sp_framebuf(sp),a1
+
+	; include raw restore function here (configure it first)
+
+enable_slabrestore	set	1
+preserve_usp		set	0
+
+	move.l		d3,a0
+
+	include		"ste/b_slabres.s"
+
+.no_restore:
+
+	.endif
+
+*-------------------------------------------------------*
+.tailcall:
+*-------------------------------------------------------*
+	jmp		$12345678
+*-------------------------------------------------------*
+
 *-------------------------------------------------------*
 			.text
 *-------------------------------------------------------*

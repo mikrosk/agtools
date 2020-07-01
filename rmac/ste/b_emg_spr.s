@@ -23,6 +23,7 @@ enable_x_clipping	set	0
 	.endif
 	.endif
 
+	pushraster	#$062
 
 	; todo: opt
 
@@ -798,3 +799,4 @@ enable_x_clipping	set	0
 .BLiT_EMSpr_4BPL_end:
 *-------------------------------------------------------*
 
+	popraster

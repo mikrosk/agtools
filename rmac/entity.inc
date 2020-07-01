@@ -25,6 +25,7 @@ ent_pprev_y:		ds.l	1
 ent_pparent:		ds.l	1
 ent_ptrack:		ds.l	1
 ent_layer_:		ds.l	1
+ent_fncustomdraw:	ds.l	1
 *-------------------------------------------------------*
 ent_id:			ds.w	1
 ent_type:		ds.w	1

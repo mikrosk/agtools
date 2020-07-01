@@ -23,6 +23,9 @@
 .slb_frameok:
 	.endif
 	
+	pushraster	#$404
+
+	
 	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
 
 	; 'hitflash' for strobing shape to single colour on damage etc.
@@ -408,6 +411,8 @@
 
 .slb_end:
 
+	popraster
+	
 *=======================================================*
 *	exitpoint
 *=======================================================*

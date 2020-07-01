@@ -46,10 +46,7 @@ enable_x_clipping	set	0
 
 ;	move.w		sps_flags(a0),.sp_flags(sp)
 
-	.if		(use_rasters)
-;	not.w		$ffff8240.w
-	add.w		#23,$ffff8240.w
-	.endif
+	pushraster	#$062
 
 *-------------------------------------------------------*
 	.if		(enable_clipping)
@@ -495,10 +492,6 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 ;			.text
 *-------------------------------------------------------*
-	.if		(use_rasters)
-	move.w		$ffff8240.w,$ffff8242.w
-	move.w		#-1,$ffff8240.w
-	.endif
 	
 	move.l		a0,BLiTSRC.w
 
@@ -561,10 +554,6 @@ enable_x_clipping	set	0
 	; reset constant SYI for sake of unclipped faspath
 	move.w		#2,BLiTSYI.w
 	
-	.if		(use_rasters)
-	move.w		$ffff8242.w,$ffff8240.w
-	.endif
-
 	bra		.BLiT_EMXSpr_4BPL_end
 	
 *-------------------------------------------------------*
@@ -598,9 +587,6 @@ enable_x_clipping	set	0
 	; reset constant SYI for sake of unclipped faspath
 	move.w		#2,BLiTSYI.w
 
-	.if		(use_rasters)
-	move.w		$ffff8242.w,$ffff8240.w
-	.endif
 
 	bra		.BLiT_EMXSpr_4BPL_end
 
@@ -940,10 +926,7 @@ enable_x_clipping	set	0
 .BLiT_EMXSpr_NoClip_4BPL_go:
 *-------------------------------------------------------*
 
-	.if		(use_rasters)
-	move.w		$ffff8240.w,$ffff8242.w
-	move.w		#-1,$ffff8240.w
-	.endif
+	setraster	#$262
 
 	; skew
 	moveq		#16-1,d6
@@ -1020,10 +1003,6 @@ enable_x_clipping	set	0
 	move.l		a5,usp	
 
 	.endif
-
-	.if		(use_rasters)
-	move.w		$ffff8242.w,$ffff8240.w
-	.endif
 	
 ;	move.w #$00a0,(a5)+	; dstskip
 ;	move.w #$0006,(a5)+	; dstww2
@@ -1040,4 +1019,4 @@ enable_x_clipping	set	0
 .BLiT_EMXSpr_4BPL_end:
 *-------------------------------------------------------*
 
-
+	popraster
