@@ -1,9 +1,17 @@
 
-dst_linewid	set	184
+	.if		^^defined AGT_CONFIG_SYS_GUARDX
+	.else
+AGT_CONFIG_SYS_GUARDX	=	32
+	.endif
+
+dst_linewid	set	(((20+1)+((AGT_CONFIG_SYS_GUARDX+15)>>4))*8)
 
 *	turn off 0(An) outer displacements for sized code indexing
 
-	.opt		"~o3"
+;	.opt		"~o3"
+
+;	todo: ~o3 doesn't seem to work as expected in RMAC v2.x so we'll turn all opts off for now
+	.opt		"~oall"
 
 	.globl		_SYS_MapModInit
 

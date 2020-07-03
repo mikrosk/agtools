@@ -24,6 +24,10 @@ use_debugconsole	=	1
 use_debugconsole	=	0
 			.endif
 
+			.if	^^defined TIMING_RASTERS
+use_rasters		set	1
+			.endif
+			
 *-------------------------------------------------------*
 
 BGRAST			=	$64

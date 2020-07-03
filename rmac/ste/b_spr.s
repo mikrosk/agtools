@@ -280,7 +280,8 @@
 	; dst pixelword xoffset
 	moveq		#-16,d0
 	and.w		d1,d0
-	lsr.w		#1,d0
+	;lsr.w		#1,d0
+	asr.w		#1,d0		; IMSpr doesn't use guardband but accept -ve x for consistency with others
 	
 	.if		(enable_restore)
 	.if		(use_sprite_pagerestore)	

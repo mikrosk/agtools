@@ -349,7 +349,7 @@ enable_x_clipping	set	0
 	; dst pixelword xoffset
 	moveq		#-16,d0
 	and.w		d1,d0
-	lsr.w		#1,d0
+	lsr.w		#1,d0	; real x clip doesn't allow -ve x
 	
 	.if		(enable_restore)
 	.if		(use_sprite_pagerestore)	
@@ -625,7 +625,8 @@ enable_x_clipping	set	0
 	; dst pixelword xoffset
 	moveq		#-16,d0
 	and.w		d1,d0
-	lsr.w		#1,d0
+;	lsr.w		#1,d0
+	asr.w		#1,d0		; guardband allows -ve x!
 	
 	.if		(enable_restore)
 	.if		(use_sprite_pagerestore)	
@@ -957,7 +958,8 @@ enable_x_clipping	set	0
 	; dst pixelword xoffset
 	moveq		#-16,d0
 	and.w		d1,d0
-	lsr.w		#1,d0
+;	lsr.w		#1,d0
+	asr.w		#1,d0
 	add.w		d0,a1
 
 	.if		(enable_restore&use_sprite_pagerestore)

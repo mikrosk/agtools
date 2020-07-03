@@ -67,7 +67,7 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	move.w		#2,BLiTSXI.w
 	move.w		#2,BLiTDXI.w
 	move.w		#2,BLiTSYI.w
-	move.w		#(184-8)+2,BLiTDYI.w	
+	move.w		#(dst_linewid-8)+2,BLiTDYI.w	
 	move.l		#-1,BLiTEM1.w
 	move.w		#-1,BLiTEM3.w
 	move.w		#4,BLiTXC.w

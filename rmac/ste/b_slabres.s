@@ -39,6 +39,7 @@
 	move.l		sls_frameindex(a0,d0.w),a0	; access sprite frame data
 			
 	move.w		d1,.sp_x(sp)
+	bmi		.slr_end			; slabs can't cope with -ve x even in guardband
 	move.w		d2,.sp_y(sp)
 
 	bra.s		.slr_begin
@@ -384,6 +385,9 @@
 ;	bra		.slb_component
 ;.sk:
 
+*-------------------------------------------------------*
+.slr_end:
+*-------------------------------------------------------*
 	popraster
 
 *=======================================================*
