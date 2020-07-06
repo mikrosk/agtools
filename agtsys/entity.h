@@ -465,7 +465,7 @@ static agt_inline void EntityUnLink2D(entptr_t _pent)
 	pcurr->pnext_x = 0;
 #endif
 
-#endif
+#endif //ENABLE_SPATIAL_X
 
 #if defined(ENABLE_SPATIAL_Y)
 
@@ -482,12 +482,14 @@ static agt_inline void EntityUnLink2D(entptr_t _pent)
 
 	pnexty->pprev_y = pprevy;
 	pprevy->pnext_y = pnexty;
-#endif
 
 #if defined(AGT_CONFIG_SAFETY_CHECKS)
 	pcurr->pprev_y = 0;
 	pcurr->pnext_y = 0;
 #endif
+
+#endif // ENABLE_SPATIAL_Y
+
 }
 
 static inline void EntityUnLink(entity_t * __restrict _pent)

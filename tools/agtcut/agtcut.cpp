@@ -45,6 +45,8 @@
 
 #include "../../static/tiny6x6fnt.c"
 
+static const char* const c_rmac_filename = "rmac.exe";
+
 //static const int USE_LINEDUPE_OPTIMIZATION = 1;
 static const int USE_DELTA_OPTIMIZATION = 1;
 
@@ -65,7 +67,7 @@ static const int USE_INITIAL_EDGE_SORT = 1;
 //static const int USE_PERSHIFT_LINEORDER_OPTIMIZATION = 0;
 
 //static const int DARWIN_DEPTH = 20;
-static const int DEFAULT_EMX_OPTLEVEL = 18;
+static const int DEFAULT_EMX_OPTLEVEL = 16;
 
 #define USE_NOP_BINARY_VALIDATION (0)
 
@@ -128,7 +130,7 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.441";
+static const char* const g_version_string = "v0.442";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0200;
@@ -4306,6 +4308,39 @@ static int g_sprite_height = 0;
 static int g_spritesource_w = 0;
 static int g_spritesource_h = 0;
 
+
+class om_descriptor
+{
+public:
+
+	uword_t *tdata;
+	uword_t *odata;
+	s16 y1;
+	s16 y2;
+
+	void release()
+	{
+		delete[] tdata; tdata = nullptr;
+		delete[] odata; odata = nullptr;
+	}
+};
+
+class om_xshift
+{
+public:
+
+//	om_xshift() = default;
+//	om_xshift(const om_xshift& _other) = default;
+
+	std::vector<om_descriptor> yshifts;
+
+	void release()
+	{
+		for (auto & d : yshifts)
+			d.release();
+	}
+};
+
 class preshift_t
 {
 public:
@@ -4321,7 +4356,19 @@ public:
 	ubyte_t *p68kbin;
 	size_t size68kbin;
 
-	preshift_t(int _shift, int _planes, int _height, int _wordwidth, int _wordoffset, int _wordsremaining, uword_t *_data)
+	om_xshift occlusion_maps_;
+
+	preshift_t
+	(
+		int _shift, 
+		int _planes, 
+		int _height, 
+		int _wordwidth, 
+		int _wordoffset, 
+		int _wordsremaining, 
+		uword_t *_data, 
+		const om_xshift &_occlusion_maps
+	)
 		: shift_(_shift),
 		  planes_(_planes),
 		  height_(_height),
@@ -4329,6 +4376,7 @@ public:
 		  wordoffset_(_wordoffset),
 		  wordsremaining_(_wordsremaining),
 		  data_(_data),
+		  occlusion_maps_(_occlusion_maps),
 		  p68kbin(0),
 		  size68kbin(0)
 	{
@@ -4342,11 +4390,56 @@ public:
 
 	void release()
 	{
+		occlusion_maps_.release();
+
 		delete[] data_; data_ = 0;
 	}
 };
 
 typedef std::list<preshift_t> preshiftlist_t;
+
+static void print_dataword(uword_t _data)
+{
+	uword_t v = _data;
+	for (int i = 0; i < 16; i++)
+	{
+		if (v & 0x8000)
+			putchar('1');
+		else
+			putchar('0');
+
+		v <<= 1;
+	}
+}
+
+static void print_datalong(ulong_t _data)
+{
+	ulong_t v = _data;
+	for (int i = 0; i < 32; i++)
+	{
+		if (v & 0x80000000)
+			putchar('1');
+		else
+			putchar('0');
+
+		v <<= 1;
+	}
+}
+
+static void print_data(u64 _data, int _count)
+{
+	u64 v = _data;
+	u64 mask = (u64)1 << (_count - 1);
+	for (int i = 0; i < _count; i++)
+	{
+		if (v & mask)
+			putchar('1');
+		else
+			putchar('0');
+
+		v <<= 1;
+	}
+}
 
 class spriteframe_t
 {
@@ -4378,17 +4471,120 @@ public:
 		// do not delete here - no refcounting on allocations happening within STL container
 	}
 
+	static const int c_max_occlusion_ys = 15;
+
 	void generate_mask_preshifts(int _range, int _step, int _max_dst_wordwidth)
 	{
 		int src_wordwidth = ((w_ + 15) & -16) >> 4;
+
+		static const int c_num_om_yshifts = 4;
 
 		int preshift_index = 0;
 		for (int s = 0; s < _range; s += _step, preshift_index++)
 		{
 //			printf("\n");
 
+			om_xshift occlusion_maps;
+			occlusion_maps.yshifts.resize(c_num_om_yshifts);
+
 			int full_dst_wordwidth = (((w_ + s) + 15) & -16) >> 4;
 			int full_src_wordwidth = ((w_ + 15) & -16) >> 4;
+
+
+			// occlusion maps
+			if (0)
+			{
+				// process multiple y 'preshifts', to regain some accuracy for tile coverage at 
+				// fine y positions. otherwise the occlusion masks are way too conservative on y
+				// and we don't gain much occlusion.
+				for (int ysi = 0, yshift = 0; yshift < 16; ysi++, yshift += (16/c_num_om_yshifts))
+				{
+					// occlusion mask for this yshift
+					om_descriptor &om_desc = occlusion_maps.yshifts[ysi];
+
+					// allocate occlusion maps for each distinct x:y preshift pattern
+					uword_t *occlusion_t = new uword_t[c_max_occlusion_ys];
+					memset(occlusion_t, 0x00, sizeof(uword_t) * c_max_occlusion_ys);
+					uword_t *occlusion_o = new uword_t[c_max_occlusion_ys];
+					memset(occlusion_o, 0xFF, sizeof(uword_t) * c_max_occlusion_ys);
+
+					om_desc.tdata = occlusion_t;
+					om_desc.odata = occlusion_o;
+
+					// process for all possible y offsets into this y-preshift, since we are not
+					// generating preshifts for all possible fine-y positions (more ram).
+					for (int yoff = 0; yoff < (16/c_num_om_yshifts); yoff++)
+					{
+						// process every line of sprite mask
+						for (int y = 0; y < 240 + 16; y++)
+						{
+							int yy = y - yoff;
+
+							// don't read mask pixels outwith source
+							//if (yy < 0 || yy >= h_)
+							//	continue;
+
+							int oc_linepos = (y >> 4);
+
+							for (int x = 0; x < 240 + 16; x++)
+							{
+								int xx = x - s; // incorporate x-preshift
+
+								// don't read mask pixels outwith source
+								int bit = 1;
+								if ((xx >= 0 && xx < w_) && (yy >= 0 && yy < h_))
+								{
+									uword_t *pline = &mask_[(yy * full_src_wordwidth)];
+									uword_t word = pline[xx >> 4];
+									bit = (word & (0x8000 >> (xx & 15)));
+								}
+
+
+								int oc_bitpos = (x >> 4);
+
+								if (0 == bit)
+									// set bit for any live pixel in this source grid tile
+									occlusion_t[oc_linepos] |= (0x8000 >> oc_bitpos);
+								else
+									// clear bit for any dead pixel in this source grid tile
+									occlusion_o[oc_linepos] &= ~(0x8000 >> oc_bitpos);
+
+							}
+						}
+					}
+
+/*					printf("occlusion_t:\n");
+					for (int d = 0; d < c_max_occlusion_ys; d++)
+					{
+						print_dataword(occlusion_t[d]); printf("\n");
+					}
+					printf("occlusion_o:\n");
+					for (int d = 0; d < c_max_occlusion_ys; d++)
+					{
+						print_dataword(occlusion_o[d]); printf("\n");
+					}
+*/
+					// find first/last active line for each
+					int miny = -1;
+					int maxy = 0;
+					for (int n = 0; n < 16; n++)
+					{
+						if ((miny == 0) && (occlusion_t[n] != 0))
+							miny = n;
+						if ((maxy < n) && (occlusion_t[n] != 0))
+							maxy = n;
+						if ((miny == 0) && (occlusion_o[n] != 0))
+							miny = n;
+						if ((maxy < n) && (occlusion_o[n] != 0))
+							maxy = n;
+					}
+
+					om_desc.y2 = maxy + 1;
+					om_desc.y1 = xmax(miny, 0);
+
+//					printf("%d->%d\n", om_desc.y1, om_desc.y2);
+				}
+			}
 
 			//bool NFSR = (full_dst_wordwidth != full_src_wordwidth);
 
@@ -4454,7 +4650,8 @@ public:
 					(
 						s, 1, h_, 
 						dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
-						preshift
+						preshift,
+						occlusion_maps
 					)
 				);
 
@@ -4762,7 +4959,8 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 
 	if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PRESHIFT))
 	{
-		std::cout << "preshifting mask..." << std::endl;
+		if (g_allargs.verbose)
+			std::cout << "preshifting mask..." << std::endl;
 		g_spriteframes.back().generate_mask_preshifts(16, 1, max_dst_wordwidth);
 	}
 }
@@ -4883,7 +5081,7 @@ bool emit_sprite_sequence(bool _storepixels)
 		{
 			// record file-offset to sprite in sprite index, for patching later
 			sprite_index.push_back(tracked_filesize);
-
+/*
 			int components = 1;
 			if (g_allargs.cutmode == Cutmode_EMSPR || 
 				g_allargs.cutmode == Cutmode_EMXSPR)
@@ -4895,7 +5093,7 @@ bool emit_sprite_sequence(bool _storepixels)
 				if (it->w_ > 128)
 					components = 4;
 			}
-
+*/
 			// 2: sprite frame pixel width
 			wv = endianswap16(it->w_);
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
@@ -4936,8 +5134,15 @@ bool emit_sprite_sequence(bool _storepixels)
 //					std::map<int, std::vector<int>> psmaskopt_component_nextlinks;
 					std::vector<std::list<int>> psmask_component_nextlinks;
 					std::vector<std::list<int>> psmaskopt_component_nextlinks;
-
-
+/*
+					// write N word offsets for occlusion x-preshifts
+					int occlusion_preshift_index_fpos = tracked_filesize;
+					for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
+					{
+						wv = 0;
+						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+					}
+*/
 					// write single offset for plain colourdata (no preshifts yet)
 					int colr_preshift_index_fpos = tracked_filesize;
 					lv = 0;
@@ -4951,11 +5156,10 @@ bool emit_sprite_sequence(bool _storepixels)
 						fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 					}
 
-
 					// write N offsets for plain mask preshifts
 					int mask_preshift_index_fpos = tracked_filesize;
 					// write preshift set for number of required EMS sections (1 for 32-wide, 2 for 80-wide, 3 for 128-wide) 
-					std::cout << "patch mask index..." << std::endl << std::flush;
+					//std::cout << "patch mask index..." << std::endl << std::flush;
 					for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
 					{
 						lv = 0;
@@ -4965,7 +5169,7 @@ bool emit_sprite_sequence(bool _storepixels)
 					int maskopt_preshift_index_fpos = tracked_filesize;
 					if (g_allargs.cutmode == Cutmode_EMXSPR)
 					{
-						std::cout << "output maskopt index..." << std::endl << std::flush;
+						//std::cout << "output maskopt index..." << std::endl << std::flush;
 						// write N offsets for optimized mask preshifts
 						for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
 						{
@@ -4980,7 +5184,7 @@ bool emit_sprite_sequence(bool _storepixels)
 						// todo: for compound EMX, can assume [noclipx]
 						!(g_allargs.noclipx && g_allargs.noclipy))
 					{
-						std::cout << "output colour..." << std::endl << std::flush;
+						//std::cout << "output colour..." << std::endl << std::flush;
 						// track colour preshifts
 						// todo: assumes only one for now
 						pscolr_index.push_back(tracked_filesize);
@@ -5011,7 +5215,7 @@ bool emit_sprite_sequence(bool _storepixels)
 					// optimized colour
 					if (g_allargs.cutmode == Cutmode_EMXSPR)
 					{
-						std::cout << "output colouropt..." << std::endl << std::flush;
+						//std::cout << "output colouropt..." << std::endl << std::flush;
 						// track colour preshifts
 						// todo: assumes only one for now
 						pscolropt_index.push_back(tracked_filesize);
@@ -5055,7 +5259,7 @@ bool emit_sprite_sequence(bool _storepixels)
 						// todo: for compound EMX, can ignore [noclipx]
 						!(g_allargs.noclipx && g_allargs.noclipy))
 					{
-						std::cout << "output mask..." << std::endl << std::flush;
+						//std::cout << "output mask..." << std::endl << std::flush;
 
 						// track mask preshifts
 						psmask_component_nextlinks.resize(it->psmask_frames_.size());
@@ -5165,7 +5369,7 @@ bool emit_sprite_sequence(bool _storepixels)
 					// track mask preshifts
 					if (g_allargs.cutmode == Cutmode_EMXSPR)
 					{
-						std::cout << "output maskopt..." << std::endl << std::flush;
+						//std::cout << "output maskopt..." << std::endl << std::flush;
 
 						psmaskopt_component_nextlinks.resize(it->psmask_frames_.size());
 						int preshift_index = 0;
@@ -5304,7 +5508,7 @@ bool emit_sprite_sequence(bool _storepixels)
 					// patch maskopt preshift index
 					if (g_allargs.cutmode == Cutmode_EMXSPR)
 					{
-						std::cout << "patch maskopt index..." << std::endl << std::flush;
+						//std::cout << "patch maskopt index..." << std::endl << std::flush;
 						lv = 0;
 						size_t save = ftell(hout);
 						fseek(hout, maskopt_preshift_index_fpos + 4, 0);
@@ -5322,7 +5526,7 @@ bool emit_sprite_sequence(bool _storepixels)
 							}
 						}
 
-						std::cout << "patch maskopt links..." << std::endl << std::flush;
+						//std::cout << "patch maskopt links..." << std::endl << std::flush;
 						int preshift_index = 0;
 						for (std::vector<std::list<int>>::iterator pit = psmaskopt_component_nextlinks.begin(); pit != psmaskopt_component_nextlinks.end(); pit++, preshift_index++)
 						{
@@ -5345,7 +5549,7 @@ bool emit_sprite_sequence(bool _storepixels)
 							}
 						}
 						fseek(hout, save, 0);
-						std::cout << "patch maskopt done..." << std::endl << std::flush;
+						//std::cout << "patch maskopt done..." << std::endl << std::flush;
 					}
 
 				}

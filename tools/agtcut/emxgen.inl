@@ -629,7 +629,7 @@ public:
 			ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
 			ShExecInfo.hwnd = NULL;
 			ShExecInfo.lpVerb = NULL;
-			ShExecInfo.lpFile = "rmac.exe";
+			ShExecInfo.lpFile = c_rmac_filename;
 			ShExecInfo.lpParameters = tmpargs.c_str(); // "-fa -ltmp68k.lst -o tmp68k.bin tmp68k.s";
 			ShExecInfo.lpDirectory = NULL;
 			ShExecInfo.nShow = SW_HIDE;
@@ -642,7 +642,7 @@ public:
 
 			if (exitcode != 0)
 			{
-				std::cerr << "error assembling intermediate code using RMAC!" << std::endl;
+				std::cerr << "error assembling intermediate code using RMAC!" << std::endl << std::flush;
 				getchar();
 
 				exit(-1);
@@ -663,7 +663,9 @@ public:
 
 				if (r_size68kbin <= 32)
 				{
-					std::cerr << "error sizing binary code!" << std::endl;
+					fclose(h);
+
+					std::cerr << "error sizing binary code!" << std::endl << std::flush;
 					getchar();
 					exit(-1);
 				}
@@ -671,11 +673,11 @@ public:
 				r_p68kbin = new ubyte_t[r_size68kbin];
 				if (r_size68kbin != fread(r_p68kbin, 1, r_size68kbin, h))
 				{
-					std::cerr << "error reading binary code!" << std::endl;
+					fclose(h);
+
+					std::cerr << "error reading binary code!" << std::endl << std::flush;
 					getchar();
 					exit(-1);
-
-					fclose(h);
 				}
 
 #if (USE_NOP_BINARY_VALIDATION)
@@ -702,19 +704,18 @@ public:
 					r_size68kbin--;
 				}
 
-				if (!g_allargs.quickcut)
-					if (g_allargs.verbose)
-						if (oldsize != r_size68kbin)
-							std::cout << "trimmed binary code by " << (oldsize-r_size68kbin) << " bytes" << std::endl;
+				if (g_allargs.verbose)
+					if (oldsize != r_size68kbin)
+						std::cout << "trimmed binary code by " << (oldsize-r_size68kbin) << " bytes" << std::endl;
 
 
 				if (r_size68kbin == 0)
 				{
-					std::cerr << "error validating binary code end!" << std::endl;
+					fclose(h);
+
+					std::cerr << "error validating binary code end!" << std::endl << std::flush;
 					getchar();
 					exit(-1);
-
-					fclose(h);
 				}
 
 				fclose(h);
@@ -725,7 +726,7 @@ public:
             }
 			else
 			{
-				std::cerr << "error opening binary code!" << std::endl;
+				std::cerr << "error opening binary code!" << std::endl << std::flush;
 				getchar();
 				exit(-1);
 			}
@@ -807,49 +808,6 @@ public:
 
 typedef std::map<u64, int> linemap;
 
-
-void print_dataword(uword_t _data)
-{
-	uword_t v = _data;
-	for (int i = 0; i < 16; i++)
-	{
-		if (v & 0x8000)
-			putchar('1');
-		else
-			putchar('0');
-
-		v <<= 1;
-	}
-}
-
-void print_datalong(ulong_t _data)
-{
-	ulong_t v = _data;
-	for (int i = 0; i < 32; i++)
-	{
-		if (v & 0x80000000)
-			putchar('1');
-		else
-			putchar('0');
-
-		v <<= 1;
-	}
-}
-
-void print_data(u64 _data, int _count)
-{
-	u64 v = _data;
-	u64 mask = (u64)1 << (_count - 1);
-	for (int i = 0; i < _count; i++)
-	{
-		if (v & mask)
-			putchar('1');
-		else
-			putchar('0');
-
-		v <<= 1;
-	}
-}
 
 //static void trylineseq(const std::vector<int> &_stack_free, const std::vector<int> &_stack, std::vector<int> &_stack_best)
 //{
@@ -1150,14 +1108,14 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 
 void Context::dump_tags()
 {
-	register_sweep();
+	//register_sweep();
 
 	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end(); it++)
 	{
 		Operation *poper = *it;
 
 		printf("tags:");
-		for (int r = 0; r < registers.size(); r++)
+		for (int r = 0; r < registers.size() && r < 6; r++)
 		{
 			printf(" %s[%02x:%02x](%08x)", 
 				registers[r].name.c_str(), 
@@ -1181,16 +1139,16 @@ void Context::register_rename(std::list<Operation*>::iterator _start, int _regol
 
 	int tagoldH = -1;
 	int tagoldL = -1;
+	if (_regold == poper->dreg) // give dreg priority over sreg for sake of single-register outputs (dreg = 'dreg)
+	{
+		tagoldH = poper->dtagH;
+		tagoldL = poper->dtagL;
+	}
+	else
 	if (_regold == poper->sreg)
 	{
 		tagoldH = poper->stagH;
 		tagoldL = poper->stagL;
-	}
-	else
-	if (_regold == poper->dreg)
-	{
-		tagoldH = poper->dtagH;
-		tagoldL = poper->dtagL;
 	}
 	else
 	if (_regold == poper->areg)
@@ -1209,7 +1167,23 @@ void Context::register_rename(std::list<Operation*>::iterator _start, int _regol
 	{
 		Operation *poper = *it; 
 
-		if (
+		if ((poper->opdst == OpSource_Register) &&
+			((poper->dtagL >= 0 ) && ((poper->dtagL == tagoldL) || (poper->dtagL == tagoldH))) ||
+			((poper->dtagH >= 0 ) && (/*(poper->dtagH == tagoldL) ||*/ (poper->dtagH == tagoldH)))
+		)
+		{
+			if (g_allargs.verbose)
+				printf("replacing D:%s with %s\n", registers[poper->dreg].name.c_str(), registers[_regnew].name.c_str());
+
+			if ((poper->opsrc == OpSource_None) && (poper->sreg == poper->dreg))
+			{
+				poper->sreg = _regnew;
+			}
+
+			poper->dreg = _regnew;
+		}
+
+		if ((poper->opsrc == OpSource_Register) &&
 			((poper->stagL >= 0 ) && ((poper->stagL == tagoldL) || (poper->stagL == tagoldH))) ||
 			((poper->stagH >= 0 ) && (/*(poper->stagH == tagoldL) ||*/ (poper->stagH == tagoldH)))
 		)
@@ -1219,15 +1193,6 @@ void Context::register_rename(std::list<Operation*>::iterator _start, int _regol
 			poper->sreg = _regnew;
 		}
 
-		if (
-			((poper->dtagL >= 0 ) && ((poper->dtagL == tagoldL) || (poper->dtagL == tagoldH))) ||
-			((poper->dtagH >= 0 ) && (/*(poper->dtagH == tagoldL) ||*/ (poper->dtagH == tagoldH)))
-		)
-		{
-			if (g_allargs.verbose)
-				printf("replacing D:%s with %s\n", registers[poper->dreg].name.c_str(), registers[_regnew].name.c_str());
-			poper->dreg = _regnew;
-		}
 
 		if ((poper->atag >= 0) && (poper->atag == tagoldL))
 		{
@@ -1342,6 +1307,7 @@ void Context::register_sweep()
 			((poper->opwr == OpWrite_Modify) || 
 			 (poper->opwr == OpWrite_Combine) ||
 			 (poper->opwr == OpWrite_Replace) || 
+			 (poper->opwr == OpWrite_ReplaceH) || 
 			 (poper->opwr == OpWrite_ReplaceHCombineL))
 		)
 		{
@@ -1718,6 +1684,8 @@ bool Context::transform_pass()
 	reset_sim(true);
 
 	register_sweep();
+
+	//dump_tags();
 
 	if (!g_allargs.quickcut)
 		if (g_allargs.verbose)
@@ -2351,8 +2319,8 @@ void Context::tail_pass()
 					break;
 				if (kind == OpKind_StoreR32)
 					break;
-				if (kind == OpKind_SRCSkip)
-					break;
+				//if (kind == OpKind_SRCSkip)
+				//	break;
 				if (kind == OpKind_BLITSetup)
 					break;
 
@@ -2485,7 +2453,10 @@ static int word_re(uword_t w)
 
 void generate_emx_frame(spriteframe_t &spr, int _frame)
 {
-	printf("frame [%d]:\n", _frame);
+	if (g_allargs.verbose)
+		std::cout << "frame [" << _frame << "]" << std::endl << std::flush;
+//	else
+//		std::cout << "." << std::flush;
 
 	// default line order
 	std::vector<int> best_pattern;
@@ -2506,7 +2477,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 	// find common optimized line order
 	if (USE_COMMON_LINEORDER_OPTIMIZATION && (spr.h_ > 1))
 	{
-		printf("optimizing common line order across all preshifts...\n");
+		if (g_allargs.verbose)
+			std::cout << "optimizing common line order across all preshifts..." << std::endl << std::flush;
 
 		int shiftcount = spr.psmask_frames_.size();
 
@@ -2750,6 +2722,9 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 #if (USE_NOISY_REORDERING)
 				unsigned long noise_factor = (1 << (32-7));
 #endif
+				double initial_dbest_cost = -1;
+				int initial_best_loadcost = -1;
+
 				// begin with default line pattern (top-to-bottom)
 				double dbest_cost = double(1e20);
 				int best_loadcost = 1<<20;
@@ -2766,56 +2741,62 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					// select mutation rate
 					//				int mutrate = ((twist.genS32() >> 4) % 4) + 1;
 
-					int mutrate = 1 + ((twist.genS32() >> 4) % 8);
-					mutrate = 1 + ((mutrate * mutrate) >> 3);
-
-					int choice1 = 0;
-					int choice2 = 0;
-
-					for (int mut = 0; mut < mutrate; mut++)
+					// we want to measure improvement from initial sort, so trial 0
+					// skips mutation
+					if (trial > 0)
 					{
-						do
+
+						int mutrate = 1 + ((twist.genS32() >> 4) % 8);
+						mutrate = 1 + ((mutrate * mutrate) >> 3);
+
+						int choice1 = 0;
+						int choice2 = 0;
+
+						for (int mut = 0; mut < mutrate; mut++)
 						{
-							// select pair to exchange
-							choice1 = (twist.genU32() >> 4) % live_line_count;
-							choice2 = (twist.genU32() >> 4) % live_line_count;
+							do
+							{
+								// select pair to exchange
+								choice1 = (twist.genU32() >> 4) % live_line_count;
+								choice2 = (twist.genU32() >> 4) % live_line_count;
 
-							// don't reorder against self
-						} while ((choice1 == choice2) ||
-							// don't place an empty line as the first 
-							// line to render, otherwise individual components won't skip initial colour data
-							((choice2 == 0) && (0 == livelines[trial_pattern[choice1]])) ||
-							((choice1 == 0) && (0 == livelines[trial_pattern[choice2]])));
+								// don't reorder against self
+							} while ((choice1 == choice2) ||
+								// don't place an empty line as the first 
+								// line to render, otherwise individual components won't skip initial colour data
+								((choice2 == 0) && (0 == livelines[trial_pattern[choice1]])) ||
+								((choice1 == 0) && (0 == livelines[trial_pattern[choice2]])));
 
-						// reorder
-//						int tmp = trial_pattern[choice1];
-//						trial_pattern[choice1] = trial_pattern[choice2];
-//						trial_pattern[choice2] = tmp;
+							// reorder
+							//						int tmp = trial_pattern[choice1];
+							//						trial_pattern[choice1] = trial_pattern[choice2];
+							//						trial_pattern[choice2] = tmp;
 
-						// bias sorting in one direction
-						if (choice1 > choice2)
-						{
-							choice1 ^= choice2;
-							choice2 ^= choice1;
-							choice1 ^= choice2;
-						}
+							// bias sorting in one direction
+							if (choice1 > choice2)
+							{
+								choice1 ^= choice2;
+								choice2 ^= choice1;
+								choice1 ^= choice2;
+							}
 
-						//if (choice1 < choice2)
-						{
-							// A		A
-							// B <c1	D \
-							// C		B | o
-							// D <c2	C / o+1  tmp
-							// E		E
+							//if (choice1 < choice2)
+							{
+								// A		A
+								// B <c1	D \
+															// C		B | o
+								// D <c2	C / o+1  tmp
+								// E		E
 
-							// push choice2 int choice1, moving all downwards
-							int tmp = trial_pattern[choice2];
-							for (int o = choice2 - 1; o >= choice1; o--)
-								trial_pattern[o + 1] = trial_pattern[o];
-							trial_pattern[choice1] = tmp;
-						}
-/*						else
-						{
+								// push choice2 int choice1, moving all downwards
+								int tmp = trial_pattern[choice2];
+								for (int o = choice2 - 1; o >= choice1; o--)
+									trial_pattern[o + 1] = trial_pattern[o];
+								trial_pattern[choice1] = tmp;
+							}
+							/*	
+							else
+							{
 							// A		A
 							// B <c2	C \ o-1
 							// C		D | o
@@ -2825,15 +2806,18 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 							// push choice2 into choice1, moving all upwards
 							int tmp = trial_pattern[choice2];
 							for (int o = choice2 + 1; o <= choice1; o++)
-								trial_pattern[o - 1] = trial_pattern[o];
+							trial_pattern[o - 1] = trial_pattern[o];
 							trial_pattern[choice1] = tmp;
 
 							// swap
-//							int tmp = trial_pattern[choice1];
-//							trial_pattern[choice1] = trial_pattern[choice2];
-//							trial_pattern[choice2] = tmp;
-						}
-*/					}
+							//							int tmp = trial_pattern[choice1];
+							//							trial_pattern[choice1] = trial_pattern[choice2];
+							//							trial_pattern[choice2] = tmp;
+							}
+							*/
+						} // for mutrate
+
+					} // trial > 0
 
 					// estimate efficiency of new pattern in terms of deltas per line
 					{
@@ -2927,6 +2911,12 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 								best_pattern[r] = trial_pattern[r];
 
 						}
+
+						if (initial_dbest_cost < 0)
+						{
+							initial_dbest_cost = dbest_cost;
+							initial_best_loadcost = best_loadcost;
+						}
 					}
 
 #if (USE_NOISY_REORDERING)
@@ -2935,11 +2925,31 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					//std::cout << "noise factor:" << std::hex << noise_factor << std::endl;
 #endif
 				}
-				printf("converged or exhausted %d trials @ loadcost=%d (totalcost=%f)\n", 
-					last_improvement, 
-					best_loadcost,
-					dbest_cost
-				);
+
+				//if (g_allargs.verbose)
+				{
+					if (dbest_cost < initial_dbest_cost)
+					{
+						double improvement_pct = 100.0 * (dbest_cost / initial_dbest_cost);
+
+						printf("reduction = %.2f%% in %d trials @ loadcost=%d (totalcost=%f)\n",
+							improvement_pct,
+							last_improvement,
+							best_loadcost,
+							dbest_cost
+							);
+						std::cout << std::flush;
+					}
+					else
+					{
+						printf("no improvement in %d trials @ loadcost=%d (totalcost=%f)\n",
+							last_improvement,
+							best_loadcost,
+							dbest_cost
+							);
+						std::cout << std::flush;
+					}
+				}
 			}
 
 			if (g_allargs.verbose)
@@ -3027,14 +3037,11 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 			Context context(shift.wordwidth_, shift.height_, /*srccol_wordwidth*/((spr.w_ + 15) >> 4), /*guardxs=*/g_allargs.emguardx);
 
-			if (!g_allargs.quickcut)
-				if (g_allargs.verbose)
-					printf("\n\nframe %d preshift %d preview:\n", _frame, pi);
-
 			// output the source image pattern
 			if (!g_allargs.quickcut)
 			if (g_allargs.verbose)
 			{
+				printf("\n\nframe %d preshift %d preview:\n", _frame, pi);
 				for (int v = 0; v < shift.height_; v++)
 				{
 					for (int h = 0; h < shift.wordwidth_; h++)
@@ -4292,7 +4299,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 			if (!g_allargs.quickcut)
 				context.tail_pass();
 
-			if (!g_allargs.quickcut)
+			if (!g_allargs.quickcut && g_allargs.verbose)
 				std::cout << "preshift " << pi << " codegen optimization transforms: " << xform_passes << std::endl;
 		
 			//
@@ -4334,7 +4341,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 bool generate_emx_sequence()
 {
-	std::cout << "optimizing EMX frames: " << std::endl;
+	std::cout << "code-generating EMX frames: " << std::endl;
 
 	// individual sprites follow
 	spritelist_t::iterator it = g_spriteframes.begin();
@@ -4346,12 +4353,7 @@ bool generate_emx_sequence()
 		if ((DEBUG_FRAME >= 0) && (f != DEBUG_FRAME))
 			continue;
 		generate_emx_frame(*it, f);
-//		break;
-		//if (g_allargs.verbose)
-		//	printf(".");
 	}
-	//if (g_allargs.verbose)
-	//	printf("\n");
 
 	return true;
 }

@@ -27,6 +27,7 @@ public:
 		s16 yo;						// frame y offset (from source cutting position, if size was optimized)
 		s16 framedata[1];			// mask/colour data follows immediately when no preshifts present
 									// OR...
+									// offsets[#preshifts=16] to occlusion mask preshift frames
 									// pointers[#preshifts=1] to colourdata preshift frames
 									// pointers[#preshifts=16] to maskdata preshift frames
 	};
@@ -96,117 +97,123 @@ public:
 			fread(&size, 1, sizeof(s32), h);
 
 			// sanity check for corrupt files etc.
-			if ((size > 0) && (size < (1024*1024)))
+			if (size > 0)
 			{
 				// allocate space
 				data_ = (sps_header*)(new u8[size]);
-				if (!data_)
+				if (data_)
 				{
-					while (1) { };
-				}
+					// read main part of file
+					fread((char*)data_, 1, size, h);
 
-				// read main part of file
-				fread((char*)data_, 1, size, h);
-
-				if (data_->version == SPS_VERSION)
-				{
-
-				pprintf("created spritesheet:\n\t%dx%d @ %d bpl, %d frames\n", 
-					data_->srcwidth, 
-					data_->srcheight, 
-					data_->planes, 
-					data_->framecount);
-
-				s16 frames = data_->framecount;
-
-				// relocate frame index for convenient access
-				// caution: porting hazard, aliasing hazard. but hey its an ST!
-				ptrsize_t addr_base = (ptrsize_t)&(data_->frameindex[0]);
-
-				for (s16 f = 0; f < frames; f++)
-				{
-					ptrsize_t addr_offset = (ptrsize_t)(data_->frameindex[f]);
-					data_->frameindex[f] = (spf_header*)(addr_base + addr_offset);
-
-					u16 storageflags = data_->flags & 7;
-
-					// detect [EMSPR/EMXSPR] preshifted mask data or code
-					if ((storageflags == 5) || (storageflags == 7))
+					if (data_->version == SPS_VERSION)
 					{
-						// get preshift sub-index base address
-						ptrsize_t subindex_base = (ptrsize_t)&(data_->frameindex[f]->framedata[0]);
 
-						// relocate preshifted colour subframes [EMSPR/EMXSPR]
+						pprintf("created spritesheet:\n\t%dx%d @ %d bpl, %d frames\n", 
+							data_->srcwidth, 
+							data_->srcheight, 
+							data_->planes, 
+							data_->framecount);
+
+						s16 frames = data_->framecount;
+
+						// relocate frame index for convenient access
+						// caution: porting hazard, aliasing hazard. but hey its an ST!
+						ptrsize_t addr_base = (ptrsize_t)&(data_->frameindex[0]);
+
+						for (s16 f = 0; f < frames; f++)
 						{
-							ptrsize_t addr_base = subindex_base;
-							ptrsize_t *psubindex = (ptrsize_t*)addr_base;
-							for (s16 p = 0; p < 1; p++)
+							ptrsize_t addr_offset = (ptrsize_t)(data_->frameindex[f]);
+							data_->frameindex[f] = (spf_header*)(addr_base + addr_offset);
+
+							u16 storageflags = data_->flags & 7;
+
+							// detect [EMSPR/EMXSPR] preshifted mask data or code
+							if ((storageflags == 5) || (storageflags == 7))
 							{
-								ptrsize_t addr_offset = psubindex[p];
-								//pprintf("note: colourplanes:%x!\n", addr_offset);
-								if (addr_offset > 0)
+								// get preshift sub-index base address
+								ptrsize_t subindex_base = (ptrsize_t)&(data_->frameindex[f]->framedata[0]);
+
+								// relocate preshifted colour subframes [EMSPR/EMXSPR]
 								{
-									psubindex[p] = addr_base + addr_offset;
+									ptrsize_t addr_base = subindex_base;
+									ptrsize_t *psubindex = (ptrsize_t*)addr_base;
+									for (s16 p = 0; p < 1; p++)
+									{
+										ptrsize_t addr_offset = psubindex[p];
+										//pprintf("note: colourplanes:%x!\n", addr_offset);
+										if (addr_offset > 0)
+										{
+											psubindex[p] = addr_base + addr_offset;
+										}
+										subindex_base += 4;
+									}
 								}
-								subindex_base += 4;
-							}
-						}
 
-						// relocate preshifted colouropt subframes [EMXSPR/CODEGEN ONLY]
-						if (storageflags == 7)
-						{
-							ptrsize_t addr_base = subindex_base;
-							ptrsize_t *psubindex = (ptrsize_t*)addr_base;
-							for (s16 p = 0; p < 1; p++)
-							{
-								ptrsize_t addr_offset = psubindex[p];
-								psubindex[p] = addr_base + addr_offset;
-								subindex_base += 4;
-							}
-						}
-
-						// relocate preshifted mask subframes [EMSPR/EMXSPR]
-						{
-							ptrsize_t addr_base = subindex_base;
-							ptrsize_t *psubindex = (ptrsize_t*)addr_base;
-							for (s16 p = 0; p < 16; p++)
-							{
-								ptrsize_t addr_offset = psubindex[p];
-								//pprintf("note: psmask:%x!\n", addr_offset);
-
-								if (addr_offset > 0)
+								// relocate preshifted colouropt subframes [EMXSPR/CODEGEN ONLY]
+								if (storageflags == 7)
 								{
-									ptrsize_t addr_abs = addr_base + addr_offset;
-									psubindex[p] = addr_abs;
+									ptrsize_t addr_base = subindex_base;
+									ptrsize_t *psubindex = (ptrsize_t*)addr_base;
+									for (s16 p = 0; p < 1; p++)
+									{
+										ptrsize_t addr_offset = psubindex[p];
+										psubindex[p] = addr_base + addr_offset;
+										subindex_base += 4;
+									}
 								}
-								subindex_base += 4;
-							}
-						}
 
-						// relocate preshifted maskopt subframes [EMXSPR/CODEGEN ONLY]
-						if (storageflags == 7)
-						{
-							ptrsize_t addr_base = subindex_base;
-							ptrsize_t *psubindex = (ptrsize_t*)addr_base;
-							for (s16 p = 0; p < 16; p++)
-							{
-								ptrsize_t addr_offset = psubindex[p];
-								ptrsize_t addr_abs = addr_base + addr_offset;
-								psubindex[p] = addr_abs;
-								subindex_base += 4;
-							}
-						}
+								// relocate preshifted mask subframes [EMSPR/EMXSPR]
+								{
+									ptrsize_t addr_base = subindex_base;
+									ptrsize_t *psubindex = (ptrsize_t*)addr_base;
+									for (s16 p = 0; p < 16; p++)
+									{
+										ptrsize_t addr_offset = psubindex[p];
+										//pprintf("note: psmask:%x!\n", addr_offset);
+
+										if (addr_offset > 0)
+										{
+											ptrsize_t addr_abs = addr_base + addr_offset;
+											psubindex[p] = addr_abs;
+										}
+										subindex_base += 4;
+									}
+								}
+
+								// relocate preshifted maskopt subframes [EMXSPR/CODEGEN ONLY]
+								if (storageflags == 7)
+								{
+									ptrsize_t addr_base = subindex_base;
+									ptrsize_t *psubindex = (ptrsize_t*)addr_base;
+									for (s16 p = 0; p < 16; p++)
+									{
+										ptrsize_t addr_offset = psubindex[p];
+										ptrsize_t addr_abs = addr_base + addr_offset;
+										psubindex[p] = addr_abs;
+										subindex_base += 4;
+									}
+								}
+							} // storageflags
+						} // frames
+						success = true;
+					}
+					else // SPS_VERSION
+					{
+						eprintf("error: spritesheet version (%x != %x) is stale - re-generate data with latest AGTCUT!\n", data_->version, SPS_VERSION);
+
+						delete[] (u8*)data_; 
+						data_ = nullptr;
 					}
 				}
-				success = true;
-				}
-				else
+				else // alloc
 				{
-					pprintf("error: spritesheet version (%x != %x) is stale - re-generate data with latest AGTCUT!\n", data_->version, SPS_VERSION);
-
-					delete[] (u8*)data_; 
-					data_ = nullptr;
+					eprintf("error: spritesheet could not allocate space\n", data_->version, SPS_VERSION);
 				}
+			} // size
+			else
+			{
+				eprintf("error: spritesheet file has bad size prefix\n");
 			}
 			fclose(h);
 		}

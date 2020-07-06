@@ -1150,7 +1150,7 @@ _EntityInteractVisibleXM_68k:
 *-------------------------------------------------------*
 	
 	move.l		ent_phiddenasset(a0),d0
-	beq.s		.nha0yha1
+	beq		.nha0yha1
 	move.l		ent_phiddenasset(a1),d1
 	beq		.yha0nha1
 
@@ -1242,7 +1242,7 @@ _EntityInteractVisibleXM_68k:
 	blo.s		._fok1
 ._ffault1:
 	not.w		$ffff8240.w
-	bra.s		._ffault0
+	bra.s		._ffault1
 ._fok1:
 	.endif		
 	add.w		d0,d0				; todo: game layer can prescale this
