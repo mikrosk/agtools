@@ -2296,7 +2296,7 @@ void hybrid_fill()
 	{
 		if (c_tilerestore_)
 		{
-#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+#if defined(AGT_CONFIG_DEBUG_OCCLUSION)
 			dbg_vis_occlusion();
 #endif
 			// todo: specialize, window
