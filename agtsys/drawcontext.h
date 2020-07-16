@@ -35,7 +35,15 @@ typedef struct drawcontext_s
 	s16 guardx; // virtual guardband - always in hardware
 	s16 guardy; // virtual guardband - independent of hardware
 
+	// BG restoration mechanisms
+
+	// page-based rectangle restore
 	restorestate_t *prestorestate;
+
+	// BG tile restore & occlusion mapping
+	s16 *p_ocm_t;
+	s16 *p_ocm_o;
+	s16 ocm_stride;
 
 	//void *pspriteclear_stack_prv;
 	//void *pspriteclear_stack_cur;

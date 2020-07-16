@@ -28,6 +28,9 @@ dctx_guardx:		ds.w	1
 dctx_guardy:		ds.w	1
 *-------------------------------------------------------*
 dctx_prestorestate:	ds.l	1
+dctx_pocm_t:		ds.l	1
+dctx_pocm_o:		ds.l	1
+dctx_ocm_stride:	ds.w	1
 *-------------------------------------------------------*
 dctx_clipwindow_x1:	ds.w	1
 dctx_clipwindow_y1:	ds.w	1
@@ -48,6 +51,23 @@ dctx_size:
 *-------------------------------------------------------*
 rstr_pstack:		ds.l	1
 rstr_ptide:		ds.l	1
+*-------------------------------------------------------*
+
+
+*-------------------------------------------------------*
+*	bgrestore frame
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+bgrframe_dsty:		ds.w	1	; in pixels
+bgrframe_dstxoff:	ds.w	1	; in bytes
+bgrframe_dstaddr:	ds.l	1	; includes dstxoff
+bgrframe_dstskip:	ds.w	1
+bgrframe_ww2:		ds.w	1
+bgrframe_lines:		ds.w	1
+bgrframe_storage:	; pixel storage, if save-restore mode
+bgrframe_backlink:	ds.l	1
+bgrframe_size:		; frame size, if page-restore mode
 *-------------------------------------------------------*
 
 *-------------------------------------------------------*

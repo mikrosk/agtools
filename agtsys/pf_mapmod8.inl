@@ -46,8 +46,8 @@ agt_inline void PR8_dirty_block_direct_(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi
 	dm_lineskip = dstrowskip;
 
 	// mask is dirtymaskstride_ bytes wide (or dirtymaskstride_/2 fields wide: each field is 16bits, only top 8 occupied)
-	dm_dirtymask = &dirtymask_[(mi>>3) + (mj*dirtymaskwidth_)];
-	dm_maskstride = dirtymaskstride_;
+	dm_dirtymask = &dtm_animation_.dirtymask_[(mi>>3) + (mj*dtm_animation_.dirtymaskwidth_)];
+	dm_maskstride = dtm_animation_.dirtymaskstride_;
 
 	__asm__ __volatile__ (
 "										\

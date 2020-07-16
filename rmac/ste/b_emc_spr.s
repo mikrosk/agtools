@@ -57,7 +57,32 @@
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
-		
+
+*-------------------------------------------------------*
+*	occlusion mapping	
+*-------------------------------------------------------*
+	move.w		(a0),d0
+	.if		(enable_restore)
+	.if		(use_sprite_saverestore|use_sprite_pagerestore)
+	move.w		d0,.emc_update_prestore1+2
+	.endif
+	.endif
+	beq.s		.emc_no_occlusion
+*-------------------------------------------------------*
+	move.l		a0,-(sp)
+	lea		(a0,d0.w),a0		
+	jsr		_OCM_occlusion_add_T			
+	move.l		(sp)+,a0
+*-------------------------------------------------------*
+	.if		(enable_restore)
+	.if		(use_sprite_saverestore|use_sprite_pagerestore)
+	moveq		#-bgrframe_size,d0
+	move.w		d0,.emc_update_prestore1+2
+	.endif
+	.endif
+	
+*-------------------------------------------------------*
+.emc_no_occlusion:
 *-------------------------------------------------------*
 
 	; skew
@@ -281,7 +306,9 @@
 	.if		(enable_restore)
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		d5,(a5)+
-	move.l		a5,usp
+.emc_update_prestore1:
+	lea		$1234(a5),a5
+	move.l		a5,usp	
 	.endif
 	.endif
 	

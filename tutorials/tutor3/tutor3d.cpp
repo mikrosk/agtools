@@ -89,11 +89,8 @@ typedef playfield_template
     /*max_scroll=*/8192,
     /*vscroll=*/VScrollMode_LOOPBACK,
     /*hscroll=*/HScrollMode_NONE,
-    /*restore=*/RestoreMode_PAGERESTORE,
-    /*updatemode=*/UpdateMode_NORMAL,
-    /*ste_hw=*/true,
-    /*stf_hsyncshift=*/false,
-    /*dynamic=*/false
+    /*restore=*/RestoreMode_PAGERESTORE
+
 > playfield_t;
 
 // define an arena (world) composed of 2 such playfields (double-buffered)
@@ -243,7 +240,7 @@ int AGT_EntryPoint()
 		//	note: using EMXSPR sprite format
 
 		// load letter sprite
-		sprite_asset.load("n.emx");
+		sprite_asset.load("o.emx");
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	init world with initial viewport coordinates

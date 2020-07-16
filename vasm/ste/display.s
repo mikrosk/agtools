@@ -45,6 +45,7 @@
 tacr		=	$fffffa19
 tbcr		=	$fffffa1b
 cdcr		=	$fffffa1d
+tadr		=	$fffffa1f
 tbdr		=	$fffffa21
 tcdr		=	$fffffa23
 cddr		=	$fffffa25
@@ -65,6 +66,7 @@ use_auto_end_of_interrupt	=	0		; defaults to manual EOI for compatibility with o
 use_blitter_compatibility	=	1		; default is to assume blitter is busy on STE, helps prevent flickery rasters
 use_overscan			=	1		; enable 240 lines vs usual 200 (can be up to 274 but 240 is a good standard)
 use_lower_border		=	1		; enable/disable lower border specifically, when use_overscan = 1
+use_overscan_timera		=	0		; use timera instead of timerd for upper border sync
 
 ; internal timera/timerb schedule for overscan mode
 displayservice_upper_delay	=	(94+4)		; safety padding of 6...3, but err towards more padding (smaller value) with blitter in use
@@ -74,6 +76,7 @@ displayservice_lower_delta_tb	=	229-0-displayservice_first_delta_tb
 displayservice_final_delta_tb	=	39-16
 timecritical_pad_tb		=	3-1		; TimerB padding (in scanlines)
 timecritical_pad_ta		=	6-1		; TimerA padding
+timecritical_pad_td		=	7-1		; TimerD padding
 
 *-------------------------------------------------------*
 
@@ -153,6 +156,14 @@ _STE_InstallDisplayService:
 	move.l		a0,$120.w			; TimerB
 	move.l		a0,$134.w			; TimerA
 
+	ifne		(use_overscan_timera)
+	else
+	ifd		AGT_CONFIG_PROFILER
+	else
+	bclr.b		#5,imrb.w			; kill TimerC when TimerD is timecritical. this stops $4ba from updating!
+	endc
+	endc
+
 	tst.b		_bFalcon030
 	bne.s		.f030
 	move.l		#displayservice_ste_vbi,$70.w	; VBL
@@ -191,8 +202,14 @@ _STE_RemoveDisplayService:
 *-------------------------------------------------------*
 	; turn off display timers and restore vectors
 	or.w		#$0700,sr
-	bclr.b		#5,imra.w
-	bclr.b		#0,imra.w
+
+	ifne		(use_overscan_timera)
+	bclr.b		#5,imra.w	; TimerA
+	else
+	bclr.b		#4,imrb.w	; TimerD
+	endc
+	bclr.b		#0,imra.w	; TimerB
+
 	lea		savestate,a1
 	move.l		(a1)+,$68.w
 	move.l		(a1)+,$70.w
@@ -307,15 +324,29 @@ displayservice_ste_vbi:
 	tst.b		DMAFlag.w
 	bne		displayservice_ste_vbi_dmasafe
 	
+	ifne		(use_overscan_timera)
+	
 	clr.b		tacr.w					; TimerA CTRL: halt
 	bset		#5,iera.w				; TimerA IE: enable
 	bset		#5,imra.w				; TimerA IM: enable
-	move.b		#displayservice_upper_delay-timecritical_pad_ta,$fffffa1f.w	; TimerA DATA: delay
+	move.b		#displayservice_upper_delay-timecritical_pad_ta,tadr.w	; TimerA DATA: delay
 	move.b		#4,tacr.w				; TimerA CTRL: start
 
 	move.l		#displayservice_ste_upper_a,$134.w
 	
-	endc	
+	else	
+
+	and.b		#$f8,cdcr.w				; TimerD CTRL: halt
+	bset		#4,ierb.w				; TimerD IE: enable
+	bset		#4,imrb.w				; TimerD IM: enable
+	move.b		#displayservice_upper_delay-timecritical_pad_td,cddr.w	; TimerD DATA: delay
+	or.b		#4,cdcr.w				; TimerD CTRL: start
+	
+	move.l		#displayservice_ste_upper_d,$110.w
+
+	endc
+
+	endc
 
 	movem.l		d0-d7/a0-a6,-(sp)
 
@@ -430,6 +461,14 @@ displayservice_ste_vbi:
 	addq.l		#1,$462.w	
 	addq.l		#1,$466.w	
 
+	ifne			(use_overscan_timera)
+	else
+	ifd			AGT_CONFIG_PROFILER
+	else
+	addq.l		#4,$4ba.w			; simulate TimerC, since we have turned it off with TimerD timecritical
+	endc
+	endc
+
 	bliton
 	
 drte:  	rte
@@ -505,6 +544,8 @@ displayservice_f030_vbi:
 
 	ifne		(use_overscan)
 
+	ifne		(use_overscan_timera)
+
 *-----------------------------------------------------------------------------*
 displayservice_ste_upper_a:
 *-----------------------------------------------------------------------------*
@@ -520,7 +561,7 @@ displayservice_ste_upper_a:
 	moveq		#1,d1
 	lea		$ffff820a.w,a1	
 
-	lea		$fffffa1f.w,a0
+	lea		tadr.w,a0
 	moveq		#displayservice_upper_delay-(timecritical_pad_ta*2),d0
 .tasyn:	cmp.b		(a0),d0
 	blo.s		.tasyn
@@ -559,15 +600,15 @@ displayservice_ste_upper_a:
 
 	move.w		a1,(a1)	;$ffff820a.w
 
-	move.b		d0,tacr.w
-
-	clr.b		tbcr.w				; TimerB CTRL: halt
+	move.b		d0,tbcr.w				; TimerB CTRL: halt
 	bset.b		#0,iera.w				; TimerB IE: enable
 	bset.b		#0,imra.w				; TimerB IM: enable
 	move.b		#displayservice_first_delta_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
 	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
 	move.l		#displayservice_ste_first_b,$120.w
+
+	move.b		d0,tacr.w				; TimerA CTRL: halt
 
 	movem.l		(sp)+,d0/d1/a0/a1
 
@@ -580,6 +621,86 @@ displayservice_ste_upper_a:
 		
 	rte
 	
+	else
+
+*-----------------------------------------------------------------------------*
+displayservice_ste_upper_d:
+*-----------------------------------------------------------------------------*
+	blitoff
+	move.w		#$2700,sr
+*-----------------------------------------------------------------------------*
+	movem.l		d0/d1/a0/a1,-(sp)
+*-----------------------------------------------------------------------------*
+*	critical: re-synchronize with free running TimerA data before
+*	starting to count hblanks as TimerA may be delayed by BLITs and
+*	we may not have landed on the correct line...
+*-----------------------------------------------------------------------------*
+
+	moveq		#1,d1
+	lea		$ffff820a.w,a1	
+
+	lea		cddr.w,a0
+	moveq		#displayservice_upper_delay-(timecritical_pad_td*2),d0
+.tasyn:	cmp.b		(a0),d0
+	blo.s		.tasyn
+*-----------------------------------------------------------------------------*
+	
+	moveq		#0,d0
+	
+	move.w		#$2100,sr				; enable HBL
+	stop		#$2100					; wait next HBL
+	move.w		#$2700,sr				; lockout
+		
+	ifne		(1)
+
+	dcb.w		94,$4e71
+	
+;	divs.w		d1,d0
+;	divs.w		d1,d0	
+;;	eor.l		d0,d0
+;;	eor.l		d0,d0
+;;	nop
+;;	lsl.l		#6,d0
+;	muls.w		d0,d0
+;;	muls.w		d0,d0
+;	lsl.l		#8,d0
+;;	eor.l		d0,d0
+;;	nop
+;	lsl.l		#3,d0
+		
+	endc
+
+;	open top border
+
+	move.b		d0,(a1)	;$ffff820a.w
+	
+	lsl.l		#8,d0
+	
+	move.w		a1,(a1)	;$ffff820a.w
+
+	move.b		d0,tbcr.w				; TimerB CTRL: halt
+	bset.b		#0,iera.w				; TimerB IE: enable
+	bset.b		#0,imra.w				; TimerB IM: enable
+	move.b		#displayservice_first_delta_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
+	move.b		#8,tbcr.w				; TimerB CTRL: start))
+
+	move.l		#displayservice_ste_first_b,$120.w
+
+	and.b		#$f8,cdcr.w				; TimerD CTRL: halt
+
+	movem.l		(sp)+,d0/d1/a0/a1
+
+	bliton
+	
+	ifeq		(use_auto_end_of_interrupt)
+;	manual EOI
+	bclr.b		#4,isrb.w
+	endc
+		
+	rte
+
+	endc
+
 	endc
 
 

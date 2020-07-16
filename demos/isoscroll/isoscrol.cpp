@@ -108,11 +108,8 @@ typedef playfield_template
 	/*max_scroll=*/4096,						// maximum scroll distance in pixels (reduce to save a little ram on tables)
 	/*vscroll=*/VScrollMode_LOOPBACK,			// enable full vscroll
 	/*hscroll=*/HScrollMode_SCANWALK,			// enable full hscroll
-	/*restore=*/RestoreMode_PAGERESTORE,		// restore from virtual page (verus save/restore for individual objects)
-	/*updatemode=*/UpdateMode_NORMAL,			// tile update method (normal=full speculative-margin on STE, partial/vertical on STF)
-	/*ste_hw=*/true,							// use STE hardware for display/scroll offsets (otherwise STF syncscroll)
-	/*stf_hsyncshift=*/false,					// use STF 4-pixel offsets with LJBK method
-	/*dynamic=*/false							// enable support for runtime-refreshable map tiles
+	/*restore=*/RestoreMode_PAGERESTORE			// restore from virtual page (verus save/restore for individual objects)
+
 > playfield_t;									// new name for our playfield definition
 
 // define an arena (world) composed of 2 such playfields (double-buffering on STE)

@@ -130,10 +130,10 @@ typedef std::map<int, spritemapping_t> spritemap_t;
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.442";
+static const char* const g_version_string = "v0.443";
 
 // SPS file format version
-static const int SPS_VERSION = 0x0200;
+static const int SPS_VERSION = 0x0201;
 
 static const int SLS_VERSION = 0x1200;
 
@@ -361,6 +361,7 @@ enum
 	// sprites
 	OPT_EMXOPT,
 	OPT_EMC,
+	OPT_OCM,
 	OPT_NOCLIP,
 	OPT_NOCLIPX,
 	OPT_NOCLIPY,
@@ -430,6 +431,9 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_EMC,			_T("-emc"),	 			SO_NONE		},
 	{ OPT_EMC,			_T("--emc"),			SO_NONE		},
+	//
+	{ OPT_OCM,			_T("-ocm"),	 			SO_NONE		},
+	{ OPT_OCM,			_T("--occlusion-map"),	SO_NONE		},
 	//
 	{ OPT_NOCLIPX,		_T("-ncx"),	 			SO_NONE		},
 	{ OPT_NOCLIPX,		_T("--no-clipx"),		SO_NONE		},
@@ -744,6 +748,7 @@ public:
 		  emxoptlevel(DEFAULT_EMX_OPTLEVEL),
 		  emguardx(32),
 		  emc(false),
+		  ocm(false),
 		  noclipx(false),
 		  noclipy(false),
 		  keycol(255),
@@ -793,6 +798,7 @@ public:
 	bool stitchmaps;
 	bool compound_slabs;
 	bool emc;
+	bool ocm;
 	bool noclipx;
 	bool noclipy;
 
@@ -1168,6 +1174,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_EMC)
 			{
 				_args.emc = true;
+			}
+			else if (args.OptionId() == OPT_OCM)
+			{
+				_args.ocm = true;
 			}
 			else if (args.OptionId() == OPT_NOCLIPX)
 			{
@@ -4313,6 +4323,12 @@ class om_descriptor
 {
 public:
 
+	om_descriptor()
+		: tdata(nullptr), odata(nullptr),
+		  y1(0), y2(0)
+	{
+	}
+
 	uword_t *tdata;
 	uword_t *odata;
 	s16 y1;
@@ -4322,22 +4338,6 @@ public:
 	{
 		delete[] tdata; tdata = nullptr;
 		delete[] odata; odata = nullptr;
-	}
-};
-
-class om_xshift
-{
-public:
-
-//	om_xshift() = default;
-//	om_xshift(const om_xshift& _other) = default;
-
-	std::vector<om_descriptor> yshifts;
-
-	void release()
-	{
-		for (auto & d : yshifts)
-			d.release();
 	}
 };
 
@@ -4356,8 +4356,6 @@ public:
 	ubyte_t *p68kbin;
 	size_t size68kbin;
 
-	om_xshift occlusion_maps_;
-
 	preshift_t
 	(
 		int _shift, 
@@ -4366,8 +4364,7 @@ public:
 		int _wordwidth, 
 		int _wordoffset, 
 		int _wordsremaining, 
-		uword_t *_data, 
-		const om_xshift &_occlusion_maps
+		uword_t *_data
 	)
 		: shift_(_shift),
 		  planes_(_planes),
@@ -4376,7 +4373,6 @@ public:
 		  wordoffset_(_wordoffset),
 		  wordsremaining_(_wordsremaining),
 		  data_(_data),
-		  occlusion_maps_(_occlusion_maps),
 		  p68kbin(0),
 		  size68kbin(0)
 	{
@@ -4390,8 +4386,6 @@ public:
 
 	void release()
 	{
-		occlusion_maps_.release();
-
 		delete[] data_; data_ = 0;
 	}
 };
@@ -4454,6 +4448,8 @@ public:
 	//std::vector<preshiftlist_t> psmask_frames_;
 	std::vector<preshiftlist_t> psmask_frames_;
 
+	std::vector<om_descriptor> occlusion_maps_;
+
 	std::vector<int> lineorder;
 
 	spriteframe_t(int _w, int _h, int _xo, int _yo, uword_t *_mask, uword_t *_colr)
@@ -4472,63 +4468,51 @@ public:
 	}
 
 	static const int c_max_occlusion_ys = 15;
+	static const int c_num_om_xshifts = 4;
+	static const int c_num_om_yshifts = 4;
 
-	void generate_mask_preshifts(int _range, int _step, int _max_dst_wordwidth)
+	void generate_occlusion_maps()
 	{
-		int src_wordwidth = ((w_ + 15) & -16) >> 4;
+		occlusion_maps_.clear();
+		occlusion_maps_.resize(c_num_om_xshifts * c_num_om_yshifts);
 
-		static const int c_num_om_yshifts = 4;
+		int full_src_wordwidth = ((w_ + 15) & -16) >> 4;
 
-		int preshift_index = 0;
-		for (int s = 0; s < _range; s += _step, preshift_index++)
+		// process multiple 'preshifts', to regain some accuracy for tile coverage at 
+		// fine x,y positions. otherwise the occlusion masks are way too conservative
+		// and we don't gain much occlusion.
+		for (int ysi = 0, yshift = 0; yshift < 16; ysi++, yshift += (16 / c_num_om_yshifts))
 		{
-//			printf("\n");
-
-			om_xshift occlusion_maps;
-			occlusion_maps.yshifts.resize(c_num_om_yshifts);
-
-			int full_dst_wordwidth = (((w_ + s) + 15) & -16) >> 4;
-			int full_src_wordwidth = ((w_ + 15) & -16) >> 4;
-
-
-			// occlusion maps
-			if (0)
+			for (int xsi = 0, xshift = 0; xshift < 16; xsi++, xshift += (16 / c_num_om_xshifts))
 			{
-				// process multiple y 'preshifts', to regain some accuracy for tile coverage at 
-				// fine y positions. otherwise the occlusion masks are way too conservative on y
-				// and we don't gain much occlusion.
-				for (int ysi = 0, yshift = 0; yshift < 16; ysi++, yshift += (16/c_num_om_yshifts))
+				// occlusion mask for this x,y preshift
+				om_descriptor &om_desc = occlusion_maps_[xsi + (ysi*c_num_om_yshifts)];
+
+				// allocate occlusion maps for each distinct x:y preshift pattern
+				uword_t *occlusion_t = new uword_t[c_max_occlusion_ys];
+				memset(occlusion_t, 0x00, sizeof(uword_t) * c_max_occlusion_ys);
+				uword_t *occlusion_o = new uword_t[c_max_occlusion_ys];
+				memset(occlusion_o, 0xFF, sizeof(uword_t) * c_max_occlusion_ys);
+
+				om_desc.tdata = occlusion_t;
+				om_desc.odata = occlusion_o;
+
+				// process for all possible y offsets into this y-preshift, since we are not
+				// generating preshifts for all possible fine-y positions (more ram).
+				for (int yoff = 0; yoff < (16 / c_num_om_yshifts); yoff++)
 				{
-					// occlusion mask for this yshift
-					om_descriptor &om_desc = occlusion_maps.yshifts[ysi];
-
-					// allocate occlusion maps for each distinct x:y preshift pattern
-					uword_t *occlusion_t = new uword_t[c_max_occlusion_ys];
-					memset(occlusion_t, 0x00, sizeof(uword_t) * c_max_occlusion_ys);
-					uword_t *occlusion_o = new uword_t[c_max_occlusion_ys];
-					memset(occlusion_o, 0xFF, sizeof(uword_t) * c_max_occlusion_ys);
-
-					om_desc.tdata = occlusion_t;
-					om_desc.odata = occlusion_o;
-
-					// process for all possible y offsets into this y-preshift, since we are not
-					// generating preshifts for all possible fine-y positions (more ram).
-					for (int yoff = 0; yoff < (16/c_num_om_yshifts); yoff++)
+					for (int xoff = 0; xoff < (16 / c_num_om_xshifts); xoff++)
 					{
 						// process every line of sprite mask
 						for (int y = 0; y < 240 + 16; y++)
 						{
-							int yy = y - yoff;
-
-							// don't read mask pixels outwith source
-							//if (yy < 0 || yy >= h_)
-							//	continue;
+							int yy = (y - yshift) - yoff;
 
 							int oc_linepos = (y >> 4);
 
 							for (int x = 0; x < 240 + 16; x++)
 							{
-								int xx = x - s; // incorporate x-preshift
+								int xx = (x - xshift) - xoff;
 
 								// don't read mask pixels outwith source
 								int bit = 1;
@@ -4552,39 +4536,56 @@ public:
 							}
 						}
 					}
-
-/*					printf("occlusion_t:\n");
-					for (int d = 0; d < c_max_occlusion_ys; d++)
-					{
-						print_dataword(occlusion_t[d]); printf("\n");
-					}
-					printf("occlusion_o:\n");
-					for (int d = 0; d < c_max_occlusion_ys; d++)
-					{
-						print_dataword(occlusion_o[d]); printf("\n");
-					}
-*/
-					// find first/last active line for each
-					int miny = -1;
-					int maxy = 0;
-					for (int n = 0; n < 16; n++)
-					{
-						if ((miny == 0) && (occlusion_t[n] != 0))
-							miny = n;
-						if ((maxy < n) && (occlusion_t[n] != 0))
-							maxy = n;
-						if ((miny == 0) && (occlusion_o[n] != 0))
-							miny = n;
-						if ((maxy < n) && (occlusion_o[n] != 0))
-							maxy = n;
-					}
-
-					om_desc.y2 = maxy + 1;
-					om_desc.y1 = xmax(miny, 0);
-
-//					printf("%d->%d\n", om_desc.y1, om_desc.y2);
 				}
+
+				
+/*				printf("occlusion_t:\n");
+				for (int d = 0; d < c_max_occlusion_ys; d++)
+				{
+					print_dataword(occlusion_t[d]); printf("\n");
+				}
+				printf("occlusion_o:\n");
+				for (int d = 0; d < c_max_occlusion_ys; d++)
+				{
+					print_dataword(occlusion_o[d]); printf("\n");
+				}
+*/				
+
+				// find first/last active line for each
+				//int miny = -1;
+				int maxy = -1;
+				for (int n = 0; n < c_max_occlusion_ys; n++)
+				{
+					//if ((miny == 0) && (occlusion_t[n] != 0))
+					//	miny = n;
+					if ((maxy < n) && (occlusion_t[n] != 0))
+						maxy = n;
+					//if ((miny == 0) && (occlusion_o[n] != 0))
+					//	miny = n;
+					if ((maxy < n) && (occlusion_o[n] != 0))
+						maxy = n;
+				}
+
+				// assume sprite begins at line 0 if properly fitted by cutting mechanism
+				om_desc.y1 = 0;// xmax(miny, 0);
+				om_desc.y2 = maxy + 1;
+
+				//printf("%d->%d\n", om_desc.y1, om_desc.y2);
 			}
+		}
+	}
+
+	void generate_mask_preshifts(int _range, int _step, int _max_dst_wordwidth)
+	{
+		int src_wordwidth = ((w_ + 15) & -16) >> 4;
+
+		int preshift_index = 0;
+		for (int s = 0; s < _range; s += _step, preshift_index++)
+		{
+//			printf("\n");
+
+			int full_dst_wordwidth = (((w_ + s) + 15) & -16) >> 4;
+			int full_src_wordwidth = ((w_ + 15) & -16) >> 4;
 
 			//bool NFSR = (full_dst_wordwidth != full_src_wordwidth);
 
@@ -4650,8 +4651,7 @@ public:
 					(
 						s, 1, h_, 
 						dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
-						preshift,
-						occlusion_maps
+						preshift
 					)
 				);
 
@@ -4963,6 +4963,10 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 			std::cout << "preshifting mask..." << std::endl;
 		g_spriteframes.back().generate_mask_preshifts(16, 1, max_dst_wordwidth);
 	}
+		
+	if (g_allargs.emc && g_allargs.ocm)
+		g_spriteframes.back().generate_occlusion_maps();
+
 }
 
 // --------------------------------------------------------------------
@@ -5021,12 +5025,13 @@ bool emit_sprite_sequence(bool _storepixels)
 		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 		// 2: flags
-		// 0 0 0 0 0 0 0 0 0 0 C Y X L L M
+		// 0 0 0 0 0 0 0 0 0 O C Y X L L M
 		// M	mask present (1bpl mask data before colour data)
 		// LL	mask layout mode (00=interleaved, 01=planar, 10=preshift, 11=codegen)
 		// X	suppress x clipping
 		// Y	suppress y clipping
 		// C	compound sprite (more than 1 component expected, no x-clip supported)
+		// O	occlusion maps
 
 		wv = 0;
 		wv |= (g_allargs.genmask) ? 1 : 0;
@@ -5048,6 +5053,8 @@ bool emit_sprite_sequence(bool _storepixels)
 		if (g_allargs.emc)
 			wv |= 1 << 5;
 
+		if (!(g_spriteframes.back().occlusion_maps_.empty()))
+			wv |= 1 << 6;
 
 //		wv |= (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PLANAR)) ? 2 : 0;
 
@@ -5106,6 +5113,11 @@ bool emit_sprite_sequence(bool _storepixels)
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 			// 2: sprite frame yoff
 			wv = endianswap16(it->yo_);
+			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+			// 2: occlusion map offset
+			int omap_base_fpos = tracked_filesize;
+			wv = 0;
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 			// 2: number of components in frame
@@ -5175,6 +5187,60 @@ bool emit_sprite_sequence(bool _storepixels)
 						{
 							lv = 0xBBBBBBBB;
 							fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+						}
+					}
+
+					//---------------------------------------------------------------------------------------
+
+					if (!it->occlusion_maps_.empty())
+					{
+						// emit index - offsets from sprite frame to each occlusion map
+						int omap_index_fpos = tracked_filesize;
+						for (auto ocit = it->occlusion_maps_.begin(); ocit != it->occlusion_maps_.end(); ocit++)
+						{
+							wv = 0;
+							fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+						}
+						// emit occlusion maps
+						std::vector<int> omap_data_index;
+						for (auto ocit = it->occlusion_maps_.begin(); ocit != it->occlusion_maps_.end(); ocit++)
+						{
+							omap_data_index.push_back(tracked_filesize);
+							// ocm height (lines)
+							s16 lines = ocit->y2;
+							wv = endianswap16(lines);
+							fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+							for (int l = 0; l < lines; l++)
+							{
+								wv = endianswap16(ocit->tdata[l]);	// (T)
+								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								wv = endianswap16(ocit->odata[l]);	// (O)
+								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+							}
+						}
+
+						{
+							size_t save = ftell(hout);
+
+							// patch omap index base offset
+							{
+								fseek(hout, omap_base_fpos + 4, 0);
+								wv = s16(omap_index_fpos - omap_base_fpos);
+								wv = endianswap16(wv);
+								fwrite(&wv, 1, 2, hout);
+							}
+
+							// patch omap index
+							fseek(hout, omap_index_fpos + 4, 0);
+							for (std::vector<int>::iterator it = omap_data_index.begin(); it != omap_data_index.end(); it++)
+							{
+								wv = s16((*it) - omap_index_fpos);
+								wv = endianswap16(wv);
+								fwrite(&wv, 1, 2, hout);
+							}
+
+							fseek(hout, save, 0);
 						}
 					}
 

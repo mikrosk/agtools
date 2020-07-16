@@ -19,6 +19,8 @@
 
 	include		"ste\\b_slab.inc"
 
+	;.opt		"~oall"
+	
 *-------------------------------------------------------*
 
 within_entitydraw	set	0
@@ -74,13 +76,14 @@ within_entitydraw	set	0
 	.globl		_g_spr_window_x1p
 	.globl		_g_spr_window_x2p
 	
+	.globl		_OCM_occlusion_add_T
 	
 	.globl		_g_linebytes
 	
 	.globl		_ascii2font
 
 	.globl		slab_precalcs
-
+	
 *-------------------------------------------------------*
 _AGT_BLiT_IMSprInit:
 *-------------------------------------------------------*
@@ -276,7 +279,7 @@ _AGT_BLiT_EMSprDrawUnClipped:
 enable_restore	set	1
 enable_clipping	set	1
 
-	include		"ste/b_em_spr.s"
+	include		"ste/b_emc_spr.s"
 	
 *-------------------------------------------------------*
 
@@ -351,7 +354,7 @@ _AGT_BLiT_EMXSprDrawUnClipped:
 enable_restore	set	1
 enable_clipping	set	1
 
-	include		"ste/b_emx_spr.s"
+	include		"ste/b_emxc_spr.s"
 	
 *-------------------------------------------------------*
 
@@ -467,7 +470,7 @@ enable_clipping	set	1
 
 	moveq		#0,d7
 
-	include		"ste/b_em_spr.s"
+	include		"ste/b_emg_spr.s"
 ;	include 	"ste/b_spr.s"
 
 	moveq		#0,d0
@@ -914,7 +917,7 @@ spandata_em3:		ds.w		1
 spandata_dyinc:		ds.w		1
 
 slab_precalcs:		ds.b		8*(257*16)
-	
+
 *-------------------------------------------------------*
 			.text
 *-------------------------------------------------------*

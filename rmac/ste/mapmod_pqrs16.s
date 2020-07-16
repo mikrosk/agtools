@@ -220,6 +220,8 @@ _do_dirtyrect_pqrs:	.globl	_do_dirtyrect_pqrs
 
 	movem.l		d0-a6,-(sp)
 	
+	pushraster	#$64f
+	
 ;	bra		.done
 
 *********************************************************
@@ -354,6 +356,8 @@ _do_dirtyrect_pqrs:	.globl	_do_dirtyrect_pqrs
 	dc.w		.start3-.jtab
 
 .done:
+	popraster
+	
 	movem.l		(sp)+,d0-a6
 	rts
 

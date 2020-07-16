@@ -8,6 +8,8 @@
 *-------------------------------------------------------*
 ;	addq		#1,d0
 	
+;enable_restore	set	0
+	
 	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
@@ -63,7 +65,34 @@
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
-			
+
+*-------------------------------------------------------*
+*	occlusion mapping	
+*-------------------------------------------------------*
+	move.w		(a0),d0
+	.if		(enable_restore)
+	.if		(use_sprite_saverestore|use_sprite_pagerestore)
+	move.w		d0,.emxc_update_prestore1+2
+	move.w		d0,.emxc_update_prestore2+2
+	.endif
+	.endif
+	beq.s		.emxc_no_occlusion
+*-------------------------------------------------------*
+	move.l		a0,-(sp)
+	lea		(a0,d0.w),a0		
+	jsr		_OCM_occlusion_add_T				
+	move.l		(sp)+,a0
+*-------------------------------------------------------*	
+	.if		(enable_restore)
+	.if		(use_sprite_saverestore|use_sprite_pagerestore)
+	moveq		#-bgrframe_size,d0
+	move.w		d0,.emxc_update_prestore1+2
+	move.w		d0,.emxc_update_prestore2+2
+	.endif
+	.endif
+
+*-------------------------------------------------------*
+.emxc_no_occlusion:			
 *-------------------------------------------------------*
 *	guardband test for optimized fastpath
 *-------------------------------------------------------*
@@ -330,10 +359,12 @@
 	.if		(enable_restore)
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		d5,(a5)+
-	move.l		a5,usp
+.emxc_update_prestore1:
+	lea		$1234(a5),a5
+	move.l		a5,usp	
 	.endif
 	.endif
-	
+		
 	.endif		;0
 
 
@@ -697,7 +728,10 @@
 	move.w		d6,(a5)+	
 	move.w		d4,(a5)+
 	move.l		d5,(a5)+	
-	move.l		a5,usp
+;	move.l		a5,usp
+.emxc_update_prestore2:
+	lea		$1234(a5),a5
+	move.l		a5,usp	
 
 	.endif
 

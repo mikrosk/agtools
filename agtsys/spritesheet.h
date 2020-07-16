@@ -16,7 +16,7 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// types
 
-	static const int SPS_VERSION = 0x0200;
+	static const int SPS_VERSION = 0x0201;
 
 	// sprite frame header (one per sprite frame)
 	struct spf_header
@@ -25,9 +25,9 @@ public:
 		s16 h;						// frame height in pixels
 		s16 xo;						// frame x offset (from source cutting position, if size was optimized)
 		s16 yo;						// frame y offset (from source cutting position, if size was optimized)
+		s16 omap;					// offset to optional occlusion maps
 		s16 framedata[1];			// mask/colour data follows immediately when no preshifts present
 									// OR...
-									// offsets[#preshifts=16] to occlusion mask preshift frames
 									// pointers[#preshifts=1] to colourdata preshift frames
 									// pointers[#preshifts=16] to maskdata preshift frames
 	};

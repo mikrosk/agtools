@@ -5,18 +5,27 @@
 
 .macro	tile_pr16	offs,dst,tmp,dstpgw,dstpgh,tdst,tsrc
 
-	moveq		#16,\tmp
-	moveq		#$c0,\dstpgw
+;	moveq		#16,\tmp
+;	moveq		#$c0,\dstpgw
 	
+;BLiTSRC			=	$ffff8a24		; 4
+;BLiTDST			=	$ffff8a32		; 4
+;BLiTYC			=	$ffff8a38		; 2
+;BLiTCTRL		=	$ffff8a3c		; 1
+
 	lea		\offs*8(\dst),\tdst	
+
 	move.l		\tsrc,BLiTSRC.w
 	move.l		\tdst,BLiTDST.w
 	move.w		\tmp,BLiTYC.w
 	move.b		\dstpgw,BLiTCTRL.w
 
-	lea		\offs*8(\dst,\dstpgh.l),a6
+;	lea		\offs*8(\dst,\dstpgh.l),a6
+	add.l		\dstpgh,\tdst
+	
 	move.l		\tsrc,BLiTSRC.w
-	move.l		a6,BLiTDST.w
+;	move.l		a6,BLiTDST.w
+	move.l		\tdst,BLiTDST.w
 	move.w		\tmp,BLiTYC.w
 	move.b		\dstpgw,BLiTCTRL.w
 
@@ -38,7 +47,8 @@
 
 .macro	do_block_inl
 
-	move.w		#$07f8,d0
+;	move.w		#$07f8,d0
+	move.w		d1,d0
 	and.w		d3,d0
 	beq.s		.blank\~	; early shortcut empty patterns
 	bsr		.do_block_2	; todo: could inline this if jumptable was in a register
@@ -57,12 +67,8 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 *------------------------------------------------------------------------------*
 
 	movem.l		d0-a6,-(sp)
-
-	.if		^^defined TIMING_RASTERS
-	move.w		#$753,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
+	
+	pushraster	#$64f
 
 	move.w		#2,BLiTSXI.w
 	move.w		#2,BLiTDXI.w
@@ -73,6 +79,7 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	move.w		#4,BLiTXC.w
 	move.b		#2,BLiTHOP.w
 	move.b		#3,BLiTLOP.w
+;	move.b		#15,BLiTLOP.w
 	clr.b		BLiTSKEW.w
 	
 ;	bra		.done
@@ -95,6 +102,12 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 ;	move.w		d7,a6
 ;	add.w		d7,a6
 
+;	move.w		_dm_pj,d0
+;	cmp.w		_dm_pj2,d0
+;	bne.s		.okok1
+;	setraster	#$fff
+;.okok1:
+
 
 	; check for degenerate rectangle (should never happen, if the C code is right)
 ;	move.w		_dm_pi2,d5
@@ -102,19 +115,19 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 ;	ble		.done
 
 	; find rectangle right edge (in 8bit blocks)
-	moveq		#8-1,d5
-	add.w		_dm_pi2,d5
-	and.w		#-8,d5				; rectangle right edge (in 8bit blocks)
+;	moveq		#8-1,d5
+;	add.w		_dm_pi2,d5
+;	and.w		#-8,d5				; rectangle right edge (in 8bit blocks)
 
 	; find dirty mask buffer starting position (right edge, 1 8bit block = 1 word, upper byte)
-;	add.w		d5,a1
-;	add.w		d5,a1
+;;	add.w		d5,a1
+;;	add.w		d5,a1
 
 	; find rectangle left edge (in 8bit blocks)
-	moveq		#-8,d3
-	and.w		_dm_pi,d3			; rectangle left edge (in 8bit blocks)
+;	moveq		#-8,d3
+;	and.w		_dm_pi,d3			; rectangle left edge (in 8bit blocks)
 
-	sub.w		d3,d5				; rectangle width (in 8bit blocks)
+;	sub.w		d3,d5				; rectangle width (in 8bit blocks)
 
 
 	; generate mask d5 for EM1:EM2:EM3 based on 8bit block offset and rectangle width
@@ -160,14 +173,10 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 
 	sub.w		d3,d4
 	add.w		#4*8,d4
-
 	moveq		#-1,d5
 	lsr.l		d4,d5
 
-;	combine masks       e.g. 0007FF80
-
-	and.l		d0,d5
-
+	
 	; find rectangle height
 
 	move.w		_dm_pj2,d4
@@ -197,21 +206,33 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	; select 1,2,3-wide fetch from rectangle width in 8bit blocks
 
 	lsr.w		#3,d3
-	add.w		d3,d3
 	
-	move.w		.jtab-2(pc,d3.w),d0
-	jmp		.jtab(pc,d0.w)
+	; todo: this is a hack for large guardbands!
+;	cmp.w		#5,d3
+;	ble.s		.noxclip
+;	moveq		#5,d3
+;.noxclip:
+
+	cmp.w		#5,d3
+	ble.s		.okok
+.noknok:
+	not.b		$ffff8240.w
+	bra.s		.noknok
+.okok:
+
+	moveq		#$c0,d7
+
+	add.w		d3,d3
+	move.w		.jtab-2(pc,d3.w),d1
+	jmp		.jtab(pc,d1.w)
 .jtab:	dc.w		.start1-.jtab
 	dc.w		.start2-.jtab
 	dc.w		.start3-.jtab
 	dc.w		.start4-.jtab
+	dc.w		.start5-.jtab
 
 .done:
-	.if		^^defined TIMING_RASTERS
-	move.w		#$777,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
+	popraster
 
 	movem.l		(sp)+,d0-a6
 	rts
@@ -241,9 +262,102 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 
 *------------------------------------------------------------------------------*
 
+.start5:
+	move.w		_dm_lineskip,.smc5d+2
+	move.w		_dm_maskstride,.smc5+2
+
+
+;	independent left & right masks
+	
+	moveq		#8-1,d1
+	and.w		_dm_pi,d1
+	moveq		#-1,d5
+	lsr.l		d1,d5
+
+	move.b		d0,.smc5m+1
+
+	move.w		#$07f8,d1
+	
+;	moveq		#-1,d0
+;	moveq		#-1,d5
+	
+;	setraster	#$777
+
+.ylp5:
+
+	; check row
+
+	movep.l		0(a1),d3			; AA:BB:CC:DD <-[AA:BB:CC:DD]
+	move.l		d3,d0
+	and.l		d5,d3
+	beq		.next5a
+	eor.l		d3,d0
+	movep.l		d0,0(a1)
+
+	; dirty row
+
+	lea		-8*8*1(a4),a4
+	lea		-8*4*1(a0),a0
+
+	rol.l		#3,d3			; AB:BC:CD:DA
+	do_block_inl
+;	bsr		.do_block
+	ror.l		#8,d3			; DA:AB:BC:CD
+	do_block_inl
+;	bsr		.do_block
+	lsr.l		#8,d3			; 00:DA:AB:BC
+	do_block_inl
+;	bsr		.do_block
+	lsr.l		#8,d3			; 00:00:DA:AB
+	do_block_inl
+;	bsr		.do_block
+
+	lea		8*8*5(a4),a4
+	lea		8*4*5(a0),a0
+
+.next5a:
+	; check row
+
+;	move.b		8(a1),d3		; xx:xx:xx:CC
+;	move.b		d3,d0
+;.smc5m:	and.b		#$77,d3
+
+	move.b		8(a1),d0		; xx:xx:xx:CC
+.smc5m:	moveq		#$33,d3
+	and.b		d0,d3
+	beq.s		.next5b
+	eor.b		d3,d0
+	move.b		d0,8(a1)
+
+	; dirty row
+
+	lsl.w		#3,d3
+	do_block_inl
+;	bsr		.do_block
+
+	lea		8*8*1(a4),a4
+	lea		8*4*1(a0),a0
+
+.next5b:
+
+	; next Y
+
+.smc5d:	lea		1234(a4),a4
+.smc5:	lea		1234(a1),a1
+	add.w		d2,a0
+	dbra		d4,.ylp5
+	bra		.done
+
+*------------------------------------------------------------------------------*
+
 .start4:
 	move.w		_dm_lineskip,.smc4d+2
 	move.w		_dm_maskstride,.smc4+2
+	move.w		#$07f8,d1
+
+;	combine masks       e.g. 0007FF80
+
+	and.l		d0,d5
 
 .ylp4:
 
@@ -257,12 +371,6 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	movep.l		d0,0(a1)
 
 	; dirty row
-
-	.if		^^defined TIMING_RASTERS
-	move.w		#$707,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
 
 	rol.l		#3,d3			; AB:BC:CD:DA
 	do_block_inl
@@ -280,12 +388,6 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 	lea		8*8*4(a4),a4
 	lea		8*4*4(a0),a0
 
-	.if		^^defined TIMING_RASTERS
-	move.w		#$753,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
-
 .next4:
 
 	; next Y
@@ -301,6 +403,11 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 .start3:
 	move.w		_dm_lineskip,.smc3d+2
 	move.w		_dm_maskstride,.smc3+2
+	move.w		#$07f8,d1
+
+;	combine masks       e.g. 0007FF80
+
+	and.l		d0,d5
 
 .ylp3:
 
@@ -315,12 +422,6 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 
 	; dirty row
 
-	.if		^^defined TIMING_RASTERS
-	move.w		#$707,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
-
 	lsl.l		#3,d3
 	do_block_inl
 ;	bsr		.do_block
@@ -333,12 +434,6 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 
 	lea		8*8*3(a4),a4
 	lea		8*4*3(a0),a0
-
-	.if		^^defined TIMING_RASTERS
-	move.w		#$753,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
 
 .next3:
 
@@ -355,6 +450,11 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 .start2:
 	move.w		_dm_lineskip,.smc2d+2
 	move.w		_dm_maskstride,.smc2+2
+	move.w		#$07f8,d1
+
+;	combine masks       e.g. 0007FF80
+
+	and.w		d0,d5
 .ylp2:
 
 	; check row
@@ -368,12 +468,6 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 
 	; dirty row
 
-	.if		^^defined TIMING_RASTERS
-	move.w		#$707,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
-
 	lsl.l		#3,d3
 	do_block_inl
 ;	bsr		.do_block
@@ -383,12 +477,6 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 
 	lea		8*8*2(a4),a4
 	lea		8*4*2(a0),a0
-
-	.if		^^defined TIMING_RASTERS
-	move.w		#$753,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
 
 .next2:
 
@@ -405,6 +493,11 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 .start1:
 	move.w		_dm_lineskip,.smc1d+2
 	move.w		_dm_maskstride,.smc1+2
+	move.w		#$07f8,d1
+
+;	combine masks       e.g. 0007FF80
+
+	and.w		d0,d5
 .ylp1:
 
 	; check row
@@ -418,24 +511,12 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 
 	; dirty row
 
-	.if		^^defined TIMING_RASTERS
-	move.w		#$707,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
-
 	lsl.w		#3,d3
 	do_block_inl
 ;	bsr		.do_block
 
 	lea		8*8*1(a4),a4
 	lea		8*4*1(a0),a0
-
-	.if		^^defined TIMING_RASTERS
-	move.w		#$753,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
 	
 .next1:
 
@@ -486,6 +567,9 @@ _do_dirtyrect_pr16:	.globl	_do_dirtyrect_pr16
 *	schedule 2 patterns of 4 bits & execute
 *------------------------------------------------------------------------------*
 	lea		.jt(pc,d0.w),a5
+
+	moveq		#16,d0
+	
 	move.l		(a5)+,-(sp)
 	move.l		(a5),a3
 	jmp		(a3)

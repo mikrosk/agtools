@@ -36,11 +36,7 @@ _do_dirtyrect_pr16m:	.globl	_do_dirtyrect_pr16m
 	
 	movem.l		d0-a6,-(sp)
 
-	.if		^^defined TIMING_RASTERS
-	move.w		#$753,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
+	pushraster	#$64f
 	
 ;	bra		.done
 
@@ -165,6 +161,13 @@ _do_dirtyrect_pr16m:	.globl	_do_dirtyrect_pr16m
 	; select 1,2,3-wide fetch from rectangle width in 8bit blocks
 
 	lsr.w		#3,d3
+	
+	; todo: this is a hack for large guardbands!
+	cmp.w		#4,d3
+	ble.s		.noxclip
+	moveq		#4,d3
+.noxclip:
+	
 	add.w		d3,d3
 	
 	move.w		.jtab-2(pc,d3.w),d0
@@ -175,11 +178,7 @@ _do_dirtyrect_pr16m:	.globl	_do_dirtyrect_pr16m
 	dc.w		.start4-.jtab
 
 .done:
-	.if		^^defined TIMING_RASTERS
-	move.w		#$777,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
+	popraster
 
 	movem.l		(sp)+,d0-a6
 	rts
@@ -189,6 +188,7 @@ _do_dirtyrect_pr16m:	.globl	_do_dirtyrect_pr16m
 	; extract 8-24 relevant bits for rectangle right edge (right-justified)
 	; note: visible region normally 20+1 tiles wide max so 21 bits max
 	; todo: replace bsr's with dedicated code per case
+	; todo: with large guardband (e.g. 128) can actually be 21+8 or 29 bits!
 
 ;	d0 : *
 ;	d1 : map source

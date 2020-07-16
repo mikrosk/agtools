@@ -414,8 +414,8 @@ dummy_vbl:
 timer_tc:	
 *-------------------------------------------------------*
 ;dummy_tc:
-	addq.l		#1,$4ba.w
 	bclr		#5,isrb.w
+	addq.l		#1,$4ba.w
 	rte
 	
 	.if		^^defined AGT_CONFIG_PROFILER

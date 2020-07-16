@@ -19,6 +19,8 @@
 
 	include		"prf.inc"
 	
+	;.opt		"~oall"
+	
 *-------------------------------------------------------*
 
 within_entitydraw	set	1
@@ -30,6 +32,7 @@ within_entitydraw	set	1
 	.if		^^defined AGT_CONFIG_WORLD_XMAJOR
 	.globl		_BLiT_EntityDrawVisibleXM_68k
 	.globl		_BLiT_EntityDeferVisibleXM_68k
+	.globl		_BLiT_EntityOccludeVisibleXM_68k
 	.globl		_EntityInteractVisibleXM_68k
 	.globl		_gp_entity_x_head
 	.globl		_gp_entity_x_aftertail
@@ -75,6 +78,9 @@ within_entitydraw	set	1
 	
 ;	clipping window
 
+	.globl		_OCM_occlusion_add_T
+	.globl		_OCM_occlusion_sub_O
+
 	.globl		_g_spr_window
 
 	.globl		_g_linebytes
@@ -84,7 +90,7 @@ within_entitydraw	set	1
 	.globl		_drawcontext
 
 	.globl		slab_precalcs
-	
+		
 	.if		^^defined AGT_CONFIG_DEBUGDRAW
 	.globl		_g_debugdraw
 	.endif

@@ -60,7 +60,6 @@ _BLiT_EntityDrawVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_fry(a0),d0
-;	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
 	add.w		dctx_clipwindow_y2(a4),d0
 	sub.w		dctx_clipwindow_y1(a4),d0
 	add.w		dctx_guardy(a4),d0
@@ -85,7 +84,7 @@ _BLiT_EntityDrawVisibleYM_68k:
 
 
 *=======================================================*
-*	dedicated iterator for [drawtype]=EMXSPR
+*	dedicated iterator for [drawtype]=EMXSPRQ
 *-------------------------------------------------------*
 .STE_EntityDrawVisibleYM_EMXSPRQ_next:
 *-------------------------------------------------------*
@@ -791,7 +790,6 @@ _BLiT_EntityDebugVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_fry(a0),d0
-;	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
 	add.w		dctx_clipwindow_y2(a4),d0
 	sub.w		dctx_clipwindow_y1(a4),d0
 	add.w		dctx_guardy(a4),d0
@@ -950,7 +948,6 @@ _EntityInteractVisibleYM_68k:
 	
 	move.l		_g_pe_viewport,a2
 	move.w		ent_frx(a2),d1
-;	add.w		#320+(32*2),d1			; todo: hardcoded visibility margin - make configurable
 ;	add.w		dctx_clipwindow_x2(a4),d1
 ;	sub.w		dctx_clipwindow_x1(a4),d1
 	add.w		.vxs+2(a6),d1
@@ -1320,4 +1317,446 @@ _EntityInteractVisibleYM_68k:
 	rts
 	
 .cull2:	moveq		#0,d0
+	rts
+
+
+
+
+
+
+*-------------------------------------------------------*
+_BLiT_EntityOccludeVisibleYM_68k:
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+.savea6:		ds.l	1
+.save:			ds.l	10
+.return:		ds.l	1
+*-------------------------------------------------------*
+.pctx:			ds.l	1
+*-------------------------------------------------------*
+.frame_:		
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+	emitframe_draw_vars
+*-------------------------------------------------------*
+.sp_frame_:		
+*-------------------------------------------------------*
+			.text
+*-------------------------------------------------------*
+	movem.l		d2-d7/a2-a5,-(sp)
+	pushctxr	ent_draw,a2
+	link		a6,#-.frame_
+	move.l		a6,-(sp)
+	lea		-.sp_frame_(sp),sp
+*-------------------------------------------------------*
+	pushraster	#$770
+*-------------------------------------------------------*
+*	load C args to local frame
+*-------------------------------------------------------*
+	move.l		.pctx(a6),a4
+	move.l		dctx_framebuffer(a4),.sp_framebuf(sp)
+	move.l		dctx_lineidx(a4),.sp_linetable(sp)
+	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
+	move.w		dctx_snapadjy(a4),.sp_snapy(sp)	
+;	move.w		dctx_guardx(a4),.sp_guardx(sp)
+;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
+;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
+;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto
+;	move.l		.plinetable(a6),.sp_linetable(sp)
+*-------------------------------------------------------*
+*	load display chain terminating condition
+*-------------------------------------------------------*
+	move.l		_g_pe_viewport,a0
+	move.w		ent_fry(a0),d0
+	add.w		dctx_clipwindow_y2(a4),d0
+	sub.w		dctx_clipwindow_y1(a4),d0
+	add.w		dctx_guardy(a4),d0
+	move.w		d0,.sp_pxymax_(sp)
+*-------------------------------------------------------*
+*	initial conditions
+*-------------------------------------------------------*
+
+;	move.l		dctx_prestorestate(a4),a5
+;	move.l		rstr_ptide(a5),a5
+;	move.l		a5,usp
+
+*-------------------------------------------------------*
+	
+	; important to begin with invalid drawtype
+	; so the first drawtype will call init first
+
+	move.w		#-1,.sp_drawtype(sp)
+	
+	bra		.STE_EntityOccludeVisibleYM_EMXSPRQ_done
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=EMXSPRQ
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMXSPRQ_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMXSPRQ_setup:
+.STE_EntityOccludeVisibleYM_EMXSPRQ_go:
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMXSPRQ_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityOccludeVisibleYM_EMXSPRQ_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+*-------------------------------------------------------*
+
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=EMXSPR
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMXSPR_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMXSPR_setup:
+.STE_EntityOccludeVisibleYM_EMXSPR_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1
+;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
+
+	; compensate for loopback buffer
+
+;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; access sprite frame
+
+	move.w		ent_frame(a0),d0
+
+	; decrement 'hitflash' counter on this object
+
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
+
+	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+
+	;
+	
+	add.w		d0,d0				; todo: game layer can prescale this
+	add.w		d0,d0
+	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
+			
+	; frame fields
+
+	move.w		(a0)+,d3			; w
+	move.w		(a0)+,d4			; h
+	add.w		(a0)+,d1			; +xo
+	add.w		(a0)+,d2			; +yo
+
+	move.w		(a0),d0
+	beq.s		.STE_EntityOccludeVisibleYM_EMXSPR_no
+	
+	setraster	#$ff0
+	
+	lea		(a0,d0.w),a0		
+	jsr		_OCM_occlusion_sub_O
+
+	setraster	#$770
+
+.STE_EntityOccludeVisibleYM_EMXSPR_no:
+	
+	;
+	
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMXSPR_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityOccludeVisibleYM_EMXSPR_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+*-------------------------------------------------------*
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=EMSPRQ
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMSPRQ_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMSPRQ_setup:
+.STE_EntityOccludeVisibleYM_EMSPRQ_go:
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMSPRQ_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityOccludeVisibleYM_EMSPRQ_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+*-------------------------------------------------------*
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=EMSPR
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMSPR_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMSPR_setup:
+.STE_EntityOccludeVisibleYM_EMSPR_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1
+;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
+
+	; compensate for loopback buffer
+
+;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; access sprite frame
+
+	move.w		ent_frame(a0),d0
+
+	; decrement 'hitflash' counter on this object
+
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
+
+	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+
+	;
+	
+	add.w		d0,d0				; todo: game layer can prescale this
+	add.w		d0,d0
+	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
+			
+	; frame fields
+
+	move.w		(a0)+,d3			; w
+	move.w		(a0)+,d4			; h
+	add.w		(a0)+,d1			; +xo
+	add.w		(a0)+,d2			; +yo
+
+	move.w		(a0),d0
+	beq.s		.STE_EntityOccludeVisibleYM_EMSPR_no
+
+	setraster	#$ff0
+	
+	lea		(a0,d0.w),a0		
+	jsr		_OCM_occlusion_sub_O
+
+	setraster	#$770
+
+.STE_EntityOccludeVisibleYM_EMSPR_no:	
+	;
+
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_EMSPR_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityOccludeVisibleYM_EMSPR_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+*-------------------------------------------------------*
+
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=SPRITE
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_SPRITE_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate	
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_SPRITE_setup:
+.STE_EntityOccludeVisibleYM_SPRITE_go:
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_SPRITE_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityOccludeVisibleYM_SPRITE_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+*-------------------------------------------------------*
+
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=SLAB
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_SLAB_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_SLAB_setup:
+.STE_EntityOccludeVisibleYM_SLAB_go:
+*-------------------------------------------------------*
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_SLAB_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityOccludeVisibleYM_SLAB_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+*-------------------------------------------------------*
+
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=CUSTOM
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_CUSTOM_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_CUSTOM_setup:
+.STE_EntityOccludeVisibleYM_CUSTOM_go:
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_CUSTOM_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityOccludeVisibleYM_CUSTOM_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+*-------------------------------------------------------*
+	
+*=======================================================*
+*	[drawtype] has changed - perform path switch
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_evaluate:
+*-------------------------------------------------------*
+	move.w		d0,.sp_drawtype(sp)
+	add.w		d0,d0
+	add.w		d0,d0
+	jmp		.types(pc,d0.w)
+.types:	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup
+	bra.w		.STE_EntityOccludeVisibleYM_SPRITE_setup
+	bra.w		.STE_EntityOccludeVisibleYM_EMSPR_setup
+	bra.w		.STE_EntityOccludeVisibleYM_EMSPRQ_setup
+	bra.w		.STE_EntityOccludeVisibleYM_EMXSPR_setup
+	bra.w		.STE_EntityOccludeVisibleYM_EMXSPRQ_setup
+	bra.w		.STE_EntityOccludeVisibleYM_SLAB_setup
+	bra.w		.STE_EntityOccludeVisibleYM_CUSTOM_setup
+	bra.w		.STE_EntityOccludeVisibleYM_RFILL_setup
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=RFILL
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_RFILL_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_RFILL_setup:
+.STE_EntityOccludeVisibleYM_RFILL_go:
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_RFILL_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityOccludeVisibleYM_RFILL_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+*-------------------------------------------------------*
+
+
+*=======================================================*
+*	dedicated iterator for [drawtype]=NONE
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_NONE_next:
+*-------------------------------------------------------*
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityOccludeVisibleYM_evaluate
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_NONE_setup:
+.STE_EntityOccludeVisibleYM_NONE_go:
+*-------------------------------------------------------*
+	; nothing todo here - skip!
+*-------------------------------------------------------*
+.STE_EntityOccludeVisibleYM_NONE_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt.s		.STE_EntityOccludeVisibleYM_NONE_next
+	bra		.STE_EntityOccludeVisibleYM_complete
+	
+		
+*=======================================================*
+.STE_EntityOccludeVisibleYM_complete:
+*-------------------------------------------------------*
+
+;	move.l		usp,a5
+;	move.l		a5,_drawcontext+dctx_clearstack_tide
+
+*-------------------------------------------------------*
+	popraster
+*-------------------------------------------------------*
+
+	lea		.sp_frame_(sp),sp
+	move.l		(sp)+,a6
+	
+;	move.l		.pctx(a6),a4
+;	move.l		dctx_prestorestate(a4),a4
+;	move.l		usp,a5
+;	move.l		a5,rstr_ptide(a4)
+	
+	unlk		a6
+	popctxr		a2
+	movem.l		(sp)+,d2-d7/a2-a5
+*-------------------------------------------------------*
 	rts

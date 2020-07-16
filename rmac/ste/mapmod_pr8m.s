@@ -69,11 +69,7 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 	
 	movem.l		d0-a6,-(sp)
 
-	.if		^^defined TIMING_RASTERS
-	move.w		#$753,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
+	pushraster	#$64f
 	
 ;	bra		.done
 
@@ -198,6 +194,13 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 	; select 1,2,3-wide fetch from rectangle width in 8bit blocks
 
 	lsr.w		#3,d3
+	
+	; todo: this is a hack for large guardbands!
+	cmp.w		#4,d3
+	ble.s		.noxclip
+	moveq		#4,d3
+.noxclip:
+	
 	add.w		d3,d3
 	
 	move.w		.jtab-2(pc,d3.w),d0
@@ -208,11 +211,7 @@ _do_dirtyrect_pr8m:	.globl	_do_dirtyrect_pr8m
 	dc.w		.start4-.jtab
 
 .done:
-	.if		^^defined TIMING_RASTERS
-	move.w		#$777,d0
-	move.w		d0,$64.w
-	move.w		d0,$ffff8240.w
-	.endif
+	popraster
 
 	movem.l		(sp)+,d0-a6
 	rts

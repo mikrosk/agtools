@@ -88,12 +88,8 @@ typedef playfield_template
     /*tilesize=*/4,
     /*max_scroll=*/8192,
     /*vscroll=*/VScrollMode_LOOPBACK,
-    /*hscroll=*/HScrollMode_NONE,
-    /*restore=*/RestoreMode_NONE,
-    /*updatemode=*/UpdateMode_NORMAL,
-    /*ste_hw=*/true,
-    /*stf_hsyncshift=*/false,
-    /*dynamic=*/false
+    /*hscroll=*/HScrollMode_NONE
+
 > playfield_t;
 
 // define an arena (world) composed of 2 such playfields (double-buffered)
@@ -375,7 +371,7 @@ int AGT_EntryPoint()
 			s16 sprite_frame = (animation_time >> 2) & 7;
 
 			// draw 45 sprites in a sincos snake
-			for (s16 num = 45-1; num >= 0; num--)
+			for (s16 num = 42-1; num >= 0; num--)
 			{
 				// get the x,y offset for each sprite, scale down from 32bit to 8bit
 				s32 x = sintab32[xphase_i & 8191] >> 24;

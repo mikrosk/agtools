@@ -116,6 +116,8 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 
 	movem.l		d0-a6,-(sp)
 	
+	pushraster	#$64f
+	
 ;	bra		.done
 
 *********************************************************
@@ -237,6 +239,13 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 	; select 1,2,3-wide fetch from rectangle width in 8bit blocks
 
 	lsr.w		#3,d3
+	
+	; todo: this is a hack for large guardbands!
+	cmp.w		#4,d3
+	ble.s		.noxclip
+	moveq		#4,d3
+.noxclip:
+	
 	add.w		d3,d3
 ;	bra		*
 	
@@ -248,8 +257,11 @@ _do_dirtyrect_pq:	.globl	_do_dirtyrect_pq
 .jtab:	dc.w		.start1-.jtab
 	dc.w		.start2-.jtab
 	dc.w		.start3-.jtab
+;	todo: expand this
 
 .done:
+	popraster
+	
 	movem.l		(sp)+,d0-a6
 	rts
 

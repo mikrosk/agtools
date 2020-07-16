@@ -88,12 +88,8 @@ typedef playfield_template
     /*tilesize=*/4,
     /*max_scroll=*/8192,
     /*vscroll=*/VScrollMode_LOOPBACK,
-    /*hscroll=*/HScrollMode_NONE,
-    /*restore=*/RestoreMode_NONE,
-    /*updatemode=*/UpdateMode_NORMAL,
-    /*ste_hw=*/true,
-    /*stf_hsyncshift=*/false,
-    /*dynamic=*/false
+    /*hscroll=*/HScrollMode_NONE
+
 > playfield_t;
 
 // define an arena (world) composed of 2 such playfields (double-buffered)

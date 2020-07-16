@@ -212,6 +212,9 @@ extern "C" void BLiT_EntityDrawVisibleYM_68k(drawcontext_t *_pctx);
 extern "C" void BLiT_EntityDeferVisibleXM_68k(drawcontext_t *_pctx);
 extern "C" void BLiT_EntityDeferVisibleYM_68k(drawcontext_t *_pctx);
 
+extern "C" void BLiT_EntityOccludeVisibleXM_68k(drawcontext_t *_pctx);
+extern "C" void BLiT_EntityOccludeVisibleYM_68k(drawcontext_t *_pctx);
+
 extern "C" void STF_EntityDrawVisibleXM_68k(drawcontext_t *_pctx);
 extern "C" void STF_EntityDrawVisibleYM_68k(drawcontext_t *_pctx);
 extern "C" void STF_EntityDeferVisibleXM_68k(drawcontext_t *_pctx);
@@ -557,6 +560,8 @@ static inline void EntitySwitchAsset_Hidden(entptr_t _pent, spritesheet *_passet
 #define EntityDrawVisibleYM BLiT_EntityDrawVisibleYM_68k
 #define EntityDeferVisibleXM BLiT_EntityDeferVisibleYM_68k
 #define EntityDeferVisibleYM BLiT_EntityDeferVisibleYM_68k
+#define EntityOccludeVisibleXM BLiT_EntityOccludeVisibleXM_68k
+#define EntityOccludeVisibleYM BLiT_EntityOccludeVisibleYM_68k
 #endif
 
 // ---------------------------------------------------------------------------------------------------------------------

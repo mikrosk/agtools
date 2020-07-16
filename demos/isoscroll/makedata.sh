@@ -14,5 +14,3 @@
 # for this example we'll cut using a spriteguide file (villager.sgd), which overrides cutting commands with a simple script
 ../../bin/agtcut -cm emxspr -vis -prv -ccr high -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s villager.png -o villager.emx -p chunky8.ccs -sg villager.sgd
 
-# (old cutting command, to cut using command switches, no spriteguide)
-#../../bin/agtcut -cm emxspr -prv -ccr high -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s villager.png -o villager.emx -p chunky8.ccs -sxp 96 -syp 32 -sxs 31 -sys 32 -sxi 32 -syi 32 -sxc 5 -syc 4

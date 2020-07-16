@@ -28,6 +28,13 @@ use_debugconsole	=	0
 use_rasters		set	1
 			.endif
 			
+			.if	^^defined AGT_CONFIG_SYS_GUARDX
+			.else
+AGT_CONFIG_SYS_GUARDX	=	32
+			.endif
+
+dst_linewid	set	(((20+1)+((AGT_CONFIG_SYS_GUARDX+15)>>4))*8)
+
 *-------------------------------------------------------*
 
 BGRAST			=	$64

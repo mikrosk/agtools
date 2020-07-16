@@ -171,7 +171,11 @@ public:
 
 		r_ctx.pfvpagebytes = pf.virtual_pagebytes_;
 		r_ctx.pfvpageh = pf.wrap_height_;
+
 		r_ctx.prestorestate = &pf.restorestate_;
+		r_ctx.p_ocm_t = pf.ocm_.oct_;
+		r_ctx.p_ocm_o = pf.ocm_.oco_;
+		r_ctx.ocm_stride = pf.ocm_.stride_;
 
 		snapview(drawcontext, _vpw, _vph);
 
@@ -531,7 +535,7 @@ public:
 		if (playfield_type::c_dynamic_)
 		{
 			s16 *dirtyline0, *dirtyline1;
-			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
+			s16 dirtymaskwidth = buffers_[0].fields[0].dtm_animation_.dirtymaskwidth_;
 
 			if (_autoregion)
 			{
@@ -573,7 +577,7 @@ public:
 		{
 
 			s16 *dirtyline0, *dirtyline1;
-			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
+			s16 dirtymaskwidth = buffers_[0].fields[0].dtm_animation_.dirtymaskwidth_;
 
 			if (_autoregion)
 			{
@@ -1046,7 +1050,7 @@ public:
 				rb.fields[1].init(b, 1, display_width_, display_height_, x, y);
 
 			// shortcut to dirty tile masks
-			dirtymaskindex_[b] = buffers_[b].fields[0].dirtymasklines_;
+			dirtymaskindex_[b] = buffers_[b].fields[0].dtm_animation_.dirtymasklines_;
 		}
 		
 		select_buffer(buffer_index_, 0);

@@ -19,6 +19,8 @@ extern "C" restorestate_t *g_rst_state;
 
 extern "C" s16 * volatile dm_dstaddr;
 extern "C" s16 * volatile dm_dirtymask;
+extern "C" s16 * volatile dm_dirty_oct;
+extern "C" s16 * volatile dm_dirty_oco;
 //extern "C" s16 * volatile dm_lmask;
 extern "C" s16 * volatile dm_ptiles;
 extern "C" s16 * volatile dm_pltiles;
@@ -27,11 +29,13 @@ extern "C" s32 * volatile dm_plmap;
 extern "C" volatile s32 dm_virtual_pagebytes;
 extern "C" volatile s16 dm_visible_linebytes;
 extern "C" volatile s16 dm_map_tiles_x;
+extern "C" volatile s16 dm_map_tiles_y;
 extern "C" volatile s16 dm_pi;
 extern "C" volatile s16 dm_pi2;
 extern "C" volatile s16 dm_pj;
 extern "C" volatile s16 dm_pj2;
 extern "C" volatile s16 dm_maskstride;
+extern "C" volatile s16 dm_ocmstride;
 extern "C" volatile s16 dm_lineskip;
 
 extern "C" void do_dirtyrect_pqrs();
@@ -199,30 +203,40 @@ enum UpdateMode
 	UpdateMode_STF_AHEAD_BUFFER
 };
 
+enum PlayfieldAttributes
+{
+	PFA_None			= 0,
+	PFA_TileAnimation	= 1<<0,		// allow map to be edited on-the-fly, with only the modified tiles refreshed on the next update
+	PFA_OcclusionMaps	= 1<<1,		// use a different mechanism to restore very large sprites with embedded occlusion maps
+	PFA_DualLayer		= 1<<2		// [W.I.P] draw a second transparent/masked map on top of the main opaque map, for detail variation
+};
+
+// all of this might be deprecated in favour of STE-only support. maintaining STF support amid STE upgrades is a *lot* of hassle.
+enum PlayfieldHardware
+{
+	PFH_STE				= 1<<0,		// use STE hardware scrolling, virtual linewidth
+	PFH_Blitter			= 1<<1,		// [TODO] has no effect, needs to be tied to blitter code which is assumed always true on STE
+	PFH_STF_SyncShift	= 1<<2		// use LJBK shifter trickery to simulate STE hardscroll on STF
+};
+
 template 
 <
 	// tilesize in 2^n
 	s16 _tilestep, 
-	//
+	// max scroll on any axis (pixels)
 	s16 _max_scroll,
 	// configure vertical scrolling
 	VScrollMode _vscroll,
 	// configure horizontal scrolling
 	HScrollMode _hscroll,
 	// configure background restore mode
-	RestoreMode _restore,
+	RestoreMode _restore = RestoreMode_NONE,
 	// enable speculative tile optimization (more complicated logic, less tile drawing)
-	UpdateMode _updatemode,
-	// STE hardware scroll+linewid
-	bool _ste_hw,
-	// use LJBK 4- or 8-pixel sync shift
-	bool _stf_hsyncshift,
-	// use blitter (STE/MegaST) [deprecated]
-	//bool _blitter,
-	// configure support for dynamic tiles (editing tile indices while displaying them)
-	bool _dynamic,
-	// either 1 or 2 playfield layers
-	s16 _layers = 1,
+	UpdateMode _updatemode = UpdateMode_NORMAL,
+	// enable support for various features
+	PlayfieldHardware _hwattr = PlayfieldHardware(PFH_STE|PFH_Blitter),
+	// enable support for various features
+	PlayfieldAttributes _attr = PFA_None,
 	// guardband regions
 	int _h_guardband = 32,
 	int _v_guardband = 32, // not yet supported in hardware, uses software clipping or cull clipping
@@ -242,11 +256,11 @@ public:
 	static const int c_dst_linewid = (20+1+((c_guardx+15)>>4)) << 3;
 
 	// todo: remove
-	static const bool _blitter = false;
+	//static const bool _blitter = false;
 
-	static const bool c_ste_ = _ste_hw;
-	static const bool c_hsoftscroll_ = !_ste_hw;
-	static const bool c_blitter_ = _blitter;
+	static const bool c_ste_ = (_hwattr & PFH_STE);
+	static const bool c_hsoftscroll_ = !c_ste_;
+	static const bool c_blitter_ = false;//(_hwattr & PFH_Blitter);
 	static const UpdateMode c_updatemode_ = _updatemode;
 
 	// todo: plane support mostly hardwired for now due to specific drawing routs
@@ -262,13 +276,14 @@ public:
 	static const int c_tileshift_w_ = c_tileshift_b_ - 1;
 
 	static const bool c_mapwrapping_ = false;
-	static const bool c_dynamic_ = _dynamic;
+	static const bool c_dynamic_ = (_attr & PFA_TileAnimation);
+	static const bool c_tilerestore_ = (_attr & PFA_OcclusionMaps);
 	//static const bool c_dynamiclayer_ = _dynamic;
-	static const bool c_twolayer_ = (_layers == 2);
+	static const bool c_twolayer_ = (_attr & PFA_DualLayer);
 
 	// buffer speculation is for writing tile slices to future buffers ahead of time
 	static const bool c_hbufferspeculation_ = (!c_ste_) && (c_updatemode_ == UpdateMode_STF_AHEAD_BUFFER);
-	static const bool c_hsyncshift_ = _stf_hsyncshift && (!_ste_hw); // ljbk display only
+	static const bool c_hsyncshift_ = (_hwattr & PFH_STF_SyncShift) && (!c_ste_); // ljbk display only
 
 	// tilesize
 	static const s16 c_tilestep_ = _tilestep;
@@ -281,8 +296,8 @@ public:
 	// only update tile rows if full vertical scrolling is possible
 	static const bool c_updaterows_ = (_vscroll != VScrollMode_NONE) && (_vscroll != VScrollMode_MARGIN);
 
-	static const bool c_hdynamic_ = _dynamic && c_updatecols_;
-	static const bool c_vdynamic_ = _dynamic && c_updaterows_;
+	static const bool c_hdynamic_ = c_dynamic_ && c_updatecols_;
+	static const bool c_vdynamic_ = c_dynamic_ && c_updaterows_;
 
 	// only speculate on H axis if there is offscreen margin (only possible on STE with hscroll+linewid)
 	static const bool c_hspeculative_ = c_updatecols_ && (c_ste_ || (c_updatemode_ == UpdateMode_STF_AHEAD_MARGIN));
@@ -668,14 +683,115 @@ public:
 	s16 dtx2_;
 	s16 dty2_;
 
+	class dirtytilemap_t
+	{
+	public:
+
+		dirtytilemap_t()
+			: dirtymask_(nullptr),
+			  dirtymasklines_(nullptr),
+			  dirtymaskwidth_(0),
+			  dirtymaskstride_(0)
+		{
+		}
+
+		void release()
+		{
+			delete[] dirtymask_; dirtymask_ = nullptr;
+			delete[] dirtymasklines_; dirtymasklines_ = nullptr;
+		}
+
+		void allocate(s16 _xt, s16 _yt)
+		{
+			int stride_blocks = ((_xt + 7) >> 3);
+			dirtymaskwidth_ = stride_blocks;
+			dirtymaskstride_ = dirtymaskwidth_ << 1;
+
+			// 1 word per 8 bits of mask (8 unused bits)
+			s32 size_words = dirtymaskwidth_ * _yt;
+
+			dirtymask_ = new s16[size_words];
+			//qmemclr(dirtymask_, size_words << 1);
+
+			dirtymasklines_ = new s16*[_yt];
+			for (s16 n = 0; n < _yt; ++n)
+				dirtymasklines_[n] = &dirtymask_[n * dirtymaskwidth_];
+
+#if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
+			printf("dtm.stride_blocks: %d\n", (int)stride_blocks); 
+			printf("dtm.stride: %d\n", (int)dirtymaskstride_); 
+			printf("dtm.size_words: %d\n", (int)size_words); 
+#endif
+		}
+
+		~dirtytilemap_t()
+		{
+			release();
+		}
+
+		s16* dirtymask_;
+		s16** dirtymasklines_;
+		s16 dirtymaskwidth_;
+		s16 dirtymaskstride_;
+	};
+
+	dirtytilemap_t dtm_animation_;
+	dirtytilemap_t dtm_bgrestore_;
+
 //	s32* dirtytiles_;
-	s16* dirtymask_;
 //	s16* layermask_;
 //	s16 dirtynum_;
-	s16 dirtymaskwidth_;
-	s16 dirtymaskstride_;
-	s16** dirtymasklines_;
-	s16** layermasklines_;
+	//s16** layermasklines_;
+
+	class occlusionmap_t
+	{
+	public:
+
+		occlusionmap_t()
+			: oct_(nullptr), 
+			  oco_(nullptr), 
+			  stride_(0)
+		{
+		}
+
+		void release()
+		{
+			delete[] oct_; oct_ = nullptr;
+			/*delete[] oco_;*/ oco_ = nullptr;
+		}
+
+		void allocate(s16 _xt, s16 _yt)
+		{
+			// 1 word per 16 tiles, rounded up to 32 tiles (1 longword, 32 bits)
+			s16 stride_tiles = ((_xt + 31) & -32);
+			s16 stride_words = (stride_tiles >> 4);
+			stride_ = stride_words << 1;
+
+			s32 size_words = stride_words * _yt;
+
+			oct_ = new s16[size_words << 1];
+			oco_ = &oct_[size_words];
+			for (int w = 0; w < size_words; w++)
+				oco_[w] = -1;
+
+#if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
+			printf("ocm.stride_tiles: %d\n", (int)stride_tiles); 
+			printf("ocm.stride_words: %d\n", (int)stride_words); 
+			printf("ocm.size_words: %d\n", (int)size_words); 
+#endif
+		}
+
+		~occlusionmap_t()
+		{
+			release();
+		}
+
+		s16* oct_;
+		s16* oco_;
+		s16 stride_;
+	};
+
+	occlusionmap_t ocm_;
 
 	// ---------------------------------------------------------------------------------------------------------------------
 
@@ -1635,11 +1751,14 @@ playfield_template()
 #endif
 	  //dirtytiles_(0),
 	  //dirtynum_(0),
-	  dirtymask_(0), //layermask_(0),
-	  dirtymasklines_(0), layermasklines_(0),
+/*	  dirtymask_(0), //layermask_(0),
+	  dirtymasklines_(0), //layermasklines_(0),
 	  dirtymaskwidth_(0),
 	  dirtymaskstride_(0),
-	  maskedges_(0)
+	  dirty_oct_(0), 
+	  dirty_oco_(0), 
+	  dirty_ocmstride_(0),
+*/	  maskedges_(0)
 {
 }
 
@@ -1648,12 +1767,14 @@ playfield_template()
 	dprintf("destroy playfield\n");
 	delete[] display_alloc_;
 
-	if (c_dynamic_)
-	{
+//	if (c_dynamic_)
+//	{
 //		delete[] dirtytiles_;
-		delete[] dirtymask_;
-		delete[] dirtymasklines_;
-	}
+//		delete[] dtm_animation_.dirtymask_;
+//		delete[] dtm_animation_.dirtymasklines_;
+//		delete[] ocm_.oct_;
+//		delete[] ocm_.oco_;
+//	}
 
 	delete[] restorestate_.pstack;
 
@@ -1787,8 +1908,10 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 		bufferwords_ += (c_max_vt_ * c_tilelinewords_);
 	}
 
+	int guardx_safety_words = ((c_guardx + (16-1)) >> 4) << 2;
+
 	// pad for left guardband
-	bufferwords_ += ((c_guardx + 15) >> 4) << 2;
+	bufferwords_ += guardx_safety_words;
 
 
 	pprintf("init playfield:\n");
@@ -1872,29 +1995,19 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 	// dirty tile management: per-playfield state
 
-	if (c_dynamic_/* || c_dynamiclayer_*/)
-	{
-		dirtymaskwidth_ = ((map_tiles_x_+7)>>3);
-		dirtymaskstride_ = dirtymaskwidth_<<1;
-	}
-
-	// 1 word per 8 bits of mask (8 unused bits)
-	s32 dmsize = ((map_tiles_x_+7)>>3) * map_tiles_y_;
-
 	if (c_dynamic_)
 	{
-		//delete[] dirtytiles_;
-		//dirtytiles_ = new s32[256];
-		//dirtynum_ = 0;
+		dtm_animation_.release();
+		dtm_animation_.allocate(map_tiles_x_, map_tiles_y_);
+	}
 
-		delete[] dirtymask_;
-		dirtymask_ = new s16[dmsize];
-		qmemclr(dirtymask_, dmsize<<1);
+	if (c_tilerestore_)
+	{
+		dtm_bgrestore_.release();
+		dtm_bgrestore_.allocate(map_tiles_x_, map_tiles_y_);
 
-		delete[] dirtymasklines_; 
-		dirtymasklines_ = new s16*[map_tiles_y_];
-		for (s16 n = 0; n < map_tiles_y_; ++n)
-			dirtymasklines_[n] = &dirtymask_[n * dirtymaskwidth_];
+		ocm_.release();
+		ocm_.allocate(map_tiles_x_, map_tiles_y_);
 
 		//// test: checker pattern for mask
 		//for (s16 y = 0; y < map_tiles_y_; y++)
@@ -1945,13 +2058,14 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// address for writing graphics. in this way no memory is wasted.
 
 	s16 displaysvc_consumed_words = (g_displayservice_consumed_lines * virtual_linewords_) + (c_stf_maskedspeculation_ ? 4 : 0);
+
 	display_ = (u16*)
 	(
 		(
 			(
 				(u32)(display_alloc_) - (displaysvc_consumed_words<<1)
 			) 
-			+ (((c_guardx + 15) >> 4) << 3)
+			+ (guardx_safety_words<<1)
 			+ 255
 		) 
 		& -256
@@ -2178,8 +2292,33 @@ void hybrid_fill()
 */			
 
 	// refresh dirty tiles before incremental updates
-	if (c_ste_ && c_dynamic_)
+	if (c_ste_ && (c_dynamic_ || c_tilerestore_))
 	{
+		if (c_tilerestore_)
+		{
+#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+			dbg_vis_occlusion();
+#endif
+			// todo: specialize, window
+			//P16_combine_occlusion();
+
+			// find the viewport rectangle
+			s16 tx1 = txpos_-c_hmargin_;
+			s16 ty1 = typos_-c_vmargin_;
+			// never refresh across map left edge
+			if (c_scanwalk_ && (tx1 < 0))
+				tx1 = 0;
+
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
+
+			OCM_integrate_window(tx1, ty1, tx2, ty2);
+			OCM16_refresh_window(tx1, ty1, tx1, ty1, tx2, ty2);
+
+		} // c_tilerestore_
+
+		if (c_dynamic_)
+		{
 
 #define AGT_CONFIG_MAPMOD_BOUNDS
 #define AGT_CONFIG_MAPMOD_SWEEP_SPEED (4)
@@ -2285,6 +2424,7 @@ void hybrid_fill()
 			}
 		}
 #endif
+		} // c_dynamic_
 	}
 
 	// shortcut incremental if no movement
@@ -3300,7 +3440,7 @@ agt_inline void multitouch(s16 _x, s16 _y)
 
 		u16 pattern = 0x8000 >> (_x & 7);
 		s16 xoffset = (_x >> 3);
-		s16 *dirtyline = dirtymasklines_[_y];
+		s16 *dirtyline = dtm_animation_.dirtymasklines_[_y];
 		dirtyline[xoffset] |= pattern;
 	}
 }
@@ -3323,9 +3463,9 @@ void multitouch_row(s16 _x, s16 _y, s16 _dx)
 		{				
 			// access mask buffer
 			s16 xoffset = (_x >> 3);
-			s16 *dirtyline = dirtymasklines_[_y];
+			s16 *dirtyline = dtm_animation_.dirtymasklines_[_y];
 			dirtyline = &dirtyline[xoffset];
-			s16 stride = dirtymaskwidth_;
+			s16 stride = dtm_animation_.dirtymaskwidth_;
 
 			// generate endmasks for all cases
 			u16 em1 = (0xffff >> (_x & 7));
@@ -3370,9 +3510,9 @@ void multitouch_column(s16 _x, s16 _y, s16 _dy)
 		// update dirty mask
 		u16 pattern = 0x8000 >> (_x & 7);
 		s16 xoffset = (_x >> 3);
-		s16 *dirtyline = dirtymasklines_[_y];
+		s16 *dirtyline = dtm_animation_.dirtymasklines_[_y];
 		dirtyline = &dirtyline[xoffset];
-		s16 stride = dirtymaskwidth_;
+		s16 stride = dtm_animation_.dirtymaskwidth_;
 
 		s16 y = _dy-1;
 		do
@@ -3402,9 +3542,9 @@ void multitouch_rect(s16 _x, s16 _y, s16 _dx, s16 _dy)
 		{				
 			// access mask buffer
 			s16 xoffset = (_x >> 3);
-			s16 *dirtyline = dirtymasklines_[_y];
+			s16 *dirtyline = dtm_animation_.dirtymasklines_[_y];
 			dirtyline = &dirtyline[xoffset];
-			s16 stride = dirtymaskwidth_;
+			s16 stride = dtm_animation_.dirtymaskwidth_;
 
 			// generate endmasks for all cases
 			u16 em1 = (0xffff >> (_x & 7));
