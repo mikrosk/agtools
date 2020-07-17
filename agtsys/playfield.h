@@ -376,14 +376,14 @@ public:
 	public:
 
 		mapcontext()
-			: modulo_map_x_(0),
-			  modulo_map_y_(0),
-			  mul_map_x_(0),
+			: modulo_map_x_(nullptr),
+			  modulo_map_y_(nullptr),
+			  mul_map_x_(nullptr),
 			  map_tiles_x_(0),
 			  map_tiles_y_(0),
 			  srcywrap_(0),
-			  map_(0),
-			  mapoverlay_(0)
+			  map_(nullptr),
+			  mapoverlay_(nullptr)
 		{
 		}
 
@@ -510,7 +510,13 @@ public:
 	public:
 
 		fieldcontext()
-			: initialized_(false)
+			: initialized_(false),
+			  quant_vpage_x_(nullptr),
+			  quant_vpage_y_(nullptr),
+			  modulo_vpage_x_(nullptr),
+			  modulo_vpage_y_(nullptr),
+			  lineindex_(nullptr),
+			  linemod_(nullptr)
 		{
 		}
 
@@ -1791,6 +1797,8 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	field_ = _field;
 
 	// shadow map context info
+	xassert(pmapcontext_);
+
 	modulo_map_x_ = pmapcontext_->modulo_map_x_;
 	modulo_map_y_ = pmapcontext_->modulo_map_y_;
 	mul_map_x_ = pmapcontext_->mul_map_x_;
@@ -1799,6 +1807,8 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	srcywrap_ = pmapcontext_->srcywrap_;
 	map_ = pmapcontext_->map_;
 	mapoverlay_ = pmapcontext_->mapoverlay_;
+
+	xassert(map_);
 
 	last_xpos_ = 0;
 	last_ypos_ = 0;
@@ -1857,7 +1867,6 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 	// incorporate guardband in virtual playfield
 	vpage_tiles_x_ += ((c_guardx - 32) >> 4) * tiles_per_word;
-
 
 	pfieldcontext_->prepare(vpage_tiles_x_, vpage_tiles_y_);
 	quant_vpage_x_ = pfieldcontext_->quant_vpage_x_;

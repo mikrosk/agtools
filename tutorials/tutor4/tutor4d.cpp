@@ -256,7 +256,7 @@ int AGT_EntryPoint()
 		//	associate map & tiles with the arena playfield(s)
 	
 		printf("assigning world map...\n");
-		myworld.setmap(&mymap, &mymap);
+		myworld.setmap(&mymap);
 
 		printf("assigning world tiles to each playfield buffer...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)

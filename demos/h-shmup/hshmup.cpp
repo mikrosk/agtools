@@ -315,9 +315,8 @@ spritesheet nme_walker;
 tileset mytiles0;
 tileset mytiles1;
 
-// playfield map assets (x2 in dual-field mode)
+// playfield map assets
 worldmap mymap0;
-worldmap mymap1;
 
 // =====================================================================================================================
 // =====================================================================================================================
@@ -418,9 +417,6 @@ int AGT_EntryPoint()
 		
 		printf("loading map...\n");
 		mymap0.load_ccm("demo10.ccm");
-		// only load 2nd map if interlacing/dual-field
-		if (c_dualfield)
-			mymap1.load_ccm("demo11.ccm");
 
 		// get map tile dimensions (x16 -> in pixels) to help keep scroll inside the map limits
 		int map_xsize = mymap0.getwidth() << 4;
@@ -441,7 +437,7 @@ int AGT_EntryPoint()
 		//	A: because in dual-field mode each display field can have a different (dithered) tile library
 	
 		printf("assigning world map...\n");
-		myworld.setmap(&mymap0, &mymap1);
+		myworld.setmap(&mymap0);
 
 		pprintf("assigning world tiles...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)

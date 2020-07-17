@@ -204,9 +204,8 @@ spritesheet alien;
 tileset mytiles0;
 tileset mytiles1;
 
-// playfield map assets (x2 in dual-field mode)
+// playfield map assets
 worldmap mymap0;
-worldmap mymap1;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // indices of tiles we know are solid - monsters can't pass
@@ -492,9 +491,6 @@ int AGT_EntryPoint()
 		
 		printf("loading map...\n");
 		mymap0.load_ccm("abreed0.ccm");
-		// only load 2nd map if interlacing/dual-field
-		if (c_dualfield)
-			mymap1.load_ccm("abreed1.ccm");
 
 		// map array
 		s_pmap = mymap0.get();
@@ -526,7 +522,7 @@ int AGT_EntryPoint()
 		//	A: because in dual-field mode each display field can have a different (dithered) tile library
 	
 		printf("assigning world map...\n");
-		myworld.setmap(&mymap0, &mymap1);
+		myworld.setmap(&mymap0);
 
 		pprintf("assigning world tiles...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)

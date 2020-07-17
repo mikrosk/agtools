@@ -229,9 +229,8 @@ spritesheet bossball_asset;
 tileset mytiles0;
 tileset mytiles1;
 
-// playfield map assets (x2 in dual-field mode)
+// playfield map assets
 worldmap mymap0;
-worldmap mymap1;
 
 int map_xsize;
 int map_ysize;
@@ -507,9 +506,6 @@ int AGT_EntryPoint()
 		
 		pprintf("loading map...\n");
 		mymap0.load_ccm("bosscor0.ccm");
-		// only load 2nd map if interlacing/dual-field
-		if (c_dualfield)
-			mymap1.load_ccm("bosscor1.ccm");
 
 		// get map tile dimensions (x16 -> in pixels) to help guide the demo around the map limits
 		map_xsize = mymap0.getwidth() << 4;
@@ -538,7 +534,7 @@ int AGT_EntryPoint()
 		//	A: because in dual-field mode each display field can have a different (dithered) tile library
 	
 		pprintf("assigning world map...\n");
-		myworld.setmap(&mymap0, &mymap1);
+		myworld.setmap(&mymap0);
 
 		pprintf("assigning world tiles...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)

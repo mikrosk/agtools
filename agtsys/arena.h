@@ -45,7 +45,7 @@ public:
 
 	// context holds memory resources shared between related playfields
 	typename playfield_type::mapcontext mapctx0_;
-	typename playfield_type::mapcontext mapctx1_;
+//	typename playfield_type::mapcontext mapctx1_;
 	typename playfield_type::fieldcontext pfctx_;
 	
 	class buffer
@@ -81,6 +81,7 @@ public:
 		// make sure all playfields share common context
 		for (s16 b = 0; b < c_num_buffers_; b++)
 		{
+/*
 			if (c_singleframe)
 			{
 				// only one field, but still using two buffers to interlace display
@@ -101,6 +102,9 @@ public:
 				buffers_[b].fields[0].setcontext(&mapctx0_, &pfctx_);
 				buffers_[b].fields[1].setcontext(&mapctx1_, &pfctx_);
 			}
+*/
+			buffers_[b].fields[0].setcontext(&mapctx0_, &pfctx_);
+			buffers_[b].fields[1].setcontext(&mapctx0_, &pfctx_);
 
 			//// shortcut to dirty tile masks
 			//dirtymaskindex_[b] = buffers_[b].fields[0].dirtymasklines_;
@@ -316,36 +320,36 @@ public:
 		prf_pop();
 	}
 		
-	void setmap(s32* _map0, s32* _map1)
+	void setmap(s32* _map0/*, s32* _map1*/)
 	{
 		mapctx0_.setmap(_map0);
-		mapctx1_.setmap(_map1);
+		//mapctx1_.setmap(_map1);
 		//buffer& b = buffers_[buffer_index_];
 		//b.fields[0].setmap(_map0);
 		//if (dualfield_)
 		//	b.fields[1].setmap(_map1);
 	}
 	
-	void setmap(worldmap* _map0, worldmap* _map1)
+	void setmap(worldmap* _map0/*, worldmap* _map1*/)
 	{
 		mapctx0_.setmap(_map0);
-		mapctx1_.setmap(_map1);
+		//mapctx1_.setmap(_map1);
 		//buffer& b = buffers_[buffer_index_];
 		//b.fields[0].setmap(_map0);
 		//if (dualfield_)
 		//	b.fields[1].setmap(_map1);
 	}
 
-	void setoverlaymap(s32* _map0, s32* _map1)
+	void setoverlaymap(s32* _map0/*, s32* _map1*/)
 	{
 		mapctx0_.setoverlaymap(_map0);
-		mapctx1_.setoverlaymap(_map1);
+		//mapctx1_.setoverlaymap(_map1);
 	}
 	
-	void setoverlaymap(worldmap* _map0, worldmap* _map1)
+	void setoverlaymap(worldmap* _map0/*, worldmap* _map1*/)
 	{
 		mapctx0_.setoverlaymap(_map0);
-		mapctx1_.setoverlaymap(_map1);
+		//mapctx1_.setoverlaymap(_map1);
 	}
 
 	void settiles(tileset* _tiles0, tileset* _tiles1)
