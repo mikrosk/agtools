@@ -1302,6 +1302,31 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				// allow 8c compound operations for 32bit loads only
 				if (!_2nd && (_opsize == OpSize_32) && (it_treg->regclass == RegClass_Data))
 				{
+					// no-op + ?
+					if (equalH && valid_treg32)
+					{
+						//uword_t saveL = it_treg->L;
+
+						//it_treg->L &= 0xFF00;
+
+						if (try_reg_transforms(curr, it_treg, _opsize, _rold, _dataH, _dataL, r_limit, true))
+						{
+							//it_treg->L = saveL;
+
+							if (g_allargs.verbose)
+								printf("preamble:  none\n",
+									it_treg->name.c_str()
+									);
+
+							//curr = operations.insert(curr, new DR_Clr8(*this, rnew));
+							//r_limit -= (*curr)->cost;
+							return true;
+						}
+
+						//it_treg->L = saveL;
+					}
+
+
 					// CLR.B + ?
 					if (equalH && valid_treg32)
 					{

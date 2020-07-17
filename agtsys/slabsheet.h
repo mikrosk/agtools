@@ -9,6 +9,11 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+#include "ealloc.h"
+#include "compress.h"
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 class slabsheet
 {
 public:
@@ -73,6 +78,7 @@ public:
 	// storage
 
 	sls_header* data_;
+	u8* alloc_;
 	
 	// ---------------------------------------------------------------------------------------------------------------------
 	// internal stuff
@@ -81,7 +87,8 @@ private:
 
 	void purge()
 	{
-		delete[] data_; data_ = 0;
+		efree(alloc_); alloc_ = nullptr;
+		data_ = nullptr;
 	}
 
 	// ---------------------------------------------------------------------------------------------------------------------
@@ -90,7 +97,8 @@ private:
 public:
 
 	slabsheet()
-		: data_(0)
+		: alloc_(nullptr),
+		  data_(nullptr)
 	{
 	}
 
@@ -110,22 +118,17 @@ public:
 
 		purge();
 
-		FILE* h = fopen(_filename, "rb");
-		if (h != 0)
+		// load, or load-and-unpack asset file to memory buffer
+		u8* passet = unwrap_p2e_asset(_filename, true, true);
+
+		if (passet)
 		{
-			s32 size = 0;
-			fread(&size, 1, sizeof(s32), h);
+			// allocation includes size prefix, keep separate
+			alloc_ = passet;
+			data_ = (sls_header*)(passet+4);
 
-			// sanity check for corrupt files etc.
-			if ((size > 0) && (size < (1024*1024)))
+			if (data_->version == SLS_VERSION)
 			{
-				// allocate space
-				data_ = (sls_header*)(new u8[size]);
-				// read main part of file
-				fread((char*)data_, 1, size, h);
-
-				if (data_->version == SLS_VERSION)
-				{
 
 				pprintf("created slabsheet:\n\t%dx%d @ %d bpl, %d frames\n", 
 					data_->srcwidth, 
@@ -154,7 +157,7 @@ public:
 						// clipper and spanblock indices remain as offsets to save space
 						// but pixeldata references are pointers so they need relocation
 
-/*						// clipper table continues from indexbase
+	/*						// clipper table continues from indexbase
 						slc_header *pclipper = (slc_header*)(&(pbh->indexbase[0]));
 
 						for (s16 yc = 0; yc < pbh->h; yc++)
@@ -167,7 +170,7 @@ public:
 								(int)pclipper[yc].remaining_b 
 								);
 						}
-*/
+	*/
 						// spanblock index follows clipper table, which is (8 bytes * height) in size
 						u16 *pspanblocks = (u16*)&(pbh->indexbase[sizeof(slc_header) * pbh->h]);
 
@@ -184,7 +187,7 @@ public:
 						}
 
 						slf_header *next_pbh = nullptr;
-#if (1)
+	#if (1)
 						// terminate, unless another component follows
 						ptrsize_t nextcmp_addroffset = (ptrsize_t)pbh->nextcmp;
 
@@ -196,7 +199,7 @@ public:
 							//printf("next pbh: %x\n", (ptrsize_t)next_pbh);
 							pbh->nextcmp = (s32)next_pbh;
 						}
-#endif
+	#endif
 						pbh = next_pbh;
 
 					} while (pbh != 0);
@@ -205,16 +208,13 @@ public:
 
 				}
 				success = true;
-				}
-				else
-				{
-					pprintf("error: slabsheet version (%x != %x) is stale - re-generate data with latest AGTCUT!\n", data_->version, SLS_VERSION);
-
-					delete[] (u8*)data_; 
-					data_ = nullptr;
-				}
 			}
-			fclose(h);
+			else
+			{
+				pprintf("error: slabsheet version (%x != %x) is stale - re-generate data with latest AGTCUT!\n", data_->version, SLS_VERSION);
+
+				purge();
+			}
 		}
 		else
 		{

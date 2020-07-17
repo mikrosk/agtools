@@ -17,7 +17,8 @@ public:
 		OpSource _opdst,
 		OpWrite _opwr,
 		int _cost,
-		int _tail
+		int _tail,
+		int _words
 	)
 		: ctx(_ctx),
 		  kind(_kind),
@@ -27,6 +28,7 @@ public:
 		  opwr(_opwr),
 		  cost(_cost),
 		  tail(_tail),
+		  words(_words),
 		  sreg(-1),
 		  dreg(-1),
 		  areg(-1),
@@ -101,6 +103,7 @@ public:
 
 	int cost;
 	int tail;
+	int words;
 };
 
 // --------------------------------------------------------------------
@@ -110,7 +113,7 @@ class NoOp : public Operation
 public:
 
 	NoOp(Context &_ctx)
-		: Operation(_ctx, OpKind_Nop, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 4, 0)
+		: Operation(_ctx, OpKind_Nop, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 4, 0, 1)
 	{
 	}
 
@@ -132,7 +135,7 @@ class EM_MoveI16 : public Operation
 public:
 
 	EM_MoveI16(Context &_ctx, int _em, uword_t _data, int _areg)
-		: Operation(_ctx, OpKind_StoreI16, OpSize_16, OpSource_Immediate, OpSource_Memory, OpWrite_Replace, 12, 0),
+		: Operation(_ctx, OpKind_StoreI16, OpSize_16, OpSource_Immediate, OpSource_Memory, OpWrite_Replace, 12, 0, 2),
 		  em(_em),
 		  data(_data)
 	{
@@ -166,7 +169,7 @@ class EM_MoveI32 : public Operation
 public:
 
 	EM_MoveI32(Context &_ctx, int _em, uword_t _dataH, uword_t _dataL, int _areg)
-		: Operation(_ctx, OpKind_StoreI32, OpSize_32, OpSource_Immediate, OpSource_Memory, OpWrite_Replace, 20, 0),
+		: Operation(_ctx, OpKind_StoreI32, OpSize_32, OpSource_Immediate, OpSource_Memory, OpWrite_Replace, 20, 0, 2),
 		  em(_em),
 		  dataH(_dataH),
 		  dataL(_dataL)
@@ -206,7 +209,7 @@ class EM_MoveR16 : public Operation
 public:
 
 	EM_MoveR16(Context &_ctx, int _em, int _reg, int _areg)
-		: Operation(_ctx, OpKind_StoreR16, OpSize_16, OpSource_Register, OpSource_Memory, OpWrite_Replace, 8, 0),
+		: Operation(_ctx, OpKind_StoreR16, OpSize_16, OpSource_Register, OpSource_Memory, OpWrite_Replace, 8, 0, 1),
 		  em(_em)
 	{
 		assert(_reg < 256);
@@ -241,7 +244,7 @@ class EM_MoveR32 : public Operation
 public:
 
 	EM_MoveR32(Context &_ctx, int _em, int _reg, int _areg)
-		: Operation(_ctx, OpKind_StoreR32, OpSize_32, OpSource_Register, OpSource_Memory, OpWrite_Replace, 12, 0),
+		: Operation(_ctx, OpKind_StoreR32, OpSize_32, OpSource_Register, OpSource_Memory, OpWrite_Replace, 12, 0, 1),
 		  em(_em)
 	{
 		assert(_reg < 256);
@@ -281,7 +284,7 @@ class AR_Lea16 : public Operation
 public:
 
 	AR_Lea16(Context &_ctx, int _reg, uword_t _data)
-		: Operation(_ctx, OpKind_Lea16, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Replace, 8, 2),
+		: Operation(_ctx, OpKind_Lea16, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Replace, 8, 2, 2),
 		  data(_data)
 	{
 		dreg = _reg;
@@ -313,7 +316,7 @@ class AR_Lea32 : public Operation
 public:
 
 	AR_Lea32(Context &_ctx, int _reg, uword_t _dataH, uword_t _dataL)
-		: Operation(_ctx, OpKind_Lea32, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Replace, 12, 0),
+		: Operation(_ctx, OpKind_Lea32, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Replace, 12, 0, 3),
 		  dataH(_dataH),
 		  dataL(_dataL)
 	{
@@ -349,7 +352,7 @@ class DR_LoadI16 : public Operation
 public:
 
 	DR_LoadI16(Context &_ctx, int _reg, uword_t _data)
-		: Operation(_ctx, OpKind_LoadI16, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Replace, 8, 2),
+		: Operation(_ctx, OpKind_LoadI16, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Replace, 8, 2, 2),
 		  data(_data)
 	{
 		dreg = _reg;
@@ -379,7 +382,7 @@ class DR_Clr8 : public Operation
 public:
 
 	DR_Clr8(Context &_ctx, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0, 1)
 	{
 		dreg = _reg;
 	}
@@ -405,7 +408,7 @@ class DR_Clr16 : public Operation
 public:
 
 	DR_Clr16(Context &_ctx, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Replace, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Replace, 4, 0, 1)
 	{
 		dreg = _reg;
 	}
@@ -431,7 +434,7 @@ class DR_MoveQ32 : public Operation
 public:
 
 	DR_MoveQ32(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_Replace, 4, 0),
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_Replace, 4, 0, 1),
 		  imm(_imm)
 	{
 		dreg = _reg;
@@ -463,7 +466,7 @@ class DR_Not32 : public Operation
 public:
 
 	DR_Not32(Context &_ctx, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_Modify, 8, 4)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_Modify, 8, 4, 1)
 	{
 		sreg = dreg = _reg;
 	}
@@ -490,7 +493,7 @@ class DR_Not16 : public Operation
 public:
 
 	DR_Not16(Context &_ctx, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0, 1)
 	{
 		sreg = dreg = _reg;
 	}
@@ -516,7 +519,7 @@ class DR_Not8 : public Operation
 public:
 
 	DR_Not8(Context &_ctx, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0, 1)
 	{
 		sreg = dreg = _reg;
 	}
@@ -542,7 +545,7 @@ class DR_Neg32 : public Operation
 public:
 
 	DR_Neg32(Context &_ctx, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_Modify, 8, 4)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_Modify, 8, 4, 1)
 	{
 		sreg = dreg = _reg;
 	}
@@ -571,7 +574,7 @@ class DR_Neg16 : public Operation
 public:
 
 	DR_Neg16(Context &_ctx, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0, 1)
 	{
 		sreg = dreg = _reg;
 	}
@@ -597,7 +600,7 @@ class DR_Neg8 : public Operation
 public:
 
 	DR_Neg8(Context &_ctx, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0, 1)
 	{
 		sreg = dreg = _reg;
 	}
@@ -625,7 +628,7 @@ class DR_AddSubQ32 : public Operation
 public:
 
 	DR_AddSubQ32(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 4, 0),
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 4, 0, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -671,7 +674,7 @@ class DR_AddSubQ16 : public Operation
 public:
 
 	DR_AddSubQ16(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 4, 0),
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 4, 0, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -713,7 +716,7 @@ class DR_AddSubQ8 : public Operation
 public:
 
 	DR_AddSubQ8(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 4, 0),
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 4, 0, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -756,7 +759,7 @@ class DR_LSI16 : public Operation
 public:
 
 	DR_LSI16(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8),
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -802,7 +805,7 @@ class DR_LSI32 : public Operation
 public:
 
 	DR_LSI32(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8),
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -855,7 +858,7 @@ class DR_ASI16 : public Operation
 public:
 
 	DR_ASI16(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8),
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -901,7 +904,7 @@ class DR_ASI32 : public Operation
 public:
 
 	DR_ASI32(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8),
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -954,7 +957,7 @@ class DR_ROI16 : public Operation
 public:
 
 	DR_ROI16(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8),
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -1000,7 +1003,7 @@ class DR_ROI32 : public Operation
 public:
 
 	DR_ROI32(Context &_ctx, int _imm, int _reg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8),
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Modify, 12, 8, 1),
 		  imm(_imm)
 	{
 		sreg = dreg = _reg;
@@ -1054,7 +1057,7 @@ class DR_MoveR8 : public Operation
 public:
 
 	DR_MoveR8(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1088,7 +1091,7 @@ class DR_MoveR16 : public Operation
 public:
 
 	DR_MoveR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Replace, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Replace, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1117,7 +1120,7 @@ class DR_MoveR32 : public Operation
 public:
 
 	DR_MoveR32(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Replace, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Replace, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1148,7 +1151,7 @@ class DR_AddR32 : public Operation
 public:
 
 	DR_AddR32(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1181,7 +1184,7 @@ class DR_AddR16 : public Operation
 public:
 
 	DR_AddR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1209,7 +1212,7 @@ class DR_AddR8 : public Operation
 public:
 
 	DR_AddR8(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1243,7 +1246,7 @@ class DR_SubR32 : public Operation
 public:
 
 	DR_SubR32(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1276,7 +1279,7 @@ class DR_SubR16 : public Operation
 public:
 
 	DR_SubR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1304,7 +1307,7 @@ class DR_SubR8 : public Operation
 public:
 
 	DR_SubR8(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1338,7 +1341,7 @@ class DR_AndR32 : public Operation
 public:
 
 	DR_AndR32(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1371,7 +1374,7 @@ class DR_AndR16 : public Operation
 public:
 
 	DR_AndR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1399,7 +1402,7 @@ class DR_AndR8 : public Operation
 public:
 
 	DR_AndR8(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1433,7 +1436,7 @@ class DR_OrR32 : public Operation
 public:
 
 	DR_OrR32(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1466,7 +1469,7 @@ class DR_OrR16 : public Operation
 public:
 
 	DR_OrR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1494,7 +1497,7 @@ class DR_OrR8 : public Operation
 public:
 
 	DR_OrR8(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1528,7 +1531,7 @@ class DR_XorR32 : public Operation
 public:
 
 	DR_XorR32(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1561,7 +1564,7 @@ class DR_XorR16 : public Operation
 public:
 
 	DR_XorR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1589,7 +1592,7 @@ class DR_XorR8 : public Operation
 public:
 
 	DR_XorR8(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 4, 0, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1623,7 +1626,7 @@ class DR_SccR8 : public Operation
 public:
 
 	DR_SccR8(Context &_ctx, bool _cond, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 8, 4),
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 8, 4, 1),
 		  cond(_cond)
 	{
 		sreg = dreg = _dreg;
@@ -1667,7 +1670,7 @@ class DR_TasR8 : public Operation
 public:
 
 	DR_TasR8(Context &_ctx, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0, 1)
 	{
 		sreg = dreg = _dreg;
 	}
@@ -1693,7 +1696,7 @@ class DR_ExtR16 : public Operation
 public:
 
 	DR_ExtR16(Context &_ctx, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0, 1)
 	{
 		sreg = dreg = _dreg;
 	}
@@ -1719,7 +1722,7 @@ class DR_ExtR32 : public Operation
 public:
 
 	DR_ExtR32(Context &_ctx, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_ReplaceH, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_ReplaceH, 4, 0, 1)
 	{
 		sreg = dreg = _dreg;
 	}
@@ -1747,7 +1750,7 @@ class DR_SwapR32 : public Operation
 public:
 
 	DR_SwapR32(Context &_ctx, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0)
+		: Operation(_ctx, OpKind_Other, OpSize_32, OpSource_None, OpSource_Register, OpWrite_Modify, 4, 0, 1)
 		// note: swap acts like a replace since for each word, the new value doesn't depend on the previous value
 		// however it is not injected if the word to be used (usually upper) is not stable in the first place
 	{
@@ -1782,7 +1785,7 @@ class DR_BchgR : public Operation
 public:
 
 	DR_BchgR(Context &_ctx, OpSize _opsize, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, _opsize, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4)
+		: Operation(_ctx, OpKind_Other, _opsize, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1811,7 +1814,7 @@ class DR_MuluR16 : public Operation
 public:
 
 	DR_MuluR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_ReplaceHCombineL, 70, 64)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_ReplaceHCombineL, 70, 64, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1841,7 +1844,7 @@ class DR_MulsR16 : public Operation
 public:
 
 	DR_MulsR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_ReplaceHCombineL, 70, 64)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_ReplaceHCombineL, 70, 64, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -1871,7 +1874,7 @@ class DR_LoadI32 : public Operation
 public:
 
 	DR_LoadI32(Context &_ctx, int _reg, uword_t _dataH, uword_t _dataL)
-		: Operation(_ctx, OpKind_LoadI32, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Replace, 12, 0),
+		: Operation(_ctx, OpKind_LoadI32, OpSize_32, OpSource_Immediate, OpSource_Register, OpWrite_Replace, 12, 0, 1),
 		  dataH(_dataH),
 		  dataL(_dataL)
 	{
@@ -1901,7 +1904,7 @@ class BLiT_Init : public Operation
 public:
 
 	BLiT_Init(Context &_ctx)
-		: Operation(_ctx, OpKind_BLITInit, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0)
+		: Operation(_ctx, OpKind_BLITInit, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0, -1)
 	{
 	}
 
@@ -1909,8 +1912,8 @@ public:
 	{
 		char buf[1024];
 		sprintf(ctx.buf,	" move.w #$%04x,%s\t;%d\n", ctx.blitter.dyinc, ctx.BLiTDYI_name.c_str(), 16);
-			sprintf(buf,		" move.w #$%04x,%s\t;%d\n", ctx.blitter.syinc, ctx.BLiTSYI_name.c_str(), 16);
-			strcat(ctx.buf, buf);
+		sprintf(buf,		" move.w #$%04x,%s\t;%d\n", ctx.blitter.syinc, ctx.BLiTSYI_name.c_str(), 16);
+		strcat(ctx.buf, buf);
 		sprintf(buf,		" move.w #$%04x,%s\t;%d\n", ctx.blitter.xcount, ctx.BLiTXC_name.c_str(), 16);
 		strcat(ctx.buf, buf);
 		sprintf(buf,		" move.b #$%02x,%s\t;%d\n", ctx.blitter.skew, ctx.BLiTSKEW_name.c_str(), 16);
@@ -1928,7 +1931,7 @@ class SYS_PageRestore : public Operation
 public:
 
 	SYS_PageRestore(Context &_ctx)
-		: Operation(_ctx, OpKind_SYSPageRestore, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0)
+		: Operation(_ctx, OpKind_SYSPageRestore, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0, -1)
 	{
 	}
 
@@ -1957,7 +1960,7 @@ class BLiT_SetYC : public Operation
 public:
 
 	BLiT_SetYC(Context &_ctx, int _sreg)
-		: Operation(_ctx, OpKind_BLITSetup, OpSize_16, OpSource_Register, OpSource_Memory, OpWrite_None, 8, 0)
+		: Operation(_ctx, OpKind_BLITSetup, OpSize_16, OpSource_Register, OpSource_Memory, OpWrite_None, 8, 0, -1)
 	{
 		sreg = _sreg;
 	}
@@ -1984,7 +1987,7 @@ class BLiT_SetDSTADDR : public Operation
 public:
 
 	BLiT_SetDSTADDR(Context &_ctx, int _sreg)
-		: Operation(_ctx, OpKind_BLITSetup, OpSize_32, OpSource_Register, OpSource_Memory, OpWrite_None, 8, 0)
+		: Operation(_ctx, OpKind_BLITSetup, OpSize_32, OpSource_Register, OpSource_Memory, OpWrite_None, 8, 0, -1)
 	{
 		sreg = _sreg;
 	}
@@ -2012,7 +2015,7 @@ class BLiT_Go : public Operation
 public:
 
 	BLiT_Go(Context &_ctx, int _sreg, int _sline, int _dline)
-		: Operation(_ctx, OpKind_BLITGo, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 0),
+		: Operation(_ctx, OpKind_BLITGo, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 0, -1),
 		  sline(_sline),
 		  dline(_dline)
 	{
@@ -2057,7 +2060,7 @@ class SRC_Skip : public Operation
 public:
 
 	SRC_Skip(Context &_ctx, int _skips)
-		: Operation(_ctx, OpKind_SRCSkip, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2),
+		: Operation(_ctx, OpKind_SRCSkip, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
 		  delta(_skips)
 	{
 	}
@@ -2085,7 +2088,7 @@ class DST_Lea : public Operation
 public:
 
 	DST_Lea(Context &_ctx, int _sreg, int _dreg, int _delta)
-		: Operation(_ctx, OpKind_DSTLea, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2),
+		: Operation(_ctx, OpKind_DSTLea, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, 2),
 		  delta(_delta)
 	{
 		sreg = _sreg;
@@ -2120,7 +2123,7 @@ class DST_AddaR16 : public Operation
 public:
 
 	DST_AddaR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_DSTAddaR16, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4)
+		: Operation(_ctx, OpKind_DSTAddaR16, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -2146,7 +2149,7 @@ class DST_SubaR16 : public Operation
 public:
 
 	DST_SubaR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_DSTSubaR16, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4)
+		: Operation(_ctx, OpKind_DSTSubaR16, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -2172,7 +2175,7 @@ class Terminate : public Operation
 public:
 
 	Terminate(Context &_ctx)
-		: Operation(_ctx, OpKind_Terminate, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0)
+		: Operation(_ctx, OpKind_Terminate, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0, -1)
 	{
 	}
 

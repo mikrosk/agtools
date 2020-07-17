@@ -2376,8 +2376,8 @@ typedef std::list<ubyte_t*> tile8dictionary_t;
 typedef std::list<uword_t*> tileplanardictionary_t;
 
 tile24dictionary_t s_tile24dictionary;
-tile8dictionary_t s_tile8dictionary;
-tileplanardictionary_t s_tileplanardictionary;
+tile8dictionary_t s_tile8dictionary[2];
+tileplanardictionary_t s_tileplanardictionary[2];
 
 // extract pixels from 8bit indexed tile data
 static inline void extract_tile8(ubyte_t *_pdsttile, ubyte_t *_psrctile, ulong_t _sourcew)
@@ -2444,7 +2444,13 @@ static inline float compare_tile24(RGB *_pdsttile, RGB *_psrctile, ulong_t _sour
 //	add tile to dictionary if it appears to be unique
 // --------------------------------------------------------------------
 
-static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew, int _tx, int _ty)
+static int process_tile
+(
+	RGB *_psourcergb, 
+	ubyte_t *_psourcecol, 
+	ulong_t _sourcew, 
+	int _tx, int _ty
+)
 {
 	int mapindex = -1;
 
@@ -2455,14 +2461,14 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 
 	// configure nearest match to worst case before search
 	tile24dictionary_t::iterator best_it24 = s_tile24dictionary.end();
-	tile8dictionary_t::iterator best_it8 = s_tile8dictionary.end();
+	tile8dictionary_t::iterator best_it8 = s_tile8dictionary[0].end();
 	float best_error = g_allargs.tolerance+(1e-7f);
 	int best_index = -1;
 	bool match = false;
 
 	// run comparison against all tiles
 	tile24dictionary_t::iterator it24 = s_tile24dictionary.begin();
-	tile8dictionary_t::iterator it8 = s_tile8dictionary.begin();
+	tile8dictionary_t::iterator it8 = s_tile8dictionary[0].begin();
 	int index = 0;
 	for (; it24 != s_tile24dictionary.end(); it24++, it8++, index++)
 	{
@@ -2488,7 +2494,7 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 	}
 	else
 	{
-		mapindex = (int)s_tile8dictionary.size();
+		mapindex = (int)s_tile8dictionary[0].size();
 
 		// if no match was found, store tile as unique
 		RGB *pnewtile24 = new RGB[64 * 64];
@@ -2500,7 +2506,84 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 
 		//		std::cout << "recorded unique tile " << s_tile8dictionary.size() << " @ " << _tx << "x" << _ty << " with match error > " << best_error << std::endl;
 		s_tile24dictionary.push_back(pnewtile24);
-		s_tile8dictionary.push_back(pnewtile8);
+		s_tile8dictionary[0].push_back(pnewtile8);
+	}
+
+	return mapindex;
+}
+
+static int process_tile2
+(
+	RGB *_psourcergb, 
+	ubyte_t *_psourcecol0, ubyte_t *_psourcecol1,
+	ulong_t _sourcew, 
+	int _tx, int _ty
+)
+{
+	int mapindex = -1;
+
+	// compare this tile with all tiles already in dictionary
+
+	// address source tile in terms of tile coords
+	RGB *psrctile24 = &_psourcergb[(_sourcew * (_ty * g_allargs.tilesize)) + (_tx * g_allargs.tilesize)];
+
+	// configure nearest match to worst case before search
+	tile24dictionary_t::iterator best_it24 = s_tile24dictionary.end();
+	//tile8dictionary_t::iterator best_it80 = s_tile8dictionary[0].end();
+	//tile8dictionary_t::iterator best_it81 = s_tile8dictionary[1].end();
+	float best_error = g_allargs.tolerance+(1e-7f);
+	int best_index = -1;
+	bool match = false;
+
+	// run comparison against all tiles
+	tile24dictionary_t::iterator it24 = s_tile24dictionary.begin();
+	//tile8dictionary_t::iterator it80 = s_tile8dictionary[0].begin();
+	//tile8dictionary_t::iterator it81 = s_tile8dictionary[1].begin();
+	int index = 0;
+	for (; it24 != s_tile24dictionary.end(); it24++, /*it80++, it81++,*/ index++)
+	{
+		RGB *pdict24 = *it24;
+		float match_error = compare_tile24(pdict24, psrctile24, _sourcew);
+
+		// if this dictionary tile yields a closer match, track it
+		if (match_error < best_error)
+		{
+			match = true;
+			best_error = match_error;
+			best_it24 = it24;
+			//best_it80 = it80;
+			//best_it81 = it81;
+			best_index = index;
+		}
+	}
+
+	if (match)
+	{
+		// if match was found, consider it reused
+		//		std::cout << "reused tile with match error @ " << best_error << std::endl;
+		mapindex = best_index;
+	}
+	else
+	{
+		mapindex = (int)s_tile24dictionary.size();
+
+		// if no match was found, store tile as unique
+		RGB *pnewtile24 = new RGB[64 * 64];
+
+		ubyte_t *pnewtile80 = new ubyte_t[64 * 64];
+		ubyte_t *psrctile80 = &_psourcecol0[(_sourcew * (_ty * g_allargs.tilesize)) + (_tx * g_allargs.tilesize)];
+
+		ubyte_t *pnewtile81 = new ubyte_t[64 * 64];
+		ubyte_t *psrctile81 = &_psourcecol1[(_sourcew * (_ty * g_allargs.tilesize)) + (_tx * g_allargs.tilesize)];
+
+		extract_tile24(pnewtile24, psrctile24, _sourcew);
+		extract_tile8(pnewtile80, psrctile80, _sourcew);
+		extract_tile8(pnewtile81, psrctile81, _sourcew);
+
+		//		std::cout << "recorded unique tile " << s_tile8dictionary.size() << " @ " << _tx << "x" << _ty << " with match error > " << best_error << std::endl;
+		s_tile24dictionary.push_back(pnewtile24);
+		s_tile8dictionary[0].push_back(pnewtile80);
+		s_tile8dictionary[1].push_back(pnewtile81);
 	}
 
 	return mapindex;
@@ -2510,6 +2593,7 @@ static int process_tile(RGB *_psourcergb, ubyte_t *_psourcecol, ulong_t _sourcew
 //	process all map tiles from source image
 // --------------------------------------------------------------------
 
+/*
 static void process_tilemap
 (
 	long_t *&r_ptilesrcmap, int &r_tilesrcw, int &r_tilesrch,
@@ -2518,8 +2602,7 @@ static void process_tilemap
 )
 {
 	s_tile24dictionary.clear();
-	s_tile8dictionary.clear();
-	s_tileplanardictionary.clear();
+	s_tile8dictionary[0].clear();
 
 	// find source dimensions in terms of tiles
 	int tilesrcw = (_sourcew / g_allargs.tilesize);
@@ -2570,19 +2653,107 @@ static void process_tilemap
 		}
 	}
 
-	int uniquetiles = s_tile8dictionary.size();
+	int uniquetiles = s_tile8dictionary[0].size();
+}
+*/
+
+static void process_tilemap2
+(
+	long_t *&r_ptilesrcmap, int &r_tilesrcw, int &r_tilesrch,
+	long_t *&r_ptilemap, int &r_tilemapw, int &r_tilemaph, 
+	RGB *_psourcergb, 
+	ubyte_t *_psourcecol0, ubyte_t *_psourcecol1,
+	ulong_t _sourcew, ulong_t _sourceh,
+	int _fields
+)
+{
+	s_tile24dictionary.clear();
+	s_tile8dictionary[0].clear();
+	s_tile8dictionary[1].clear();
+
+	// find source dimensions in terms of tiles
+	int tilesrcw = (_sourcew / g_allargs.tilesize);
+	int tilesrch = (_sourceh / g_allargs.tilesize);
+	r_tilesrcw = tilesrcw;
+	r_tilesrch = tilesrch;
+	r_ptilesrcmap = new long_t[tilesrcw*tilesrch];
+
+	long_t *psrcmap = r_ptilesrcmap;
+
+	// find map dimensions in terms of tiles
+	int mapw = xmin(tilesrcw - g_allargs.maprect_xpos, g_allargs.maprect_xsize);
+	int maph = xmin(tilesrch - g_allargs.maprect_ypos, g_allargs.maprect_ysize);
+	r_tilemapw = mapw;
+	r_tilemaph = maph;
+	r_ptilemap = new long_t[mapw*maph];
+
+	long_t *ptilemap = r_ptilemap;
+
+	// iterate over source tiles, left-to-right, top-to-bottom
+	for (int ty = 0; ty < tilesrch; ty++)
+	{
+		for (int tx = 0; tx < tilesrcw; tx++)
+		{
+			int tilemapindex;
+
+			if (_fields == 2)
+			{
+				tilemapindex = process_tile2
+				(
+					_psourcergb,
+					_psourcecol0, _psourcecol1,
+					_sourcew,
+					tx, ty
+				);
+			}
+			else
+			{
+				tilemapindex = process_tile
+				(
+					_psourcergb,
+					_psourcecol0,
+					_sourcew,
+					tx, ty
+				);
+			}
+
+			// update map only within cutting rectangle
+			int mx = tx - g_allargs.maprect_xpos;
+			int my = ty - g_allargs.maprect_ypos;
+			if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+			{
+				ptilemap[(my * mapw) + mx] = tilemapindex;
+			}
+			// update src map always (for --visual)
+			psrcmap[(ty*tilesrcw)+tx] = tilemapindex;
+
+			if ((s_progress & 0x1F) == 0)
+			{
+				switch ((s_progress >> 5) & 3)
+				{
+					case 0: printf("|\r"); break;
+					case 1: printf("/\r"); break;
+					case 2: printf("-\r"); break;
+					case 3: printf("\\\r"); break;
+				}
+			}
+			s_progress++;
+		}
+	}
+
+	int uniquetiles = s_tile24dictionary.size();
 }
 
 // --------------------------------------------------------------------
 //	convert 8bit tiles to 8-plane for export (later chop to N planes)
 // --------------------------------------------------------------------
 
-static void remap_dictionary_tiles()
+static void remap_dictionary_tiles(tile8dictionary_t &_in, tileplanardictionary_t &_out)
 {
-	std::cout << "converting " << s_tile8dictionary.size() << " 8-bit tiles into planar format..." << std::endl;
+	std::cout << "converting " << _in.size() << " 8-bit tiles into planar format..." << std::endl;
 
-	tile8dictionary_t::iterator it8 = s_tile8dictionary.begin();
-	for (; it8 != s_tile8dictionary.end(); it8++)
+	tile8dictionary_t::iterator it8 = _in.begin();
+	for (; it8 != _in.end(); it8++)
 	{
 		ubyte_t *ptile8 = *it8;
 /*
@@ -2646,7 +2817,7 @@ static void remap_dictionary_tiles()
 			);
 		}
 
-		s_tileplanardictionary.push_back(ptileplanar);
+		_out.push_back(ptileplanar);
 	}
 
 	std::cout << "...done" << std::endl;
@@ -3068,7 +3239,7 @@ static void emit_tilemap_ccm(std::string outfile, long_t *_ptilemap, int _tilema
 // --------------------------------------------------------------------
 
 // emit tiles to a series of 320x200 .PI1 images
-static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb, bool _mask)
+static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb, bool _mask, int _ccf)
 {
 	uword_t *buffer4plane = new uword_t[16000];
 	memset(buffer4plane, 0, 32000);
@@ -3078,8 +3249,8 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb, bool _mask)
 	int oty = 0;
 	// emit PI1 images representing dictionary
 	//while (!s_tileplanardictionary.empty())
-	for (tileplanardictionary_t::iterator it = s_tileplanardictionary.begin(); 
-		it != s_tileplanardictionary.end(); it++)
+	for (tileplanardictionary_t::iterator it = s_tileplanardictionary[_ccf].begin(); 
+		it != s_tileplanardictionary[_ccf].end(); it++)
 	{
 		// copy 4 least significant planes to PI1 buffer
 		uword_t *pin = *it;// s_tileplanardictionary.front();
@@ -3216,7 +3387,7 @@ inline const T bceil(const T _v)
 }
 
 
-static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
+static void emit_tiles_cct(std::string outfile, RGB *_ppal24, int _ccf)
 {
 //	std::string filename("tiles.cct");
 
@@ -3287,7 +3458,7 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 
 		// write tile count (2)
 		{
-			word_t count = s_tileplanardictionary.size();
+			word_t count = s_tileplanardictionary[_ccf].size();
 			count = endianswap16(count);
 			fwrite(&count, 1, sizeof(count), h);
 		}
@@ -3300,7 +3471,7 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24)
 			int tileplanes = g_allargs.planes;
 
 
-			for (tileplanardictionary_t::iterator it = s_tileplanardictionary.begin(); it != s_tileplanardictionary.end(); it++)
+			for (tileplanardictionary_t::iterator it = s_tileplanardictionary[_ccf].begin(); it != s_tileplanardictionary[_ccf].end(); it++)
 			{
 
 				// extract planes
@@ -3459,7 +3630,7 @@ static void emit_tiles_rbplus(std::string outfile, RGB *_ppal24)
 		int tilesize = g_allargs.tilesize;
 		// create header (16 x (tiles*count) x nBPP)
 
-		int pixeldatasize = (tilesize * tilesize) * s_tile8dictionary.size();
+		int pixeldatasize = (tilesize * tilesize) * s_tile8dictionary[0].size();
 		if (g_allargs.planes <= 4)
 			pixeldatasize >>= 1;
 
@@ -3472,16 +3643,16 @@ static void emit_tiles_rbplus(std::string outfile, RGB *_ppal24)
 		bmph.dib_size_header = 40;
 		bmph.dib_w = tilesize;
 #if (BMP_TYPICAL_ROW_ORDER)
-		bmph.dib_signed_h = (tilesize * s_tile8dictionary.size());
+		bmph.dib_signed_h = (tilesize * s_tile8dictionary[0].size());
 #else
-		bmph.dib_signed_h = -(tilesize * s_tile8dictionary.size());
+		bmph.dib_signed_h = -(tilesize * s_tile8dictionary[0].size());
 #endif
 		bmph.dib_planes = 1;
 		bmph.dib_bpp = (g_allargs.planes <= 4) ? 4 : 8;
 		bmph.dib_format = 0;
 		bmph.dib_rawsize = pixeldatasize;
 		bmph.dib_print_xres = tilesize;
-		bmph.dib_print_yres = (tilesize * s_tile8dictionary.size());
+		bmph.dib_print_yres = (tilesize * s_tile8dictionary[0].size());
 		bmph.dib_ncolours = (g_allargs.planes <= 4) ? 16 : 256;
 		bmph.dib_icolours = bmph.dib_ncolours;
 		// palette follows - no padding required
@@ -3526,9 +3697,9 @@ static void emit_tiles_rbplus(std::string outfile, RGB *_ppal24)
 
 #if (BMP_TYPICAL_ROW_ORDER)
 			// so we need to emit the tiles in reverse. what a crock...
-			for (tile8dictionary_t::reverse_iterator it = s_tile8dictionary.rbegin(); it != s_tile8dictionary.rend(); it++)
+			for (tile8dictionary_t::reverse_iterator it = s_tile8dictionary[0].rbegin(); it != s_tile8dictionary[0].rend(); it++)
 #else
-			for (tile8dictionary_t::iterator it = s_tile8dictionary.begin(); it != s_tile8dictionary.end(); it++)
+			for (tile8dictionary_t::iterator it = s_tile8dictionary[0].begin(); it != s_tile8dictionary[0].end(); it++)
 #endif
 			{
 				ubyte_t *tile = *it;
@@ -3917,8 +4088,47 @@ bool do_tilemap()
 				reduce_image24(m_psourcergb, 0, m_psourcecol, m_psourcecol2, sourcew, sourceh, sourced, m_ppalettergb);
 			}
 
+			s_tileplanardictionary[0].clear();
+			s_tileplanardictionary[1].clear();
+
+			std::cout << "extracting unique tiles..." << std::endl;
+
+			process_tilemap2
+			(
+				psrcmap, 
+				tilesrcw, tilesrch, 
+				ptilemap, 
+				tilemapw, tilemaph, 
+				m_psourcergb, 
+				m_psourcecol, m_psourcecol2,
+				sourcew, sourceh,
+				g_allargs.ccfields
+			);
+
+			std::cout << "...done" << std::endl;
+			// calculate compressed footprint
+			float footprint = (float)s_tile24dictionary.size() / float(tilesrcw*tilesrch);
+			std::cout << "final dictionary contains " << s_tile24dictionary.size() << " unique tiles with footprint @ " << footprint << " of original image." << std::endl;
+
+			{
+				if (footprint > 0.5f)
+					std::cout << " tile reuse is terrible - source image was rendered in crayon by a womble" << std::endl;
+				if (footprint > 0.3f)
+					std::cout << " tile reuse is poor - check tile alignment at top left and lower right of source image" << std::endl;
+				else
+				if (footprint > 0.2f)
+					std::cout << " tile reuse is fair - but carefully recheck tile alignment to be sure?" << std::endl;
+				else
+				if (footprint > 0.1f)
+					std::cout << " tile reuse seems ok but keep an eye on things..." << std::endl;
+				else
+					std::cout << " tile reuse is good! > l33t mapping 5ki11z <" << std::endl;
+			}
+
+
 			for (int ccf = 0; ccf < g_allargs.ccfields; ccf++)
 			{
+/*
 				std::cout << "extracting unique tiles..." << std::endl;
 
 				// generate tile dictionary from image
@@ -3929,8 +4139,8 @@ bool do_tilemap()
 
 				std::cout << "...done" << std::endl;
 				// calculate compressed footprint
-				float footprint = (float)s_tile8dictionary.size() / float(tilesrcw*tilesrch);
-				std::cout << "final dictionary contains " << s_tile8dictionary.size() << " unique tiles with footprint @ " << footprint << " of original image." << std::endl;
+				float footprint = (float)s_tile8dictionary[0].size() / float(tilesrcw*tilesrch);
+				std::cout << "final dictionary contains " << s_tile8dictionary[0].size() << " unique tiles with footprint @ " << footprint << " of original image." << std::endl;
 
 				if (ccf == 0)
 				{
@@ -3947,9 +4157,9 @@ bool do_tilemap()
 					else
 						std::cout << " tile reuse is good! > l33t mapping 5ki11z <" << std::endl;
 				}
-
+*/
 				// convert 8bit indexed tiles into 8-plane graphics
-				remap_dictionary_tiles();
+				remap_dictionary_tiles(s_tile8dictionary[ccf], s_tileplanardictionary[ccf]);
 
 				// construct output filename: [infile]
 				std::string outfile;
@@ -3974,18 +4184,18 @@ bool do_tilemap()
 				if (g_allargs.outmode == Outmode_DEGAS)
 				{
 					// emit tiles to a series of 320x200 .PI1 images
-					emit_tiles_degas(outfile, m_ppalettergb, false);
+					emit_tiles_degas(outfile, m_ppalettergb, false, ccf);
 					if (g_allargs.translayer)
 					{
 						std::string outfilem(outfile);
 						outfilem.append("-");
-						emit_tiles_degas(outfilem, m_ppalettergb, true);
+						emit_tiles_degas(outfilem, m_ppalettergb, true, ccf);
 					}
 				}
 				else
 				if (g_allargs.outmode == Outmode_DIRECT)
 				{
-					emit_tiles_cct(outfile, m_ppalettergb);
+					emit_tiles_cct(outfile, m_ppalettergb, ccf);
 				}
 				else
 				if (g_allargs.outmode == Outmode_RBPLUS)
@@ -4045,7 +4255,7 @@ bool do_tilemap()
 							}
 
 							// unfortunately we're storing the tiles in a list - better change this
-							tile8dictionary_t::iterator it8 = s_tile8dictionary.begin();
+							tile8dictionary_t::iterator it8 = s_tile8dictionary[0].begin();
 							for (int i = 0; i < index; i++, it8++);
 
 							if (inside)

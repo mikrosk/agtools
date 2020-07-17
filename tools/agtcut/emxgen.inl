@@ -606,7 +606,7 @@ public:
 		//		ShellExecute(NULL, "open", "rmac.exe", "-n -o tmp68k.bin tmp68k.s", NULL, SW_HIDE);
 		{
 			// aout format
-			std::string tmpargs = "-fa ";
+			std::string tmpargs = "-fa +oall ";
 
 			// emit .lst files only in verbose mode
 			if (g_allargs.verbose)
@@ -2307,10 +2307,18 @@ void Context::tail_pass()
 			{
 				OpKind kind = (*itscan)->kind;
 
+				int trywords = (*itscan)->words;
+
+				// special ops with nontrivial size/implementation, we don't reorder across these
+				// note: covers most of the specific tests below, but we check them anyway
+				if (trywords <= 0)
+					break;
+
 				// observe routine end
 				if (kind == OpKind_Terminate)
 					break;
-				// can't reorder blit beyond register stores
+
+				// can't reorder blit beyond HW register stores
 				if (kind == OpKind_StoreI16)
 					break;
 				if (kind == OpKind_StoreI32)
@@ -2319,14 +2327,14 @@ void Context::tail_pass()
 					break;
 				if (kind == OpKind_StoreR32)
 					break;
-				//if (kind == OpKind_SRCSkip)
-				//	break;
 				if (kind == OpKind_BLITSetup)
 					break;
 
 				int trytail = (*itscan)->tail;
 
-				if (trytail > best_tailval)
+				if (
+					((trywords == 1) && (trytail > best_tailval)) 
+				)
 				{
 					best_tailval = trytail;
 					best_tailop = itscan;
@@ -3321,7 +3329,12 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				{
 					if (!g_allargs.quickcut)
 						if (g_allargs.verbose)
-							printf("................");
+						{
+							if (buffer[dsty3 + 0] == 0)
+								printf("////////////////");
+							else
+								printf("................");
+						}
 				}
 
 				if (changes[dsty3 + 1]/* || em_dirty[1]*/)
@@ -3335,7 +3348,12 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				{
 					if (!g_allargs.quickcut)
 						if (g_allargs.verbose)
-							printf("................");
+						{
+							if (buffer[dsty3 + 1] == 0)
+								printf("////////////////");
+							else
+								printf("................");
+						}
 				}
 
 			
@@ -3350,7 +3368,12 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				{
 					if (!g_allargs.quickcut)
 						if (g_allargs.verbose)
-							printf("................");
+						{
+							if (buffer[dsty3 + 2] == 0)
+								printf("////////////////");
+							else
+								printf("................");
+						}
 				}
 
 				if (!g_allargs.quickcut)
