@@ -125,10 +125,16 @@ typedef playfield_template
 	/*hscroll=*/HScrollMode_SCANWALK,			// enable full hscroll
 	/*restore=*/RestoreMode_PAGERESTORE,		// restore from virtual page (verus save/restore for individual objects)
 	/*updatemode=*/UpdateMode_NORMAL,			// tile update method (normal=full speculative-margin on STE, partial/vertical on STF)
-	/*ste_hw=*/true,							// use STE hardware for display/scroll offsets (otherwise STF syncscroll)
-	/*stf_hsyncshift=*/false,					// use STF 4-pixel offsets with LJBK method
-	/*dynamic=*/true,							// enable support for runtime-refreshable map tiles
-	/*layers=*/1,								// specify 1 or 2 layer rendering
+	/*hwattr=*/PlayfieldHardware				// hardware configuration
+	(
+		PFH_STE|PFH_Blitter
+	),
+	/*pfattr=*/PlayfieldAttributes				// enable specific platfield features
+	(
+		PFA_TileAnimation
+	),
+	/*guardx=*/32,								// x guardband size
+	/*guardy=*/32,								// y guardband size
 	/*mapaddr=*/s32								// type required for highest map address (big 8x8 maps require 32bit)
 > playfield_t;									// new name for our playfield definition
 
@@ -136,7 +142,7 @@ typedef playfield_template
 typedef arena_template
 <
 	/*buffers=*/2,								// number of framebuffers (playfields) required
-	/*singleframe=*/false,	// optimise dualfield to half the framebuffer count, when locked @ 50hz
+	/*singleframe=*/c_singlevbl ? true : false,	// optimise dualfield to half the framebuffer count, when locked @ 50hz
 	/*dualfield=*/false,							// enable dualfield support at compiletime, otherwise on/off flag will be ignored
 	/*playfield_type=*/playfield_t				// playfield config/definition to use for framebuffers
 > arena_t;						// new name for our playfield arena definition
@@ -186,7 +192,8 @@ static s16 g_viewport_worldx = c_scroll_safety_margin;
 static s16 g_viewport_worldy = c_scroll_safety_margin;
 
 // clipping margin outside of the scrolling viewport, to accommodate the largest typical sprite before deletion etc.
-static const s16 c_viewport_margin = 32;
+static const s16 c_viewport_xmargin = playfield_t::c_guardx;
+static const s16 c_viewport_ymargin = playfield_t::c_guardy;
 
 // pseudorandom number generator
 mersenne_twister prng;
@@ -321,7 +328,7 @@ int AGT_EntryPoint()
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
 
 		printf("creating world...\n");
-		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
+		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the world buffers.
@@ -329,7 +336,7 @@ int AGT_EntryPoint()
 		//	A: because in dual-field mode each display field can have a different (dithered) tile library
 	
 		printf("assigning world map...\n");
-		myworld.setmap(&mymap, &mymap);
+		myworld.setmap(&mymap);
 
 		pprintf("assigning world tiles...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
@@ -474,8 +481,8 @@ mainloop:
 			// ---------------------------------------------------------------------------------------------------------------------
 			// manually update the viewport first
 
-			g_pe_viewport->rx = g_viewport_worldx - c_viewport_margin;
-			g_pe_viewport->ry = g_viewport_worldy;
+			g_pe_viewport->rx = g_viewport_worldx - c_viewport_xmargin;
+			g_pe_viewport->ry = g_viewport_worldy - c_viewport_ymargin;
 	
 
 			// ---------------------------------------------------------------------------------------------------------------------
@@ -502,7 +509,7 @@ mainloop:
 			//	the interaction is reciprocal, so both entities will perform the same test on each other with their own flags.
 			//	a particular interaction order is not guaranteed although it will be stable.
 
-			EntityInteractVisible();
+			EntityInteractVisible(320, c_viewport_xmargin, 240, c_viewport_ymargin);
 
 			TIMING_MAIN(0x707);	
 
@@ -717,13 +724,13 @@ mainloop:
 entitydef_t entity_dictionary[EntityType_MAX_] =
 {
 	// [functions]								[coords]						[control]		[tick state]		[rendering]				[classification properties]
-	// tick,collide,asset						px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype,drawlayer		f_self,f_interactswith	
+	// tick,collide,asset,hidden				px/y,vx/y,sx/y,ox/y				tickpri,drflag	h,d,frame,counter	drawtype,drawlayer		f_self,f_interactswith	
 
 	// engine objects...
 
 	// viewport																					// viewport has no tick
 	// Q: why? A: because it's a rectangle and we can determine what is inside it quickly if it is also an entity which moves through the world
-	{ 0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
+	{ 0,0,0,0,									{0},{0},{0},{0},0,0,0,0,		0,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_VIEWPORT|EntityFlag_SPATIAL,	0 },
 
 };
 
