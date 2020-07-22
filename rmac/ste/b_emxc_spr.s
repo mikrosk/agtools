@@ -16,7 +16,7 @@
 	.if		(within_entitydraw)
 	bhs		_AGT_Exception_EMXFrame_68k
 	.else
-	blo.s		.emx_frameok
+	blo.s		.emxc_frameok
 .emxc_framefault:
 	not.w		$ffff8240.w
 	bra.s		.emxc_framefault

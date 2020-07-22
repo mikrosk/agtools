@@ -45,6 +45,8 @@ typedef struct drawcontext_s
 	s16 *p_ocm_o;
 	s16 ocm_stride;
 
+	s16 field;
+
 	//void *pspriteclear_stack_prv;
 	//void *pspriteclear_stack_cur;
 	//void *pspriteclear_stack_tide;

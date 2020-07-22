@@ -21,7 +21,7 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// types
 
-	static const int SPS_VERSION = 0x0201;
+	static const int SPS_VERSION = 0x0202;
 
 	// sprite frame header (one per sprite frame)
 	struct spf_header
@@ -122,10 +122,10 @@ public:
 				// caution: porting hazard, aliasing hazard. but hey its an ST!
 				ptrsize_t addr_base = (ptrsize_t)&(data_->frameindex[0]);
 
-				for (s16 f = 0; f < frames; f++)
+				for (s16 frame = 0; frame < frames; frame++)
 				{
-					ptrsize_t addr_offset = (ptrsize_t)(data_->frameindex[f]);
-					data_->frameindex[f] = (spf_header*)(addr_base + addr_offset);
+					ptrsize_t addr_offset = (ptrsize_t)(data_->frameindex[frame]);
+					data_->frameindex[frame] = (spf_header*)(addr_base + addr_offset);
 
 					u16 storageflags = data_->flags & 7;
 
@@ -133,21 +133,24 @@ public:
 					if ((storageflags == 5) || (storageflags == 7))
 					{
 						// get preshift sub-index base address
-						ptrsize_t subindex_base = (ptrsize_t)&(data_->frameindex[f]->framedata[0]);
+						ptrsize_t subindex_base = (ptrsize_t)&(data_->frameindex[frame]->framedata[0]);
 
 						// relocate preshifted colour subframes [EMSPR/EMXSPR]
 						{
 							ptrsize_t addr_base = subindex_base;
 							ptrsize_t *psubindex = (ptrsize_t*)addr_base;
-							for (s16 p = 0; p < 1; p++)
+							s16 index = 0;
+							for (s16 preshift = 0; preshift < 1; preshift++)
 							{
-								ptrsize_t addr_offset = psubindex[p];
+								for (s16 field = 0; field < 2; field++)
+								{
+									ptrsize_t addr_offset = psubindex[index];
 								//pprintf("note: colourplanes:%x!\n", addr_offset);
 								if (addr_offset > 0)
-								{
-									psubindex[p] = addr_base + addr_offset;
+										psubindex[index] = addr_base + addr_offset;
+									subindex_base += 4;
+									index++;
 								}
-								subindex_base += 4;
 							}
 						}
 
@@ -156,11 +159,17 @@ public:
 						{
 							ptrsize_t addr_base = subindex_base;
 							ptrsize_t *psubindex = (ptrsize_t*)addr_base;
-							for (s16 p = 0; p < 1; p++)
+							s16 index = 0;
+							for (s16 preshift = 0; preshift < 1; preshift++)
 							{
-								ptrsize_t addr_offset = psubindex[p];
-								psubindex[p] = addr_base + addr_offset;
+								for (s16 field = 0; field < 2; field++)
+								{
+									ptrsize_t addr_offset = psubindex[index];
+									if (addr_offset > 0)
+										psubindex[index] = addr_base + addr_offset;
 								subindex_base += 4;
+									index++;
+								}
 							}
 						}
 
@@ -168,15 +177,15 @@ public:
 						{
 							ptrsize_t addr_base = subindex_base;
 							ptrsize_t *psubindex = (ptrsize_t*)addr_base;
-							for (s16 p = 0; p < 16; p++)
+							for (s16 preshift = 0; preshift < 16; preshift++)
 							{
-								ptrsize_t addr_offset = psubindex[p];
+								ptrsize_t addr_offset = psubindex[preshift];
 								//pprintf("note: psmask:%x!\n", addr_offset);
 
 								if (addr_offset > 0)
 								{
 									ptrsize_t addr_abs = addr_base + addr_offset;
-									psubindex[p] = addr_abs;
+									psubindex[preshift] = addr_abs;
 								}
 								subindex_base += 4;
 							}
@@ -187,11 +196,11 @@ public:
 						{
 							ptrsize_t addr_base = subindex_base;
 							ptrsize_t *psubindex = (ptrsize_t*)addr_base;
-							for (s16 p = 0; p < 16; p++)
+							for (s16 preshift = 0; preshift < 16; preshift++)
 							{
-								ptrsize_t addr_offset = psubindex[p];
+								ptrsize_t addr_offset = psubindex[preshift];
 								ptrsize_t addr_abs = addr_base + addr_offset;
-								psubindex[p] = addr_abs;
+								psubindex[preshift] = addr_abs;
 								subindex_base += 4;
 							}
 						}

@@ -77,43 +77,43 @@ inline void PR8m_fill_specrow_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, 
 xl%=:		move.l	-(%%a6),%%d0;				\
 			and.l	-(%%a5),%%d0;				\
 			or.l	-(%%a6),%%d0;				\
-			movep.l	%%d0,7*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,7*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,7*184+0(%%a3);			\
+			movep.l	%%d0,7*184+0(%%a1);			\
 			move.l	-(%%a6),%%d0;				\
 			and.l	-(%%a5),%%d0;				\
 			or.l	-(%%a6),%%d0;				\
-			movep.l	%%d0,6*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,6*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,6*184+0(%%a3);			\
+			movep.l	%%d0,6*184+0(%%a1);			\
 			move.l	-(%%a6),%%d0;				\
 			and.l	-(%%a5),%%d0;				\
 			or.l	-(%%a6),%%d0;				\
-			movep.l	%%d0,5*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,5*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,5*184+0(%%a3);			\
+			movep.l	%%d0,5*184+0(%%a1);			\
 			move.l	-(%%a6),%%d0;				\
 			and.l	-(%%a5),%%d0;				\
 			or.l	-(%%a6),%%d0;				\
-			movep.l	%%d0,4*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,4*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,4*184+0(%%a3);			\
+			movep.l	%%d0,4*184+0(%%a1);			\
 			move.l	-(%%a6),%%d0;				\
 			and.l	-(%%a5),%%d0;				\
 			or.l	-(%%a6),%%d0;				\
-			movep.l	%%d0,3*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,3*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,3*184+0(%%a3);			\
+			movep.l	%%d0,3*184+0(%%a1);			\
 			move.l	-(%%a6),%%d0;				\
 			and.l	-(%%a5),%%d0;				\
 			or.l	-(%%a6),%%d0;				\
-			movep.l	%%d0,2*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,2*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,2*184+0(%%a3);			\
+			movep.l	%%d0,2*184+0(%%a1);			\
 			move.l	-(%%a6),%%d0;				\
 			and.l	-(%%a5),%%d0;				\
 			or.l	-(%%a6),%%d0;				\
-			movep.l	%%d0,1*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,1*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,1*184+0(%%a3);			\
+			movep.l	%%d0,1*184+0(%%a1);			\
 			move.l	-(%%a6),%%d0;				\
 			and.l	-(%%a5),%%d0;				\
 			or.l	-(%%a6),%%d0;				\
-			movep.l	%%d0,0*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,0*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,0*184+0(%%a3);			\
+			movep.l	%%d0,0*184+0(%%a1);			\
 jt1%=:											\
 												\
 sxl%=:		move.l	%%d5,%%a5;					\
@@ -151,7 +151,7 @@ smc_t%=:	lea		0x123456,%%a6;				\
 		  [ptiles2] "m"(ptilesoverlay),  
 		  [dstaddr] "m"(dstaddr), 
 		  [virtual_pagebytes] "m"(virtual_pagebytes_),
-		  [c_dlw] "g" (c_dst_linewid)
+		  [c_dlw] "g"(c_dst_linewid)
 		: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 		  "%%a0", "%%a2", "%%a3", "%%a4", "%%a5",
 		  "cc"

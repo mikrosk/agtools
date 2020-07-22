@@ -84,7 +84,7 @@ u8* unwrap_p2e_asset
 	{
 		reg8(a4) = 0;
 
-		printf("error: p2e unwrap failed to read asset: %s\n", _name);
+		printf("error: p2e unwrap fail: %s\n", _name);
 		
 		return nullptr;
 	}
@@ -178,11 +178,15 @@ u8* unwrap_p2e_asset
 			}
 			else
 			{
+				reg8(a4) = 0;
+
 				// signal caller that file is raw but can't be loaded as contiguous block
 				return (u8*)-1;
 			}
 		}
 	}
+				
+	reg8(a4) = 0;
 
 	return nullptr;
 }

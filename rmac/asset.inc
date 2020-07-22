@@ -60,7 +60,7 @@ spf_data:		ds.l	0
 *-------------------------------------------------------*
 			.abs	spf_data
 ;spf_em_psocclusion:	ds.w	16
-spf_em_colour:		ds.l	1
+spf_em_colour:		ds.l	2
 spf_em_psmask:		ds.l	16
 			.abs
 spf_psm_wordwidth:	ds.w	1
@@ -74,8 +74,8 @@ spf_psm_data:
 *-------------------------------------------------------*
 			.abs	spf_data
 ;spf_emx_psocclusion:	ds.w	16
-spf_emx_colour:		ds.l	1
-spf_emx_colouropt:	ds.l	1
+spf_emx_colour:		ds.l	2
+spf_emx_colouropt:	ds.l	2
 spf_emx_psmask:		ds.l	16
 spf_emx_psmaskopt:	ds.l	16
 			.abs

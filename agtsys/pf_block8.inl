@@ -91,29 +91,29 @@ levn%=:		move.l	%%d5,%%a5;					\
 			add.l	%%d6,%%a1;					\
 												\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,0*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,0*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,0*184+0(%%a3);			\
+			movep.l	%%d0,0*184+0(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,1*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,1*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,1*184+0(%%a3);			\
+			movep.l	%%d0,1*184+0(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,2*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,2*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,2*184+0(%%a3);			\
+			movep.l	%%d0,2*184+0(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,3*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,3*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,3*184+0(%%a3);			\
+			movep.l	%%d0,3*184+0(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,4*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,4*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,4*184+0(%%a3);			\
+			movep.l	%%d0,4*184+0(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,5*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,5*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,5*184+0(%%a3);			\
+			movep.l	%%d0,5*184+0(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,6*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,6*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,6*184+0(%%a3);			\
+			movep.l	%%d0,6*184+0(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,7*%[c_dlw]+0(%%a3);			\
-			movep.l	%%d0,7*%[c_dlw]+0(%%a1);			\
+			movep.l	%%d0,7*184+0(%%a3);			\
+			movep.l	%%d0,7*184+0(%%a1);			\
 												\
 sodd%=:		dbra	%%d3,lodd%=;				\
 			add.w	%%d2,%%a0;					\
@@ -127,29 +127,29 @@ lodd%=:		move.l	%%d5,%%a5;					\
 			add.l	%%d6,%%a1;					\
 												\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,0*%[c_dlw]+1(%%a3);			\
-			movep.l	%%d0,0*%[c_dlw]+1(%%a1);			\
+			movep.l	%%d0,0*184+1(%%a3);			\
+			movep.l	%%d0,0*184+1(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,1*%[c_dlw]+1(%%a3);			\
-			movep.l	%%d0,1*%[c_dlw]+1(%%a1);			\
+			movep.l	%%d0,1*184+1(%%a3);			\
+			movep.l	%%d0,1*184+1(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,2*%[c_dlw]+1(%%a3);			\
-			movep.l	%%d0,2*%[c_dlw]+1(%%a1);			\
+			movep.l	%%d0,2*184+1(%%a3);			\
+			movep.l	%%d0,2*184+1(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,3*%[c_dlw]+1(%%a3);			\
-			movep.l	%%d0,3*%[c_dlw]+1(%%a1);			\
+			movep.l	%%d0,3*184+1(%%a3);			\
+			movep.l	%%d0,3*184+1(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,4*%[c_dlw]+1(%%a3);			\
-			movep.l	%%d0,4*%[c_dlw]+1(%%a1);			\
+			movep.l	%%d0,4*184+1(%%a3);			\
+			movep.l	%%d0,4*184+1(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,5*%[c_dlw]+1(%%a3);			\
-			movep.l	%%d0,5*%[c_dlw]+1(%%a1);			\
+			movep.l	%%d0,5*184+1(%%a3);			\
+			movep.l	%%d0,5*184+1(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,6*%[c_dlw]+1(%%a3);			\
-			movep.l	%%d0,6*%[c_dlw]+1(%%a1);			\
+			movep.l	%%d0,6*184+1(%%a3);			\
+			movep.l	%%d0,6*184+1(%%a1);			\
 			move.l	(%%a5)+,%%d0;				\
-			movep.l	%%d0,7*%[c_dlw]+1(%%a3);			\
-			movep.l	%%d0,7*%[c_dlw]+1(%%a1);			\
+			movep.l	%%d0,7*184+1(%%a3);			\
+			movep.l	%%d0,7*184+1(%%a1);			\
 												\
 			addq.l	#8,%%a4;					\
 												\
@@ -179,7 +179,7 @@ syl%=:		dbra	%%d4,yl%=; 					\
 		  [dstaddr] "m"(dstaddr), 
 		  [dstrowskip] "m"(dstrowskip),
 		  [virtual_pagebytes] "m"(virtual_pagebytes_),
-		  [c_dlw] "g" (c_dst_linewid)
+		  [c_dlw] "g"(c_dst_linewid)
 		: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7",
 		  "%%a0", "%%a2", "%%a3", "%%a4", "%%a5",
 		  "cc"

@@ -1228,7 +1228,7 @@ void Context::register_sweep()
 		// data source
 		if (poper->sreg >= 0)
 		{
-			assert(poper->sreg < tags.size());
+			assert(poper->sreg < s_tags.size());
 
 			// if not yet tagged - generate new tag
 			std::pair<int,int> &optag = s_tags[poper->sreg];
@@ -1280,7 +1280,7 @@ void Context::register_sweep()
 		if (poper->areg >= 0)
 		{
 //			printf("areg: %d\n", poper->areg);
-			assert(poper->areg < tags.size());
+			assert(poper->areg < s_tags.size());
 
 			// if not yet tagged - generate new tag
 			std::pair<int,int> &optag = s_tags[poper->areg];
@@ -1311,7 +1311,7 @@ void Context::register_sweep()
 			 (poper->opwr == OpWrite_ReplaceHCombineL))
 		)
 		{
-			assert(poper->dreg < tags.size());
+			assert(poper->dreg < s_tags.size());
 
 			// if not yet tagged - generate new tag
 			std::pair<int,int> &optag = s_tags[poper->dreg];
@@ -1442,12 +1442,12 @@ void Context::register_sweep()
 		// reset tags for replaced register BEFORE replace op (running backwards)
 		if (replacedL >= 0)
 		{
-			assert(replacedL < tags.size());
+			assert(replacedL < s_tags.size());
 			s_tags[replacedL].first = -1;
 		}
 		if (replacedH >= 0)
 		{
-			assert(replacedH < tags.size());
+			assert(replacedH < s_tags.size());
 			s_tags[replacedH].second = -1;
 		}
 
@@ -1481,13 +1481,13 @@ bool Context::tag_collision(std::list<Operation*>::iterator _start, int _rold, i
 
 	assert(_rold >= 0);
 	assert(_rnew >= 0);
-	assert(_rnew < sizeof(poper->alltagsL));
-	assert(_rold < sizeof(poper->alltagsL));
 
 	// detecttags lifespan tag conflicts between two registers
 	for (std::list<Operation*>::iterator it = _start; it != operations.end(); it++)
 	{
 		Operation *poper = *it;
+		assert(_rnew < sizeof(poper->alltagsL));
+		assert(_rold < sizeof(poper->alltagsL));
 
 		// check if upper word of target register is busy.
 		if (poper->alltagsH[_rnew] >= 0)

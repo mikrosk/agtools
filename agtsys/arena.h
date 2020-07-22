@@ -133,33 +133,33 @@ public:
 			r_ctx.pfsnapadjy = 0;
 
 		// produce workbuffer page coordinates which follow any hops performed by the playfield engine
-		drawcontext.vpagex = pf.xpos_ - drawcontext.pfsnapadjx;
-		drawcontext.vpagey = pf.ypos_ - drawcontext.pfsnapadjy;
+		r_ctx.vpagex = pf.xpos_ - r_ctx.pfsnapadjx;
+		r_ctx.vpagey = pf.ypos_ - r_ctx.pfsnapadjy;
 
 		// generate clipping window
 		s16 guardx = playfield_type::c_guardx;
 		s16 guardy = playfield_type::c_guardy;
-		drawcontext.guardx = guardx;
-		drawcontext.guardy = guardy;
+		r_ctx.guardx = guardx;
+		r_ctx.guardy = guardy;
 		// physical clipping (IMS,RFILL)
-		drawcontext.clip_window_x1p = (drawcontext.vpagex & -16);
-		drawcontext.clip_window_x2p = (drawcontext.clip_window_x1p + _vpw);
+		r_ctx.clip_window_x1p = (r_ctx.vpagex & -16);
+		r_ctx.clip_window_x2p = (r_ctx.clip_window_x1p + _vpw);
 		// general clipping
-		drawcontext.clip_window_x1 =  (drawcontext.vpagex & -16) - guardx;
-		drawcontext.clip_window_y1 =  drawcontext.vpagey;
-		drawcontext.clip_window_x2 =  (drawcontext.clip_window_x1 + _vpw) + (guardx*2);
-		drawcontext.clip_window_y2 =  drawcontext.vpagey + _vph;
+		r_ctx.clip_window_x1 =  (r_ctx.vpagex & -16) - guardx;
+		r_ctx.clip_window_y1 =  r_ctx.vpagey;
+		r_ctx.clip_window_x2 =  (r_ctx.clip_window_x1 + _vpw) + (guardx*2);
+		r_ctx.clip_window_y2 =  r_ctx.vpagey + _vph;
 		// guard clipping (viewport processing)
-//		drawcontext.clip_window_y1g = drawcontext.vpagey - guardy;
-//		drawcontext.clip_window_y2g = drawcontext.vpagey + _vph + guardy;
+//		r_ctx.clip_window_y1g = r_ctx.vpagey - guardy;
+//		r_ctx.clip_window_y2g = r_ctx.vpagey + _vph + guardy;
 
 		// todo: remove
-		g_spr_window_x1 = drawcontext.clip_window_x1;
-		g_spr_window_x1p = drawcontext.clip_window_x1p;
-		g_spr_window_y1 = drawcontext.clip_window_y1;
-		g_spr_window_x2 = drawcontext.clip_window_x2;
-		g_spr_window_x2p = drawcontext.clip_window_x2p;
-		g_spr_window_y2 = drawcontext.clip_window_y2;
+		g_spr_window_x1 = r_ctx.clip_window_x1;
+		g_spr_window_x1p = r_ctx.clip_window_x1p;
+		g_spr_window_y1 = r_ctx.clip_window_y1;
+		g_spr_window_x2 = r_ctx.clip_window_x2;
+		g_spr_window_x2p = r_ctx.clip_window_x2p;
+		g_spr_window_y2 = r_ctx.clip_window_y2;
 	}
 
 	// retrieve digest of draw context fields for low level graphics functions
@@ -181,7 +181,12 @@ public:
 		r_ctx.p_ocm_o = pf.ocm_.oco_;
 		r_ctx.ocm_stride = pf.ocm_.stride_;
 
-		snapview(drawcontext, _vpw, _vph);
+		int field_active = (int)c_dualfield_ & dualfield_mask_;
+
+		// in single-vbl dual-field mode, buffer acts as field
+		r_ctx.field = (field_active & _field) | ((field_active^1) & buffer_index_);
+
+		snapview(r_ctx, _vpw, _vph);
 
 		prf_pop();
 	}
@@ -312,6 +317,12 @@ public:
 		//xpos_ = _x;
 		//ypos_ = _y;
 
+		// protect against -ve map coords for speculative updates
+		if (playfield_type::c_hspeculative_)
+			if (_x < playfield_type::c_hspeculative_margin_size_) _x = playfield_type::c_hspeculative_margin_size_;
+		if (playfield_type::c_vspeculative_)
+			if (_y < playfield_type::c_vspeculative_margin_size_) _y = playfield_type::c_vspeculative_margin_size_;
+
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 		b.fields[0].setpos(_x, _y);		
 		if (c_dualfield_ && dualfield_mask_)
@@ -431,7 +442,7 @@ public:
 		if (playfield_type::c_dynamic_)
 		{
 			s16 *dirtyline0, *dirtyline1;
-			s16 dirtymaskwidth = buffers_[0].fields[0].dirtymaskwidth_;
+			s16 dirtymaskwidth = buffers_[0].fields[0].dtm_animation_.dirtymaskwidth_;
 
 			if (_autoregion)
 			{
@@ -824,16 +835,26 @@ public:
 	}
 
 	// modify multiple map tiles before next refresh: map rectangle
-	// note: no dualfield support yet - will implement shared dualfield maps first
 	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
-	void multimod_rect(s16 _x, s16 _y, s16 _dx, s16 _dy, s32 *_source)
+	void multimod_rect(s16 _dx, s16 _dy, s16 _w, s16 _h, s32 *_source)
 	{
 		mmprintf("multimod_rect(%d,%d,%d,%d) @ frame %d\n",
-			(int)_x, (int)_y, (int)_dx, (int)_dy, (int)g_frame);
+			(int)_dx, (int)_dy, (int)_w, (int)_h, (int)g_frame);
 
-		mapctx0_.template multimod_rect<_layercode>(_x, _y, _dx, _dy, _source);
+		mapctx0_.template multimod_rect<_layercode>(_dx, _dy, _w, _h, _source);
 
-		multitouch_rect<_autoregion>(_x, _y, _dx, _dy);
+		multitouch_rect<_autoregion>(_dx, _dy, _w, _h);
+	}
+
+	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>
+	void multimod_copy(s16 _sx, s16 _sy, s16 _dx, s16 _dy, s16 _w, s16 _h, const worldmap& _source)
+	{
+		mmprintf("multimod_rect(%d,%d,%d,%d,%d,%d) @ frame %d\n",
+			(int)_sx, (int)_sy, (int)_dx, (int)_dy, (int)_w, (int)_h, (int)g_frame);
+
+		mapctx0_.template multimod_copy<_layercode>(_sx, _sy, _dx, _dy, _w, _h, _source.get(), _source.getwidth());
+
+		multitouch_rect<_autoregion>(_dx, _dy, _w, _h);
 	}
 
 	//

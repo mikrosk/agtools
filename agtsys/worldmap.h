@@ -21,6 +21,19 @@ enum MapFormat
 	MapFormat_8
 };
 
+class agt_tilepos
+{
+public:
+
+	agt_tilepos(int _x, int _y)
+		: x(s16(_x)), y(s16(_y))
+	{
+	}
+
+	s16 x;
+	s16 y;
+};
+
 class worldmap
 {
 public:
@@ -246,6 +259,25 @@ public:
 			eprintf("error: could not size csv map: %s @ %dx%d tiles\n", _filename, _w, _h);
 		}
 	}	
+
+	void create(s16 _w, s16 _h, int _tilestep, bool _overlay, int _fill_index)
+	{
+		purge();
+
+		header_.flags = _overlay ? 8 : 0;
+		header_.tilestep = _tilestep;
+		header_.width = _w;
+		header_.height = _h;
+
+		s32 mapspace = allocate(MapFormat_PLAYFIELD);
+
+		printf("created ccm worldmap: %dx%d tiles\n", (int)header_.width, (int)header_.height);
+
+		for (int i = 0; i < mapspace; i++)
+			map_[i] = _fill_index;
+
+		prepare_playfield(mapspace);
+	}
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

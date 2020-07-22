@@ -80,7 +80,8 @@ enable_x_clipping	set	0
 	lea		12(a6),a6
 
 ;	access colour data
-	move.l		spf_em_colour-8(a0),a0
+	move.w		.sp_field4(sp),d5
+	move.l		spf_em_colour-8(a0,d5.w),a0
 
 ;	todo: relevant size & blitter fields should be stored with preshift
 	move.w		(a0)+,d5

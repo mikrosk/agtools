@@ -107,7 +107,8 @@ enable_x_clipping	set	0
 	
 ;	exit if we have no embedded EMS colour data
 
-	move.l		spf_emx_colour-8(a0),d0
+	move.w		.sp_field4(sp),d6
+	move.l		spf_emx_colour-8(a0,d6.w),d0
 	beq		.BLiT_EMXSpr_4BPL_end
 		
 *-------------------------------------------------------*
@@ -949,7 +950,8 @@ enable_x_clipping	set	0
 	
 ;	access colouropt data
 ;	move.l		spf_data+(4*1)-8(a0),a0
-	move.l		spf_emx_colouropt-8(a0),BLiTSRC.w
+	move.w		.sp_field4(sp),d0
+	move.l		spf_emx_colouropt-8(a0,d0.w),BLiTSRC.w
 
 
 ;	move.l		a0,BLiTSRC.w

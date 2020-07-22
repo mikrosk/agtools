@@ -188,6 +188,32 @@ static inline void lcopytorect(s32* _src, s32* _dst, s16 _dx, s16 _dy, s16 _stri
 	} while (--yc != -1);
 }
 
+static inline void lcopyrecttorect(s32* _src, s32* _dst, s16 _w, s16 _h, s16 _sstride, s16 _dstride)
+{
+/*	printf("w:%d h:%d ss:%d ds:%d\n",
+		_w, _h,
+		_sstride, _dstride
+		);
+*/
+	s32 *s = _src;
+	s32 *d = _dst;
+
+	s16 xcc = _w - 1;
+	s16 yc = _h - 1;
+	do
+	{
+		s32 *dt = d; d += _dstride;
+		s32 *st = s; s += _sstride;
+		s16 xc = xcc;
+		do
+		{
+			__asm__ __volatile__
+				("move.l (%0)+,(%1)+;" : "+a"(st), "+a"(dt) : : );
+
+		} while (--xc != -1);
+	} while (--yc != -1);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 #define SPECULATIVE_FILL_METHOD (0)
@@ -323,12 +349,16 @@ public:
 	static const s16 c_tilesize_ = 1 << c_tilestep_;
 	static const s16 c_tilelinewords_ = c_tilesize_ >> 2;
 	static const s16 c_tilewords_ = c_tilelinewords_ * c_tilesize_;
+	static const int c_tiles_per_word_ = (c_tilesize_ == 8) ? 2 : 1;
 	// number of additional tiles visible @ hscroll=15 for this tilesize (not less than 1)
 	static const int c_hscrolltiles_ = (16 / c_tilesize_) > 0 ? (16 / c_tilesize_) : 1;
 
 	// maximum number of virtual tiles possible on any axis
 //	static const s16 c_max_vt_ = 32768 / c_tilesize_;
 	static const s16 c_max_vt_ = _max_scroll / c_tilesize_;
+
+	static const int c_hspeculative_margin_size_ = c_hspeculative_ ? (c_tilesize_ * 2) : 0;
+	static const int c_vspeculative_margin_size_ = c_vspeculative_ ? (c_tilesize_ * 2) : 0;
 
 //	typedef s32 mapmul_t;
 
@@ -480,6 +510,25 @@ public:
 					lcopytorect(_source, &map_[index], _dx, _dy, map_tiles_x_);
 				if (_layercode & PFLayer_Overlay)
 					lcopytorect(_source, &mapoverlay_[index], _dx, _dy, map_tiles_x_);
+			}
+		}
+
+		template<PFLayer _layercode = PFLayer_Base>
+		void multimod_copy(s16 _sx, s16 _sy, s16 _dx, s16 _dy, s16 _w, s16 _h, s32 *_source, s16 _sstride)
+		{
+			if (c_dynamic_)
+			{
+				// update map
+				s32 *src = &_source[int(_sy * _sstride) + _sx];
+
+				s32 dindex = mul_map_x_[_dy] + _dx;
+				
+				if (_layercode & PFLayer_Base)
+					lcopyrecttorect(src, &map_[dindex], _w, _h, _sstride, map_tiles_x_);
+
+				if (_layercode & PFLayer_Overlay)
+					lcopyrecttorect(src, &mapoverlay_[dindex], _w, _h, _sstride, map_tiles_x_);
+
 			}
 		}
 
@@ -1840,14 +1889,12 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 		
 	visible_tiles_y_ = ((display_height_ + (c_tilesize_-1)) / c_tilesize_) + (c_updaterows_ ? 1 : 0);
 
-	int tiles_per_word = (c_tilesize_ == 8) ? 2 : 1;
-
 	// dimensions for virtual page size used for tile updating - larger than display area + scroll margin
 	// note: hardcode tile based width to make vpage exactly 184 bytes per line, to accommodate other drawing functions
 
 	if (c_ste_)
 	{
-		vpage_tiles_x_ = visible_tiles_x_ + tiles_per_word * 2;
+		vpage_tiles_x_ = visible_tiles_x_ + c_tiles_per_word_ * 2;
 
 /*		if (c_tilesize_ == 16)
 			vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
@@ -1866,7 +1913,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	vpage_tiles_y_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
 
 	// incorporate guardband in virtual playfield
-	vpage_tiles_x_ += ((c_guardx - 32) >> 4) * tiles_per_word;
+	vpage_tiles_x_ += ((c_guardx - 32) >> 4) * c_tiles_per_word_;
 
 	pfieldcontext_->prepare(vpage_tiles_x_, vpage_tiles_y_);
 	quant_vpage_x_ = pfieldcontext_->quant_vpage_x_;

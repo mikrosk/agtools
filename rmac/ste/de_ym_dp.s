@@ -64,6 +64,10 @@ _BLiT_EntityDeferVisibleYM_68k:
 	sub.w		dctx_clipwindow_y1(a4),d0
 	add.w		dctx_guardy(a4),d0
 	move.w		d0,.sp_pxymax(sp)
+	move.w		dctx_field(a4),d0
+	add.w		d0,d0
+	add.w		d0,d0
+	move.w		d0,.sp_field4(sp)	
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*

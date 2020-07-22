@@ -20,6 +20,12 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+void shifter_common::wait_vbl()
+{
+	s16 field_index = g_vbl;
+	while (g_vbl == field_index) { }
+}
+
 void shifter_common::save()
 {
 	save_physbase = Physbase();

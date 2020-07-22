@@ -115,7 +115,7 @@ _xprn_print_string:
 	"	move.l %0,%%a0;"
 	"	move.l %1,%%a2;"
 	"	move.w #320,%%d0;"
-	"	move.w #%2,%%d1;"
+	"	move.w %2,%%d1;"
 	"	moveq #0,%%d2;"
 	"	moveq #4,%%d3;"
 	"	moveq #1,%%d4;"

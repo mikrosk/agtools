@@ -87,6 +87,8 @@ public:
 		dprintf("destroy shifter...\n");
 	}
 
+	static void wait_vbl();
+
 	// note: these are masked by subclasses - not virtual!
 	void save();
 	void init_common();

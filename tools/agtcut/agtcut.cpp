@@ -45,6 +45,19 @@
 
 #include "../../static/tiny6x6fnt.c"
 
+// --------------------------------------------------------------------
+//	constants
+// --------------------------------------------------------------------
+
+// tool version
+static const char* const g_version_string = "v0.450";
+
+// SPS file format version
+static const int SPS_VERSION = 0x0202;
+
+static const int SLS_VERSION = 0x1200;
+
+
 static const char* const c_rmac_filename = "rmac.exe";
 
 //static const int USE_LINEDUPE_OPTIMIZATION = 1;
@@ -126,18 +139,6 @@ typedef struct spritemapping_s
 typedef std::map<int, spritemapping_t> spritemap_t;
 
 // --------------------------------------------------------------------
-//	constants
-// --------------------------------------------------------------------
-
-// tool version
-static const char* const g_version_string = "v0.443";
-
-// SPS file format version
-static const int SPS_VERSION = 0x0201;
-
-static const int SLS_VERSION = 0x1200;
-
-// --------------------------------------------------------------------
 //	some ...globals (?!)
 // --------------------------------------------------------------------
 
@@ -146,6 +147,11 @@ static int g_maxplanes = 4;
 
 static ubyte_t *g_colrbuffer8 = 0;
 static uword_t *g_colrbufferbpl = 0;
+
+static ubyte_t *g_colrbuffer80 = 0;
+static uword_t *g_colrbufferbpl0 = 0;
+static ubyte_t *g_colrbuffer81 = 0;
+static uword_t *g_colrbufferbpl1 = 0;
 
 static ubyte_t *g_maskbuffer8 = 0;
 static uword_t *g_maskbufferbpl = 0;
@@ -751,6 +757,7 @@ public:
 		  ocm(false),
 		  noclipx(false),
 		  noclipy(false),
+		  dualfield(false),
 		  keycol(255),
 		  autocutkeycol(256),
 		  hitkeycol(256),
@@ -801,6 +808,7 @@ public:
 	bool ocm;
 	bool noclipx;
 	bool noclipy;
+	bool dualfield;
 
 	ubyte_t keycol;
 	iRGB keyrgb;
@@ -1302,6 +1310,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					exit(1);
 				}
 				_args.ccfields = iarg;	
+				_args.dualfield = _args.ccfields > 1;
 			}
 			else if (args.OptionId() == OPT_CCREMAP)
 			{
@@ -4652,7 +4661,8 @@ public:
 	word_t w_, h_;
 	word_t xo_, yo_;
 	uword_t *mask_;
-	uword_t *colr_;
+	uword_t *colr0_;
+	uword_t *colr1_;
 
 	preshiftlist_t pscolr_frames_;
 	//std::vector<preshiftlist_t> psmask_frames_;
@@ -4662,13 +4672,14 @@ public:
 
 	std::vector<int> lineorder;
 
-	spriteframe_t(int _w, int _h, int _xo, int _yo, uword_t *_mask, uword_t *_colr)
+	spriteframe_t(int _w, int _h, int _xo, int _yo, uword_t *_mask, uword_t *_colr0, uword_t *_colr1)
 		: w_(_w),
 		  h_(_h),
 		  xo_(_xo),
 		  yo_(_yo),
 		  mask_(_mask),
-		  colr_(_colr)
+		  colr0_(_colr0),
+		  colr1_(_colr1)
 	{
 	}
 
@@ -4877,7 +4888,8 @@ public:
 	void release()
 	{
 		delete[] mask_; mask_ = 0;
-		delete[] colr_; colr_ = 0;
+		delete[] colr0_; colr0_ = 0;
+		delete[] colr1_; colr1_ = 0;
 	}
 };
 
@@ -4911,14 +4923,20 @@ void init_sprite_sequence(int _xs, int _ys, int _sw, int _sh)
 	g_sprite_height = _ys;
 
 	// allocate sprite buffer for chunky processing (default to keycol)
-	delete[] g_colrbuffer8;
-	g_colrbuffer8 = new ubyte_t[g_sprite_bpwidth * g_sprite_height];
-	memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+	delete[] g_colrbuffer80;
+	g_colrbuffer80 = new ubyte_t[g_sprite_bpwidth * g_sprite_height];
+	memset(g_colrbuffer80, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+	delete[] g_colrbuffer81;
+	g_colrbuffer81 = new ubyte_t[g_sprite_bpwidth * g_sprite_height];
+	memset(g_colrbuffer81, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
 
 	// allocate sprite buffer for bitplane processing
-	delete[] g_colrbufferbpl;
-	g_colrbufferbpl = new uword_t[(g_sprite_bpwidth * g_sprite_height) >> 1];
-	memset(g_colrbufferbpl, 0, g_sprite_bpwidth * g_sprite_height);
+	delete[] g_colrbufferbpl0;
+	g_colrbufferbpl0 = new uword_t[(g_sprite_bpwidth * g_sprite_height) >> 1];
+	memset(g_colrbufferbpl0, 0, g_sprite_bpwidth * g_sprite_height);
+	delete[] g_colrbufferbpl1;
+	g_colrbufferbpl1 = new uword_t[(g_sprite_bpwidth * g_sprite_height) >> 1];
+	memset(g_colrbufferbpl1, 0, g_sprite_bpwidth * g_sprite_height);
 
 
 	// allocate mask buffer for chunky processing (default to transparency)
@@ -4936,9 +4954,19 @@ void init_sprite_sequence(int _xs, int _ys, int _sw, int _sh)
 //	cut a single frame from source image
 // --------------------------------------------------------------------
 
-void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, bool _xflip, bool _yflip, int _hs, int _vs, RGB* _ppal, RGB* _pvisualrgb)
+void add_sprite_frame
+(
+	ubyte_t* _psource80, ubyte_t* _psource81, 
+	ubyte_t* _pframemask, 
+	int _x, int _y, 
+	bool _xflip, bool _yflip, 
+	int _hs, int _vs, 
+	RGB* _ppal, 
+	RGB* _pvisualrgb
+)
 {
-	memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+	memset(g_colrbuffer80, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
+	memset(g_colrbuffer81, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
 	memset(g_maskbuffer8, 0xFF, g_sprite_bpwidth * g_sprite_height);
 
 	//_pframemask = 0;
@@ -4962,7 +4990,7 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 		{
 			for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
 			{
-				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+				ubyte_t c = _psource80[((py + _y) * g_spritesource_w) + (px + _x)];
 
 				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
 					;
@@ -4996,7 +5024,7 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 			printf("\t|");
 			for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
 			{
-				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+				ubyte_t c = _psource80[((py + _y) * g_spritesource_w) + (px + _x)];
 
 				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
 					;
@@ -5008,7 +5036,26 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 				else
 					printf("%x", (int)(c & 0xF));
 			}
-			printf("|\n");
+			printf("|");
+			if (g_allargs.ccfields > 1)
+			{
+				for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
+				{
+					ubyte_t c = _psource81[((py + _y) * g_spritesource_w) + (px + _x)];
+
+					if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
+						;
+					else
+						c = g_allargs.keycol;
+
+					if (c == g_allargs.keycol)
+						printf(" ");
+					else
+						printf("%x", (int)(c & 0xF));
+				}
+				printf("|");
+			}
+			printf("\n");
 		}
 		printf("\n");
 	}
@@ -5026,7 +5073,7 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 		{
 			for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
 			{
-				ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
+				ubyte_t c = _psource80[((py + _y) * g_spritesource_w) + (px + _x)];
 
 				if ((_pframemask == nullptr) || (_pframemask[((py + _y) * g_spritesource_w) + (px + _x)] == frame))
 					;
@@ -5094,17 +5141,25 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 			//int psxr = _xflip ? ((g_sprite_width - 1) - psx) : psx;
 			int psxr = _xflip ? ((cxmax - 1) - px) : (cxmin + px);
 
-			ubyte_t c = _psource8[((psyr + _y) * g_spritesource_w) + (psxr + _x)];
+			ubyte_t c0 = _psource80[((psyr + _y) * g_spritesource_w) + (psxr + _x)];
+			ubyte_t c1 = c0;
+			if (_psource81)
+				c1 = _psource81[((psyr + _y) * g_spritesource_w) + (psxr + _x)];
 
 			if ((_pframemask == nullptr) || (_pframemask[((psyr + _y) * g_spritesource_w) + (psxr + _x)] == frame))
 				;
 			else
-				c = g_allargs.keycol;
+			{
+				c0 = c1 = g_allargs.keycol;
+			}
 
 			// colour buffer receives actual colour, or 0 for keycol (so two colours can potentially map to 0)
-			g_colrbuffer8[(py * g_sprite_framebpwidth) + px] = (c == g_allargs.keycol) ? 0x00 : c;
+			g_colrbuffer80[(py * g_sprite_framebpwidth) + px] = (c0 == g_allargs.keycol) ? 0x00 : c0;
+			if (_psource81)
+				g_colrbuffer81[(py * g_sprite_framebpwidth) + px] = (c1 == g_allargs.keycol) ? 0x00 : c1;
+
 			// mask buffer receives 0 for colour, or 1 for keycol
-			g_maskbuffer8[(py * g_sprite_framebpwidth) + px] = (c == g_allargs.keycol) ? 0xFF : 0x00;
+			g_maskbuffer8[(py * g_sprite_framebpwidth) + px] = (c0 == g_allargs.keycol) ? 0xFF : 0x00;
 		}
 	}
 
@@ -5113,7 +5168,16 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 	// colour component
 	c2pw
 	(
-		/*src=*/g_colrbuffer8, /*dst*/g_colrbufferbpl,
+		/*src=*/g_colrbuffer80, /*dst*/g_colrbufferbpl0,
+		/*w=*/g_sprite_framebpwidth, /*h=*/g_sprite_frameheight,
+		/*bytes_per_src_line=*/g_sprite_framebpwidth, /*words_per_dst_line=*/g_sprite_framebpwidth>>1,
+		/*planes=*/8	//g_allargs.planes
+	);
+
+	if (_psource81)
+	c2pw
+	(
+		/*src=*/g_colrbuffer81, /*dst*/g_colrbufferbpl1,
 		/*w=*/g_sprite_framebpwidth, /*h=*/g_sprite_frameheight,
 		/*bytes_per_src_line=*/g_sprite_framebpwidth, /*words_per_dst_line=*/g_sprite_framebpwidth>>1,
 		/*planes=*/8	//g_allargs.planes
@@ -5133,7 +5197,10 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 	size_t spriteplane_wordsize = (g_sprite_framebpwidth >> 4) * g_sprite_frameheight;
 
 	uword_t *maskdata = new uword_t[spriteplane_wordsize * 1];
-	uword_t *colrdata = new uword_t[spriteplane_wordsize * g_allargs.planes];
+	uword_t *colrdata0 = new uword_t[spriteplane_wordsize * g_allargs.planes];
+	uword_t *colrdata1 = nullptr;
+	if (_psource81)
+		colrdata1 = new uword_t[spriteplane_wordsize * g_allargs.planes];
 
 	// copy mask data - just need one plane of the 8 we converted!
 	for (size_t v = 0; v < spriteplane_wordsize; v++)
@@ -5148,12 +5215,26 @@ void add_sprite_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y, 
 		for (size_t v = 0; v < spriteplane_wordsize; v++, s += 8, d += g_allargs.planes)
 		{
 			for (int p = 0; p < g_allargs.planes; p++)
-				colrdata[d + p] = g_colrbufferbpl[s + p];
+			{
+				colrdata0[d + p] = g_colrbufferbpl0[s + p];
+				if (colrdata1)
+					colrdata1[d + p] = g_colrbufferbpl1[s + p];
+			}
 		}
 	}
 
 	std::cout << "created sprite frame " << g_spriteframes.size() << " from offset [" << cxmin << ", " << cymin << "] size [" << g_sprite_framewidth << " x " << g_sprite_frameheight << "]" << std::endl;
-	g_spriteframes.push_back(spriteframe_t(g_sprite_framewidth, g_sprite_frameheight, cxmin, cymin, maskdata, colrdata));
+	g_spriteframes.push_back
+	(
+		spriteframe_t
+		(
+			g_sprite_framewidth, 
+			g_sprite_frameheight, 
+			cxmin, cymin, 
+			maskdata, 
+			colrdata0, colrdata1
+		)
+	);
 
 	// optionally generate preshifts for mask or colour data
 
@@ -5235,13 +5316,14 @@ bool emit_sprite_sequence(bool _storepixels)
 		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 		// 2: flags
-		// 0 0 0 0 0 0 0 0 0 O C Y X L L M
+		// 0 0 0 0 0 0 0 0 D O C Y X L L M
 		// M	mask present (1bpl mask data before colour data)
 		// LL	mask layout mode (00=interleaved, 01=planar, 10=preshift, 11=codegen)
 		// X	suppress x clipping
 		// Y	suppress y clipping
 		// C	compound sprite (more than 1 component expected, no x-clip supported)
 		// O	occlusion maps
+		// D	dual-field colour data
 
 		wv = 0;
 		wv |= (g_allargs.genmask) ? 1 : 0;
@@ -5265,6 +5347,9 @@ bool emit_sprite_sequence(bool _storepixels)
 
 		if (!(g_spriteframes.back().occlusion_maps_.empty()))
 			wv |= 1 << 6;
+
+		if (g_allargs.dualfield)
+			wv |= 1 << 7;
 
 //		wv |= (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PLANAR)) ? 2 : 0;
 
@@ -5298,19 +5383,7 @@ bool emit_sprite_sequence(bool _storepixels)
 		{
 			// record file-offset to sprite in sprite index, for patching later
 			sprite_index.push_back(tracked_filesize);
-/*
-			int components = 1;
-			if (g_allargs.cutmode == Cutmode_EMSPR || 
-				g_allargs.cutmode == Cutmode_EMXSPR)
-			{
-				if (it->w_ > 32)
-					components = 2;
-				if (it->w_ > 80)
-					components = 3;
-				if (it->w_ > 128)
-					components = 4;
-			}
-*/
+
 			// 2: sprite frame pixel width
 			wv = endianswap16(it->w_);
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
@@ -5345,15 +5418,12 @@ bool emit_sprite_sequence(bool _storepixels)
 				if (g_allargs.masklayout == Masklayout_PRESHIFT)
 				{
 					// preshifting is present so we need additional indirection for preshifted sub-frames
-					std::vector<int> pscolr_index;
-//					std::map<int, std::vector<int>> psmask_component_index;
+					std::vector<std::pair<int,int>> pscolr_index;
+					std::vector<std::pair<int,int>> pscolropt_index;
+
 					std::map<std::pair<int,int>, int> psmask_component_index;
-					std::vector<int> pscolropt_index;
-//					std::map<int, std::vector<int>> psmaskopt_component_index;
 					std::map<std::pair<int,int>, int> psmaskopt_component_index;
 
-//					std::map<int, std::vector<int>> psmask_component_nextlinks;
-//					std::map<int, std::vector<int>> psmaskopt_component_nextlinks;
 					std::vector<std::list<int>> psmask_component_nextlinks;
 					std::vector<std::list<int>> psmaskopt_component_nextlinks;
 /*
@@ -5365,16 +5435,18 @@ bool emit_sprite_sequence(bool _storepixels)
 						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 					}
 */
-					// write single offset for plain colourdata (no preshifts yet)
+					// write offsets for plain colourdata (no preshifts yet)
 					int colr_preshift_index_fpos = tracked_filesize;
 					lv = 0;
+					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 					fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 
 					int colropt_preshift_index_fpos = tracked_filesize;
 					if (g_allargs.cutmode == Cutmode_EMXSPR)
 					{
-						// write single offset for optimized colourdata (no preshifts yet)
-						lv = 0xBBBBBBBB;
+						// write offsets for optimized colourdata (no preshifts yet)
+						lv = 0;
+						fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 						fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 					}
 
@@ -5463,7 +5535,14 @@ bool emit_sprite_sequence(bool _storepixels)
 						//std::cout << "output colour..." << std::endl << std::flush;
 						// track colour preshifts
 						// todo: assumes only one for now
-						pscolr_index.push_back(tracked_filesize);
+						int pscolor0_pos = 0;
+						int pscolor1_pos = 0;
+						for (int n = 0; n < g_allargs.ccfields; n++)
+						{
+							if (n == 0)
+								pscolor0_pos = tracked_filesize;
+							else
+								pscolor1_pos = tracked_filesize;
 
 						// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
 						wv = endianswap16(wordwidth);
@@ -5481,11 +5560,19 @@ bool emit_sprite_sequence(bool _storepixels)
 							{
 								for (int x = 0; x < wordwidth; x++)
 								{
-									wv = endianswap16(it->colr_[(((realy*wordwidth) + x)*g_allargs.planes) + p]);
+										int offset = (((realy*wordwidth) + x)*g_allargs.planes) + p;
+										if (n ==0)
+											wv = endianswap16(it->colr0_[offset]);
+										else
+											wv = endianswap16(it->colr1_[offset]);
+
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 								}
 							}
 						}
+					}
+
+						pscolr_index.push_back(std::pair<int,int>(pscolor0_pos,pscolor1_pos));
 					}
 
 					// optimized colour
@@ -5494,7 +5581,14 @@ bool emit_sprite_sequence(bool _storepixels)
 						//std::cout << "output colouropt..." << std::endl << std::flush;
 						// track colour preshifts
 						// todo: assumes only one for now
-						pscolropt_index.push_back(tracked_filesize);
+						int pscoloropt0_pos = 0;
+						int pscoloropt1_pos = 0;
+						for (int n = 0; n < g_allargs.ccfields; n++)
+						{
+							if (n == 0)
+								pscoloropt0_pos = tracked_filesize;
+							else
+								pscoloropt1_pos = tracked_filesize;
 
 						// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
 						//					wv = endianswap16(wordwidth);
@@ -5512,11 +5606,19 @@ bool emit_sprite_sequence(bool _storepixels)
 							{
 								for (int x = 0; x < wordwidth; x++)
 								{
-									wv = endianswap16(it->colr_[(((realy*wordwidth) + x)*g_allargs.planes) + p]);
+										int offset = (((realy*wordwidth) + x)*g_allargs.planes) + p;
+										if (n == 0)
+											wv = endianswap16(it->colr0_[offset]);
+										else
+											wv = endianswap16(it->colr1_[offset]);
+
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 								}
 							}
 						}
+					}
+
+						pscolropt_index.push_back(std::pair<int,int>(pscoloropt0_pos,pscoloropt1_pos));
 					}
 
 					//for (int o = 0; o < planewords; o++)
@@ -5711,10 +5813,21 @@ bool emit_sprite_sequence(bool _storepixels)
 						lv = 0;
 						size_t save = ftell(hout);
 						fseek(hout, colr_preshift_index_fpos + 4, 0);
-						for (std::vector<int>::iterator it = pscolr_index.begin(); it != pscolr_index.end(); it++)
+						for (std::vector<std::pair<int,int>>::iterator it = pscolr_index.begin(); it != pscolr_index.end(); it++)
 						{
-							lv = (*it) - colr_preshift_index_fpos;
+							// 1st field
+							//std::cout << "patching 1st field pscolor" << std::endl;
+							lv = it->first - colr_preshift_index_fpos;
 							lv = endianswap32(lv);
+							fwrite(&lv, 1, 4, hout);
+
+							// 2nd field is duplicate reference of 1st, if no dual-field
+							if (it->second != 0)
+							{
+								//std::cout << "patching 2nd field pscolor" << std::endl;
+								lv = it->second - colr_preshift_index_fpos;
+								lv = endianswap32(lv);
+							}
 							fwrite(&lv, 1, 4, hout);
 						}
 						fseek(hout, save, 0);
@@ -5726,10 +5839,21 @@ bool emit_sprite_sequence(bool _storepixels)
 						lv = 0;
 						size_t save = ftell(hout);
 						fseek(hout, colropt_preshift_index_fpos + 4, 0);
-						for (std::vector<int>::iterator it = pscolropt_index.begin(); it != pscolropt_index.end(); it++)
+						for (std::vector<std::pair<int,int>>::iterator it = pscolropt_index.begin(); it != pscolropt_index.end(); it++)
 						{
-							lv = (*it) - colropt_preshift_index_fpos;
+							// 1st field
+							std::cout << "patching 1st field pscoloropt" << std::endl;
+							lv = it->first - colropt_preshift_index_fpos;
 							lv = endianswap32(lv);
+							fwrite(&lv, 1, 4, hout);
+
+							// 2nd field is duplicate reference of 1st, if no dual-field
+							if (it->second != 0)
+							{
+								std::cout << "patching 2nd field pscoloropt" << std::endl;
+								lv = it->second - colropt_preshift_index_fpos;
+								lv = endianswap32(lv);
+							}
 							fwrite(&lv, 1, 4, hout);
 						}
 						fseek(hout, save, 0);
@@ -5858,7 +5982,7 @@ bool emit_sprite_sequence(bool _storepixels)
 						// write colour words for N planes
 						for (int p = 0; p < g_allargs.planes; p++)
 						{
-							wv = endianswap16(it->colr_[(o*g_allargs.planes) + p]);
+							wv = endianswap16(it->colr0_[(o*g_allargs.planes) + p]);
 							fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 						}
 					}
@@ -6163,7 +6287,13 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 		}
 	}
 
-	slabframe_t slabframe_head(g_sprite_framewidth, g_sprite_frameheight, cxmin, cymin, NULL);
+	slabframe_t slabframe_head
+	(
+		g_sprite_framewidth, 
+		g_sprite_frameheight, 
+		cxmin, cymin, 
+		nullptr
+	);
 	slabframe_t *pframecomponent = &slabframe_head;
 
 	bool components_remaining = true;
@@ -6329,7 +6459,13 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 
 
 						// continue chain of components
-						slabframe_t *pnextcmp = new slabframe_t(g_sprite_framewidth, g_sprite_frameheight, cxmin, cymin, NULL);
+						slabframe_t *pnextcmp = new slabframe_t
+						(
+							g_sprite_framewidth, 
+							g_sprite_frameheight, 
+							cxmin, cymin, 
+							nullptr
+						);
 						pframecomponent->nextcmp_ = pnextcmp;
 						pframecomponent = pnextcmp;
 
@@ -7299,7 +7435,8 @@ bool do_sheet()
 	ulong_t sourced = 0;
 	RGB *m_psourcergb = 0;
 	RGB *m_ppalettergb = 0;
-	ubyte_t *m_psourcecol = 0;
+	ubyte_t *m_psourcecol0 = 0;
+	ubyte_t *m_psourcecol1 = 0;
 	ubyte_t *m_poriginalsrccol = 0;
 	ubyte_t *m_framemask = 0;
 	RGB *pvisualrgb = 0;
@@ -7315,13 +7452,13 @@ bool do_sheet()
 		std::cout << "slab-sheet region restore mode..." << std::endl;
 
 	{
-		if (image_load(g_allargs.sourcefile.c_str(), m_psourcergb, m_psourcecol, m_ppalettergb, sourcew, sourceh, sourced))
+		if (image_load(g_allargs.sourcefile.c_str(), m_psourcergb, m_psourcecol0, m_ppalettergb, sourcew, sourceh, sourced))
 		{
 			std::cout << "read [" << g_allargs.sourcefile.c_str() << "] with colour depth " << sourced << " and dimensions " << sourcew << " x " << sourceh << std::endl;
 
 			bool doremap = true;
 
-			if (m_psourcecol)
+			if (m_psourcecol0)
 			{
 				if (sourced > g_allargs.planes)
 				{
@@ -7350,8 +7487,8 @@ bool do_sheet()
 
 				if (doremap)
 				{
-					m_poriginalsrccol = m_psourcecol;
-					m_psourcecol = 0;
+					m_poriginalsrccol = m_psourcecol0;
+					m_psourcecol0 = 0;
 				}
 				else
 				{
@@ -7360,10 +7497,10 @@ bool do_sheet()
 					int highest = 0;
 					for (size_t p = 0; p < sourcew*sourceh; p++)
 					{
-						if ((m_psourcecol[p] >= maxcolidx) && (m_psourcecol[p] != g_allargs.keycol))
+						if ((m_psourcecol0[p] >= maxcolidx) && (m_psourcecol0[p] != g_allargs.keycol))
 						{
-							highest = xmax(highest, m_psourcecol[p]);
-							m_psourcecol[p] = g_allargs.keycol;
+							highest = xmax(highest, m_psourcecol0[p]);
+							m_psourcecol0[p] = g_allargs.keycol;
 //							break;
 						}
 					}
@@ -7394,7 +7531,7 @@ bool do_sheet()
 */
 			}
 
-			if (m_psourcecol)
+			if (m_psourcecol0)
 			{
 				if (g_allargs.keyrgb_specified || g_allargs.hitkeyrgb_specified || g_allargs.autocutkeyrgb_specified )
 				{
@@ -7409,9 +7546,12 @@ bool do_sheet()
 			else
 			{
 				std::cout << "reducing " << ((sourced > 0) ? sourced : 24) << "-bit image to external fixed palette..." << std::endl;
-				m_psourcecol = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
+				m_psourcecol0 = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
+				m_psourcecol1 = nullptr;
+				if (g_allargs.dualfield)
+					m_psourcecol1 = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
 				// reduce source image to indexed colour with fixed palette
-				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol, 0, sourcew, sourceh, sourced, m_ppalettergb);
+				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol0, m_psourcecol1, sourcew, sourceh, sourced, m_ppalettergb);
 			}
 
 			// now generate autocut guides from source image
@@ -7935,7 +8075,7 @@ bool do_sheet()
 							g_allargs.cutmode == Cutmode_EMXSPR)
 						{
 							std::cout << "cutting sprite frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-							add_sprite_frame(m_psourcecol, m_framemask, cx, cy, xflip, yflip, hs, vs, 
+							add_sprite_frame(m_psourcecol0, m_psourcecol1, m_framemask, cx, cy, xflip, yflip, hs, vs, 
 								m_ppalettergb, pvisualrgb);
 						}
 						else
@@ -7943,14 +8083,14 @@ bool do_sheet()
 							{
 								std::cout << "cutting slab frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
 								memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
-								add_slab_frame(m_psourcecol, m_framemask, cx, cy);
+								add_slab_frame(m_psourcecol0, m_framemask, cx, cy);
 							}
 							else
 								if (g_allargs.cutmode == Cutmode_SLABRESTORE)
 								{
 									std::cout << "cutting slabrestore frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
 									memset(g_colrbuffer8, g_allargs.keycol, g_sprite_bpwidth * g_sprite_height);
-									add_slabrestore_frame(m_psourcecol, m_framemask, cx, cy);
+									add_slabrestore_frame(m_psourcecol0, m_framemask, cx, cy);
 								}
 
 						// store mappings for each frame, so future frames can refer to these
