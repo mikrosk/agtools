@@ -13,7 +13,7 @@
 	.globl		_g_prf_context_num
 	.globl		_g_lock_consolerefresh
 	
-	include		"prf.inc"
+	include		"rmac/prf.inc"
 
 	.endif
 

@@ -89,6 +89,8 @@ enum EntityType : int
 // sorry... screen height is hacked for now...
 #define SCREEN_LINES (240)
 
+#define USE_PACKED_ASSETS (1)
+
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
 
@@ -115,7 +117,7 @@ typedef playfield_template
 // define an arena (world) composed of 2 such playfields (double-buffering on STE)
 typedef arena_template
 <
-	/*buffers=*/2,								// number of framebuffers (playfields) required
+	/*buffers=*/4,								// number of framebuffers (playfields) required
 	/*singleframe=*/c_singlevbl ? true : false,	// optimise dualfield to half the framebuffer count, when locked @ 50hz
 	/*dualfield=*/true,							// enable dualfield support at compiletime, otherwise on/off flag will be ignored
 	/*playfield_type=*/playfield_t				// playfield config/definition to use for framebuffers
@@ -296,10 +298,18 @@ int AGT_EntryPoint()
 		//	load map tiles
 
 		printf("loading tiles...\n");
+#if (USE_PACKED_ASSETS)
+		mytiles0.load_cct("isoscrl0.pct");
+#else
 		mytiles0.load_cct("isoscrl0.cct");
+#endif
 		// only load 2nd tileset if interlacing/dual-field
 		if (c_dualfield)
+#if (USE_PACKED_ASSETS)
+			mytiles1.load_cct("isoscrl1.pct");
+#else
 			mytiles1.load_cct("isoscrl1.cct");
+#endif
 
 #if defined(TIMING_RASTERS_MAIN)
 		// save copy of BG colour for rasters
@@ -391,8 +401,11 @@ int AGT_EntryPoint()
 		//	note: using EMXSPR sprite format
 
 		// villager sprite
+#if (USE_PACKED_ASSETS)
+		villager_asset.load("villager.pmx");
+#else
 		villager_asset.load("villager.emx");
-
+#endif
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	tie gfx assets into entity type dictionary, so we don't need to do it every time we spawn an object
 
@@ -589,7 +602,7 @@ mainloop:
 			TIMING_MAIN(bgcol);
 
 			s16 field_index = g_vbl;
-			while (g_vbl == field_index) { }
+			//while (g_vbl == field_index) { }
 
 
 			TIMING_MAIN(0x077);	
@@ -648,7 +661,7 @@ mainloop:
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			myworld.select_buffer((buffer_index & 1), ((field_index+1) & 1));
+			myworld.select_buffer((buffer_index & 3), ((field_index+1) & 1));
 
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);

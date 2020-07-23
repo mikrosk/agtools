@@ -7,17 +7,17 @@
 *	- Execute appropriate drawing routines
 *-------------------------------------------------------*
 
-	include		"config.inc"
+	include		"rmac/config.inc"
 
-	include		"blitter.inc"
-	include		"emsprt.inc"
+	include		"rmac/blitter.inc"
+	include		"rmac/emsprt.inc"
 
-	include		"entity.inc"
-	include		"asset.inc"
+	include		"rmac/entity.inc"
+	include		"rmac/asset.inc"
 
-	include		"drawctx.inc"
+	include		"rmac/drawctx.inc"
 
-	include		"prf.inc"
+	include		"rmac/prf.inc"
 	
 	;.opt		"~oall"
 	
@@ -370,26 +370,26 @@ _EntitySpatial_68k:
 
 *-------------------------------------------------------*
 
-	include		"ste\\b_slab.inc"
+	include		"rmac/ste/b_slab.inc"
 
 	.if		^^defined AGT_CONFIG_WORLD_XMAJOR	
 	.if		^^defined AGT_CONFIG_ENTITYLAYERS	
-	include		"ste\\de_xm_dp.s"
+	include		"rmac/ste/de_xm_dp.s"
 	.else
-	include		"ste\\de_xm.s"
+	include		"rmac/ste/de_xm.s"
 	.endif
 	.endif
 
 	.if		^^defined AGT_CONFIG_WORLD_YMAJOR	
 	.if		^^defined AGT_CONFIG_ENTITYLAYERS	
-	include		"ste\\de_ym_dp.s"
+	include		"rmac/ste/de_ym_dp.s"
 	.else
-	include		"ste\\de_ym.s"
+	include		"rmac/ste/de_ym.s"
 	.endif
 	.endif
 
 	.if		^^defined AGT_CONFIG_ENTITYLAYERS	
-	include		"ste\\de_layers.s"
+	include		"rmac/ste/de_layers.s"
 	.endif
 	
 	
@@ -447,7 +447,7 @@ enable_clipping	set	1				; enable full xy clipping
 
 	move.l		lpair_first(a0),a0
 
-	include		"ste/b_emxc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+	include		"rmac/ste/b_emxc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
 
 	.endif
 		
@@ -475,7 +475,7 @@ preserve_usp		set	0
 
 	move.l		d3,a0
 
-	include		"ste/b_slabres.s"
+	include		"rmac/ste/b_slabres.s"
 
 .no_restore:
 

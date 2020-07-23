@@ -524,7 +524,7 @@ _STE_PCSV6_begin_:
 	.else
 
 	; statically defined code
-	include	'ste/b416c52.s'
+	include	"rmac/ste/b416c52.s"
 	
 	.endif
 

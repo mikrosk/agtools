@@ -37,7 +37,7 @@
 
 *-------------------------------------------------------*
 	
-	include		"config.inc"
+	include		"rmac/config.inc"
 
 *-------------------------------------------------------*
 
@@ -1687,7 +1687,7 @@ _AGT_ConsoleText_68k:
 
 	.if		(use_debugconsole)
 
-	include		"ste\\con_xprn.s"
+	include		"rmac/ste/con_xprn.s"
 	
 	.endif
 				

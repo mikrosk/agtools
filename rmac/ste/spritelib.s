@@ -8,16 +8,16 @@
 *	- Compatible with .ims/ems/emx files from AGTCut
 *-------------------------------------------------------*
 
-	include		"config.inc"
+	include		"rmac/config.inc"
 
-	include		"blitter.inc"
-	include		"emsprt.inc"
+	include		"rmac/blitter.inc"
+	include		"rmac/emsprt.inc"
 	
-	include		"asset.inc"
+	include		"rmac/asset.inc"
 
-	include		"drawctx.inc"
+	include		"rmac/drawctx.inc"
 
-	include		"ste\\b_slab.inc"
+	include		"rmac/ste/b_slab.inc"
 
 	;.opt		"~oall"
 	
@@ -169,7 +169,7 @@ enable_restore	set	1
 enable_clipping	set	1
 use_hog		set	0
 	
-	include 	"ste/b_spr.s"
+	include 	"rmac/ste/b_spr.s"
 
 *-------------------------------------------------------*
 
@@ -289,7 +289,7 @@ _AGT_BLiT_EMSprDrawUnClipped:
 enable_restore	set	1
 enable_clipping	set	1
 
-	include		"ste/b_emc_spr.s"
+	include		"rmac/ste/b_emc_spr.s"
 	
 *-------------------------------------------------------*
 
@@ -369,7 +369,7 @@ _AGT_BLiT_EMXSprDrawUnClipped:
 enable_restore	set	1
 enable_clipping	set	1
 
-	include		"ste/b_emxc_spr.s"
+	include		"rmac/ste/b_emxc_spr.s"
 	
 *-------------------------------------------------------*
 
@@ -491,8 +491,8 @@ enable_clipping	set	1
 
 	moveq		#0,d7
 
-	include		"ste/b_emg_spr.s"
-;	include 	"ste/b_spr.s"
+	include		"rmac/ste/b_emg_spr.s"
+;	include 	"rmac/ste/b_spr.s"
 
 	moveq		#0,d0
 
@@ -514,7 +514,7 @@ enable_clipping	set	1
 	rts
 
 
-;	include		"ste/spr2bpl.s"
+;	include		"rmac/ste/spr2bpl.s"
 
 
 *-------------------------------------------------------*
@@ -567,7 +567,7 @@ _AGT_BLiT_SlabDraw:
 enable_slabrestore	set	0
 preserve_usp		set	0
 		
-	include		"ste/b_slab.s"
+	include		"rmac/ste/b_slab.s"
 
 *-------------------------------------------------------*
 	lea		.sp_frame_(sp),sp
@@ -631,7 +631,7 @@ _AGT_SlabDirtyRegion:
 enable_slabrestore	set	1
 preserve_usp		set	0
 		
-	include		"ste/b_slabres.s"
+	include		"rmac/ste/b_slabres.s"
 
 
 	move.l		_drawcontext+dctx_prestorestate,a4
@@ -915,7 +915,7 @@ _AGT_MarkDirtyRectangle:
 
 *-------------------------------------------------------*
 
-	include		"ste/spr_clear.s"
+	include		"rmac/ste/spr_clear.s"
 	
 *-------------------------------------------------------*
 			.bss

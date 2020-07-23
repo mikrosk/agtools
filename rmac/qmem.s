@@ -10,7 +10,7 @@
 	.globl	_qmemset00
 	.globl	_qmemsetff
 
-	include		"config.inc"
+	include		"rmac/config.inc"
 
 ; --------------------------------------------------------------
 _qmemcpy:

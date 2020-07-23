@@ -10,9 +10,9 @@
 	.text
 *-------------------------------------------------------*
 
-	include		"config.inc"
-	include		"blitter.inc"
-	include		"ste/mapmod.s"
+	include		"rmac/config.inc"
+	include		"rmac/blitter.inc"
+	include		"rmac/ste/mapmod.s"
 
 *-------------------------------------------------------*
 	.data

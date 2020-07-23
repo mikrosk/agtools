@@ -165,7 +165,15 @@ all: ste
 
 include $(AGTROOT)/Makerules
 
+# =============================================================================
+# assets...
+# =============================================================================
 
+ASSETS_PACKED_GFX =	\
+		villager.pmx \
+		isoscrl0.pct \
+		isoscrl1.pct \
+		
 # =============================================================================
 # individual programs...
 # =============================================================================
@@ -175,7 +183,7 @@ include $(AGTROOT)/Makerules
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
 ste: AGLIB=$(AGLIB_STE)
-ste: $(AGLIB_STE) isoscrol.$(EXT)
+ste: $(AGLIB_STE) $(ASSETS_PACKED_GFX) isoscrol.$(EXT)
 
 # treat these names as targets not sourcefiles otherwise bad stuff can get
 # accidentally added to the link line (we have some sourcefiles with the same
@@ -186,7 +194,20 @@ ste: $(AGLIB_STE) isoscrol.$(EXT)
 #	Build rules for preparing data
 # =============================================================================
 
-# ...nothing needed so far
+# rule to compress .emx -> .pmx
+%.pmx: %.emx
+	@$(AGTROOT)/bin/pack2e $< $@
+	@$(AGTROOT)/bin/packwrap $< $@ $@
+
+# rule to compress .emx -> .pms
+%.pms: %.ems
+	@$(AGTROOT)/bin/pack2e $< $@
+	@$(AGTROOT)/bin/packwrap $< $@ $@
+
+# rule to compress .cct -> .pct
+%.pct: %.cct
+	@$(AGTROOT)/bin/pack2e $< $@
+	@$(AGTROOT)/bin/packwrap $< $@ $@
 	
 # =============================================================================
 #	Build rules for collating common data

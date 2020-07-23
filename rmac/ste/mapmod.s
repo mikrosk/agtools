@@ -12,7 +12,7 @@
 	.globl		_drawcontext
 
 
-	include		"drawctx.inc"
+	include		"rmac/drawctx.inc"
 	
 *------------------------------------------------------------------------------*
 *	tile macros for writing different vpage layouts:
@@ -23,20 +23,20 @@
 *------------------------------------------------------------------------------*
 
 	.if		^^defined AGT_CONFIG_PFLAYOUT_PQRS
-	include		"ste/mapmod_pqrs16.s"
+	include		"rmac/ste/mapmod_pqrs16.s"
 	.endif
 	.if		^^defined AGT_CONFIG_PFLAYOUT_PQ
-	include		"ste/mapmod_pq16.s"
+	include		"rmac/ste/mapmod_pq16.s"
 	.endif
-	include		"ste/mapmod_pr16.s"
-	include		"ste/mapmod_pr16m.s"
-	include		"ste/mapmod_pr8.s"
-	include		"ste/mapmod_pr8m.s"
+	include		"rmac/ste/mapmod_pr16.s"
+	include		"rmac/ste/mapmod_pr16m.s"
+	include		"rmac/ste/mapmod_pr8.s"
+	include		"rmac/ste/mapmod_pr8m.s"
 	.if		^^defined AGT_CONFIG_PFLAYOUT_P
-	include		"ste/mapmod_p16.s"
+	include		"rmac/ste/mapmod_p16.s"
 	.endif
 	
-	include		"ste/ocm16.s"
+	include		"rmac/ste/ocm16.s"
 	
 *------------------------------------------------------------------------------*
 _SYS_MapModInit:

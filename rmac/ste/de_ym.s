@@ -137,7 +137,7 @@ _BLiT_EntityDrawVisibleYM_68k:
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_emxg_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+	include		"rmac/ste/b_emxg_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
 
 	move.l		.sp_savea0(sp),a0
 
@@ -209,7 +209,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_emxc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+	include		"rmac/ste/b_emxc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
 
 	move.l		.sp_savea0(sp),a0
 
@@ -281,7 +281,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_emg_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+	include		"rmac/ste/b_emg_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
 
 	move.l		.sp_savea0(sp),a0
 
@@ -353,7 +353,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_emc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+	include		"rmac/ste/b_emc_spr.s"		; body for EMX optimized blitter sprites (0<width<=32)
 
 	move.l		.sp_savea0(sp),a0
 
@@ -425,7 +425,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_spr.s"			; body for normal blitter sprites
+	include		"rmac/ste/b_spr.s"			; body for normal blitter sprites
 
 	move.l		.sp_savea0(sp),a0
 
@@ -497,7 +497,7 @@ preserve_usp		set	1
 
 	move.l		lpair_first(a0),a0
 	
-	include		"ste/b_slabopt.s"
+	include		"rmac/ste/b_slabopt.s"
 	
 	; restore step - only if restore asset is present
 
@@ -521,7 +521,7 @@ preserve_usp		set	0
 
 	move.l		d3,a0
 
-	include		"ste/b_slabres.s"
+	include		"rmac/ste/b_slabres.s"
 
 .no_restore:
 
@@ -656,7 +656,7 @@ preserve_usp		set	0
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_rfill.s"			; body for normal blitter sprites
+	include		"rmac/ste/b_rfill.s"			; body for normal blitter sprites
 
 	move.l		.sp_savea0(sp),a0
 
@@ -869,7 +869,7 @@ _BLiT_EntityDebugVisibleYM_68k:
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_rfill.s"			; body for normal blitter sprites
+	include		"rmac/ste/b_rfill.s"			; body for normal blitter sprites
 
 	move.l		.sp_savea0(sp),a0
 
