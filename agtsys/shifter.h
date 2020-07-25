@@ -9,6 +9,21 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
+enum
+{
+	DISP_STF_200,
+	//
+	DISP_STE_200,
+	DISP_STE_240,
+	DISP_STE_256,
+	DISP_STE_272,
+	//
+	DISP_STE_128SS,
+	DISP_STE_136SS
+};
+
+//----------------------------------------------------------------------------------------------------------------------
+
 // fixed at 2, even if field interlace (dualfield) is off - in which case both fields are assigned the same page.
 static const int c_max_shiftfields = 2;
 
@@ -88,6 +103,7 @@ public:
 	}
 
 	static void wait_vbl();
+	static void wait_vbl_minbound(s16 &r_counter, s16 _count);
 
 	// note: these are masked by subclasses - not virtual!
 	void save();

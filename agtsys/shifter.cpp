@@ -20,12 +20,6 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-void shifter_common::wait_vbl()
-{
-	s16 field_index = g_vbl;
-	while (g_vbl == field_index) { }
-}
-
 void shifter_common::save()
 {
 	save_physbase = Physbase();
@@ -64,6 +58,26 @@ void shifter_common::restore_common()
 	set_hwpalette(save_palette_);
 
 //	Setscreen(save_logbase, save_physbase, save_res);
+}
+
+static inline s16 ring_delta(s16 high, s16 low)
+{
+	s16 delta = (s16)((u16)high - (u16)low);
+	return delta;
+}
+
+void shifter_common::wait_vbl_minbound(s16 &r_counter, s16 _count)
+{
+	// note: g_vbl decrements!
+	s16 future = r_counter - _count;
+	while (ring_delta(future, g_vbl) < 0) { }
+	r_counter = g_vbl;
+}
+
+void shifter_common::wait_vbl()
+{
+	s16 field_index = g_vbl;
+	while (g_vbl == field_index) { }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
