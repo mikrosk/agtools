@@ -9,17 +9,14 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
-enum
+enum STEDisplayMode
 {
-	DISP_STF_200,
+	STLow200,
+	STLow240,
+	STLow256,
+	STLow272,
 	//
-	DISP_STE_200,
-	DISP_STE_240,
-	DISP_STE_256,
-	DISP_STE_272,
-	//
-	DISP_STE_128SS,
-	DISP_STE_136SS
+	STLowSplit136
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -93,7 +90,8 @@ public:
 		  //save_res(0),
 		  //save_vbl(0),
 		  hidden_buffer_(0),
-		  fieldmask_(0)
+		  fieldmask_(0),
+		  current_mode_(0)
 	{
 	}
 
@@ -206,6 +204,8 @@ protected:
 	s16 scrollmask_;
 
 public:
+
+	int current_mode_;
 	
 	static shifter_common* s_shifter;
 };
@@ -234,9 +234,14 @@ class shifter_ste : public shifter_common
 {
 public:
 
+	shifter_ste()
+	{
+		current_mode_ = (s16)STEDisplayMode::STLow240;
+	}
+
 	void configure();
 
-	void init();
+	void init(STEDisplayMode _mode = STEDisplayMode::STLow240);
 	void restore();
 
 	void setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c);

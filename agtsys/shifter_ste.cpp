@@ -20,7 +20,7 @@
 // ---------------------------------------------------------------------------------------------------------------------
 
 extern "C" void STE_ConfigureDisplayService();
-extern "C" void STE_InstallDisplayService();
+extern "C" void STE_InstallDisplayService(int _mode);
 extern "C" void STE_RemoveDisplayService();
 
 
@@ -33,11 +33,13 @@ void shifter_ste::configure()
 	STE_ConfigureDisplayService();
 }
 
-void shifter_ste::init()
+void shifter_ste::init(STEDisplayMode _mode)
 {	
 	init_common();
 
-	STE_InstallDisplayService();
+	current_mode_ = _mode;
+
+	STE_InstallDisplayService((int)_mode);
 }
 
 void shifter_ste::restore()

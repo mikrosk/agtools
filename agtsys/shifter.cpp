@@ -70,8 +70,9 @@ void shifter_common::wait_vbl_minbound(s16 &r_counter, s16 _count)
 {
 	// note: g_vbl decrements!
 	s16 future = r_counter - _count;
-	while (ring_delta(future, g_vbl) < 0) { }
-	r_counter = g_vbl;
+	s16 sample;
+	while (ring_delta(future, (sample = g_vbl)) < 0) { }
+	r_counter = sample;
 }
 
 void shifter_common::wait_vbl()

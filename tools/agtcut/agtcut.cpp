@@ -53,9 +53,9 @@
 static const char* const g_version_string = "v0.450";
 
 // SPS file format version
-static const int SPS_VERSION = 0x0202;
+static const int SPS_VERSION = 0x0203;
 
-static const int SLS_VERSION = 0x1200;
+static const int SLS_VERSION = 0x1201;
 
 
 static const char* const c_rmac_filename = "rmac.exe";

@@ -4,7 +4,7 @@
 
 ; dml: fit existing display metrics
 max_screen_lines	=	256
-screen_linebytes	=	dst_linewid
+screen_linebytes	=	160	;dst_linewid
 
 ; xprn_font_file_header_struct:
   .abs

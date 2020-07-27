@@ -69,21 +69,29 @@ use_overscan_timera		=	1		; use timera instead of timerd for upper border sync
 
 ; internal timera/timerb schedule for overscan mode
 displayservice_upper_delay	=	(94+4)		; safety padding of 6...3, but err towards more padding (smaller value) with blitter in use
-displayservice_first_delta_tb	=	12
-displayservice_lower_delta_tb	=	229-0-displayservice_first_delta_tb
-;displayservice_lower_delta_tb	=	229-2-displayservice_first_delta_tb
-displayservice_final_delta_tb	=	39-16
 timecritical_pad_tb		=	3-1		; TimerB padding (in scanlines)
 timecritical_pad_ta		=	6-1		; TimerA padding
 timecritical_pad_td		=	7-1		; TimerD padding
 
 *-------------------------------------------------------*
+	.abs
+*-------------------------------------------------------*
+DISP_STE_200:		ds.w	1
+DISP_STE_240:		ds.w	1
+DISP_STE_256:		ds.w	1
+DISP_STE_272:		ds.w	1
+DISP_STE_136SS:		ds.w	1
+DISP_size:
+*-------------------------------------------------------*
+			.text
+*-------------------------------------------------------*
+	
+
 
 .macro	blitoff
 	.if		(use_blitter_compatibility)
 
-	subq.w		#2,sp
-	move.b		$ffff8a3c.w,(sp)
+	move.w		$ffff8a3c.w,-(sp)
 	bclr.b		#7,$ffff8a3c.w
 
 	.endif
@@ -92,11 +100,47 @@ timecritical_pad_td		=	7-1		; TimerD padding
 .macro	bliton
 	.if		(use_blitter_compatibility)
 
-	move.b		(sp),$ffff8a3c.w
-	addq.l		#2,sp
+	move.w		(sp)+,$ffff8a3c.w
 
 	.endif
 	.endm
+
+;.macro	blitoffx	labl
+;	.if		(use_blitter_compatibility)
+;
+;	move.b		$ffff8a3c.w,\labl+3
+;	bclr.b		#7,$ffff8a3c.w
+;
+;	.endif
+;	.endm
+;
+;.macro	blitonx
+;	.if		(use_blitter_compatibility)
+;
+;	move.b		#0,$ffff8a3c.w
+;	
+;	.endif
+;	.endm
+
+*-------------------------------------------------------*
+
+	include		"rmac/ste/disp200.s"
+	include		"rmac/ste/disp240.s"
+	include		"rmac/ste/disp256.s"
+	include		"rmac/ste/disp272.s"
+	include		"rmac/ste/disp136s.s"
+	
+*-------------------------------------------------------*
+*	some overscan modes burn display lines
+*	which the playfield must compensate for
+*-------------------------------------------------------*
+_g_displayservice_consumed_lines:
+*-------------------------------------------------------*
+	dc.w		0
+	dc.w		displayservice_ste240_d0_tb
+	dc.w		displayservice_ste256_d0_tb
+	dc.w		displayservice_ste272_d0_tb
+	dc.w		displayservice_ste136s_d0_tb
 
 *-------------------------------------------------------*
 _STE_ConfigureDisplayService:
@@ -114,15 +158,28 @@ _STE_ConfigureDisplayService:
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 *-------------------------------------------------------*
+	
+;	lea		_g_displayservice_consumed_lines,a0	
+;	move.w		#0,DISP_STE_200(a0)
+;	move.w		#displayservice_ste240_d0_tb,DISP_STE_240(a0)
+;	move.w		#displayservice_ste256_d0_tb,DISP_STE_256(a0)
+;	move.w		#displayservice_ste272_d0_tb,DISP_STE_272(a0)	
+;	move.w		#displayservice_ste136s_d0_tb,DISP_STE_136SS(a0)
 
-	move.w		#0,_g_displayservice_consumed_lines
+;	move.w		#0,DISP_STF_200(a0)
+;	move.w		#displayservice_ste240_d0_tb,DISP_STF_200(a0)
+;	move.w		#displayservice_ste256_d0_tb,DISP_STF_200(a0)
+;	move.w		#displayservice_ste272_d0_tb,DISP_STF_200(a0)
 
-	.if		(use_overscan)
-	tst.b		_bFalcon030
-	bne.s		.skip
-	move.w		#displayservice_first_delta_tb,_g_displayservice_consumed_lines
-.skip:
-	.endif
+
+;	move.w		#0,_g_displayservice_consumed_lines
+;
+;	.if		(use_overscan)
+;	tst.b		_bFalcon030
+;	bne.s		.skip
+;	move.w		#displayservice_ste240_d0_tb,_g_displayservice_consumed_lines
+;.skip:
+;	.endif
 	
 	.if		(^^defined TIMING_RASTERS | use_rasters)
 	clr.w		BGRAST.w
@@ -143,12 +200,17 @@ _STE_InstallDisplayService:
 .save:			ds.l	10
 .return:		ds.l	1
 *-------------------------------------------------------*
+.mode:			ds.l	1
+*-------------------------------------------------------*
 .frame_:		
 *-------------------------------------------------------*
 			.text
 *-------------------------------------------------------*
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
+*-------------------------------------------------------*
+	tst.b		displayservice_installed
+	bne.s		.modify		
 *-------------------------------------------------------*
 	or.w		#$0700,sr
 *-------------------------------------------------------*
@@ -160,9 +222,18 @@ _STE_InstallDisplayService:
 *-------------------------------------------------------*
 	lea		drte,a0
 	move.l		a0,$68.w			; HBL
+	move.l		a0,$70.w			; VBL
 	move.l		a0,$120.w			; TimerB
 	move.l		a0,$134.w			; TimerA
-
+*-------------------------------------------------------*
+	and.w		#$fbff,sr
+*-------------------------------------------------------*
+	st		displayservice_installed
+*-------------------------------------------------------*
+.modify:
+*-------------------------------------------------------*
+	or.w		#$0700,sr
+*-------------------------------------------------------*
 	.if		(use_overscan_timera)
 	.else
 	.if		^^defined AGT_CONFIG_PROFILER
@@ -170,14 +241,10 @@ _STE_InstallDisplayService:
 	bclr.b		#5,imrb.w			; kill TimerC when TimerD is timecritical. this stops $4ba from updating!
 	.endif
 	.endif
-
-	tst.b		_bFalcon030
-	bne.s		.f030
-	move.l		#displayservice_ste_vbi,$70.w	; VBL
-	bra.s		.done
-.f030:	move.l		#displayservice_f030_vbi,$70.w	; VBL
-.done:
-
+*-------------------------------------------------------*
+	move.w		.mode+2(a6),d0
+	lsl.w		#2,d0
+	move.l		.service_table(pc,d0.w),$70.w	
 ;	jsr		_blackscreen
 *-------------------------------------------------------*
 	and.w		#$fbff,sr
@@ -187,6 +254,13 @@ _STE_InstallDisplayService:
 *-------------------------------------------------------*
 	rts
 
+.service_table:
+	dc.l		displayservice_ste200_vbi
+	dc.l		displayservice_ste240_vbi
+	dc.l		displayservice_ste256_vbi
+	dc.l		displayservice_ste272_vbi
+	dc.l		displayservice_ste136s_vbi
+	
 *-------------------------------------------------------*
 _STE_RemoveDisplayService:
 *-------------------------------------------------------*
@@ -203,6 +277,9 @@ _STE_RemoveDisplayService:
 	movem.l		d2-d7/a2-a5,-(sp)
 	link		a6,#-.frame_
 *-------------------------------------------------------*
+	tst.b		displayservice_installed
+	beq.s		.no_op
+*-------------------------------------------------------*
 	; wait for vbl to elapse
 	; note: display timers will already be scheduled
 	move.w		$464.w,d0
@@ -212,13 +289,15 @@ _STE_RemoveDisplayService:
 	; turn off display timers and restore vectors
 	or.w		#$0700,sr
 	
+	.if		(use_overscan)
 	.if		(use_overscan_timera)
 	bclr.b		#5,imra.w	; TimerA
 	.else
 	bclr.b		#4,imrb.w	; TimerD
 	.endif	
 	bclr.b		#0,imra.w	; TimerB
-
+	.endif
+	
 	lea		savestate,a1
 	move.l		(a1)+,$68.w
 	move.l		(a1)+,$70.w
@@ -226,19 +305,24 @@ _STE_RemoveDisplayService:
 	move.l		(a1)+,$134.w
 	and.w		#$fbff,sr
 *-------------------------------------------------------*
+	sf		displayservice_installed
+*-------------------------------------------------------*
 	move.w		$464.w,d0
 .wvb2:	cmp.w		$464.w,d0
 	beq.s		.wvb2
+*-------------------------------------------------------*
+.no_op:
 *-------------------------------------------------------*
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts
 
+drte:  	rte
+
 *-------------------------------------------------------*
 
 
-	.if		(use_overscan)
 
 *-------------------------------------------------------*
 displayservice_ste_vbi_dmasafe:
@@ -316,177 +400,6 @@ displayservice_ste_vbi_dmasafe:
 	
  	rte
 
-	.endif
-
-	 
-*-------------------------------------------------------*
-displayservice_ste_vbi:
-*-------------------------------------------------------*
-	blitoff
-	
-	move.w		#$2700,sr
-
-	.if		(use_overscan)
-	
-;	tst.b		_bFalcon030
-;	bne		displayservice_f030_vbi
-	tst.b		DMAFlag.w
-	bne		displayservice_ste_vbi_dmasafe
-	
-	.if		(use_overscan_timera)
-	
-	clr.b		tacr.w				; TimerA CTRL: halt
-	bset		#5,iera.w				; TimerA IE: enable
-	bset		#5,imra.w				; TimerA IM: enable
-	move.b		#displayservice_upper_delay-timecritical_pad_ta,tadr.w	; TimerA DATA: delay
-	move.b		#4,tacr.w				; TimerA CTRL: start
-
-	move.l		#displayservice_ste_upper_a,$134.w
-	
-	.else
-
-	and.b		#$f8,cdcr.w				; TimerD CTRL: halt
-	bset		#4,ierb.w				; TimerD IE: enable
-	bset		#4,imrb.w				; TimerD IM: enable
-	move.b		#displayservice_upper_delay-timecritical_pad_td,cddr.w	; TimerD DATA: delay
-	or.b		#4,cdcr.w				; TimerD CTRL: start
-	
-	move.l		#displayservice_ste_upper_d,$110.w
-
-	.endif
-
-	;move.w		#$555,$ffff8240.w
-
-	.endif
-
-	movem.l		d0-d7/a0-a6,-(sp)
-
-	.if		(use_debugconsole)
-	move.l		_max_console,d0
-	beq.s		.normal
-	move.l		d0,d1
-	lsr.w		#8,d0
-	clr.b		$ffff8265.w
-	move.l		d0,$ffff8200.w
-	move.b		d1,$ffff820d.w
-	move.b		#(dst_linewid-160)>>1,$ffff820f.w
-	
-	move.l		#$00340fff,$ffff8240.w
-	clr.w		$ffff8244.w
-
-;	lea		$ffff8240.w,a0
-;	moveq		#0,d0
-;	subq.w		#1,d0
-;	move.l		d0,(a0)+
-;	clr.w		d0
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-	
-	bra		.skip
-	.endif
-	
-.normal:
-	move.l		_gp_active_group,d0
-	beq		.skip
-	
-	move.l		d0,a0
-	moveq		#1,d0
-	and.w		_g_vbl,d0
-	and.w		_g_fieldmask,d0
-	lsl.w		#2,d0
-	move.l		(a0,d0.w),a0
-	move.b		0(a0),$ffff8201.w
-	move.b		1(a0),$ffff8203.w
-	move.b		2(a0),$ffff820d.w
-	move.b		4(a0),$ffff820f.w
-	move.b		3(a0),$ffff8265.w
-	move.b		0(a0),$ffff8205.w
-	move.b		1(a0),$ffff8207.w
-	move.b		2(a0),$ffff8209.w
-	move.b		4(a0),$ffff820f.w
-	
-	; load field palette
-	
-	lea		6(a0),a0
-	.if		(use_overscan)	
-;	if overscan is enabled, schedule palette on first real line, to achieve 240 lines
-	move.l		a0,ste_palette
-	
-	
-	moveq		#0,d0
-	lea		$ffff8240.w,a0
-
-	.if		(^^defined TIMING_RASTERS | use_rasters)
-	move.w		BGRAST.w,(a0)+
-	move.w		d0,(a0)+
-	.else
-	move.l		d0,(a0)+
-	.endif
-
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	
-	.else
-;	otherwise load palette immediately
-	movem.l		(a0)+,d0-d7
-	movem.l		d0-d7,$ffff8240.w
-	.endif
-
-	.if		(^^defined TIMING_RASTERS | use_rasters)
-	move.w		BGRAST.w,$ffff8240.w
-	.endif
-
-.skip:
-	.if		^^defined ENABLE_AGT_AUDIO
-	jsr		_YMSYS_VBCallback
-	.endif
-	
-	andi.w		#$fbff,sr
-
-	addq.w		#1,vbl_sema
-	bgt.s		.nsvc
-	
-	tst.w		2+VBServiceVec.w
-	beq.s		.nsvc
-	
-	move.l		VBServiceVec.w,a0
-	jsr		(a0)
-	
-
-.nsvc:	subq.w		#1,vbl_sema
-
-	movem.l		(sp)+,d0-d7/a0-a6
-		
-	subq.w		#1,_g_vbl
-
-	addq.l		#1,$462.w	
-	addq.l		#1,$466.w	
-
-	.if			(use_overscan_timera)
-	.else
-	.if			^^defined AGT_CONFIG_PROFILER
-	.else
-	addq.l		#4,$4ba.w			; simulate TimerC, since we have turned it off with TimerD timecritical
-	.endif
-	.endif
-
-	move.b		#1,_g_seek
-
-	bliton
-	
-drte:  	rte
-
-
 *-------------------------------------------------------*
 displayservice_f030_vbi:
 *-------------------------------------------------------*
@@ -553,522 +466,6 @@ displayservice_f030_vbi:
 	bliton
 	
   	rte
-
-
-	.if		(use_overscan)
-
-	.if		(use_overscan_timera)
-
-*-----------------------------------------------------------------------------*
-displayservice_ste_upper_a:
-*-----------------------------------------------------------------------------*
-	blitoff
-*-----------------------------------------------------------------------------*
-	movem.l		d0/d1/a0/a1,-(sp)
-*-----------------------------------------------------------------------------*
-*	critical: re-synchronize with free running TimerA data before
-*	starting to count hblanks as TimerA may be delayed by BLITs and
-*	we may not have landed on the correct line...
-*-----------------------------------------------------------------------------*
-
-	;move.w		#$fff,$ffff8240.w
-	
-	moveq		#1,d1
-	lea		$ffff820a.w,a1	
-
-	lea		tadr.w,a0
-	moveq		#displayservice_upper_delay-(timecritical_pad_ta*2),d0
-.tasyn:	cmp.b		(a0),d0
-	blo.s		.tasyn
-*-----------------------------------------------------------------------------*
-	
-	moveq		#0,d0
-	
-	move.w		#$2100,sr				; enable HBL
-	stop		#$2100					; wait next HBL
-	move.w		#$2700,sr				; lockout
-		
-	.if		(1)
-
-	dcb.w		94,$4e71
-	
-;	divs.w		d1,d0
-;	divs.w		d1,d0	
-;;	eor.l		d0,d0
-;;	eor.l		d0,d0
-;;	nop
-;;	lsl.l		#6,d0
-;	muls.w		d0,d0
-;;	muls.w		d0,d0
-;	lsl.l		#8,d0
-;;	eor.l		d0,d0
-;;	nop
-;	lsl.l		#3,d0
-		
-	.endif
-
-;	open top border
-
-	move.b		d0,(a1)	;$ffff820a.w
-	
-	lsl.l		#8,d0
-	
-	move.w		a1,(a1)	;$ffff820a.w
-
-	move.b		d0,tbcr.w				; TimerB CTRL: halt
-	bset.b		#0,iera.w				; TimerB IE: enable
-	bset.b		#0,imra.w				; TimerB IM: enable
-	move.b		#displayservice_first_delta_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
-	move.b		#8,tbcr.w				; TimerB CTRL: start))
-
-	move.l		#displayservice_ste_first_b,$120.w
-
-	move.b		d0,tacr.w				; TimerA CTRL: halt
-
-	movem.l		(sp)+,d0/d1/a0/a1
-
-	;move.w		#$0,$ffff8240.w
-
-	bliton
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#5,isra.w
-	.endif
-		
-	rte
-
-	.else
-
-*-----------------------------------------------------------------------------*
-displayservice_ste_upper_d:
-*-----------------------------------------------------------------------------*
-	blitoff
-	move.w		#$2700,sr
-*-----------------------------------------------------------------------------*
-	movem.l		d0/d1/a0/a1,-(sp)
-*-----------------------------------------------------------------------------*
-*	critical: re-synchronize with free running TimerA data before
-*	starting to count hblanks as TimerA may be delayed by BLITs and
-*	we may not have landed on the correct line...
-*-----------------------------------------------------------------------------*
-	;move.w		#$fff,$ffff8240.w
-
-	moveq		#1,d1
-	lea		$ffff820a.w,a1	
-
-	lea		cddr.w,a0
-	moveq		#displayservice_upper_delay-(timecritical_pad_td*2),d0
-.tasyn:	cmp.b		(a0),d0
-	blo.s		.tasyn
-*-----------------------------------------------------------------------------*
-	
-	moveq		#0,d0
-	
-	move.w		#$2100,sr				; enable HBL
-	stop		#$2100					; wait next HBL
-	move.w		#$2700,sr				; lockout
-		
-	.if		(1)
-
-	dcb.w		94,$4e71
-	
-;	divs.w		d1,d0
-;	divs.w		d1,d0	
-;;	eor.l		d0,d0
-;;	eor.l		d0,d0
-;;	nop
-;;	lsl.l		#6,d0
-;	muls.w		d0,d0
-;;	muls.w		d0,d0
-;	lsl.l		#8,d0
-;;	eor.l		d0,d0
-;;	nop
-;	lsl.l		#3,d0
-		
-	.endif
-
-;	open top border
-
-	move.b		d0,(a1)	;$ffff820a.w
-	
-	lsl.l		#8,d0
-	
-	move.w		a1,(a1)	;$ffff820a.w
-
-	move.b		d0,tbcr.w				; TimerB CTRL: halt
-	bset.b		#0,iera.w				; TimerB IE: enable
-	bset.b		#0,imra.w				; TimerB IM: enable
-	move.b		#displayservice_first_delta_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
-	move.b		#8,tbcr.w				; TimerB CTRL: start))
-
-	move.l		#displayservice_ste_first_b,$120.w
-
-	and.b		#$f8,cdcr.w				; TimerD CTRL: halt
-
-	movem.l		(sp)+,d0/d1/a0/a1
-
-	;move.w		#$0,$ffff8240.w
-
-	bliton
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#4,isrb.w
-	.endif
-		
-	rte
-
-	.endif
-
-	.endif
-
-	.if		(use_overscan)
-
-*-----------------------------------------------------------------------------*
-displayservice_ste_first_b:
-*-----------------------------------------------------------------------------*
-	blitoff
-	
-	move.w		#$2700,sr
-
-	move.l		a0,-(sp)
-	move.l		a1,-(sp)
-
-	move.l		ste_palette,a0
-	.if		(use_debugconsole)
-	tst.w		_max_console
-	beq.s		.ncon
-	lea		con_palette,a0	
-.ncon:	
-	.endif
-		
-	lea		tbdr.w,a1
-.wl:	cmp.b		#displayservice_first_delta_tb-(timecritical_pad_tb*2),(a1)
-	bhi.s		.wl
-	
-	lea		$ffff8240.w,a1	
-	.if		(^^defined TIMING_RASTERS | use_rasters)
-	move.w		BGRAST.w,(a1)+
-	addq		#2,a0
-	move.w		(a0)+,(a1)+
-	.else
-	move.l		(a0)+,(a1)+
-	.endif
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-	move.l		(a0)+,(a1)+
-
-	clr.b		tbcr.w				; TimerB CTRL: halt
-
-	.if		(use_lower_border)	
-	
-	move.b		#displayservice_lower_delta_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
-	move.b		#8,tbcr.w				; TimerB CTRL: start))
-
-	.if		(use_debugconsole)
-	tst.w		_max_console
-	bne		.normal
-	tst.w		_min_pconsole
-	beq.s		.normal
-	move.l		#displayservice_ste_lowerconsole_b,$120.w
-	bra.s		.cont
-	.endif		;(use_debugconsole)
-	
-.normal:
-	move.l		#displayservice_ste_lower_b,$120.w
-.cont:
-	.endif		;(use_lower_border)
-			
-	move.l		(sp)+,a1
-	move.l		(sp)+,a0
-	
-	bliton
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#0,isra.w
-	.endif
-	
-	rte
-
-	.endif
-
-
-	.if		(use_overscan)
-
-*-----------------------------------------------------------------------------*
-displayservice_ste_lower_b:
-*-----------------------------------------------------------------------------*
-	.if		(use_blitter_compatibility)	
-
-	blitoff
-		
-	move.w		#$2700,sr
-	movem.l		d0/a0,-(sp)
-
-;	insert 'padding' scans to absorb short blitter jobs - 
-
-	moveq		#displayservice_lower_delta_tb-(timecritical_pad_tb*2),d0
-	lea		tbdr.w,a0
-.wl:	cmp.b		(a0),d0
-	blo.s		.wl
-
-	nop		; pad until lower border event
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-
-	nop		; HW: almost stable
-	nop		; HW: stable
-;	nop		; HW: almost stable
-
-	clr.b		$ffff820a.w			; 60 Hz
-	dcb.w		5,$4e71				; ...wait...
-	move.b		#2,$ffff820a.w			; 50 Hz
-		
-	
-	.else		; (use_blitter_compatibility)	
-
-	clr.b		$ffff820a.w			; 60 Hz
-	move.w		#$2700,sr
-	dcb.w		4,$4e71				; ...wait...
-	move.b		#2,$ffff820a.w			; 50 Hz
-		
-	movem.l		d0/a0,-(sp)
-
-	.endif		; (use_blitter_compatibility)	
-
-	clr.b		tbcr.w				; TimerB CTRL: halt
-	move.b		#displayservice_final_delta_tb-1,tbdr.w	; TimerB DATA: count
-	move.b		#8,tbcr.w				; TimerB CTRL: start))
-
-	move.l		#displayservice_ste_final_b,$120.w
-	
-	.if		(highlight_statusbar)
-	lea		$ffff8240.w,a0
-	move.l		#$06660666,d0
-;	move.l		#$09990999,d0
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	and.l		d0,(a0)+
-	.endif
-	
-	movem.l		(sp)+,d0/a0
-	
-	clr.b		_g_seek
-	
-	.if		(use_blitter_compatibility)
-	bliton
-	.endif
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#0,isra.w
-	.endif
-	
-	rte
-
-	.if		(use_debugconsole)
-
-*-----------------------------------------------------------------------------*
-displayservice_ste_lowerconsole_b:
-*-----------------------------------------------------------------------------*
-;	.if		(use_blitter_compatibility)	
-
-	blitoff
-		
-	move.w		#$2700,sr
-	movem.l		d0/d1/a0,-(sp)
-
-;	move.l		_min_pconsole,d1
-	move.l		_min_pconsole,a0
-	move.l		(a0),d1
-	
-;	insert 'padding' scans to absorb short blitter jobs - 
-
-	moveq		#displayservice_lower_delta_tb-(timecritical_pad_tb*2),d0
-	lea		tbdr.w,a0
-.wl:	cmp.b		(a0),d0
-	blo.s		.wl
-
-	; 10 nops worth
-	move.l		#$00340fff,$ffff8240.w
-	clr.w		$ffff8244.w
-
-;	nop		; pad until lower border event
-;	nop
-;	nop
-;	nop
-;	nop
-;	nop
-;	nop
-;	nop
-;	nop		; HW: almost stable
-;	nop		; HW: stable
-;;	nop		; HW: almost stable
-
-	clr.b		$ffff820a.w			; 60 Hz
-	dcb.w		5,$4e71				; ...wait...
-	move.b		#2,$ffff820a.w			; 50 Hz
-	
-;	.else		; (use_blitter_compatibility)	
-;
-;	clr.b		$ffff820a.w			; 60 Hz
-;	move.w		#$2700,sr
-;	dcb.w		4,$4e71				; ...wait...
-;	move.b		#2,$ffff820a.w			; 50 Hz
-;	
-;	movem.l		d0/d1/a0,-(sp)
-;	
-;	.endif		; (use_blitter_compatibility)	
-
-;	if console is enabled by build flags, 
-;	show it in lower border if the console buffer is valid
-	
-	move.b		d1,$ffff8265.w
-	move.b		d1,$ffff8209.w
-	lsr.w		#8,d1
-	move.l		d1,$ffff8204.w
-	move.b		#(dst_linewid-160)>>1,$ffff820f.w
-
-;	lea		$ffff8240.w,a0
-;	moveq		#0,d0
-;	subq.w		#1,d0
-;	move.l		d0,(a0)+
-;	clr.w		d0
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-
-	move.b		d0,tbcr.w				; TimerB CTRL: halt
-	
-	movem.l		(sp)+,d0/d1/a0
-
-	clr.b		_g_seek
-
-;	.if		(use_blitter_compatibility)
-	bliton
-;	.endif
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#0,isra.w
-	.endif
-	
-	rte
-
-	.endif		;(use_debugconsole)
-
-	.endif		;(use_overscan)
-	
-
-*-----------------------------------------------------------------------------*
-*	We land here if we're trying to open the bottom border while loading
-*-----------------------------------------------------------------------------*
-.safe_path:
-*-----------------------------------------------------------------------------*
-
-	moveq		#0,d0
-	lea		$ffff8240.w,a0
-	.if		(^^defined TIMING_RASTERS | use_rasters)
-	move.w		BGRAST.w,(a0)+
-	move.w		d0,(a0)+
-	.else
-	move.l		d0,(a0)+
-	.endif
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	
-	.if		(use_blitter_compatibility)
-	movem.l		(sp)+,d0/d1/a0/a1
-
-	bliton
-	.endif
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#0,isra.w
-	.endif
-	
-	rte
-	
-	
-	.if		(use_overscan)
-	
-*-----------------------------------------------------------------------------*
-displayservice_ste_final_b:
-*-----------------------------------------------------------------------------*
-	blitoff
-	
-	move.l		d0,-(sp)
-	move.l		a0,-(sp)
-
-;	wipe out all colours - black lower border
-
-	moveq		#0,d0
-	lea		$ffff8242.w,a0
-
-.wt:	cmp.b		#displayservice_final_delta_tb-1,tbdr.w
-	beq.s		.wt		
-
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.l		d0,(a0)+
-	move.w		d0,(a0)+
-
-	.if		(^^defined TIMING_RASTERS | use_rasters)
-	move.w		BGRAST.w,$ffff8240.w
-	.else
-	move.w		d0,$ffff8240.w
-	.endif
-
-
-;	no more scanline scheduling this frame - stop TimerB
-
-	move.b		d0,tbcr.w
-
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#0,isra.w
-	.endif
-	
-	move.l		(sp)+,a0
-	move.l		(sp)+,d0
-	
-	bliton
-
-	rte
-	
-	.endif
-
-*-------------------------------------------------------*
 
 
 *-------------------------------------------------------*
@@ -1700,13 +1097,17 @@ con_palette:		dc.w	$034,$fff,$000,$000
 ste_palette:		dc.l	empty
 empty:			dcb.w	16,0
 	
-_g_displayservice_consumed_lines:	
-			dc.w	0
+;_g_displayservice_consumed_lines:
+;			dcb.b	DISP_size,0
+			
 ;_g_tshift:		dc.w	0
 _g_linebytes:		dc.w	0
 
 _g_seek:		dc.w	0
-	
+
+displayservice_installed:
+			dc.w	0
+			
 *-------------------------------------------------------*
 	.bss
 *-------------------------------------------------------*

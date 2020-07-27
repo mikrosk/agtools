@@ -128,7 +128,7 @@ enum RestoreMode
 };
 
 extern "C" s16 g_tshift;
-extern "C" s16 g_displayservice_consumed_lines;
+extern "C" s16 g_displayservice_consumed_lines[];
 extern "C" s16 g_xpreshift;
 
 //extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
@@ -1840,7 +1840,7 @@ playfield_template()
 	//}
 }
 
-void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 _x, s16 _y)
+void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 _x, s16 _y, s16 _displaymode)
 {
 	buffer_ = _buffer;
 	field_ = _field;
@@ -2113,7 +2113,8 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// display_ base by the missing line count before alignment, and add it back to the framebuffer
 	// address for writing graphics. in this way no memory is wasted.
 
-	s16 displaysvc_consumed_words = (g_displayservice_consumed_lines * virtual_linewords_) + (c_stf_maskedspeculation_ ? 4 : 0);
+	s16 consumed_lines = g_displayservice_consumed_lines[_displaymode];
+	s16 displaysvc_consumed_words = (consumed_lines * virtual_linewords_) + (c_stf_maskedspeculation_ ? 4 : 0);
 
 	display_ = (u16*)
 	(

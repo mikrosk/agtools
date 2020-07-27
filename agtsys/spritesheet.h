@@ -21,7 +21,7 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// types
 
-	static const int SPS_VERSION = 0x0202;
+	static const int SPS_VERSION = 0x0203;
 
 	// sprite frame header (one per sprite frame)
 	struct spf_header

@@ -15,7 +15,11 @@
 
 	lea		(a6,d0.w),a5
 
-	moveq		#16,d0
+	.if		(use_timecritical_rasters)
+	moveq		#8,d0		; draw half tiles
+	.else
+	moveq		#16,d0		; draw whole tiles
+	.endif
 
 	pea		.cont\~(pc)
 	move.l		(a5)+,-(sp)
@@ -502,9 +506,13 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 	lea		\offs*8(\dst),\tsrc	
 	move.l		\tsrc,BLiTDST.w
 	
-	move.w		\byc,(a2)	;BLiTYC.w
+	move.w		\byc,(a2)		;BLiTYC.w
 	move.b		\bgo,(\bctl)
-
+	.if		(use_timecritical_rasters)
+	move.w		\byc,(a2)		;BLiTYC.w
+	move.b		\bgo,(\bctl)
+	.endif
+	
 	.endm
 	
 	.if		(0)

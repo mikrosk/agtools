@@ -21,7 +21,7 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// types
 
-	static const int SLS_VERSION = 0x1200;
+	static const int SLS_VERSION = 0x1201;
 
 	// spanblock clipper header
 	struct slc_header

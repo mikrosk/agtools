@@ -1070,9 +1070,9 @@ public:
 //				rb.fields[0].init(b, 0, display_width_, display_height_, x, y);
 //			}
 
-			rb.fields[0].init(b, 0, display_width_, display_height_, x, y);
+			rb.fields[0].init(b, 0, display_width_, display_height_, x, y, (s16)shift_.current_mode_);
 			if (c_dualfield_ && dualfield_mask_)
-				rb.fields[1].init(b, 1, display_width_, display_height_, x, y);
+				rb.fields[1].init(b, 1, display_width_, display_height_, x, y, (s16)shift_.current_mode_);
 
 			// shortcut to dirty tile masks
 			dirtymaskindex_[b] = buffers_[b].fields[0].dtm_animation_.dirtymasklines_;

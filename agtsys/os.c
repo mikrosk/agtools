@@ -29,11 +29,11 @@
 #define AGT_CONFIG_ALLOW_PRINT (1)
 #endif
 
-#if !defined(AGT_CONFIG_SYS_GUARDX)
-#define AGT_CONFIG_SYS_GUARDX (32)
-#endif
+//#if !defined(AGT_CONFIG_SYS_GUARDX)
+//#define AGT_CONFIG_SYS_GUARDX (32)
+//#endif
 
-static const int c_linewid = (((20+1)+((AGT_CONFIG_SYS_GUARDX+15)>>4))*8);
+static const int c_con_linewid = 160;//(((20+1)+((AGT_CONFIG_SYS_GUARDX+15)>>4))*8);
 
 // todo: provide common_c.h
 #define reg32(_a_) *(volatile u32*)(0x##_a_)
@@ -108,7 +108,7 @@ _xprn_print_string:
 ;     d3.b - number of bitplanes in destination screen
 ;     d4.b - use blitter? 1 = yes, 0 = no
 */
-	s32 offsetaddr = (s32)fb + (r * 12 * /*184*/c_linewid);
+	s32 offsetaddr = (s32)fb + (r * 12 * /*184*/c_con_linewid);
 
 	__asm__ __volatile__
 	(
@@ -123,7 +123,7 @@ _xprn_print_string:
 	"	jsr _xprn_print_string;"
 	"	move.l (%%sp)+,%%a6;"
 		: 
-		: "g"(text), "g"(offsetaddr), "g"(c_linewid)
+		: "g"(text), "g"(offsetaddr), "g"(c_con_linewid)
 		: "%%d0", "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7", 
 		  "%%a0", "%%a1", "%%a2", "%%a3", "%%a4", "%%a5",
 		  "cc"
@@ -154,7 +154,7 @@ void AGT_ConsoleUpdate_(void* fb1);
 
 #define AGT_CONSOLE_FONTHEIGHT (12)
 #define AGT_CONSOLE_MINIROWS (6/2)
-#define AGT_CONSOLE_MAXIROWS (42/2)
+#define AGT_CONSOLE_MAXIROWS (44/2)
 
 #define AGT_CONSOLE_ROWS (64)
 #define AGT_CONSOLE_COLUMNS (40)
@@ -218,7 +218,7 @@ void printf_console_ln(const char *text)
 	// force immediate update to physical fb, since next refresh could be some time away
 	// note: can output to console even if not displaying yet - keeps record of early prints during boot
 //	if (console_base)
-//		AGT_ConsoleUpdate_(console_base + /*184*/c_linewid);
+//		AGT_ConsoleUpdate_(console_base + /*184*/c_con_linewid);
 }
 
 void AGT_Sys_ConsoleRefresh()
@@ -226,7 +226,7 @@ void AGT_Sys_ConsoleRefresh()
 	if (0 == g_lock_consolerefresh)
 		if (g_console_dirty)
 			if (console_base)
-				AGT_ConsoleUpdate_(console_base + /*184*/c_linewid);
+				AGT_ConsoleUpdate_(console_base + /*184*/c_con_linewid);
 }
 
 #define AGT_CONSOLE_LINESPACE (AGT_CONSOLE_COLUMN_STRIDE)
@@ -270,7 +270,7 @@ void printf_console(const char *text)
 	//if (0 == g_lock_consolerefresh)
 	//{
 	//	if (console_base)
-	//		AGT_ConsoleUpdate_(console_base + /*184*/c_linewid);
+	//		AGT_ConsoleUpdate_(console_base + /*184*/c_con_linewid);
 	//}
 }
 
@@ -310,14 +310,15 @@ agt_used void SYS_Assert(char *_msg)
 #if defined(AGT_CONFIG_DEBUG_CONSOLE)
 void SYS_ConsoleInit()
 {
-	s32 size = (/*184*/c_linewid*(((AGT_CONSOLE_MAXIROWS+1)*AGT_CONSOLE_FONTHEIGHT)+1))+256;
+	s32 size = (/*184*/c_con_linewid*(((AGT_CONSOLE_MAXIROWS+1)*AGT_CONSOLE_FONTHEIGHT)+1))+256;
 	console_base = malloc(size);
 	memset(console_base, 0, size);
 
 	// todo: decouple for free at end
 	console_base = (char*)(((int)console_base + 255) & ~255);
 
-	console_minbase = console_base + (AGT_CONSOLE_FONTHEIGHT*/*184*/c_linewid*(AGT_CONSOLE_MAXIROWS-AGT_CONSOLE_MINIROWS));
+	console_minbase = console_base + 
+		c_con_linewid * ((AGT_CONSOLE_FONTHEIGHT*(AGT_CONSOLE_MAXIROWS-AGT_CONSOLE_MINIROWS))+1);
 	console_maxbase = console_base;
 
 	s16 r = 0;
