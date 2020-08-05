@@ -15,6 +15,7 @@ bldcfg_use_mouse	=	0
 use_unsafe_function_keys	=	1
 use_timecritical_rasters	=	1
 
+
 *-------------------------------------------------------*
 *	externally configured via CFLAGS
 *-------------------------------------------------------*
