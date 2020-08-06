@@ -36,7 +36,7 @@ endif
 
 # expand posix version of AGTROOT to windows native path (for windows build of RMAC)
 ifndef AGTROOT_WIN
-AGTROOT_WIN = `cygpath -C ANSI -w $(AGTROOT)`
+AGTROOT_WIN = `command -v cygpath >/dev/null && cygpath -C ANSI -w $(AGTROOT) || wslpath -aw $(AGTROOT)`
 endif
 
 # can disable auto-optimisations with: -no-opt
