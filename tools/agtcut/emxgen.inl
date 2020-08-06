@@ -624,12 +624,16 @@ public:
 			tmpargs += " ";
 			tmpargs += tmp_src;
 
+			std::string rmacpath = c_rmac_filename;
+			if (g_allargs.rmacpath.length() > 1)
+				rmacpath = g_allargs.rmacpath;
+
 			SHELLEXECUTEINFO ShExecInfo = { 0 };
 			ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 			ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
 			ShExecInfo.hwnd = NULL;
 			ShExecInfo.lpVerb = NULL;
-			ShExecInfo.lpFile = c_rmac_filename;
+			ShExecInfo.lpFile = rmacpath.c_str();
 			ShExecInfo.lpParameters = tmpargs.c_str(); // "-fa -ltmp68k.lst -o tmp68k.bin tmp68k.s";
 			ShExecInfo.lpDirectory = NULL;
 			ShExecInfo.nShow = SW_HIDE;
@@ -642,7 +646,7 @@ public:
 
 			if (exitcode != 0)
 			{
-				std::cerr << "error assembling intermediate code using RMAC!" << std::endl << std::flush;
+				std::cerr << "error assembling intermediate code using " << rmacpath << std::endl << std::flush;
 				getchar();
 
 				exit(-1);
