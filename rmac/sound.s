@@ -2802,15 +2802,15 @@ _ym_reg_mixer:
 *-------------------------------------------------------*
 
 _g_ym_freqtable:
-	incbin		'static/ymfrq.dat'
+	incbin		'static/YMFRQ.DAT'
 _g_ym_vibtable:
-	incbin		'static/ymvib.dat'
+	incbin		'static/YMVIB.DAT'
 _g_combine_ctrlvol_notevel:
-	incbin		'static/ymv1.dat'
+	incbin		'static/YMV1.DAT'
 _g_combine_adsrenv_mixvol:
-	incbin		'static/ymv2.dat'
+	incbin		'static/YMV2.DAT'
 _g_sampletranslation:
-	incbin		'static/ymst.dat'
+	incbin		'static/YMST.DAT'
 
 *-------------------------------------------------------*
 			.bss
