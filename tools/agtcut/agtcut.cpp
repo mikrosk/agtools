@@ -176,6 +176,8 @@ static uword_t *g_workbufferbpl = 0;
 
 // --------------------------------------------------------------------
 //	misc. small helper functions
+
+
 // --------------------------------------------------------------------
 
 //#undef assert
@@ -356,6 +358,7 @@ enum
 	OPT_HITRGB,
 	OPT_SOURCE,
 	OPT_OUTFILE,
+	OPT_RMACPATH,
 	OPT_TILETAGS,
 	OPT_PALETTE,
 	OPT_COLRENORM,
@@ -566,6 +569,9 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_OUTFILE,		_T("-o"),	 			SO_REQ_SEP	},
 	{ OPT_OUTFILE,		_T("--outfile"),		SO_REQ_SEP	},
+	//
+	{ OPT_RMACPATH,		_T("-rmac"), 			SO_REQ_SEP	},
+	{ OPT_RMACPATH,		_T("--rmac"),			SO_REQ_SEP	},
 	//
 	{ OPT_TILETAGS,		_T("-ttags"), 			SO_REQ_SEP	},
 	{ OPT_TILETAGS,		_T("--tiletags"),		SO_REQ_SEP	},
@@ -838,6 +844,7 @@ public:
 	std::string sourcefile;
 	std::string outfile;
 	std::string tiletags;
+	std::string rmacpath;
 	int ccfields;
 	std::string spriteguidefile;
 	Cutmode cutmode;
@@ -949,6 +956,10 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_OUTFILE)
 			{
 				_args.outfile = args.OptionArg();
+			}
+			else if (args.OptionId() == OPT_RMACPATH)
+			{
+				_args.rmacpath = args.OptionArg();
 			}
 			else if (args.OptionId() == OPT_TILETAGS)
 			{
