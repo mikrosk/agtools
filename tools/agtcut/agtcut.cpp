@@ -50,7 +50,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.452";
+static const char* const g_version_string = "v0.453";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
