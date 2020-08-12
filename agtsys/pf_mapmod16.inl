@@ -39,6 +39,7 @@ agt_inline void PQRS16_dirty_block_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 
 	dm_pj = pj;
 	dm_pj2 = pj2;
 	dm_lineskip = dstrowskip;
+	dm_dstlinewid = c_dst_linewid;
 
 	// mask is dirtymaskstride_ bytes wide (or dirtymaskstride_/2 fields wide: each field is 16bits, only top 8 occupied)
 	dm_dirtymask = &dtm_animation_.dirtymask_[(mi>>3) + (mj*dtm_animation_.dirtymaskwidth_)];
@@ -89,6 +90,7 @@ agt_inline void PQ16_dirty_block_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi
 	dm_pj = pj;
 	dm_pj2 = pj2;
 	dm_lineskip = dstrowskip;
+	dm_dstlinewid = c_dst_linewid;
 
 	// mask is dirtymaskstride_ bytes wide (or dirtymaskstride_/2 fields wide: each field is 16bits, only top 8 occupied)
 	dm_dirtymask = &dtm_animation_.dirtymask_[(mi>>3) + (mj*dtm_animation_.dirtymaskwidth_)];
@@ -137,6 +139,7 @@ agt_inline void PR16_dirty_block_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi
 	dm_pj = pj;
 	dm_pj2 = pj2;
 	dm_lineskip = dstrowskip;
+	dm_dstlinewid = c_dst_linewid;
 
 	// mask is dirtymaskstride_ bytes wide (or dirtymaskstride_/2 fields wide: each field is 16bits, only top 8 occupied)
 	dm_dirtymask = &dtm_animation_.dirtymask_[(mi>>3) + (mj*dtm_animation_.dirtymaskwidth_)];
@@ -190,6 +193,7 @@ inline void P16_dirty_block_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, s1
 	dm_pj = pj;
 	dm_pj2 = pj2;
 	dm_lineskip = dstrowskip;
+	dm_dstlinewid = c_dst_linewid;
 
 	// mask is dirtymaskstride_ bytes wide (or dirtymaskstride_/2 fields wide: each field is 16bits, only top 8 occupied)
 	dm_dirtymask = &dtm_animation_.dirtymask_[(mi>>3) + (mj*dtm_animation_.dirtymaskwidth_)];
@@ -239,15 +243,18 @@ inline void OCM16_refresh_window(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, s16 
 	dm_virtual_pagebytes = virtual_pagebytes_;
 	dm_visible_linebytes = visible_linebytes_;
 	dm_map_tiles_x = map_tiles_x_;
+	dm_map_tiles_y = map_tiles_y_;
 	dm_pi = pi;
 	dm_pi2 = pi2;
 	dm_pj = pj;
 	dm_pj2 = pj2;
 	dm_lineskip = dstrowskip;
+	dm_dstlinewid = c_dst_linewid;
 
 	// mask is dirtymaskstride_ bytes wide (or dirtymaskstride_/2 fields wide: each field is 16bits, only top 8 occupied)
 	dirtytilemap_t &dtm = dtm_bgrestore_;//dtm_animation_;
-	dm_dirtymask = &dtm.dirtymask_[(mi>>3) + (mj*dtm.dirtymaskwidth_)];
+//	dm_dirtymask = &dtm.dirtymask_[(mi>>3) + (mj*dtm.dirtymaskwidth_)];
+	dm_dirtymask = &dtm.dirtymask_[(pi>>3) + (pj*dtm.dirtymaskwidth_)];
 	dm_maskstride = dtm.dirtymaskstride_;
 
 	__asm__ __volatile__ (
@@ -277,6 +284,10 @@ inline void OCM_integrate_window(s16 pi, s16 pj, s16 pi2, s16 pj2)
 	dm_dirty_oco = ocm_.oco_;
 	dm_dirty_oct = ocm_.oct_;
 	dm_ocmstride = ocm_.stride_;
+	dm_dstlinewid = c_dst_linewid;
+
+	dm_map_tiles_x = map_tiles_x_;
+	dm_map_tiles_y = map_tiles_y_;
 
 	__asm__ __volatile__ (
 "											\
@@ -288,7 +299,7 @@ inline void OCM_integrate_window(s16 pi, s16 pj, s16 pi2, s16 pj2)
 	);		
 }
 
-
+/*
 inline void P16_combine_occlusion()
 {
 	dm_dirtymask = dtm_animation_.dirtymask_;
@@ -308,6 +319,7 @@ inline void P16_combine_occlusion()
 		: "cc"
 	);	
 }
+*/
 
 inline void dbg_vis_occlusion()
 {
@@ -318,13 +330,19 @@ inline void dbg_vis_occlusion()
 	dm_ocmstride = ocm_.stride_;
 	dm_map_tiles_x = map_tiles_x_;
 	dm_map_tiles_y = map_tiles_y_;
+	dm_dstlinewid = c_dst_linewid;
+	dm_vth = virtual_tiles_y_;
 
-	int pi = xpos_>>4;
-	int pj = ypos_;
+	int pi = modulo_vpage_x(xpos_>>4);
+	int pj = modulo_vpage_y(ypos_>>4);
 
 	dm_pi = xpos_;
 
-	u16* dstaddr = &framebuffer_[(pj * rowskipwords_) + (pi << 2)];
+	dm_pj = pj;
+	dm_pj2 = pj + vpage_tiles_y_;
+
+//	u16* dstaddr = &framebuffer_[(((pj<<4)+(ypos_&15))*c_dst_linewid) + (pi << 2)];
+	u16* dstaddr = &framebuffer_[(((pj<<4)+(ypos_&15))*(c_dst_linewid>>1)) + (pi << 2)];
 	dm_dstaddr = (s16*)dstaddr;
 
 	__asm__ __volatile__ (

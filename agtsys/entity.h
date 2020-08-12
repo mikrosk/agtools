@@ -595,11 +595,13 @@ static inline void EntitySwitchAsset_Hidden(entptr_t _pent, spritesheet *_passet
 #define STF_EntityDrawVisible STF_EntityDrawVisibleYM
 #define BLiT_EntityDrawVisible BLiT_EntityDrawVisibleYM
 #define EntityInteractVisible EntityInteractVisibleYM_68k
+#define EntityOccludeVisible EntityOccludeVisibleYM
 #else
 #define EntityDrawVisible EntityDrawVisibleXM
 #define STF_EntityDrawVisible STF_EntityDrawVisibleXM
 #define BLiT_EntityDrawVisible BLiT_EntityDrawVisibleXM
 #define EntityInteractVisible EntityInteractVisibleXM_68k
+#define EntityOccludeVisible EntityOccludeVisibleXM
 #endif
 
 // ---------------------------------------------------------------------------------------------------------------------

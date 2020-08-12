@@ -105,9 +105,9 @@ _OCM_occlusion_add_T:
 ;	todo: clipping
 
 	tst.w		d1
-	bmi		.nocm
+	bmi.s		.nocm
 	tst.w		d2
-	bmi		.nocm
+	bmi.s		.nocm
 
 ;	x offset & shift into ocm buffers
 
@@ -127,7 +127,7 @@ _OCM_occlusion_add_T:
 
 	move.w		_drawcontext+dctx_ocm_stride,d4		;_dm_ocmstride,d4
 	mulu.w		d4,d2
-	add.w		d2,a1
+	add.l		d2,a1
 	
 .yc:	move.l		(a0)+,d1		; t:o
 	clr.w		d1
@@ -173,9 +173,9 @@ _OCM_occlusion_sub_O:
 ;	todo: clipping
 
 	tst.w		d1
-	bmi		.nocm
+	bmi.s		.nocm
 	tst.w		d2
-	bmi		.nocm
+	bmi.s		.nocm
 
 ;	x offset & shift into ocm buffers
 
@@ -209,6 +209,9 @@ _OCM_occlusion_sub_O:
 *------------------------------------------------------------------------------*
 	movem.l		(sp)+,d0-a6
 	rts
+	
+	
+	.if		(0)
 	
 *------------------------------------------------------------------------------*
 _do_mapmod_occlusion:	
@@ -272,6 +275,8 @@ _do_mapmod_occlusion:
 	movem.l		(sp)+,d0-a6
 	rts
 
+	.endif
+	
 
 *------------------------------------------------------------------------------*
 _OCM_integrate_68k:	
@@ -297,13 +302,14 @@ _OCM_integrate_68k:
 	sub.w		d2,d4
 	ble		.nooc
 	
+	
 	move.w		d2,d0
 	mulu.w		d5,d0
-	add.w		d0,a1
-	add.w		d0,a2
+	add.l		d0,a1
+	add.l		d0,a2
 	
 	mulu.w		d6,d2
-	add.w		d2,a3
+	add.l		d2,a3
 
 
 	; x size, offset
@@ -566,7 +572,7 @@ _OCM_integrate_68k:
 _vis_mapmod_occlusion:	
 *------------------------------------------------------------------------------*
 	movem.l		d0-a6,-(sp)
-
+	
 	pushraster	#$fff
 
 ;	scroll blit against playfield fine-x
@@ -585,7 +591,6 @@ _vis_mapmod_occlusion:
 	
 ;	configure width,src/dst y increments
 			
-;	move.w		_drawcontext+dctx_ocm_stride,d3			
 	move.w		_dm_ocmstride,d3	; ocm buffer width, bytes
 	lsr.w		#1,d3			; words
 	
@@ -598,7 +603,6 @@ _vis_mapmod_occlusion:
 	subq		#1,d3			; blitter internal yinc only performed for xcount-1 words	
 	add.w		d3,d3			; words->bytes
 
-;	move.w		_drawcontext+dctx_ocm_stride,d0
 	move.w		_dm_ocmstride,d0	; source buffer stride (bytes)
 	sub.w		d3,d0
 	move.w		d0,BLiTSYI.w		; src yinc = source buffer stride - xcount (bytes)
@@ -608,32 +612,72 @@ _vis_mapmod_occlusion:
 	; draw 'O' buffer first
 
 	move.l		_dm_dstaddr,a0
-	
 	addq		#8,a0			; dest
+
 	move.l		_dm_dirty_oco,a1	; source
-;	move.l		_drawcontext+dctx_pocm_o,a1			
-	move.w		_dm_map_tiles_y,d2	; lines
+;	move.w		_dm_vth,d2
 	moveq		#1,d1			; colour mask = %0001
-	bsr		_vis_draw_bitfield
+;	bsr		_vis_draw_bitfield
+	moveq		#12,d7			; ~source
+	bsr		_vis_draw_windowed_bitfield
+
 
 	; draw 'T' buffer below it
 	
 	move.l		_dm_dstaddr,a0
-	move.w		_dm_map_tiles_y,d0
+	move.w		_dm_vth,d0
 	addq		#1,d0
-	mulu.w		#dst_linewid,d0
-	add.w		d0,a0
-
-	addq		#8,a0			; dest
+	mulu.w		_dm_dstlinewid,d0
+	add.l		d0,a0
+	addq		#8,a0
+				; dest
 	move.l		_dm_dirty_oct,a1	; source
-;	move.l		_drawcontext+dctx_pocm_t,a1		
-	move.w		_dm_map_tiles_y,d2	; lines
+;	move.w		_dm_vth,d2
 	moveq		#2,d1			; colour mask = %0010
-	bsr		_vis_draw_bitfield
+;	bsr		_vis_draw_bitfield
+	moveq		#3,d7			; source
+	bsr		_vis_draw_windowed_bitfield
 
 	popraster
 				
 	movem.l		(sp)+,d0-a6
+	rts
+
+_vis_draw_windowed_bitfield:
+
+	movem.l		d0-a6,-(sp)
+	move.w		_dm_pj,d2
+	beq.s		.n0
+	bsr		_vis_draw_bitfield
+.n0:	movem.l		(sp)+,d0-a6
+
+	movem.l		d0-a6,-(sp)
+	move.w		_dm_pj,d0
+	move.w		d0,d3	
+	mulu.w		_dm_ocmstride,d0
+	mulu.w		_dm_dstlinewid,d3
+	add.l		d0,a1
+	add.l		d3,a0
+	move.w		_dm_pj2,d2
+	sub.w		_dm_pj,d2
+	ble.s		.n1
+	or.w		#%1100,d1	
+	bsr		_vis_draw_bitfield
+.n1:	movem.l		(sp)+,d0-a6
+
+	movem.l		d0-a6,-(sp)
+	move.w		_dm_pj2,d0
+	move.w		d0,d3	
+	mulu.w		_dm_ocmstride,d0
+	mulu.w		_dm_dstlinewid,d3
+	add.l		d0,a1
+	add.l		d3,a0
+	move.w		_dm_vth,d2
+	sub.w		_dm_pj2,d2
+	ble.s		.n2
+	bsr		_vis_draw_bitfield
+.n2:	movem.l		(sp)+,d0-a6
+	
 	rts
 
 *------------------------------------------------------------------------------*
@@ -642,19 +686,19 @@ _vis_mapmod_occlusion:
 *------------------------------------------------------------------------------*
 _vis_draw_bitfield:	
 *------------------------------------------------------------------------------*
-
+	
 	move.w		#2,BLiTSXI.w		; source is 1-plane
 	move.w		#8,BLiTDXI.w		; dest is 4-plane interleaved
 
 	move.b		#2,BLiTHOP.w		; disable halftone ops
-
+	
 ;	dst yinc can be derived from known values (dst_linewid bytes - xcount bytes)
 	
 	move.w		BLiTXC.w,d3	
 	subq		#1,d3			; blitter internal yinc only performed for xcount-1 words
 	lsl.w		#3,d3			; in 4pln bytes (8 bytes)
 	neg.w		d3
-	add.w		#dst_linewid,d3
+	add.w		_dm_dstlinewid,d3
 	move.w		d3,BLiTDYI.w
 		
 ;	perform blit
@@ -664,7 +708,7 @@ _vis_draw_bitfield:
 	
 .plnc:	lsr.b		#1,d1
 	scs		d0
-	or.b		#3,d0
+	or.b		d7,d0
 	and.b		#15,d0			; output 3(copy/src) or 15(fill) according to next colour mask bit	
 	move.b		d0,BLiTLOP.w
 
@@ -674,9 +718,13 @@ _vis_draw_bitfield:
 	move.b		#$80,BLiTCTRL.w		; blit nice/bus-share
 	addq		#2,a0
 .res:	bset.b		d4,BLiTCTRL.w		; restart until complete
+	.if		(use_blitter_nops)
+	nop
+	.endif
 	bne.s		.res
 
 	dbra		d3,.plnc
+	
 	rts
 
 *------------------------------------------------------------------------------*
@@ -731,8 +779,12 @@ _dm_maskstride:		ds.w	1
 	.globl	_dm_maskstride
 _dm_lineskip:		ds.w	1
 	.globl	_dm_lineskip
+_dm_dstlinewid:		ds.w	1
+	.globl	_dm_dstlinewid
 _dm_ocmstride:		ds.w	1
 	.globl	_dm_ocmstride
+_dm_vth:		ds.w	1
+	.globl	_dm_vth
 	
 *------------------------------------------------------------------------------*
 	.text

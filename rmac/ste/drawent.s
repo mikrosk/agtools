@@ -41,6 +41,7 @@ within_entitydraw	set	1
 	.if		^^defined AGT_CONFIG_WORLD_YMAJOR
 	.globl		_BLiT_EntityDrawVisibleYM_68k
 	.globl		_BLiT_EntityDeferVisibleYM_68k
+	.globl		_BLiT_EntityOccludeVisibleYM_68k
 	.globl		_EntityInteractVisibleYM_68k
 	.globl		_gp_entity_y_head
 	.globl		_gp_entity_y_aftertail

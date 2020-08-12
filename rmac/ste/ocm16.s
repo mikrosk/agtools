@@ -1,17 +1,15 @@
 
+	
 *------------------------------------------------------------------------------*
 
 
 
 .macro	ocm_block_inl
 
-;	move.w		#$07f8,d0
+
 	move.w		d1,d0
 	and.w		d3,d0
 	beq.s		.blank\~	; early shortcut empty patterns
-
-;	bsr		.do_block_2	; todo: could inline this if jumptable was in a register
-;	bra.s		.cont\~
 
 	lea		(a6,d0.w),a5
 
@@ -21,10 +19,17 @@
 	moveq		#16,d0		; draw whole tiles
 	.endif
 
+	
 	pea		.cont\~(pc)
 	move.l		(a5)+,-(sp)
 	move.l		(a5),a5
 	jmp		(a5)
+
+;	move.l		(a5)+,.bb\~+2
+;	move.l		(a5)+,.aa\~+2
+;.aa\~:	jsr		$12345678
+;.bb\~:	jsr		$12345678
+;	bra.s		.cont\~
 	
 .blank\~:
 	lea		-8*4(a0),a0
@@ -47,7 +52,10 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 	move.w		#2,BLiTSXI.w
 	move.w		#2,BLiTDXI.w
 	move.w		#2,BLiTSYI.w
-	move.w		#(dst_linewid-8)+2,BLiTDYI.w	
+	move.w		_dm_dstlinewid,d0
+	subq		#8-2,d0
+	move.w		d0,BLiTDYI.w
+	;move.w		#(dst_linewid-8)+2,BLiTDYI.w	
 	move.l		#-1,BLiTEM1.w
 	move.w		#-1,BLiTEM3.w
 	move.w		#4,BLiTXC.w
@@ -56,7 +64,7 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 ;	move.b		#15,BLiTLOP.w
 	clr.b		BLiTSKEW.w
 	
-;	bra		.done
+	;bra		.done
 
 *********************************************************
 * todo: set up parameters properly from call context
@@ -70,7 +78,7 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 	moveq		#0,d2
 	move.w		_dm_map_tiles_x,d2
 	lsl.l		#2,d2
-
+	
 	lea		BLiTYC.w,a2
 	lea		BLiTCTRL.w,a3
 	
@@ -152,13 +160,13 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 	add.w		#4*8,d4
 	moveq		#-1,d5
 	lsr.l		d4,d5
-
 	
 	; find rectangle height
 
 	move.w		_dm_pj2,d4
 	sub.w		_dm_pj,d4
 	subq.w		#1,d4
+	bmi		.done
 
 ;	d0 : *
 ;	d1 : map source
@@ -329,6 +337,7 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 	move.w		_dm_maskstride,.smc4+2
 	move.w		#$07f8,d1
 
+
 ;	combine masks       e.g. 0007FF80
 
 	and.l		d0,d5
@@ -337,7 +346,7 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 
 	; check row
 
-	movep.l		0(a1),d3			; AA:BB:CC:DD <-[AA:BB:CC:DD]
+	movep.l		0(a1),d3		; AA:BB:CC:DD <-[AA:BB:CC:DD]
 	move.l		d3,d0
 	and.l		d5,d3
 	beq		.next4
@@ -345,14 +354,14 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 	movep.l		d0,0(a1)
 
 	; dirty row
-
-	rol.l		#3,d3			; AB:BC:CD:DA
+	
+	rol.l		#3,d3			; AB:BC:C[D:DA]
 	ocm_block_inl
-	ror.l		#8,d3			; DA:AB:BC:CD
+	ror.l		#8,d3			; DA:AB:B[C:CD]
 	ocm_block_inl
-	lsr.l		#8,d3			; 00:DA:AB:BC
+	lsr.l		#8,d3			; 00:DA:A[B:BC]
 	ocm_block_inl
-	lsr.l		#8,d3			; 00:00:DA:AB
+	lsr.l		#8,d3			; 00:00:D[A:AB]
 	ocm_block_inl
 
 	lea		8*8*4(a4),a4
@@ -374,7 +383,7 @@ _OCM16_refresh_68k:	.globl	_OCM16_refresh_68k
 	move.w		_dm_lineskip,.smc3d+2
 	move.w		_dm_maskstride,.smc3+2
 	move.w		#$07f8,d1
-
+	
 ;	combine masks       e.g. 0007FF80
 
 	and.l		d0,d5

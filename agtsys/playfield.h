@@ -37,6 +37,8 @@ extern "C" volatile s16 dm_pj2;
 extern "C" volatile s16 dm_maskstride;
 extern "C" volatile s16 dm_ocmstride;
 extern "C" volatile s16 dm_lineskip;
+extern "C" volatile s16 dm_dstlinewid;
+extern "C" volatile s16 dm_vth;
 
 extern "C" void do_dirtyrect_pqrs();
 extern "C" void do_dirtyrect_pq();
@@ -276,6 +278,10 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// configure behaviour
 	// ---------------------------------------------------------------------------------------------------------------------
+
+	static_assert(((_attr & PFA_OcclusionMaps) && !(_attr & PFA_DualLayer)), "playfield config error: cannot combine occlusion maps with dual-layer background!");
+	static_assert(((_attr & PFA_OcclusionMaps) && !(_tilestep == 3)), "playfield config error: cannot combine occlusion maps with 8x8 tilemap! 16x16 only...");
+	static_assert(((_attr & PFA_OcclusionMaps) && !(_hscroll == HScrollMode_LOOPBACK)), "playfield config error: cannot combine occlusion maps with H_LOOPBACK");
 
 	static const int c_guardx = _h_guardband;
 	static const int c_guardy = _v_guardband;
@@ -758,7 +764,10 @@ public:
 
 		void allocate(s16 _xt, s16 _yt)
 		{
-			int stride_blocks = ((_xt + 7) >> 3);
+			// stride-rounding needs to match OCM system (32 tile bits) for integration step
+//			int stride_blocks = ((_xt + 7) >> 3);
+			int stride_blocks = ((_xt + 31) & -32) >> 3;
+
 			dirtymaskwidth_ = stride_blocks;
 			dirtymaskstride_ = dirtymaskwidth_ << 1;
 
@@ -2116,6 +2125,12 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	s16 consumed_lines = g_displayservice_consumed_lines[_displaymode];
 	s16 displaysvc_consumed_words = (consumed_lines * virtual_linewords_) + (c_stf_maskedspeculation_ ? 4 : 0);
 
+#if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
+	printf("displaymode:%d\n", (int)_displaymode);
+	printf("consumed_lines:%d\n", (int)consumed_lines);
+	printf("consumed_words:%d\n", (int)displaysvc_consumed_words);
+#endif
+
 	display_ = (u16*)
 	(
 		(
@@ -2356,9 +2371,6 @@ void hybrid_fill()
 #if defined(AGT_CONFIG_DEBUG_OCCLUSION)
 			dbg_vis_occlusion();
 #endif
-			// todo: specialize, window
-			//P16_combine_occlusion();
-
 			// find the viewport rectangle
 			s16 tx1 = txpos_-c_hmargin_;
 			s16 ty1 = typos_-c_vmargin_;
@@ -2369,8 +2381,79 @@ void hybrid_fill()
 			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
 			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
 
-			OCM_integrate_window(tx1, ty1, tx2, ty2);
-			OCM16_refresh_window(tx1, ty1, tx1, ty1, tx2, ty2);
+			//printf("tx1:%d ty1:%d\n", (int)tx1, (int)ty1);
+
+			//OCM_integrate_window(tx1, ty1, tx2, ty2);
+
+			// integrate both active pages for v-loopback
+			s16 pi1 = modulo_vpage_x(txpos_);
+			s16 pi2 = pi1+vpage_tiles_x_;
+/*			{
+	//			s16 pj1 = modulo_vpage_y(typos_);
+	//			s16 pj2 = pj1+vpage_tiles_y_;
+
+				s16 pj1 = 0;
+				s16 pj2 = virtual_tiles_y_;
+
+				OCM_integrate_window(pi1, pj1, pi2, pj2);
+			}
+*/
+			if (1)
+			{
+
+			// update page fragments one at a time with correct map coords
+			{
+				// current, visible window
+				s16 pj1 = modulo_vpage_y(typos_);
+				s16 pj2 = pj1+vpage_tiles_y_;
+				OCM_integrate_window(pi1, pj1, pi2, pj2);
+				OCM16_refresh_window(txpos_, typos_, pi1, pj1, pi2, pj2);
+			}
+
+			// repaint virtual page fragments according to direction of scroll
+			// without this, BGRESTORE can't expect a pristine restore source for non-OCM refreshed
+			// sprites if OCM sprites have left traces there.
+
+			if (dy < 0)
+			{
+				// upper fragment (one page ahead)
+				s16 pj1 = 0;
+				s16 pj2 = modulo_vpage_y(typos_-vpage_tiles_y_);
+				OCM_integrate_window(pi1, pj1, pi2, pj2);
+				OCM16_refresh_window(txpos_, typos_+vpage_tiles_y_-(pj2-pj1), pi1, pj1, pi2, pj2);
+			}
+
+			if (dy > 0)
+			{
+				// lower fragment (one page behind)
+				s16 pj1 = modulo_vpage_y(typos_+vpage_tiles_y_);
+				s16 pj2 = virtual_tiles_y_ - pj1;
+				OCM_integrate_window(pi1, pj1, pi2, pj2);
+				OCM16_refresh_window(txpos_, typos_-vpage_tiles_y_, pi1, pj1, pi2, pj2);
+			}
+
+			}
+
+#if 0
+//			s16 pi1 = modulo_vpage_x(tx1);
+//			s16 pi2 = pi1+(tx2-tx1);
+//			s16 pj1 = modulo_vpage_y(ty1);
+//			s16 pj2 = pj1+(ty2-ty1);
+
+			s16 pi1 = modulo_vpage_x(txpos_);
+			s16 pi2 = pi1+vpage_tiles_x_;
+//			s16 pj1 = modulo_vpage_y(typos_);
+//			s16 pj2 = pj1+vpage_tiles_y_;
+
+			s16 pj1 = 0;
+			s16 pj2 = virtual_tiles_y_;
+
+			s16 myp = (typos_ / virtual_tiles_y_) * virtual_tiles_y_;
+
+			OCM_integrate_window(pi1, pj1, pi2, pj2);
+//			OCM16_refresh_window(tx1, ty1, pi1, pj1, pi2, pj2);
+			OCM16_refresh_window(txpos_, myp, pi1, pj1, pi2, pj2);
+#endif
 
 		} // c_tilerestore_
 

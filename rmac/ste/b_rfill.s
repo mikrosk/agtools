@@ -294,7 +294,7 @@
 	.if		(use_hog=0)
 .rmlp0:	bset.b		d1,(a2)
 	.if		(use_blitter_nops)
-	;nop
+	nop
 	.endif
 	bne.s		.rmlp0
 	.endif
@@ -313,7 +313,7 @@
 	.if		(use_hog=0)
 .rmlp1:	bset.b		d1,(a2)
 	.if		(use_blitter_nops)
-	;nop
+	nop
 	.endif
 	bne.s		.rmlp1
 	.endif
@@ -332,7 +332,7 @@
 	.if		(use_hog=0)
 .rmlp2:	bset.b		d1,(a2)
 	.if		(use_blitter_nops)
-	;nop
+	nop
 	.endif
 	bne.s		.rmlp2
 	.endif
@@ -350,7 +350,7 @@
 	.if		(use_hog=0)
 .rmlp3:	bset.b		d1,(a2)
 	.if		(use_blitter_nops)
-	;nop
+	nop
 	.endif
 	bne.s		.rmlp3
 	.endif
