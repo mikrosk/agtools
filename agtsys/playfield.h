@@ -279,9 +279,9 @@ public:
 	// configure behaviour
 	// ---------------------------------------------------------------------------------------------------------------------
 
-	static_assert(((_attr & PFA_OcclusionMaps) && !(_attr & PFA_DualLayer)), "playfield config error: cannot combine occlusion maps with dual-layer background!");
-	static_assert(((_attr & PFA_OcclusionMaps) && !(_tilestep == 3)), "playfield config error: cannot combine occlusion maps with 8x8 tilemap! 16x16 only...");
-	static_assert(((_attr & PFA_OcclusionMaps) && !(_hscroll == HScrollMode_LOOPBACK)), "playfield config error: cannot combine occlusion maps with H_LOOPBACK");
+	static_assert(!((_attr & PFA_OcclusionMaps) && (_attr & PFA_DualLayer)), "playfield config error: cannot combine occlusion maps with dual-layer background!");
+	static_assert(!((_attr & PFA_OcclusionMaps) && (_tilestep == 3)), "playfield config error: cannot combine occlusion maps with 8x8 tilemap! 16x16 only...");
+	static_assert(!((_attr & PFA_OcclusionMaps) && (_hscroll == HScrollMode_LOOPBACK)), "playfield config error: cannot combine occlusion maps with H_LOOPBACK");
 
 	static const int c_guardx = _h_guardband;
 	static const int c_guardy = _v_guardband;
