@@ -176,8 +176,6 @@ static uword_t *g_workbufferbpl = 0;
 
 // --------------------------------------------------------------------
 //	misc. small helper functions
-
-
 // --------------------------------------------------------------------
 
 //#undef assert
@@ -6816,7 +6814,8 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 				int pyp2 = xmin(py + 2, g_sprite_height - 1);
 
 				if (
-					(blocksize[py] < 3)
+					(blocksize[py] > 0 &&
+					 blocksize[py] < 3)
 					/*
 									(
 									//difference with m1
