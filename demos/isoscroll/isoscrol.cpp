@@ -601,6 +601,10 @@ mainloop:
 
 			TIMING_MAIN(bgcol);
 
+			// wait at least 1vbl but not necessarily more (allow frameslip)
+			static s16 s_vbl_counter = g_vbl;
+			shift.wait_vbl_minbound(s_vbl_counter, 1);
+
 			s16 field_index = g_vbl;
 			//while (g_vbl == field_index) { }
 

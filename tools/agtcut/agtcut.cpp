@@ -5851,7 +5851,7 @@ bool emit_sprite_sequence(bool _storepixels)
 						for (std::vector<std::pair<int,int>>::iterator it = pscolropt_index.begin(); it != pscolropt_index.end(); it++)
 						{
 							// 1st field
-							std::cout << "patching 1st field pscoloropt" << std::endl;
+							//std::cout << "patching 1st field pscoloropt" << std::endl;
 							lv = it->first - colropt_preshift_index_fpos;
 							lv = endianswap32(lv);
 							fwrite(&lv, 1, 4, hout);
@@ -5859,7 +5859,7 @@ bool emit_sprite_sequence(bool _storepixels)
 							// 2nd field is duplicate reference of 1st, if no dual-field
 							if (it->second != 0)
 							{
-								std::cout << "patching 2nd field pscoloropt" << std::endl;
+								//std::cout << "patching 2nd field pscoloropt" << std::endl;
 								lv = it->second - colropt_preshift_index_fpos;
 								lv = endianswap32(lv);
 							}
