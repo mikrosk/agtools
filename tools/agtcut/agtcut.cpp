@@ -50,7 +50,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.453";
+static const char* const g_version_string = "v0.454";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
@@ -859,6 +859,9 @@ public:
 	bool forceremap;
 
 	std::list<guideevent> guideeventseq;
+	// sources actually specified on commandline (1 or more)
+	std::vector<std::string> explicit_sources;
+	// all sources, after glob expansion. this is what gets used if multiple sources were specified.
 	std::vector<std::string> sources;
 
 	spritemap_t spritemappings;
@@ -950,6 +953,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_SOURCE)
 			{
 				_args.sourcefile = args.OptionArg();
+				// add explicit files to sources
+				_args.explicit_sources.push_back(_args.sourcefile);
 			}
 			else if (args.OptionId() == OPT_OUTFILE)
 			{
@@ -1565,6 +1570,8 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 	// certain modes expect globbing
 	if (_args.stitchmaps)
 	{
+		// multiple sources, single output
+
 		// can't stitch from a glob if no outfile was specified
 		if (_args.outfile.length() == 0)
 		{
@@ -1574,39 +1581,64 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			exit(1);
 		}
 
-		// expand input filenames    
-		CSimpleGlob glob(SG_GLOB_NOCHECK);
-		if (SG_SUCCESS != glob.Add(_args.sourcefile.c_str()))
+		// process input paths
+		
+		// only expand glob if 1 source specified, otherwise treat each source as distinct
+		if (_args.explicit_sources.size() > 1)
 		{
-			std::cerr << "error: failed to expand wildcard glob" << std::endl;
-			std::cout << "press any key..." << std::endl << std::flush;
-			getchar();
-			exit(1);
-		}
+			std::cout << "multiple sources specified..." << std::endl;
 
-		// check infile/outfile specification rules  
-		if (glob.FileCount() == 0)
-		{
-			std::cerr << "error: no input file specified!" << std::endl;
-			std::cout << "press any key..." << std::endl << std::flush;
-			getchar();
-			exit(1);
+			_args.sources = _args.explicit_sources;
 		}
 		else
 		{
-			// expand input filespec to individual files
-			for (int n = 0; n < glob.FileCount(); ++n)
+			std::cout << "single source specified - expanding glob/wildcards..." << std::endl;
+
+			CSimpleGlob glob(SG_GLOB_NOCHECK);
+			if (SG_SUCCESS != glob.Add(_args.sourcefile.c_str()))
 			{
-				std::string namein(glob.File(n));
-
-				printf("expanded glob: %s\n", namein.c_str());
-
-				// in case only one file globbed, use normal mode - otherwise record multiple sources
-				if (glob.FileCount() > 1)
-					_args.sources.push_back(namein);
-				if (n == 0)
-					_args.sourcefile = namein;
+				std::cerr << "error: failed to expand wildcard glob" << std::endl;
+				std::cout << "press any key..." << std::endl << std::flush;
+				getchar();
+				exit(1);
 			}
+
+			// check infile/outfile specification rules  
+			if (glob.FileCount() == 0)
+			{
+				std::cerr << "error: no input file specified!" << std::endl;
+				std::cout << "press any key..." << std::endl << std::flush;
+				getchar();
+				exit(1);
+			}
+			else
+			{
+				// expand input filespec to individual files
+				for (int n = 0; n < glob.FileCount(); ++n)
+				{
+					std::string namein(glob.File(n));
+
+					printf("expanded glob: %s\n", namein.c_str());
+
+					// in case only one file globbed, use normal mode - otherwise record multiple sources
+					if (glob.FileCount() > 1)
+						_args.sources.push_back(namein);
+					if (n == 0)
+						_args.sourcefile = namein;
+				}
+			}
+		}
+	}
+	else
+	{
+		// multiple sources, multiple outputs
+
+		// no glob expansion - explicit sources only
+		if (_args.explicit_sources.size() > 1)
+		{
+			std::cout << "multiple sources specified..." << std::endl;
+
+			_args.sources = _args.explicit_sources;
 		}
 	}
 
@@ -3813,7 +3845,455 @@ void emit_tga(const char* const _name, RGB *data, int _w, int _h)
 	}
 }
 
-bool do_tilemap()
+
+bool stitch_sources
+(
+	RGB *&m_psourcergb,
+	RGB *&m_ppalettergb,
+	ubyte_t *&m_psourcecol,
+	ulong_t &sourcew,
+	ulong_t &sourceh,
+	ulong_t &sourced
+)
+{
+	// pull in multiple source images, generate single joined image in memory
+	// todo: ideally we clean up the old images after join \o/
+
+	// todo: this is crap code - try harder later
+	static const int MAX_STITCH_SOURCES = 64;
+
+	RGB *t_psourcergb[MAX_STITCH_SOURCES];;
+	ubyte_t *t_psourcecol[MAX_STITCH_SOURCES];
+	RGB *t_ppalettergb[MAX_STITCH_SOURCES];
+	ulong_t t_sourcew[MAX_STITCH_SOURCES];
+	ulong_t t_sourceh[MAX_STITCH_SOURCES];
+	ulong_t t_sourced[MAX_STITCH_SOURCES];
+
+	bool success = true;
+	int sidx = 0;
+	for (std::vector<std::string>::iterator it = g_allargs.sources.begin(); (it != g_allargs.sources.end()) && success; it++, sidx++)
+	{
+		// load images as separate objects
+
+		t_psourcergb[sidx] = 0;
+		t_psourcecol[sidx] = 0;
+		t_ppalettergb[sidx] = 0;
+		t_sourcew[sidx] = 0;
+		t_sourceh[sidx] = 0;
+		t_sourced[sidx] = 0;
+
+		std::string source = *it;
+
+		success &= image_load
+			(
+			source.c_str(),
+			t_psourcergb[sidx],
+			t_psourcecol[sidx],
+			t_ppalettergb[sidx],
+			t_sourcew[sidx],
+			t_sourceh[sidx],
+			t_sourced[sidx]
+			);
+		if (success)
+			std::cout << "read stitching source [" << g_allargs.sourcefile.c_str() << "] with colour depth " << t_sourced[sidx] << " and dimensions " << t_sourcew[sidx] << " x " << t_sourceh[sidx] << std::endl;
+
+		// source consistency check, in case someone saves a file with the wrong width, depth etc.
+		if ((sidx > 0) &&
+			((t_sourcew[sidx] != t_sourcew[sidx - 1]) ||
+			(t_sourced[sidx] != t_sourced[sidx - 1]) ||
+			(!!(t_psourcecol[sidx]) != !!(t_psourcecol[sidx - 1])) ||
+			(!!(t_ppalettergb[sidx]) != !!(t_ppalettergb[sidx - 1]))
+			)
+			)
+		{
+			std::cerr << "error: multiple source files are inconsistent in width or colour depth!" << std::endl;
+			std::cout << "press any key..." << std::endl << std::flush;
+			getchar();
+			exit(1);
+		}
+
+		// additional palette consistency check!
+		if ((sidx > 0) &&
+			(t_ppalettergb[0]) &&
+			(t_sourced[0] > 0) &&
+			(t_sourced[0] <= 8)
+			)
+		{
+			int ncols = 1 << t_sourced[0];
+			bool different = false;
+
+			RGB *cmpa = t_ppalettergb[sidx];
+			RGB *cmpb = t_ppalettergb[sidx - 1];
+
+			for (int c = 0; (c < ncols) & !different; c++)
+			{
+				if ((cmpa[c].red != cmpb[c].red) ||
+					(cmpa[c].green != cmpb[c].green) ||
+					(cmpa[c].blue != cmpb[c].blue))
+					different = true;
+			}
+
+			if (different)
+			{
+				std::cerr << "error: multiple source files are inconsistent in palette values!" << std::endl;
+				std::cout << "press any key..." << std::endl << std::flush;
+				getchar();
+				exit(1);
+			}
+		}
+
+		// sum height for joined image
+		sourceh += t_sourceh[sidx];
+	}
+
+	if (success)
+	{
+		std::cout << "read multiple source images for stitching" << std::endl;
+
+		// join the images together
+
+		sourcew = t_sourcew[0];
+		sourced = t_sourced[0];
+
+		// copy palette from first image
+		if (t_ppalettergb[0])
+		{
+			int ncols = 1 << t_sourced[0];
+			m_ppalettergb = new RGB[256];
+			memset(m_ppalettergb, 0, sizeof(RGB) * 256);
+			memcpy(m_ppalettergb, t_ppalettergb[0], sizeof(RGB) * ncols);
+		}
+
+		// create space for joined colourmap, if present
+		if (t_psourcecol[0])
+			m_psourcecol = new ubyte_t[sourcew*sourceh];
+
+		// create space for raw RGB data
+		if (t_psourcergb[0])
+			m_psourcergb = new RGB[sourcew*sourceh];
+
+		// transfer pixels to joined image
+		for (int i = 0, yo = 0; i < sidx; i++)
+		{
+			int ytilerow = yo >> bceil(g_allargs.tilesize);
+			std::cout << "joining source [" << i << "] starting @ tile row [" << ytilerow << "]" << std::endl;
+
+			// note: certain pixel buffers are optional so check them before copying data
+			ubyte_t *scol = t_psourcecol[i];
+			RGB *srgb = t_psourcergb[i];
+			for (int sy = 0; sy < t_sourceh[i]; sy++)
+			{
+				for (int sx = 0; sx < sourcew; sx++)
+				{
+					if (m_psourcecol)
+						m_psourcecol[sx + ((sy + yo) * sourcew)] = scol[sx + (sy * sourcew)];
+					if (m_psourcergb)
+						m_psourcergb[sx + ((sy + yo) * sourcew)] = srgb[sx + (sy * sourcew)];
+				}
+			}
+
+			// advance output vertically
+			yo += t_sourceh[i];
+		}
+
+		std::cout << "joined " << sidx << " images into single map for extraction" << std::endl;
+	}
+	else
+	{
+		std::cerr << "error: failed to read one or more source images for stitching!" << std::endl;
+		std::cout << "press any key..." << std::endl << std::flush;
+		getchar();
+		exit(1);
+	}
+
+	return success;
+}
+
+void emit_tilemap_diagnostics
+(
+	std::string outfile,
+	RGB *m_psourcergb,
+	RGB *m_ppalettergb,
+	ulong_t sourcew,
+	ulong_t sourceh,
+	long_t *psrcmap,
+	int tilesrcw,
+	int tilesrch
+)
+{
+	int tilesize = g_allargs.tilesize;
+
+	// only emit mapvis review file if requested
+	if (g_allargs.visual)
+	{
+		// rebuild source from tiles
+		for (int yy = 0; yy < tilesrch; yy++)
+		{
+			for (int xx = 0; xx < tilesrcw; xx++)
+			{
+				RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
+
+				//int index = -1;
+				//
+				//int mx = xx - g_allargs.maprect_xpos;
+				//int my = yy - g_allargs.maprect_ypos;
+				//if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+				//{
+				//	index = ptilemap[(my * tilemapw) + mx];
+				//}
+
+				int index = psrcmap[(yy*tilesrcw)+xx];
+
+				bool inside = false;
+				int mx = xx - g_allargs.maprect_xpos;
+				int my = yy - g_allargs.maprect_ypos;
+				if ((mx >= 0 && my >= 0) && 
+					(mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+				{
+					inside = true;
+				}
+
+				// unfortunately we're storing the tiles in a list - better change this
+				tile8dictionary_t::iterator it8 = s_tile8dictionary[0].begin();
+				for (int i = 0; i < index; i++, it8++);
+
+				if (inside)
+				{
+					// valid index, part of the map - fill with tile
+					u8 *psrc = *it8;
+					for (int py = 0; py < tilesize; py++)
+					{
+						for (int px = 0; px < tilesize; px++)
+						{
+							u8 c = psrc[(py * tilesize) + px];
+							pdst[(py * sourcew) + px] = m_ppalettergb[c];
+						}
+					}
+				}
+				else
+				{
+					// not part of the map - darken pixels
+					u8 *psrc = *it8;
+					for (int py = 0; py < tilesize; py++)
+					{
+						for (int px = 0; px < tilesize; px++)
+						{
+							u8 c = psrc[(py * tilesize) + px];
+							RGB v = m_ppalettergb[c];
+							v.red >>= 1;
+							v.green >>= 1;
+							v.blue >>= 1;
+							pdst[(py * sourcew) + px] = v;
+						}
+					}
+				}
+			}
+		}
+
+		std::string reviewfile(outfile);
+		remove_extension(reviewfile);
+		reviewfile.append("_mapvis.tga");
+
+		emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
+		std::cout << "emitted map visualisation [" << reviewfile.c_str() << "]" << std::endl;
+	}
+
+	// only emit map index review file if requested
+	if (g_allargs.visual)
+	{
+		// rebuild source from tiles
+		for (int yy = 0; yy < tilesrch; yy++)
+		{
+			for (int xx = 0; xx < tilesrcw; xx++)
+			{
+				RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
+
+				//int index = -1;
+
+				//int mx = xx - g_allargs.maprect_xpos;
+				//int my = yy - g_allargs.maprect_ypos;
+				//if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+				//{
+				//	index = ptilemap[(my * tilemapw) + mx];
+				//}
+
+				int index = psrcmap[(yy*tilesrcw)+xx];
+
+				bool inside = false;
+				int mx = xx - g_allargs.maprect_xpos;
+				int my = yy - g_allargs.maprect_ypos;
+				if ((mx >= 0 && my >= 0) && 
+					(mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+				{
+					inside = true;
+				}
+
+				// unfortunately we're storing the tiles in a list - better change this
+				tile24dictionary_t::iterator it24 = s_tile24dictionary.begin();
+				for (int i = 0; i < index; i++, it24++);
+
+				if (inside)
+				{
+					// valid index, part of the map - fill with tile
+					RGB *psrc = *it24;
+					for (int py = 0; py < tilesize; py++)
+					{
+						for (int px = 0; px < tilesize; px++)
+						{
+							pdst[(py * sourcew) + px] = psrc[(py * tilesize) + px];
+
+							plot6x6hex3(pdst, sourcew, index, 1, 1);
+						}
+					}
+				}
+				else
+				{
+					// not part of the map - darken pixels
+					RGB *psrc = *it24;
+					for (int py = 0; py < tilesize; py++)
+					{
+						for (int px = 0; px < tilesize; px++)
+						{
+							RGB v = psrc[(py * tilesize) + px];
+							v.red >>= 1;
+							v.green >>= 1;
+							v.blue >>= 1;
+							pdst[(py * sourcew) + px] = v;
+
+							plot6x6hex3(pdst, sourcew, index, 1, 1);
+						}
+					}
+				}
+			}
+		}
+
+		std::string reviewfile(outfile);
+		remove_extension(reviewfile);
+		reviewfile.append("_index.tga");
+
+		emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
+		std::cout << "emitted map index visualisation [" << reviewfile.c_str() << "]" << std::endl;
+	}
+
+	// only emit tags review if requested
+	if (g_allargs.tiletags.length() > 0)
+	{
+		std::ifstream tiletags(g_allargs.tiletags.c_str());
+		if (!(tiletags.is_open() && tiletags.good()))
+		{
+			std::cerr << "error: unable to locate or read specified tiletags CSV file!" << std::endl;
+			std::cout << "press any key..." << std::endl << std::flush;
+			getchar();	
+			exit(1);
+		}
+
+		// create maskindex from marked indices
+		const int numtiles = s_tile24dictionary.size();
+		u8 *pmaskindex = new u8[numtiles];
+		memset(pmaskindex, 0, numtiles);
+
+		// parse CSV
+		for (CSVIterator loop(tiletags); loop != CSVIterator(); ++loop)
+		{
+			const CSVRow& r = (*loop);
+			size_t s = r.size();
+			if (s > 0)
+			{
+				std::string inspect = r[0];
+				if (inspect[0] == ';')
+				{
+					// skip comment
+				}
+				else
+				{
+					int column_value = 0;
+					int column_index = 0;
+
+					std::cout << "reading tiletags: ";
+		
+					std::string colval = r[column_index++];
+					std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
+					char *pend = 0;
+					column_value = strtol(colval.c_str(), &pend, 16);
+					printf("index: %s\n", colval.c_str());
+					if ((column_value >= 0) && (column_value <= numtiles))
+					{	
+						// tag this tile
+						pmaskindex[column_value] = 1;
+						std::cout << "tagged tile index [" << column_value << "]" << std::endl;
+					}
+					else
+					{
+						std::cerr << "error: invalid tile index field " << column_value << " in tiletags CSV file!" << std::endl;
+						std::cout << "press any key..." << std::endl << std::flush;
+						getchar();
+						exit(1);
+					}
+				}
+			}
+		}
+
+		// rebuild source from tiles
+		for (int yy = 0; yy < tilesrch; yy++)
+		{
+			for (int xx = 0; xx < tilesrcw; xx++)
+			{
+				RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
+
+				//int index = -1;
+
+				//int mx = xx - g_allargs.maprect_xpos;
+				//int my = yy - g_allargs.maprect_ypos;
+				//if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+				//{
+				//	index = ptilemap[(my * tilemapw) + mx];
+				//}
+
+				int index = psrcmap[(yy*tilesrcw)+xx];
+
+				bool inside = false;
+				int mx = xx - g_allargs.maprect_xpos;
+				int my = yy - g_allargs.maprect_ypos;
+				if ((mx >= 0 && my >= 0) && 
+					(mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
+				{
+					inside = true;
+				}
+
+				if (inside)
+				{
+					if (pmaskindex[index])
+					{
+						for (int py = 0; py < tilesize; py++)
+						{
+							for (int px = 0; px < tilesize; px++)
+							{
+								pdst[(py * sourcew) + px].red = ~(pdst[(py * sourcew) + px].red >> 1);
+								pdst[(py * sourcew) + px].green = ~(pdst[(py * sourcew) + px].green >> 1);
+								pdst[(py * sourcew) + px].blue = ~(pdst[(py * sourcew) + px].blue >> 1);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		delete[] pmaskindex;
+
+		{
+			std::string reviewfile(outfile);
+			remove_extension(reviewfile);
+			reviewfile.append("_tags.tga");
+
+			emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
+			std::cout << "emitted map tags visualisation [" << reviewfile.c_str() << "]" << std::endl;
+		}
+
+	}
+}
+
+
+bool do_tilemap_single()
 {
 	ulong_t sourcew = 0;
 	ulong_t sourceh = 0;
@@ -3831,161 +4311,21 @@ bool do_tilemap()
 	int tilemapw = 0;
 	int tilemaph = 0;
 
-	std::cout << "map / tile cutting mode..." << std::endl;
+	std::cout << "map / tile cutting mode (single map output)..." << std::endl;
 
 	bool success = false;
 
-	if (!g_allargs.sources.empty())
+	if ((g_allargs.sources.size() > 1) && g_allargs.stitchmaps)
 	{
-		// pull in multiple source images, generate single joined image in memory
-		// todo: ideally we clean up the old images after join \o/
-
-		// todo: this is crap code - try harder later
-		static const int MAX_STITCH_SOURCES = 64;
-
-		RGB *t_psourcergb[MAX_STITCH_SOURCES];;
-		ubyte_t *t_psourcecol[MAX_STITCH_SOURCES];
-		RGB *t_ppalettergb[MAX_STITCH_SOURCES];
-		ulong_t t_sourcew[MAX_STITCH_SOURCES];
-		ulong_t t_sourceh[MAX_STITCH_SOURCES];
-		ulong_t t_sourced[MAX_STITCH_SOURCES];
-
-		success = true;
-		int sidx = 0;
-		for (std::vector<std::string>::iterator it = g_allargs.sources.begin(); (it != g_allargs.sources.end()) && success; it++, sidx++)
-		{
-			// load images as separate objects
-
-			t_psourcergb[sidx] = 0;
-			t_psourcecol[sidx] = 0; 
-			t_ppalettergb[sidx] = 0;
-			t_sourcew[sidx] = 0;
-			t_sourceh[sidx] = 0;
-			t_sourced[sidx] = 0;
-
-			std::string source = *it;
-
-			success &= image_load
-			(
-				source.c_str(), 
-				t_psourcergb[sidx], 
-				t_psourcecol[sidx], 
-				t_ppalettergb[sidx], 
-				t_sourcew[sidx], 
-				t_sourceh[sidx], 
-				t_sourced[sidx]
-			);
-			if (success)
-				std::cout << "read stitching source [" << g_allargs.sourcefile.c_str() << "] with colour depth " << t_sourced[sidx] << " and dimensions " << t_sourcew[sidx] << " x " << t_sourceh[sidx] << std::endl;
-	
-			// source consistency check, in case someone saves a file with the wrong width, depth etc.
-			if ((sidx > 0) && 
-				((t_sourcew[sidx] != t_sourcew[sidx-1]) || 
-				 (t_sourced[sidx] != t_sourced[sidx-1]) ||
-				 (!!(t_psourcecol[sidx]) != !!(t_psourcecol[sidx-1])) ||
-				 (!!(t_ppalettergb[sidx]) != !!(t_ppalettergb[sidx-1]))
-				 )
-			)
-			{
-				std::cerr << "error: multiple source files are inconsistent in width or colour depth!" << std::endl;
-				std::cout << "press any key..." << std::endl << std::flush;
-				getchar();	
-				exit(1);
-			}
-
-			// additional palette consistency check!
-			if ((sidx > 0) && 
-				(t_ppalettergb[0]) && 
-				(t_sourced[0] > 0) && 
-				(t_sourced[0] <= 8)
-			)
-			{
-				int ncols = 1 << t_sourced[0];
-				bool different = false;
-
-				RGB *cmpa = t_ppalettergb[sidx];
-				RGB *cmpb = t_ppalettergb[sidx - 1];
-
-				for (int c = 0; (c < ncols) & !different; c++)
-				{
-					if ((cmpa[c].red   != cmpb[c].red) ||
-					    (cmpa[c].green != cmpb[c].green) ||
-					    (cmpa[c].blue  != cmpb[c].blue))
-					different = true;
-				}
-
-				if (different)
-				{
-					std::cerr << "error: multiple source files are inconsistent in palette values!" << std::endl;
-					std::cout << "press any key..." << std::endl << std::flush;
-					getchar();
-					exit(1);
-				}
-			}
-
-			// sum height for joined image
-			sourceh += t_sourceh[sidx];
-		}
-
-		if (success)
-		{
-			std::cout << "read multiple source images for stitching" << std::endl;
-
-			// join the images together
-
-			sourcew = t_sourcew[0];
-			sourced = t_sourced[0];
-
-			// copy palette from first image
-			if (t_ppalettergb[0])
-			{
-				int ncols = 1 << t_sourced[0];
-				m_ppalettergb = new RGB[256];
-				memset(m_ppalettergb, 0, sizeof(RGB) * 256);
-				memcpy(m_ppalettergb, t_ppalettergb[0], sizeof(RGB) * ncols);
-			}
-
-			// create space for joined colourmap, if present
-			if (t_psourcecol[0])
-				m_psourcecol = new ubyte_t[sourcew*sourceh];
-
-			// create space for raw RGB data
-			if (t_psourcergb[0])
-				m_psourcergb = new RGB[sourcew*sourceh];
-
-			// transfer pixels to joined image
-			for (int i = 0, yo = 0; i < sidx; i++)
-			{
-				int ytilerow = yo >> bceil(g_allargs.tilesize);
-				std::cout << "joining source [" << i << "] starting @ tile row [" << ytilerow << "]" << std::endl;
-
-				// note: certain pixel buffers are optional so check them before copying data
-				ubyte_t *scol = t_psourcecol[i];
-				RGB *srgb = t_psourcergb[i];
-				for (int sy = 0; sy < t_sourceh[i]; sy++)
-				{
-					for (int sx = 0; sx < sourcew; sx++)
-					{
-						if (m_psourcecol)
-							m_psourcecol[sx + ((sy+yo) * sourcew)] = scol[sx + (sy * sourcew)];
-						if (m_psourcergb)
-							m_psourcergb[sx + ((sy+yo) * sourcew)] = srgb[sx + (sy * sourcew)];
-					}
-				}
-
-				// advance output vertically
-				yo += t_sourceh[i];
-			}
-
-			std::cout << "joined " << sidx << " images into single map for extraction" << std::endl;
-		}
-		else
-		{
-			std::cerr << "error: failed to read one or more source images for stitching!" << std::endl;
-			std::cout << "press any key..." << std::endl << std::flush;
-			getchar();	
-			exit(1);
-		}
+		success = stitch_sources
+		(
+			m_psourcergb,
+			m_ppalettergb,
+			m_psourcecol,
+			sourcew,
+			sourceh,
+			sourced
+		);
 	}
 	else
 	{
@@ -4123,7 +4463,83 @@ bool do_tilemap()
 				g_allargs.ccfields
 			);
 
+			// done with sourcecol
+			if (m_psourcecol)
+				delete[] m_psourcecol;
+			m_psourcecol = nullptr;
+			if (m_psourcecol2)
+				delete[] m_psourcecol2;
+			m_psourcecol2 = nullptr;
+
+			if (ptilemap)
+			{
+				//for (int ccf = 0; ccf < g_allargs.ccfields; ccf++)
+				{
+					// construct output filename: [infile.map]
+					std::string outfile;
+					if (g_allargs.outfile.length() > 0)
+					{
+						outfile = g_allargs.outfile;
+					}
+					else
+					{
+						outfile = g_allargs.sourcefile;
+					}
+
+					remove_extension(outfile);
+/*					if (g_allargs.ccfields == 2)
+					{
+						if (ccf == 0)
+							outfile.append("0");
+						else
+							outfile.append("1");
+					}
+*/
+					if (g_allargs.outmode == Outmode_RBPLUS)
+					{
+						emit_tilemap_16bitraw(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+					}
+					else
+					{
+						int tilestep = bceil<int>(g_allargs.tilesize);
+						emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph, tilestep);
+					}
+				} // ccf loop
+			}
+
+			// construct output filename: [infile.map]
+			std::string outfile;
+			if (g_allargs.outfile.length() > 0)
+			{
+				outfile = g_allargs.outfile;
+			}
+			else
+			{
+				outfile = g_allargs.sourcefile;
+			}
+
+			// emit tilemap review files
+			emit_tilemap_diagnostics
+			(
+				outfile,
+				m_psourcergb,
+				m_ppalettergb,
+				sourcew,
+				sourceh,
+				psrcmap,
+				tilesrcw,
+				tilesrch
+			);
+
+			// done with sourcergb
+			if (m_psourcergb)
+				delete[] m_psourcergb;
+			m_psourcergb = nullptr;
+
+			// all tiles processed
 			std::cout << "...done" << std::endl;
+
+
 			// calculate compressed footprint
 			float footprint = (float)s_tile24dictionary.size() / float(tilesrcw*tilesrch);
 			std::cout << "final dictionary contains " << s_tile24dictionary.size() << " unique tiles with footprint @ " << footprint << " of original image." << std::endl;
@@ -4143,39 +4559,8 @@ bool do_tilemap()
 					std::cout << " tile reuse is good! > l33t mapping 5ki11z <" << std::endl;
 			}
 
-
 			for (int ccf = 0; ccf < g_allargs.ccfields; ccf++)
 			{
-/*
-				std::cout << "extracting unique tiles..." << std::endl;
-
-				// generate tile dictionary from image
-				if (ccf == 0)
-					process_tilemap(psrcmap, tilesrcw, tilesrch, ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol, sourcew, sourceh);
-				else
-					process_tilemap(psrcmap, tilesrcw, tilesrch, ptilemap, tilemapw, tilemaph, m_psourcergb, m_psourcecol2, sourcew, sourceh);
-
-				std::cout << "...done" << std::endl;
-				// calculate compressed footprint
-				float footprint = (float)s_tile8dictionary[0].size() / float(tilesrcw*tilesrch);
-				std::cout << "final dictionary contains " << s_tile8dictionary[0].size() << " unique tiles with footprint @ " << footprint << " of original image." << std::endl;
-
-				if (ccf == 0)
-				{
-					if (footprint > 0.5f)
-						std::cout << " tile reuse is terrible - source image was rendered in crayon by a womble" << std::endl;
-					if (footprint > 0.3f)
-						std::cout << " tile reuse is poor - check tile alignment at top left and lower right of source image" << std::endl;
-					else
-					if (footprint > 0.2f)
-						std::cout << " tile reuse is fair - but carefully recheck tile alignment to be sure?" << std::endl;
-					else
-					if (footprint > 0.1f)
-						std::cout << " tile reuse seems ok but keep an eye on things..." << std::endl;
-					else
-						std::cout << " tile reuse is good! > l33t mapping 5ki11z <" << std::endl;
-				}
-*/
 				// convert 8bit indexed tiles into 8-plane graphics
 				remap_dictionary_tiles(s_tile8dictionary[ccf], s_tileplanardictionary[ccf]);
 
@@ -4221,305 +4606,12 @@ bool do_tilemap()
 					emit_tiles_rbplus(outfile, m_ppalettergb);
 				}
 
-				if (ptilemap)
-				{
-					// construct output filename: [infile.map]
-
-					if (g_allargs.outmode == Outmode_RBPLUS)
-					{
-						emit_tilemap_16bitraw(outfile.c_str(), ptilemap, tilemapw, tilemaph);
-					}
-					else
-					{
-						int tilestep = bceil<int>(g_allargs.tilesize);
-						emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph, tilestep);
-					}
-				}
-
 			} // ccf loop
 
-			// emit tilemap review files
-			{
-				int tilesize = g_allargs.tilesize;
-
-				// only emit mapvis review file if requested
-				if (g_allargs.visual)
-				{
-					// rebuild source from tiles
-					for (int yy = 0; yy < tilesrch; yy++)
-					{
-						for (int xx = 0; xx < tilesrcw; xx++)
-						{
-							RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
-
-							//int index = -1;
-							//
-							//int mx = xx - g_allargs.maprect_xpos;
-							//int my = yy - g_allargs.maprect_ypos;
-							//if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
-							//{
-							//	index = ptilemap[(my * tilemapw) + mx];
-							//}
-
-							int index = psrcmap[(yy*tilesrcw)+xx];
-
-							bool inside = false;
-							int mx = xx - g_allargs.maprect_xpos;
-							int my = yy - g_allargs.maprect_ypos;
-							if ((mx >= 0 && my >= 0) && 
-								(mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
-							{
-								inside = true;
-							}
-
-							// unfortunately we're storing the tiles in a list - better change this
-							tile8dictionary_t::iterator it8 = s_tile8dictionary[0].begin();
-							for (int i = 0; i < index; i++, it8++);
-
-							if (inside)
-							{
-								// valid index, part of the map - fill with tile
-								u8 *psrc = *it8;
-								for (int py = 0; py < tilesize; py++)
-								{
-									for (int px = 0; px < tilesize; px++)
-									{
-										u8 c = psrc[(py * tilesize) + px];
-										pdst[(py * sourcew) + px] = m_ppalettergb[c];
-									}
-								}
-							}
-							else
-							{
-								// not part of the map - darken pixels
-								u8 *psrc = *it8;
-								for (int py = 0; py < tilesize; py++)
-								{
-									for (int px = 0; px < tilesize; px++)
-									{
-										u8 c = psrc[(py * tilesize) + px];
-										RGB v = m_ppalettergb[c];
-										v.red >>= 1;
-										v.green >>= 1;
-										v.blue >>= 1;
-										pdst[(py * sourcew) + px] = v;
-									}
-								}
-							}
-						}
-					}
-
-					std::string reviewfile(g_allargs.outfile);
-					remove_extension(reviewfile);
-					reviewfile.append("_mapvis.tga");
-
-					emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
-					std::cout << "emitted map visualisation [" << reviewfile.c_str() << "]" << std::endl;
-				}
-
-				// only emit map index review file if requested
-				if (g_allargs.visual)
-				{
-					// rebuild source from tiles
-					for (int yy = 0; yy < tilesrch; yy++)
-					{
-						for (int xx = 0; xx < tilesrcw; xx++)
-						{
-							RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
-
-							//int index = -1;
-
-							//int mx = xx - g_allargs.maprect_xpos;
-							//int my = yy - g_allargs.maprect_ypos;
-							//if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
-							//{
-							//	index = ptilemap[(my * tilemapw) + mx];
-							//}
-
-							int index = psrcmap[(yy*tilesrcw)+xx];
-
-							bool inside = false;
-							int mx = xx - g_allargs.maprect_xpos;
-							int my = yy - g_allargs.maprect_ypos;
-							if ((mx >= 0 && my >= 0) && 
-								(mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
-							{
-								inside = true;
-							}
-
-							// unfortunately we're storing the tiles in a list - better change this
-							tile24dictionary_t::iterator it24 = s_tile24dictionary.begin();
-							for (int i = 0; i < index; i++, it24++);
-
-							if (inside)
-							{
-								// valid index, part of the map - fill with tile
-								RGB *psrc = *it24;
-								for (int py = 0; py < tilesize; py++)
-								{
-									for (int px = 0; px < tilesize; px++)
-									{
-										pdst[(py * sourcew) + px] = psrc[(py * tilesize) + px];
-
-										plot6x6hex3(pdst, sourcew, index, 1, 1);
-									}
-								}
-							}
-							else
-							{
-								// not part of the map - darken pixels
-								RGB *psrc = *it24;
-								for (int py = 0; py < tilesize; py++)
-								{
-									for (int px = 0; px < tilesize; px++)
-									{
-										RGB v = psrc[(py * tilesize) + px];
-										v.red >>= 1;
-										v.green >>= 1;
-										v.blue >>= 1;
-										pdst[(py * sourcew) + px] = v;
-
-										plot6x6hex3(pdst, sourcew, index, 1, 1);
-									}
-								}
-							}
-						}
-					}
-
-					std::string reviewfile(g_allargs.outfile);
-					remove_extension(reviewfile);
-					reviewfile.append("_index.tga");
-
-					emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
-					std::cout << "emitted map index visualisation [" << reviewfile.c_str() << "]" << std::endl;
-				}
-
-				// only emit tags review if requested
-				if (g_allargs.tiletags.length() > 0)
-				{
-					std::ifstream tiletags(g_allargs.tiletags.c_str());
-					if (!(tiletags.is_open() && tiletags.good()))
-					{
-						std::cerr << "error: unable to locate or read specified tiletags CSV file!" << std::endl;
-						std::cout << "press any key..." << std::endl << std::flush;
-						getchar();	
-						exit(1);
-					}
-
-					// create maskindex from marked indices
-					const int numtiles = s_tile24dictionary.size();
-					u8 *pmaskindex = new u8[numtiles];
-					memset(pmaskindex, 0, numtiles);
-
-					// parse CSV
-					for (CSVIterator loop(tiletags); loop != CSVIterator(); ++loop)
-					{
-						const CSVRow& r = (*loop);
-						size_t s = r.size();
-						if (s > 0)
-						{
-							std::string inspect = r[0];
-							if (inspect[0] == ';')
-							{
-								// skip comment
-							}
-							else
-							{
-								int column_value = 0;
-								int column_index = 0;
-
-								std::cout << "reading tiletags: ";
-		
-								std::string colval = r[column_index++];
-								std::transform(colval.begin(), colval.end(), colval.begin(), sanitise_csv_integer);
-								char *pend = 0;
-								column_value = strtol(colval.c_str(), &pend, 16);
-								printf("index: %s\n", colval.c_str());
-								if ((column_value >= 0) && (column_value <= numtiles))
-								{	
-									// tag this tile
-									pmaskindex[column_value] = 1;
-									std::cout << "tagged tile index [" << column_value << "]" << std::endl;
-								}
-								else
-								{
-									std::cerr << "error: invalid tile index field " << column_value << " in tiletags CSV file!" << std::endl;
-									std::cout << "press any key..." << std::endl << std::flush;
-									getchar();
-									exit(1);
-								}
-							}
-						}
-					}
-
-					// rebuild source from tiles
-					for (int yy = 0; yy < tilesrch; yy++)
-					{
-						for (int xx = 0; xx < tilesrcw; xx++)
-						{
-							RGB *pdst = &m_psourcergb[((yy * tilesize) * sourcew) + (xx * tilesize)];
-
-							//int index = -1;
-
-							//int mx = xx - g_allargs.maprect_xpos;
-							//int my = yy - g_allargs.maprect_ypos;
-							//if ((mx >= 0 && my >= 0) && (mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
-							//{
-							//	index = ptilemap[(my * tilemapw) + mx];
-							//}
-
-							int index = psrcmap[(yy*tilesrcw)+xx];
-
-							bool inside = false;
-							int mx = xx - g_allargs.maprect_xpos;
-							int my = yy - g_allargs.maprect_ypos;
-							if ((mx >= 0 && my >= 0) && 
-								(mx < g_allargs.maprect_xsize && my < g_allargs.maprect_ysize))
-							{
-								inside = true;
-							}
-
-							if (inside)
-							{
-								if (pmaskindex[index])
-								{
-									for (int py = 0; py < tilesize; py++)
-									{
-										for (int px = 0; px < tilesize; px++)
-										{
-											pdst[(py * sourcew) + px].red = ~(pdst[(py * sourcew) + px].red >> 1);
-											pdst[(py * sourcew) + px].green = ~(pdst[(py * sourcew) + px].green >> 1);
-											pdst[(py * sourcew) + px].blue = ~(pdst[(py * sourcew) + px].blue >> 1);
-										}
-									}
-								}
-							}
-						}
-					}
-
-					delete[] pmaskindex;
-
-					{
-						std::string reviewfile(g_allargs.outfile);
-						remove_extension(reviewfile);
-						reviewfile.append("_tags.tga");
-
-						emit_tga(reviewfile.c_str(), m_psourcergb, sourcew, sourceh);
-						std::cout << "emitted map tags visualisation [" << reviewfile.c_str() << "]" << std::endl;
-					}
-
-				}
-			}
-
-			if (m_psourcergb)
-				delete[] m_psourcergb;
+			// palette shared across all stages, released last
 			if (m_ppalettergb)
 				delete[] m_ppalettergb;
-
-			if (m_psourcecol)
-				delete[] m_psourcecol;
-			if (m_psourcecol2)
-				delete[] m_psourcecol2;
+			m_ppalettergb = nullptr;
 		}
 		//else
 		//{
@@ -4530,6 +4622,284 @@ bool do_tilemap()
 	{
 		std::cerr << "warning: could not open [" << g_allargs.sourcefile.c_str() << "] source file" << std::endl;
 	}
+
+	return true;
+}
+
+bool do_tilemap_multi()
+{
+	RGB *m_ppalettergb = 0;
+	int tilesrcw = 0;
+	int tilesrch = 0;
+
+	std::cout << "map / tile cutting mode (multiple maps, shared tileset)..." << std::endl;
+
+	s_tileplanardictionary[0].clear();
+	s_tileplanardictionary[1].clear();
+
+	for (auto & source : g_allargs.sources)
+	{
+		ulong_t sourcew = 0;
+		ulong_t sourceh = 0;
+		ulong_t sourced = 0;
+		RGB *m_psourcergb = 0;
+		ubyte_t *m_psourcecol = 0;
+		ubyte_t *m_psourcecol2 = 0;
+		ubyte_t *m_poriginalsrccol = 0;
+
+		// read next source image
+		bool success = image_load(source.c_str(), m_psourcergb, m_psourcecol, m_ppalettergb, sourcew, sourceh, sourced);
+
+		if (success)
+		{
+			std::cout << "read [" << source.c_str() << "] with colour depth " << sourced << " and dimensions " << sourcew << " x " << sourceh << std::endl;
+
+			if ((sourcew & (g_allargs.tilesize - 1)) || (sourceh & (g_allargs.tilesize - 1)))
+			{
+				std::cerr << "error: source image is not a multiple of " << g_allargs.tilesize << " pixels on both axes - check the map!" << std::endl;
+				std::cout << "press any key..." << std::endl << std::flush;
+				getchar();
+				exit(1);
+			}
+
+			if (m_psourcecol)
+			{
+				bool doremap = true;
+
+				if (sourced > g_allargs.planes)
+				{
+					if (g_allargs.noremap)
+					{
+						std::cout << "warning: source image is indexed and > " << g_allargs.planes << " index bits - will use first 16 colours only (--no-remap)" << std::endl;
+						doremap = false;
+					}
+					else
+					{
+						std::cout << "warning: source image is indexed and > " << g_allargs.planes << " index bits - will be remapped to external palette" << std::endl;
+					}
+				}
+				else
+				{
+					if (g_allargs.forceremap)
+					{
+						std::cout << "warning: source image is indexed and <= " << g_allargs.planes << " index bits - but will remap anyway (--force-remap)" << std::endl;
+					}
+					else
+					{
+						std::cout << "warning: source image is indexed and <= " << g_allargs.planes << " index bits - will pass through without remapping" << std::endl;
+						doremap = false;
+					}
+				}
+
+				if (doremap)
+				{
+					m_poriginalsrccol = m_psourcecol;
+					m_psourcecol = 0;
+				}
+				else
+				{
+					// check that indexed colours are now in range for bitplanes specified
+					int maxcolidx = 1 << g_allargs.planes;
+					int highest = 0;
+					for (size_t p = 0; p < sourcew*sourceh; p++)
+					{
+						if ((m_psourcecol[p] >= maxcolidx) && (m_psourcecol[p] != g_allargs.keycol))
+						{
+							highest = xmax(highest, m_psourcecol[p]);
+							m_psourcecol[p] = g_allargs.keycol;
+							//							break;
+						}
+					}
+
+					if (highest)
+					{
+						std::cout << "warning: --no-remap was specified, but source colour indices exceed target bitplane count!" << std::endl;
+						std::cout << "highest usable index = " << maxcolidx - 1 << ", highest index encountered = " << highest << std::endl;
+						std::cout << "all illegal colours have been converted to --key-colour..." << std::endl;
+					}
+				}
+			}
+
+			if (m_psourcecol || (g_allargs.palettefile.length() == 0))
+			{
+				std::cerr << "error: can't process multiple distinct tilemaps without remapping to a shared palette! use --force-remap with --pal external palette!" << std::endl;
+				std::cout << "press any key..." << std::endl << std::flush;
+				getchar();
+				exit(1);
+			}
+			else
+			{
+				std::cout << "reducing " << ((sourced > 0) ? sourced : 24) << "-bit image to external fixed palette..." << std::endl;
+				m_psourcecol = new ubyte_t[sourcew * sourceh]; // (ubyte_t*)malloc(sourcew * sourceh);
+				if (g_allargs.ccfields == 2)
+					m_psourcecol2 = new ubyte_t[sourcew * sourceh]; // (ubyte_t*)malloc(sourcew * sourceh);
+				// reduce source image to indexed colour with fixed palette
+				reduce_image24(m_psourcergb, 0, m_psourcecol, m_psourcecol2, sourcew, sourceh, sourced, m_ppalettergb);
+			}
+
+
+			std::cout << "extracting unique tiles..." << std::endl;
+
+			long_t *psrcmap = 0;
+			long_t *ptilemap = 0;
+			int tilemapw = 0;
+			int tilemaph = 0;
+
+			process_tilemap2
+			(
+				psrcmap,
+				tilesrcw, tilesrch,
+				ptilemap,
+				tilemapw, tilemaph,
+				m_psourcergb,
+				m_psourcecol, m_psourcecol2,
+				sourcew, sourceh,
+				g_allargs.ccfields
+			);
+
+			// done with sourcecol
+			if (m_psourcecol)
+				delete[] m_psourcecol;
+			m_psourcecol = nullptr;
+			if (m_psourcecol2)
+				delete[] m_psourcecol2;
+			m_psourcecol2 = nullptr;
+
+			if (ptilemap)
+			{
+				//for (int ccf = 0; ccf < g_allargs.ccfields; ccf++)
+				{
+					// construct distinct output filename: [infile]
+					std::string outfile = source;
+
+					// construct output filename: [infile.map]
+					remove_extension(outfile);
+/*					if (g_allargs.ccfields == 2)
+					{
+						if (ccf == 0)
+							outfile.append("0");
+						else
+							outfile.append("1");
+					}
+*/
+					if (g_allargs.outmode == Outmode_RBPLUS)
+					{
+						emit_tilemap_16bitraw(outfile.c_str(), ptilemap, tilemapw, tilemaph);
+					}
+					else
+					{
+						int tilestep = bceil<int>(g_allargs.tilesize);
+						emit_tilemap_ccm(outfile.c_str(), ptilemap, tilemapw, tilemaph, tilestep);
+					}
+				} // ccf loop
+			}
+
+			// construct distinct output filename: [infile]
+			std::string outfile = source;
+
+			// emit tilemap review files
+			emit_tilemap_diagnostics
+			(
+				outfile,
+				m_psourcergb,
+				m_ppalettergb,
+				sourcew,
+				sourceh,
+				psrcmap,
+				tilesrcw,
+				tilesrch
+			);
+
+			// done with sourcergb
+			if (m_psourcergb)
+				delete[] m_psourcergb;
+			m_psourcergb = nullptr;
+
+		} // success
+		else
+		{
+			std::cerr << "warning: could not open [" << source.c_str() << "] source file" << std::endl;
+		}
+
+	} // for (sources)
+
+	// all tiles discovered
+	std::cout << "...done" << std::endl;
+
+	// calculate compressed footprint
+	float footprint = (float)s_tile24dictionary.size() / float(tilesrcw*tilesrch);
+	std::cout << "final dictionary contains " << s_tile24dictionary.size() << " unique tiles with footprint @ " << footprint << " of original image." << std::endl;
+
+	{
+		if (footprint > 0.5f)
+			std::cout << " tile reuse is terrible - source image was rendered in crayon by a womble" << std::endl;
+		if (footprint > 0.3f)
+			std::cout << " tile reuse is poor - check tile alignment at top left and lower right of source image" << std::endl;
+		else
+			if (footprint > 0.2f)
+				std::cout << " tile reuse is fair - but carefully recheck tile alignment to be sure?" << std::endl;
+			else
+				if (footprint > 0.1f)
+					std::cout << " tile reuse seems ok but keep an eye on things..." << std::endl;
+				else
+					std::cout << " tile reuse is good! > l33t mapping 5ki11z <" << std::endl;
+	}
+
+
+	for (int ccf = 0; ccf < g_allargs.ccfields; ccf++)
+	{
+		// convert 8bit indexed tiles into 8-plane graphics
+		remap_dictionary_tiles(s_tile8dictionary[ccf], s_tileplanardictionary[ccf]);
+
+		// construct output filename: [infile]
+		std::string outfile;
+		if (g_allargs.outfile.length() > 0)
+		{
+			outfile = g_allargs.outfile;
+		}
+		else
+		{
+			// use first source as root name
+			outfile = g_allargs.sources.front();
+		}
+
+		remove_extension(outfile);
+		if (g_allargs.ccfields == 2)
+		{
+			if (ccf == 0)
+				outfile.append("0");
+			else
+				outfile.append("1");
+		}
+
+		if (g_allargs.outmode == Outmode_DEGAS)
+		{
+			// emit tiles to a series of 320x200 .PI1 images
+			emit_tiles_degas(outfile, m_ppalettergb, false, ccf);
+			if (g_allargs.translayer)
+			{
+				std::string outfilem(outfile);
+				outfilem.append("-");
+				emit_tiles_degas(outfilem, m_ppalettergb, true, ccf);
+			}
+		}
+		else
+		if (g_allargs.outmode == Outmode_DIRECT)
+		{
+			emit_tiles_cct(outfile, m_ppalettergb, ccf);
+		}
+		else
+		if (g_allargs.outmode == Outmode_RBPLUS)
+		{
+			emit_tiles_rbplus(outfile, m_ppalettergb);
+		}
+
+	} // ccf loop
+
+	// palette shared across all stages, released last
+	if (m_ppalettergb)
+		delete[] m_ppalettergb;
+	m_ppalettergb = nullptr;
 
 	return true;
 }
@@ -8215,7 +8585,18 @@ int main(int argc, char* argv[])
 	}
 
 	if (g_allargs.cutmode == Cutmode_TILES)
-		do_tilemap();
+	{
+		if (g_allargs.stitchmaps || (g_allargs.explicit_sources.size() == 1))
+		{
+			// one or more (stitched) source maps, single output tilemap + tileset
+			do_tilemap_single();
+		}
+		else
+		{
+			// multiple source maps, multiple output tilemaps, single shared tileset
+			do_tilemap_multi();
+		}
+	}
 	else
 	if (g_allargs.cutmode == Cutmode_SPRITES ||
 		g_allargs.cutmode == Cutmode_EMSPR ||

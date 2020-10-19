@@ -490,7 +490,7 @@ int AGT_EntryPoint()
 		//	load map
 		
 		printf("loading map...\n");
-		mymap0.load_ccm("abreed0.ccm");
+		mymap0.load_ccm("abreed.ccm");
 
 		// map array
 		s_pmap = mymap0.get();

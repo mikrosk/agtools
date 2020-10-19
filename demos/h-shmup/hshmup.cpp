@@ -416,7 +416,7 @@ int AGT_EntryPoint()
 		//	load map
 		
 		printf("loading map...\n");
-		mymap0.load_ccm("demo10.ccm");
+		mymap0.load_ccm("demo1.ccm");
 
 		// get map tile dimensions (x16 -> in pixels) to help keep scroll inside the map limits
 		int map_xsize = mymap0.getwidth() << 4;

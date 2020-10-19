@@ -303,12 +303,12 @@ int AGT_EntryPoint()
 		printf("loading maps...\n");
 
 		// layer1 (main background) map loaded from disk
-		world_layer1_map.load_ccm("map0.ccm");
+		world_layer1_map.load_ccm("map.ccm");
 		// layer2 (transparent overlay) map created as empty tilemap 
 		world_layer2_map.create(world_layer1_map.getwidth(), world_layer1_map.getheight(), 4, true, 0);
 
 		// tree (animation library) map loaded from disk
-		tree_anim_map.load_ccm("mapo0.ccm");
+		tree_anim_map.load_ccm("mapo.ccm");
 
 		// get map tile dimensions (x16 -> in pixels) to help keep scroll inside the map limits
 		int map_xtiles = world_layer1_map.getwidth();

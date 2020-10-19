@@ -19,5 +19,5 @@
 ../../bin/agtcut -cm emxspr -nc -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o bullet.emx -p xenpal.pi1 -sxp 172 -syp 28 -sxs 9 -sys 2 -sxi 12 -sc 2
 
 # map & tiles
-../../bin/agtcut -cm tiles -t 0.33 -ccf 1 -om direct -s map3.png -o bosscor0.cct -p xenpal.pi1
+../../bin/agtcut -cm tiles -t 0.33 -ccf 1 -om direct -s map3.png -o bosscore.cct -p xenpal.pi1
 

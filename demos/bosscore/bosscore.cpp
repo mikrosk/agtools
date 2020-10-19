@@ -505,7 +505,7 @@ int AGT_EntryPoint()
 		//	load map
 		
 		pprintf("loading map...\n");
-		mymap0.load_ccm("bosscor0.ccm");
+		mymap0.load_ccm("bosscore.ccm");
 
 		// get map tile dimensions (x16 -> in pixels) to help guide the demo around the map limits
 		map_xsize = mymap0.getwidth() << 4;
