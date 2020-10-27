@@ -123,40 +123,44 @@ s16 g_debugdraw = 0;
 
 static s16 s_spawnrev = 0;
 
-static entity_t s_entity_tick_beforehead;
-static entity_t s_entity_tick_head;
-static entity_t s_entity_tick_tail;
-static entity_t s_entity_tick_aftertail;
-entity_t *gp_entity_tick_tail = &s_entity_tick_tail;
-entity_t *gp_entity_tick_head = &s_entity_tick_head;
-entity_t *gp_entity_tick_aftertail = &s_entity_tick_aftertail;
+static entitybase_t s_entity_tick_beforehead;
+static entitybase_t s_entity_tick_head;
+static entitybase_t s_entity_tick_tail;
+static entitybase_t s_entity_tick_aftertail;
+entitybase_t *gp_entity_tick_tail = &s_entity_tick_tail;
+entitybase_t *gp_entity_tick_head = &s_entity_tick_head;
+entitybase_t *gp_entity_tick_aftertail = &s_entity_tick_aftertail;
 
 #if defined(ENABLE_SPATIAL_X)
-static entity_t s_entity_x_head;
-static entity_t s_entity_x_tail;
-static entity_t s_entity_x_aftertail;
-entity_t *gp_entity_x_head = &s_entity_x_head;
-entity_t *gp_entity_x_aftertail = &s_entity_x_aftertail;
+static entitybase_t s_entity_x_head;
+static entitybase_t s_entity_x_tail;
+static entitybase_t s_entity_x_aftertail;
+entitybase_t *gp_entity_x_head = &s_entity_x_head;
+entitybase_t *gp_entity_x_aftertail = &s_entity_x_aftertail;
 #endif
 
 #if defined(ENABLE_SPATIAL_Y)
-static entity_t s_entity_y_head;
-static entity_t s_entity_y_tail;
-static entity_t s_entity_y_aftertail;
-entity_t *gp_entity_y_head = &s_entity_y_head;
-entity_t *gp_entity_y_aftertail = &s_entity_y_aftertail;
+static entitybase_t s_entity_y_head;
+static entitybase_t s_entity_y_tail;
+static entitybase_t s_entity_y_aftertail;
+entitybase_t *gp_entity_y_head = &s_entity_y_head;
+entitybase_t *gp_entity_y_aftertail = &s_entity_y_aftertail;
 #endif
 
 s16 s_entity_remove_count = 0;
-entity_t *s_entity_removes[c_entity_max_removes];
+entitybase_t *s_entity_removes[c_entity_max_removes];
 
 s16 s_entity_link_count = 0;
-entity_t *s_entity_links[c_entity_max_links];
+entitybase_t *s_entity_links[c_entity_max_links];
 
-entity_t *entities_freelist[c_max_entities];
+entitybase_t *entities_freelist[c_max_entities];
 s16 entities_freelist_count = 0;
 
+#if defined(AGT_ENTITY_USER_EXTENSION)
+extern entity_t entities[c_max_entities];
+#else
 entity_t entities[c_max_entities];
+#endif
 
 #if defined(AGT_CONFIG_ENTITY_HISTOGRAM)
 // required only for debugging entity counts & lifespans
@@ -167,19 +171,27 @@ static s16 s_max_entities = 0;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+#if defined(AGT_ENTITY_USER_EXTENSION)
+void EntitySetup(int _numtypes, void *_entity_pool, int _entity_size)
+#else
 void EntitySetup(int _numtypes)
+#endif
 {
 	s_max_entities = _numtypes;
 
 	// initialze entity freelist
 	{
-		entity_t **freelist = entities_freelist;
+		entitybase_t **freelist = entities_freelist;
 
 		u32 prng = 19273;
 		for (s16 i = 0; i < c_max_entities; i++)
 		{
-			entity_t *pcurr = &entities[i];
-
+#if defined(AGT_ENTITY_USER_EXTENSION)
+			char *ppool = (char*)_entity_pool;
+			entitybase_t *pcurr = (entitybase_t*)(&ppool[i * _entity_size]);
+#else
+			entitybase_t *pcurr = &entities[i];
+#endif
 			pcurr->id = (s16)(prng >> 5);
 			prng += 21533;
 			prng *= 32971;
@@ -272,16 +284,16 @@ void EntitySetup(int _numtypes)
 // ---------------------------------------------------------------------------------------------------------------------
 //	link entity into the list of instances to be ticked (i.e. those which can change state on each game cycle)
 
-static inline void EntityLink_Tick_(entity_t *_pent, entity_t *_pnear)
+static inline void EntityLink_Tick_(entitybase_t *_pent, entitybase_t *_pnear)
 {
-	entity_t *pcurr = _pent;
+	entitybase_t *pcurr = _pent;
 
 	// find the insert position
 	//entity_t *psort = _near ? _near : &s_entity_tick_tail;
 	//while (psort->tick_priority > pcurr->tick_priority)
 	//	psort = psort->pprev_tick;
 
-	entity_t *psort = _pnear;
+	entitybase_t *psort = _pnear;
 	if (!psort || !(psort->f_self & EntityFlag_TICKED))
 	{
 		psort = &s_entity_tick_tail;
@@ -301,24 +313,24 @@ tsort_done:
 
 
 	// insert
-	entity_t *psortnext = psort->pnext_tick;
+	entitybase_t *psortnext = psort->pnext_tick;
 	pcurr->pnext_tick = psortnext;
 	pcurr->pprev_tick = psort;
 	psortnext->pprev_tick = pcurr;
 	psort->pnext_tick = pcurr;	
 }
 
-void EntityLink_Tick(entity_t *_pent, entity_t *_pnear)
-	{
+void EntityLink_Tick(entitybase_t *_pent, entitybase_t *_pnear)
+{
 	EntityLink_Tick_(_pent, _pnear);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	link entity into the 2D spatial world (i.e. those which have a position and may move or subject to proximity tests)
 
-static inline void EntityLink2D_(entity_t *_pent, entity_t *_pnear)
+static inline void EntityLink2D_(entitybase_t *_pent, entitybase_t *_pnear)
 {
-	entity_t *pcurr = _pent;
+	entitybase_t *pcurr = _pent;
 
 #if defined(ENABLE_SPATIAL_X)
 	{
@@ -327,7 +339,7 @@ static inline void EntityLink2D_(entity_t *_pent, entity_t *_pnear)
 		//while (psort->rx > pcurr->rx)
 		//	psort = psort->pprev_x;
 
-		entity_t *psort = _pnear;
+		entitybase_t *psort = _pnear;
 		if (!psort || !(psort->f_self & EntityFlag_SPATIAL))
 		{
 			psort = &s_entity_x_tail;
@@ -346,7 +358,7 @@ xsort_left:
 xsort_done:
 
 		// insert
-		entity_t *psortnext = psort->pnext_x;
+		entitybase_t *psortnext = psort->pnext_x;
 		pcurr->pnext_x = psortnext;
 		pcurr->pprev_x = psort;
 		psortnext->pprev_x = pcurr;
@@ -361,7 +373,7 @@ xsort_done:
 //		while (psort->ry > pcurr->ry)
 //			psort = psort->pprev_y;
 
-		entity_t *psort = _pnear;
+		entitybase_t *psort = _pnear;
 		if (!psort || !(psort->f_self & EntityFlag_SPATIAL))
 		{
 			psort = &s_entity_y_tail;
@@ -380,7 +392,7 @@ ysort_left:
 ysort_done:
 
 		// insert
-		entity_t *psortnext = psort->pnext_y;
+		entitybase_t *psortnext = psort->pnext_y;
 		pcurr->pnext_y = psortnext;
 		pcurr->pprev_y = psort;
 		psortnext->pprev_y = pcurr;
@@ -389,7 +401,7 @@ ysort_done:
 #endif
 }
 
-void EntityLink2D(entity_t *_pent, entity_t *_pnear)
+void EntityLink2D(entitybase_t *_pent, entitybase_t *_pnear)
 {
 	EntityLink2D_(_pent, _pnear);
 }
@@ -397,7 +409,7 @@ void EntityLink2D(entity_t *_pent, entity_t *_pnear)
 // ---------------------------------------------------------------------------------------------------------------------
 //	link entity into all relevant lists
 
-static void EntityLink_(entity_t *_pent, entity_t *_pnear)
+static void EntityLink_(entitybase_t *_pent, entitybase_t *_pnear)
 {
 	if (likely(_pent->f_self & EntityFlag_TICKED))
 		EntityLink_Tick_(_pent, _pnear);
@@ -406,7 +418,7 @@ static void EntityLink_(entity_t *_pent, entity_t *_pnear)
 		EntityLink2D_(_pent, _pnear);
 }
 
-void EntityLink(entity_t *_pent, entity_t *_pnear)
+void EntityLink(entitybase_t *_pent, entitybase_t *_pnear)
 {
 	EntityLink_(_pent, _pnear);
 }
@@ -428,7 +440,7 @@ static void EntityDumpHistogram_()
 #endif
 }
 
-static agt_inline void EntityExecuteRemove_(entity_t *_pent)
+static agt_inline void EntityExecuteRemove_(entitybase_t *_pent)
 {
 	// unlink from all systems
 	EntityUnLink(_pent);
@@ -454,7 +466,7 @@ void EntityExecuteAllRemoves()
 
 	if (s_entity_remove_count > 0)
 	{
-		entity_t **ppremoves = s_entity_removes;
+		entitybase_t **ppremoves = s_entity_removes;
 		s16 p = s_entity_remove_count-1;
 		do {
 			EntityExecuteRemove_(*ppremoves++);
@@ -474,14 +486,14 @@ void EntityExecuteAllLinks()
 
 	if (s_entity_link_count > 0)
 	{
-		entity_t **pplinks = s_entity_links;
+		entitybase_t **pplinks = s_entity_links;
 
 		s16 c = s_entity_link_count>>1;
 		s16 p = c-1;
 
 		do {
-			entity_t *pe = *pplinks++;
-			entity_t *pp = *pplinks++;
+			entitybase_t *pe = *pplinks++;
+			entitybase_t *pp = *pplinks++;
 			EntityLink_(pe, pp);
 		} while (--p != -1);
 
@@ -512,8 +524,8 @@ static void EntitySpatial()
 		//	pcurr = pcurr->pnext_x;
 		//}
 
-		entity_t *pnext, *pprev, *pwe;
-		entity_t *pcurr = s_entity_x_head.pnext_x;
+		entitybase_t *pnext, *pprev, *pwe;
+		entitybase_t *pcurr = s_entity_x_head.pnext_x;
 
 		while (1)
 		{
@@ -578,8 +590,8 @@ pushback:
 		//}
 
 
-		entity_t *pnext, *pprev, *pwe;
-		entity_t *pcurr = s_entity_y_head.pnext_y;
+		entitybase_t *pnext, *pprev, *pwe;
+		entitybase_t *pcurr = s_entity_y_head.pnext_y;
 
 		while (1)
 		{
@@ -625,7 +637,7 @@ pushback:
 	}
 #endif
 }
-#endif
+#endif // 0
 
 void EntityTickAll()
 {
@@ -633,7 +645,7 @@ void EntityTickAll()
 
 #if (0)
 	// first entity is pointed by list head
-	entity_t *pcurr = s_entity_tick_head.pnext_tick;
+	entitybase_t *pcurr = s_entity_tick_head.pnext_tick;
 
 	// one-time check for empty list (head->[nothing]->tail)
 	if (pcurr == &s_entity_tick_tail)
@@ -646,7 +658,7 @@ void EntityTickAll()
 #if defined(AGT_CONFIG_DYNAMIC_TICKPRIO)
 next_entity:
 #endif
-		entity_t &curr = *pcurr;
+		entitybase_t &curr = *pcurr;
 
 		// perform the instance-specific tick
 		// note: this is initially type-specific but instances can change their tick at runtime
@@ -654,7 +666,7 @@ next_entity:
 			curr.fntick(pcurr);
 
 		// deal with any changes in tick/draw priority
-		entity_t *pprev = curr.pprev_tick;
+		entitybase_t *pprev = curr.pprev_tick;
 		if (curr.tick_priority < pprev->tick_priority)
 		{
 			// we arranged the termination test to occur in the [unlikely] codepath. amortize!
@@ -662,7 +674,7 @@ next_entity:
 				goto complete;
 
 #if defined(AGT_CONFIG_DYNAMIC_TICKPRIO)
-			entity_t *pnext = curr.pnext_tick;
+			entitybase_t *pnext = curr.pnext_tick;
 			//entity_t *pprev = curr.pprev_tick;
 
 			// unlink
@@ -670,13 +682,13 @@ next_entity:
 			pprev->pnext_tick = pnext;
 
 			// find the re-insert position
-			entity_t *psort = pcurr->pprev_tick->pprev_tick;
+			entitybase_t *psort = pcurr->pprev_tick->pprev_tick;
 			s16 pos = curr.tick_priority;
 			while (psort->tick_priority > pos)
 				psort = psort->pprev_tick;
 
 			// re-insert
-			entity_t *psortnext = psort->pnext_tick;
+			entitybase_t *psortnext = psort->pnext_tick;
 			curr.pnext_tick = psortnext;
 			curr.pprev_tick = psort;
 			psortnext->pprev_tick = pcurr;
@@ -707,7 +719,7 @@ next_entity:
 	}
 
 complete:
-#endif
+#endif // 0
 
 	EntityTick_68k();
 
@@ -729,7 +741,7 @@ void EntityDrawVisibleXM(u16 *_pcurrent_workbuffer, s16 _snapx, s16 _snapy)
 	s32 *plinetable = 0;
 
 	// first entity is pointed by viewport left edge
-	entity_t *pcurr = g_pe_viewport->pnext_x;
+	entitybase_t *pcurr = g_pe_viewport->pnext_x;
 
 	s16 snapy = _snapy;
 
@@ -741,7 +753,7 @@ void EntityDrawVisibleXM(u16 *_pcurrent_workbuffer, s16 _snapx, s16 _snapy)
 #if (1)
 	while (likely(pcurr->rx < pxmax))
 	{
-		entity_t &e = *pcurr;
+		entitybase_t &e = *pcurr;
 
 		// draw things using the appropriate thing drawer
 		// note: we don't really want to use C-style callbacks as the overhead is terrible. 
@@ -787,7 +799,7 @@ next_sprite:
 
 		{
 #if (1)
-			entity_t &e = *pcurr;
+			entitybase_t &e = *pcurr;
 
 			// todo: since we're using spatial coherence, we know when we don't need left-clipping on at least
 			// the major scrolling axis. we could switch methods at this level to save on cliptests...
@@ -820,7 +832,7 @@ next_slab:
 
 		{
 #if (1)
-			entity_t &e = *pcurr;
+			entitybase_t &e = *pcurr;
 
 			AGT_BLiT_SlabDraw
 //			STE_SlabNoClipGeneral4BPL
@@ -861,7 +873,7 @@ done:;
 
 		{
 #if (1)
-			entity_t &e = *pcurr;
+			entitybase_t &e = *pcurr;
 
 			// todo: since we're using spatial coherence, we know when we don't need left-clipping on at least
 			// the major scrolling axis. we could switch methods at this level to save on cliptests...
@@ -887,7 +899,7 @@ done:;
 
 		{
 #if (1)
-			entity_t &e = *pcurr;
+			entitybase_t &e = *pcurr;
 
 			AGT_BLiT_SlabDraw
 //			STE_SlabNoClipGeneral4BPL
@@ -915,13 +927,13 @@ done:;
 void EntityInteractVisibleXM()
 {
 	// first entity is pointed by viewport left edge
-	entity_t *pcurr = g_pe_viewport->pnext_x;
+	entitybase_t *pcurr = g_pe_viewport->pnext_x;
 
 	// todo: assumes x-axis major for now. should be configurable.
 	s16 pxmax = g_pe_viewport->rx + 320 + (32*2);
 	while (likely(pcurr->rx < pxmax))
 	{
-		entity_t &e = *pcurr;
+		entitybase_t &e = *pcurr;
 
 		// if we encounter a vis-trigger entity, link it into the tickchain and change its tick mode
 		// todo: could scan inwards from scroll leading edge?
@@ -935,7 +947,7 @@ void EntityInteractVisibleXM()
 		s16 vmax = e.ry + e.sy;
 
 		// process overlapping entities until we pass the right edge of the candidate
-		entity_t *petest = e.pnext_x;
+		entitybase_t *petest = e.pnext_x;
 		while (petest->rx < hmax)
 		{
 			// process any likely interactions in the overlap rectangle
@@ -981,7 +993,7 @@ void EntityInteractVisibleXM()
 
 entity_t * EntitySpawn(EntityType _etype, s16 px, s16 py)
 {
-	entity_t *palloc = 0;
+	entitybase_t *palloc = 0;
 
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
@@ -1031,16 +1043,16 @@ entity_t * EntitySpawn(EntityType _etype, s16 px, s16 py)
 #endif	
 	}
 
-	return palloc;
+	return reinterpret_cast<entity_t*>(palloc);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // add new entity to world, based on a known type, based on parent context (points at parent, steals parent coords)
 // note: caller can still modify the entity state once created
 
-entity_t * EntitySpawnFrom(EntityType _etype, entity_t * _pparent)
+entity_t * EntitySpawnFrom(EntityType _etype, entbaseptr_t _pparent)
 {
-	entity_t *palloc = 0;
+	entitybase_t *palloc = 0;
 
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
@@ -1067,7 +1079,7 @@ entity_t * EntitySpawnFrom(EntityType _etype, entity_t * _pparent)
 		copy<sizeof(entitydef_t)>(&(palloc->fntick), pdef);
 
 		// link to parent
-		palloc->pparent = _pparent;
+		(entitybase_t*&)(palloc->pparent) = _pparent;
 		// steal coordinates
 		palloc->rx = _pparent->rx + _pparent->ox - palloc->ox;
 		palloc->ry = _pparent->ry + _pparent->oy - palloc->oy;
@@ -1087,12 +1099,12 @@ entity_t * EntitySpawnFrom(EntityType _etype, entity_t * _pparent)
 #endif	
 	}
 
-	return palloc;
+	return reinterpret_cast<entity_t*>(palloc);
 }
 
-entity_t * EntitySpawnRel(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _oy)
+entity_t * EntitySpawnRel(EntityType _etype, entbaseptr_t _pparent, s16 _ox, s16 _oy)
 {
-	entity_t *palloc = 0;
+	entitybase_t *palloc = 0;
 
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
@@ -1131,7 +1143,7 @@ entity_t * EntitySpawnRel(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _
 //		qmemcpy(&(palloc->fntick), pdef, sizeof(entitydef_t));
 
 		// link to parent
-		palloc->pparent = _pparent;
+		palloc->pparent = (entity_t*)_pparent;
 		// assign coords
 		palloc->rx = _pparent->rx + _pparent->ox - palloc->ox + _ox;
 		palloc->ry = _pparent->ry + _pparent->oy - palloc->oy + _oy;
@@ -1151,12 +1163,12 @@ entity_t * EntitySpawnRel(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _
 #endif	
 	}
 
-	return palloc;
+	return reinterpret_cast<entity_t*>(palloc);
 }
 
-entity_t * EntitySpawnNear(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _oy)
+entity_t * EntitySpawnNear(EntityType _etype, entbaseptr_t _pparent, s16 _ox, s16 _oy)
 {
-	entity_t *palloc = 0;
+	entitybase_t *palloc = 0;
 
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
@@ -1184,7 +1196,7 @@ entity_t * EntitySpawnNear(EntityType _etype, entity_t * _pparent, s16 _ox, s16 
 		copy<sizeof(entitydef_t)>(&(palloc->fntick), pdef);
 
 		// link to parent
-		palloc->pparent = _pparent;
+		palloc->pparent = (entity_t*)_pparent;
 		// assign coords
 		palloc->rx =  _ox - palloc->ox;
 		palloc->ry =  _oy - palloc->oy;
@@ -1204,12 +1216,12 @@ entity_t * EntitySpawnNear(EntityType _etype, entity_t * _pparent, s16 _ox, s16 
 #endif	
 	}
 
-	return palloc;
+	return reinterpret_cast<entity_t*>(palloc);
 }
 
-entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox, s16 _oy)
+entity_t * EntitySpawnImmediate(EntityType _etype, entbaseptr_t _pparent, s16 _ox, s16 _oy)
 {
-	entity_t *palloc = 0;
+	entitybase_t *palloc = 0;
 
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
@@ -1236,7 +1248,7 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox,
 		copy<sizeof(entitydef_t)>(&(palloc->fntick), pdef);
 
 		// link to parent
-		palloc->pparent = _pparent;
+		palloc->pparent = (entity_t*)_pparent;
 		// assign coords
 		palloc->rx = _pparent->rx + _pparent->ox - palloc->ox + _ox;
 		palloc->ry = _pparent->ry + _pparent->oy - palloc->oy + _oy;
@@ -1255,7 +1267,7 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox,
 #endif	
 	}
 
-	return palloc;
+	return reinterpret_cast<entity_t*>(palloc);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1268,7 +1280,7 @@ entity_t * EntitySpawnImmediate(EntityType _etype, entity_t * _pparent, s16 _ox,
 
 entity_t * EntityCreateUnlinked(EntityType _etype)
 {
-	entity_t *palloc = 0;
+	entitybase_t *palloc = 0;
 
 	// can only alloc if we have some spare
 	if (likely(entities_freelist_count > 0))
@@ -1289,7 +1301,7 @@ entity_t * EntityCreateUnlinked(EntityType _etype)
 		copy<sizeof(entitydef_t)>(&(palloc->fntick), pdef);
 	}
 
-	return palloc;
+	return reinterpret_cast<entity_t*>(palloc);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
