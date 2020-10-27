@@ -50,7 +50,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.454";
+static const char* const g_version_string = "v0.455";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
@@ -2717,10 +2717,6 @@ static void process_tilemap2
 	int _fields
 )
 {
-	s_tile24dictionary.clear();
-	s_tile8dictionary[0].clear();
-	s_tile8dictionary[1].clear();
-
 	// find source dimensions in terms of tiles
 	int tilesrcw = (_sourcew / g_allargs.tilesize);
 	int tilesrch = (_sourceh / g_allargs.tilesize);
@@ -4449,6 +4445,10 @@ bool do_tilemap_single()
 			s_tileplanardictionary[0].clear();
 			s_tileplanardictionary[1].clear();
 
+			s_tile24dictionary.clear();
+			s_tile8dictionary[0].clear();
+			s_tile8dictionary[1].clear();
+
 			std::cout << "extracting unique tiles..." << std::endl;
 
 			process_tilemap2
@@ -4636,6 +4636,10 @@ bool do_tilemap_multi()
 
 	s_tileplanardictionary[0].clear();
 	s_tileplanardictionary[1].clear();
+
+	s_tile24dictionary.clear();
+	s_tile8dictionary[0].clear();
+	s_tile8dictionary[1].clear();
 
 	for (auto & source : g_allargs.sources)
 	{
