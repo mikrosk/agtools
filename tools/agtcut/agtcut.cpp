@@ -50,7 +50,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.455";
+static const char* const g_version_string = "v0.456";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
@@ -471,7 +471,7 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_AUTOCUTRGB,	_T("-ackeyrgb"),	 	SO_REQ_SEP	},
 	{ OPT_AUTOCUTRGB,	_T("--ackey-rgb"),		SO_REQ_SEP	},
-
+	
 	//
 //	{ OPT_HITCOL,		_T("-hitkey"),	 		SO_REQ_SEP	},
 //	{ OPT_HITCOL,		_T("--hitkey"),			SO_REQ_SEP	},

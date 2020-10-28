@@ -2118,6 +2118,35 @@ public:
 	int delta;
 };
 
+class DST_AddaIL : public Operation
+{
+public:
+
+	DST_AddaIL(Context &_ctx, int _dreg, int _delta)
+		: Operation(_ctx, OpKind_DSTAddaIL, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 4, 2),
+		  delta(_delta)
+	{
+		sreg = _dreg;
+		dreg = _dreg;
+	}
+
+	virtual void onEmit()
+	{
+		sprintf(ctx.buf, " adda.l #%d,%s\t;%d\n", 
+			int(delta * ctx.dstlinewid), 
+			ctx.registers[dreg].name.c_str(), 
+			cost
+			);
+	}
+
+	virtual void onExecute()
+	{
+		ctx.memaddr += delta * ctx.dstww;
+	}
+
+	int delta;
+};
+
 class DST_AddaR16 : public Operation
 {
 public:

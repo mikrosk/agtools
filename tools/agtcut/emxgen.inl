@@ -253,6 +253,7 @@ enum OpKind
 	OpKind_DSTAddaR16,
 	OpKind_DSTSubaR16,
 	OpKind_DSTLea,
+	OpKind_DSTAddaIL,
 	//
 	OpKind_SYSPageRestore,
 	OpKind_BLITInit,
@@ -287,6 +288,7 @@ static const char* const as_str[] =
 	"OpKind_DSTAddaR16",
 	"OpKind_DSTSubaR16",
 	"OpKind_DSTLea",
+	"OpKind_DSTAddaIL",
 	//
 	"OpKind_SYSPageRestore",
 	"OpKind_BLITInit",
@@ -579,6 +581,7 @@ public:
 	bool cleanup_pass();
 	bool reduce_pass();
 	bool promote_pass();
+	bool promote_lea_pass();
 	void tail_pass();
 
 	void register_sweep();
@@ -2257,6 +2260,78 @@ bool Context::promote_pass()
 							curr = operations.insert(curr, new DR_LoadI32(*this, freereg, iH, iL));
 							changed = true;
 						}
+					}
+				}
+			}
+		}
+
+
+//terminate:
+
+		// catch up with execution from last insert point
+		while (curr != it)
+		{
+			register_sweep();
+			(*curr)->execute(); 
+			curr++;
+		}
+	}
+
+	return changed;
+}
+
+bool Context::promote_lea_pass()
+{
+	reset_sim(true);
+
+	register_sweep();
+
+	bool changed = false;
+
+	if (!g_allargs.quickcut)
+		if (g_allargs.verbose)
+			printf("promotion pass: replace lea dst skips with add/sub via free register\n");
+
+	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end() && !changed;)
+	{
+		std::list<Operation*>::iterator curr = it++;
+		Operation *pop = *curr;
+
+		if (pop->kind == OpKind_DSTLea)
+		{
+			DST_Lea *pactual = reinterpret_cast<DST_Lea*>(pop);
+			int delta = pactual->delta;
+			int rold = pactual->dreg;
+
+			// look for register with no burdens
+			int freereg = -1;
+			for (int r = 0; r < registers.size(); r++)
+			{
+				if (!(registers[r].locked) && !(registers[r].variable))
+				{
+					if (pop->alltagsL[r] < 0)
+					{
+						freereg = r;
+						break;
+					}
+				}
+			}
+
+			if (freereg > 0)
+			{
+				{
+					{
+						// replace lea
+						{
+							if (!g_allargs.quickcut)
+								if (g_allargs.verbose)
+									printf("lea promote opportunity: reg %d [$%04x]\n", freereg, delta);
+
+							curr = operations.erase(curr);
+							curr = operations.insert(curr, new DST_AddaR16(*this, freereg, SCRLINE_reg));
+							curr = operations.insert(curr, new DR_LoadI16(*this, freereg, delta*dstlinewid));
+							changed = true;
+						}					
 					}
 				}
 			}
@@ -3958,7 +4033,16 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						// todo: linewidth should be an argument
 						if (linejump)
 						{
-							context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, linejump));
+							// caution: can't use LEA for jumps > +/-32k
+							int addressjump = (linejump * context.dstlinewid);
+							if (addressjump < 32768 && addressjump >= -32768)
+							{
+								context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, linejump));
+							}
+							else
+							{
+								context.operations.push_back(new DST_AddaIL(context, context.SCRLINE_reg, linejump));
+							}
 							context.operations.back()->execute();
 							if (src_lines_skipped > 0)
 							{
@@ -4314,6 +4398,19 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				}
 			}
 			
+#if 0
+// not working yet - should probably be performed as fallback case for a failed transform of LEA
+// so subsequent LEAs can take advantage of reused register load
+			{
+				while (context.promote_lea_pass())
+				{
+#if (SIM_ALL_STAGES)
+					run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
+#endif
+				}
+			}
+#endif
+
 			//if (!g_allargs.quickcut)
 			{
 				context.reduce_pass();
@@ -4321,6 +4418,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
 	#endif
 			}
+
 
 			// optimize instruction tail / blitter overlaps
 			if (!g_allargs.quickcut)
