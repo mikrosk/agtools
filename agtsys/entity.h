@@ -205,7 +205,7 @@ struct entity_t : public entitybase_t
 
 // initialise/reset the entity chain and set up some optional entity tracking/debugging services
 #if defined(AGT_ENTITY_USER_EXTENSION)
-void EntitySetup(int _numtypes, void *_entity_pool, int _entity_size);
+void EntitySetup(int _numtypes, int _entity_size);
 #else
 void EntitySetup(int _numtypes);
 #endif

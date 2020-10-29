@@ -171,13 +171,31 @@ static s16 s_max_entities = 0;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+static int s_entity_size = 0;
+static char * s_pentity_raw_pool = 0;
+
 #if defined(AGT_ENTITY_USER_EXTENSION)
-void EntitySetup(int _numtypes, void *_entity_pool, int _entity_size)
+void EntitySetup(int _numtypes, int _entity_size)
 #else
 void EntitySetup(int _numtypes)
 #endif
 {
 	s_max_entities = _numtypes;
+
+#if defined(AGT_ENTITY_USER_EXTENSION)
+	// dynamically reallocate entity pool according to user-defined entity_t footprint
+	if ((s_entity_size != _entity_size) || (!s_pentity_raw_pool))
+	{
+		if (s_pentity_raw_pool)
+		{
+			efree(s_pentity_raw_pool); 
+			s_pentity_raw_pool = nullptr;
+			s_entity_size = 0;
+		}
+		s_pentity_raw_pool = (char*)ealloc(_entity_size * c_max_entities);
+		s_entity_size = _entity_size;
+	}
+#endif
 
 	// initialze entity freelist
 	{
@@ -187,8 +205,7 @@ void EntitySetup(int _numtypes)
 		for (s16 i = 0; i < c_max_entities; i++)
 		{
 #if defined(AGT_ENTITY_USER_EXTENSION)
-			char *ppool = (char*)_entity_pool;
-			entitybase_t *pcurr = (entitybase_t*)(&ppool[i * _entity_size]);
+			entitybase_t *pcurr = (entitybase_t*)(&s_pentity_raw_pool[i * s_entity_size]);
 #else
 			entitybase_t *pcurr = &entities[i];
 #endif
