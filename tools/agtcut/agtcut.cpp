@@ -218,7 +218,7 @@ ulong_t rofl32(ulong_t _v, size_t _bits)
 
 ulong_t lofl32(ulong_t _v, size_t _bits)
 {
-    return (_v << _bits) | (_v << ((sizeof(_v) << 3) - _bits));
+    return (_v << _bits) | (_v >> ((sizeof(_v) << 3) - _bits));
 }
 
 uword_t rofl16(uword_t _v, size_t _bits)
@@ -228,7 +228,7 @@ uword_t rofl16(uword_t _v, size_t _bits)
 
 uword_t lofl16(uword_t _v, size_t _bits)
 {
-    return (_v << _bits) | (_v << ((sizeof(_v) << 3) - _bits));
+    return (_v << _bits) | (_v >> ((sizeof(_v) << 3) - _bits));
 }
 
 
