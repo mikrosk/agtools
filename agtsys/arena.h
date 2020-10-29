@@ -91,6 +91,7 @@ public:
 
 	// todo: only single-field mapmod support so far
 	s16 **dirtymaskindex_[c_num_buffers_][2];
+	s16 *dirtylineseq_[8];
 
 	s16 buffer_index_;
 	s16 field_index_;
@@ -455,29 +456,20 @@ public:
 				s16 y2 = _y+1;
 
 				EXECUTE_PER_FIELD({buffers_[b_].fields[f_].touch_region(_x, _y, x2, y2);});
-
-//				if (c_num_buffers_ > 0)
-//					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
-//				if (c_num_buffers_ > 1)
-//					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
 			}
 
 			u16 pattern = 0x8000 >> (_x & 7);
 			s16 xoffset = (_x >> 3);
 
 			EXECUTE_PER_FIELD({s16 *dirtyline = (dirtymaskindex_[b_][f_])[_y];dirtyline[xoffset] |= pattern;});
+/*
+			s16 **plineseq = dirtylineseq_;
 
-/*			if (c_num_buffers_ > 0)
+			s16 *dl = *plineseq++;
+			do 
 			{
-				s16 *dirtyline = (dirtymaskindex_[0])[_y];
-				dirtyline[xoffset] |= pattern;	
-			}
-
-			if (c_num_buffers_ > 1)
-			{
-				s16 *dirtyline = (dirtymaskindex_[1])[_y];
-				dirtyline[xoffset] |= pattern;	
-			}
+				dl[xoffset] |= pattern;
+			} while (dl = *plineseq++);
 */
 		}
 	}
@@ -488,8 +480,6 @@ public:
 	{
 		if (playfield_type::c_dynamic_)
 		{
-			//s16 *dirtyline0, *dirtyline1;
-			s16 *dirtylineseq[6];
 			s16 dirtymaskwidth = buffers_[0].fields[0].dtm_animation_.dirtymaskwidth_;
 
 			if (_autoregion)
@@ -498,11 +488,6 @@ public:
 				s16 y2 = _y+1;
 
 				EXECUTE_PER_FIELD({buffers_[b_].fields[f_].touch_region(_x, _y, x2, y2);});
-
-//				if (c_num_buffers_ > 0)
-//					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
-//				if (c_num_buffers_ > 1)
-//					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
 			}
 
 			// find mask rectangle width
@@ -512,116 +497,70 @@ public:
 
 			// we can deal with 8,16,24,32-wide tile bitmasks
 			if (bdx > 0)
-			{				
+			{			
 				// access mask buffer
 				s16 xoffset = (_x >> 3);
 				s16 stride = dirtymaskwidth;
+
+				// generate sequence of DM buffers to be updated by this operation
+				{
+					s16 i = 0;
+					EXECUTE_PER_FIELD({dirtylineseq_[i++] = (dirtymaskindex_[b_][f_])[_y]+xoffset;});
+					// terminate sequence
+					dirtylineseq_[i] = 0;
+				}
 
 				// generate endmasks for all cases
 				u16 em1 = (0xffff >> (_x & 7));
 				u16 em3 = (0xffff0000UL >> (((_x + _dx - 1) & 7) + 1));
 
-				s16 i = 0;
-				EXECUTE_PER_FIELD({dirtylineseq[i++] = (dirtymaskindex_[b_][f_])[_y] + xoffset;});
-
-//				if (c_num_buffers_ > 0)
-//					dirtyline0 = (dirtymaskindex_[0])[_y] + xoffset;
-//				if (c_num_buffers_ > 1)
-//					dirtyline1 = (dirtymaskindex_[1])[_y] + xoffset;
+				s16 **plineseq = dirtylineseq_;
 
 				switch (bdx)
 				{
 				case 1:
 					em1 &= em3;
 					{
-						for (s16 s = 0; s != i; s++)
-							(dirtylineseq[s])[0] |= em1;
-/*						if (c_num_buffers_ > 0)
-							dirtyline0[0] |= em1;
-						if (c_num_buffers_ > 1)
-							dirtyline1[0] |= em1;
-*/					}
+						s16 *dl = *plineseq++;
+						do 
+						{
+							dl[0] |= em1;
+						} while (dl = *plineseq++);
+					}
 					break;
 				case 2:
 					{
-						for (s16 s = 0; s != i; s++)
+						s16 *dl = *plineseq++;
+						do 
 						{
-							(dirtylineseq[s])[0] |= em1;
-							(dirtylineseq[s])[1] |= em3;
-						}
-
-/*						if (c_num_buffers_ > 0)
-						{
-							dirtyline0[0] |= em1;
-							dirtyline0[1] |= em3;
-						}
-						if (c_num_buffers_ > 1)
-						{
-							dirtyline1[0] |= em1;
-							dirtyline1[1] |= em3;
-						}
-*/
+							dl[0] |= em1;
+							dl[1] |= em3;
+						} while (dl = *plineseq++);
 					}
 					break;
 				case 3:
 					{
-						for (s16 s = 0; s != i; s++)
+						s16 *dl = *plineseq++;
+						do 
 						{
-							(dirtylineseq[s])[0] |= em1;
-							(dirtylineseq[s])[1] = ~0;
-							(dirtylineseq[s])[2] |= em3;
-						}
-
-/*
-						if (c_num_buffers_ > 0)
-						{
-							dirtyline0[0] |= em1;
-							dirtyline0[1] = ~0;
-							dirtyline0[2] |= em3;
-						}
-
-						if (c_num_buffers_ > 1)
-						{
-							dirtyline1[0] |= em1;
-							dirtyline1[1] = ~0;
-							dirtyline1[2] |= em3;
-						}
-*/
+							dl[0] |= em1;
+							dl[1] = ~0;
+							dl[2] |= em3;
+						} while (dl = *plineseq++);
 					}
 					break;
 				default:
 					{
-						for (s16 s = 0; s != i; s++)
+						s16 *dl = *plineseq++;
+						do 
 						{
-							s16 *dl = dirtylineseq[s];
 							*dl++ |= em1;
 							s16 c = (bdx - 2) - 1;
 							do { 
 								*dl++ = ~0;
 							} while (--c != -1);
 							*dl++ |= em3;
-						}
-
-/*
-						if (c_num_buffers_ > 0)
-							*dirtyline0++ |= em1;
-						if (c_num_buffers_ > 1)
-							*dirtyline1++ |= em1;
-
-						s16 c = (bdx - 2) - 1;
-						do { 
-							if (c_num_buffers_ > 0)
-								*dirtyline0++ = ~0; 
-							if (c_num_buffers_ > 1)
-								*dirtyline1++ = ~0; 
-
-						} while (--c != -1);
-
-						if (c_num_buffers_ > 0)
-							*dirtyline0++ |= em3;
-						if (c_num_buffers_ > 1)
-							*dirtyline1++ |= em3;
-*/
+						} while (dl = *plineseq++);
 					}
 					break;
 				}
@@ -635,17 +574,14 @@ public:
 	{
 		if (playfield_type::c_dynamic_)
 		{
-			s16 *dirtyline0, *dirtyline1;
 			s16 dirtymaskwidth = buffers_[0].fields[0].dtm_animation_.dirtymaskwidth_;
 
 			if (_autoregion)
 			{
 				s16 x2 = _x+1;
 				s16 y2 = _y+_dy;
-				if (c_num_buffers_ > 0)
-					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
-				if (c_num_buffers_ > 1)
-					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+
+				EXECUTE_PER_FIELD({buffers_[b_].fields[f_].touch_region(_x, _y, x2, y2);});
 			}
 
 			// update dirty mask
@@ -653,20 +589,26 @@ public:
 			s16 xoffset = (_x >> 3);
 			s16 stride = dirtymaskwidth;
 
-			if (c_num_buffers_ > 0)
-				dirtyline0 = dirtymaskindex_[0][_y] + xoffset;
-			if (c_num_buffers_ > 1)
-				dirtyline1 = dirtymaskindex_[1][_y] + xoffset;
-
-			s16 y = _dy-1;
-			do
+			// generate sequence of DM buffers to be updated by this operation
 			{
-				if (c_num_buffers_ > 0)
-				{ *dirtyline0 |= pattern; dirtyline0 += stride; }
-				if (c_num_buffers_ > 1)
-				{ *dirtyline1 |= pattern; dirtyline1 += stride; }
+				s16 i = 0;
+				EXECUTE_PER_FIELD({dirtylineseq_[i++] = (dirtymaskindex_[b_][f_])[_y]+xoffset;});
+				// terminate sequence
+				dirtylineseq_[i] = 0;
+			}
 
-			} while (--y != -1);
+			s16 **plineseq = dirtylineseq_;
+
+			s16 *dl = *plineseq++;
+			do 
+			{
+				s16 y = _dy-1;
+				do
+				{
+					dl[0] |= pattern; 
+					dl += stride;
+				} while (--y != -1);
+			} while (dl = *plineseq++);
 		}
 	}
 
@@ -676,9 +618,6 @@ public:
 	{
 		if (playfield_type::c_dynamic_)
 		{
-
-			//s16 *dirtyline0, *dirtyline1;
-			s16 *dirtylineseq[8];
 			s16 dirtymaskwidth = buffers_[0].fields[0].dtm_animation_.dirtymaskwidth_;
 
 			if (_autoregion)
@@ -687,13 +626,6 @@ public:
 				s16 y2 = _y+_dy;
 
 				EXECUTE_PER_FIELD({buffers_[b_].fields[f_].touch_region(_x, _y, x2, y2);});
-
-//				if (c_num_buffers_ > 0)
-//					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
-//				if (c_num_buffers_ > 1)
-//					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
-//				if (c_num_buffers_ > 2)
-//					buffers_[2].fields[0].touch_region(_x, _y, x2, y2);
 			}
 
 			// find mask rectangle width
@@ -708,108 +640,75 @@ public:
 				s16 xoffset = (_x >> 3);
 				s16 stride = dirtymaskwidth;
 
+				// generate sequence of DM buffers to be updated by this operation
+				{
+					s16 i = 0;
+					EXECUTE_PER_FIELD({dirtylineseq_[i++] = (dirtymaskindex_[b_][f_])[_y]+xoffset;});
+					// terminate sequence
+					dirtylineseq_[i] = 0;
+				}
+
 				// generate endmasks for all cases
 				u16 em1 = (0xffff >> (_x & 7));
 				u16 em3 = (0xffff0000UL >> (((_x + _dx - 1) & 7) + 1));
 
-				s16 i = 0;
-				EXECUTE_PER_FIELD({dirtylineseq[i++] = (dirtymaskindex_[b_][f_])[_y] + xoffset;});
-				dirtylineseq[i] = 0;
-				s16 **plineseq = dirtylineseq;
-
-/*				if (c_num_buffers_ > 0)
-					dirtyline0 = (dirtymaskindex_[0])[_y] + xoffset;
-				if (c_num_buffers_ > 1)
-					dirtyline1 = (dirtymaskindex_[1])[_y] + xoffset;
-*/
+				s16 **plineseq = dirtylineseq_;
 
 				switch (bdx)
 				{
 				case 1:	
 					em1 &= em3;
-
-					for (s16 s = 0; s != i; s++)
 					{
-						s16 *dl = dirtylineseq[s];
-						s16 y = _dy-1;
-						do
+						s16 *dl = *plineseq++;
+						do 
 						{
-							dl[0] |= em1;
-							dl += stride;
-/*							if (c_num_buffers_ > 0)
-							{ dirtyline0[0] |= em1; dirtyline0 += stride; }
-							if (c_num_buffers_ > 1)
-							{ dirtyline1[0] |= em1; dirtyline1 += stride; }
-*/
-						} while (--y != -1);
+							s16 y = _dy-1;
+							do
+							{
+								dl[0] |= em1;
+								dl += stride;
+							} while (--y != -1);
+						} while (dl = *plineseq++);
 					}
 					break;
 				case 2:
-					for (s16 s = 0; s != i; s++)
 					{
-						s16 *dl = dirtylineseq[s];
-						s16 y = _dy-1;
-						do
+						s16 *dl = *plineseq++;
+						do 
 						{
-							dl[0] |= em1;
-							dl[1] |= em3;
-							dl += stride;
+							s16 y = _dy-1;
+							do
+							{
+								dl[0] |= em1;
+								dl[1] |= em3;
+								dl += stride;
 
-/*							if (c_num_buffers_ > 0)
-							{
-								dirtyline0[0] |= em1;
-								dirtyline0[1] |= em3;
-								dirtyline0 += stride;
-							}
-							if (c_num_buffers_ > 1)
-							{
-								dirtyline1[0] |= em1;
-								dirtyline1[1] |= em3;
-								dirtyline1 += stride;
-							}
-*/
-						} while (--y != -1);
+							} while (--y != -1);
+
+						} while (dl = *plineseq++);
 					}
 					break;
 				case 3:
-					for (s16 s = 0; s != i; s++)
 					{
-						s16 *dl = dirtylineseq[s];
-						s16 y = _dy-1;
-						do
+						s16 *dl = *plineseq++;
+						do 
 						{
-							dl[0] |= em1;
-							dl[1] = ~0;
-							dl[2] |= em3;
-							dl += stride;
-						} while (--y != -1);
+							s16 y = _dy-1;
+							do
+							{
+								dl[0] |= em1;
+								dl[1] = ~0;
+								dl[2] |= em3;
+								dl += stride;
+							} while (--y != -1);
+						} while (dl = *plineseq++);
 					}
-/*
-					do
-					{
-						if (c_num_buffers_ > 0)
-						{
-							dirtyline0[0] |= em1;
-							dirtyline0[1] = ~0;
-							dirtyline0[2] |= em3;
-							dirtyline0 += stride;
-						}
-
-						if (c_num_buffers_ > 1)
-						{
-							dirtyline1[0] |= em1;
-							dirtyline1[1] = ~0;
-							dirtyline1[2] |= em3;
-							dirtyline1 += stride;
-						}
-					} while (--y != -1);
-*/
 					break;
 				default:
 					{
-						for (s16 s = 0; s != i; s++)
+						s16 *dl = *plineseq++;
+						do 
 						{
-							s16 *dl = dirtylineseq[s];
 							s16 y = _dy-1;
 
 							s16 cc = (bdx - 2) - 1;
@@ -828,44 +727,8 @@ public:
 								*pdl++ |= em3;
 
 							} while (--y != -1);
-
-						}
+						} while (dl = *plineseq++);
 					}
-
-/*
-						s16 *pd0;
-						s16 *pd1;
-
-						s16 cc = (bdx - 2) - 1;
-						do
-						{
-							if (c_num_buffers_ > 0)
-							{ pd0 = dirtyline0; dirtyline0 += stride; }
-							if (c_num_buffers_ > 1)
-							{ pd1 = dirtyline1; dirtyline1 += stride; }
-
-							if (c_num_buffers_ > 0)
-								*pd0++ |= em1;
-							if (c_num_buffers_ > 1)
-								*pd1++ |= em1;
-
-							s16 c = cc;
-							do { 							
-								if (c_num_buffers_ > 0)
-									*pd0++ = ~0; 
-								if (c_num_buffers_ > 1)
-									*pd1++ = ~0;  
-							} while (--c != -1);
-
-							if (c_num_buffers_ > 0)
-								*pd0++ |= em3;
-							if (c_num_buffers_ > 1)
-								*pd1++ |= em3;
-
-						} while (--y != -1);
-
-					}
-*/
 					break;
 				}
 			}
