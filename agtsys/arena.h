@@ -27,6 +27,38 @@ extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
 extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+// execute a block of code per active buffer:field state
+#define EXECUTE_PER_FIELD(_x_) \
+	for (s16 b = 0; b != c_num_buffers_; b++) \
+	{ \
+		s16 b_ = b; \
+		if (c_dualfield_ && c_singleframe) \
+		{ \
+			int f_ = 0; \
+			_x_; \
+		} \
+		else \
+		{ \
+			int f_ = 0; \
+			_x_; \
+			if (c_dualfield_ && dualfield_mask_) \
+			{ \
+				int f_ = 1; \
+				_x_; \
+			} \
+		} \
+	}
+
+// execute a block of code per active buffer state
+#define EXECUTE_PER_BUFFER(_x_) \
+	for (s16 b = 0; b != c_num_buffers_; b++) \
+	{ \
+		s16 b_ = b; \
+		_x_; \
+	}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // arena
 
 template<s16 _num_buffers, bool _singleframe, bool _dualfield, class _playfield_type>
@@ -58,7 +90,7 @@ public:
 	buffer buffers_[c_num_buffers_];
 
 	// todo: only single-field mapmod support so far
-	s16 **dirtymaskindex_[c_num_buffers_];
+	s16 **dirtymaskindex_[c_num_buffers_][2];
 
 	s16 buffer_index_;
 	s16 field_index_;
@@ -395,10 +427,19 @@ public:
 	{
 		if (playfield_type::c_dynamic_)
 		{
-			if (c_num_buffers_ > 0)
-				buffers_[0].fields[0].touch_region(_x1, _y1, _x2, _y2);
-			if (c_num_buffers_ > 1)
-				buffers_[1].fields[0].touch_region(_x1, _y1, _x2, _y2);
+			EXECUTE_PER_FIELD({buffers_[b_].fields[f_].touch_region(_x1, _y1, _x2, _y2);});
+/*
+			if (c_dualfield_ && c_singleframe)
+			{
+				buffers_[b].fields[field_index_].touch_region(_x1, _y1, _x2, _y2);
+			}
+			else
+			{
+				buffers_[b].fields[0].touch_region(_x1, _y1, _x2, _y2);
+				if (c_dualfield_ && dualfield_mask_)
+					buffers_[b].fields[1].touch_region(_x1, _y1, _x2, _y2);
+			}
+*/
 		}
 	}
 
@@ -412,16 +453,21 @@ public:
 			{
 				s16 x2 = _x+1;
 				s16 y2 = _y+1;
-				if (c_num_buffers_ > 0)
-					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
-				if (c_num_buffers_ > 1)
-					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+
+				EXECUTE_PER_FIELD({buffers_[b_].fields[f_].touch_region(_x, _y, x2, y2);});
+
+//				if (c_num_buffers_ > 0)
+//					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
+//				if (c_num_buffers_ > 1)
+//					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
 			}
 
 			u16 pattern = 0x8000 >> (_x & 7);
 			s16 xoffset = (_x >> 3);
 
-			if (c_num_buffers_ > 0)
+			EXECUTE_PER_FIELD({s16 *dirtyline = (dirtymaskindex_[b_][f_])[_y];dirtyline[xoffset] |= pattern;});
+
+/*			if (c_num_buffers_ > 0)
 			{
 				s16 *dirtyline = (dirtymaskindex_[0])[_y];
 				dirtyline[xoffset] |= pattern;	
@@ -432,6 +478,7 @@ public:
 				s16 *dirtyline = (dirtymaskindex_[1])[_y];
 				dirtyline[xoffset] |= pattern;	
 			}
+*/
 		}
 	}
 
@@ -441,17 +488,21 @@ public:
 	{
 		if (playfield_type::c_dynamic_)
 		{
-			s16 *dirtyline0, *dirtyline1;
+			//s16 *dirtyline0, *dirtyline1;
+			s16 *dirtylineseq[6];
 			s16 dirtymaskwidth = buffers_[0].fields[0].dtm_animation_.dirtymaskwidth_;
 
 			if (_autoregion)
 			{
 				s16 x2 = _x+_dx;
 				s16 y2 = _y+1;
-				if (c_num_buffers_ > 0)
-					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
-				if (c_num_buffers_ > 1)
-					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+
+				EXECUTE_PER_FIELD({buffers_[b_].fields[f_].touch_region(_x, _y, x2, y2);});
+
+//				if (c_num_buffers_ > 0)
+//					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
+//				if (c_num_buffers_ > 1)
+//					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
 			}
 
 			// find mask rectangle width
@@ -470,25 +521,36 @@ public:
 				u16 em1 = (0xffff >> (_x & 7));
 				u16 em3 = (0xffff0000UL >> (((_x + _dx - 1) & 7) + 1));
 
-				if (c_num_buffers_ > 0)
-					dirtyline0 = (dirtymaskindex_[0])[_y] + xoffset;
-				if (c_num_buffers_ > 1)
-					dirtyline1 = (dirtymaskindex_[1])[_y] + xoffset;
+				s16 i = 0;
+				EXECUTE_PER_FIELD({dirtylineseq[i++] = (dirtymaskindex_[b_][f_])[_y] + xoffset;});
+
+//				if (c_num_buffers_ > 0)
+//					dirtyline0 = (dirtymaskindex_[0])[_y] + xoffset;
+//				if (c_num_buffers_ > 1)
+//					dirtyline1 = (dirtymaskindex_[1])[_y] + xoffset;
 
 				switch (bdx)
 				{
 				case 1:
 					em1 &= em3;
 					{
-						if (c_num_buffers_ > 0)
+						for (s16 s = 0; s != i; s++)
+							(dirtylineseq[s])[0] |= em1;
+/*						if (c_num_buffers_ > 0)
 							dirtyline0[0] |= em1;
 						if (c_num_buffers_ > 1)
 							dirtyline1[0] |= em1;
-					}
+*/					}
 					break;
 				case 2:
 					{
-						if (c_num_buffers_ > 0)
+						for (s16 s = 0; s != i; s++)
+						{
+							(dirtylineseq[s])[0] |= em1;
+							(dirtylineseq[s])[1] |= em3;
+						}
+
+/*						if (c_num_buffers_ > 0)
 						{
 							dirtyline0[0] |= em1;
 							dirtyline0[1] |= em3;
@@ -498,10 +560,19 @@ public:
 							dirtyline1[0] |= em1;
 							dirtyline1[1] |= em3;
 						}
+*/
 					}
 					break;
 				case 3:
 					{
+						for (s16 s = 0; s != i; s++)
+						{
+							(dirtylineseq[s])[0] |= em1;
+							(dirtylineseq[s])[1] = ~0;
+							(dirtylineseq[s])[2] |= em3;
+						}
+
+/*
 						if (c_num_buffers_ > 0)
 						{
 							dirtyline0[0] |= em1;
@@ -515,10 +586,23 @@ public:
 							dirtyline1[1] = ~0;
 							dirtyline1[2] |= em3;
 						}
+*/
 					}
 					break;
 				default:
 					{
+						for (s16 s = 0; s != i; s++)
+						{
+							s16 *dl = dirtylineseq[s];
+							*dl++ |= em1;
+							s16 c = (bdx - 2) - 1;
+							do { 
+								*dl++ = ~0;
+							} while (--c != -1);
+							*dl++ |= em3;
+						}
+
+/*
 						if (c_num_buffers_ > 0)
 							*dirtyline0++ |= em1;
 						if (c_num_buffers_ > 1)
@@ -530,12 +614,14 @@ public:
 								*dirtyline0++ = ~0; 
 							if (c_num_buffers_ > 1)
 								*dirtyline1++ = ~0; 
+
 						} while (--c != -1);
 
 						if (c_num_buffers_ > 0)
 							*dirtyline0++ |= em3;
 						if (c_num_buffers_ > 1)
 							*dirtyline1++ |= em3;
+*/
 					}
 					break;
 				}
@@ -591,17 +677,23 @@ public:
 		if (playfield_type::c_dynamic_)
 		{
 
-			s16 *dirtyline0, *dirtyline1;
+			//s16 *dirtyline0, *dirtyline1;
+			s16 *dirtylineseq[8];
 			s16 dirtymaskwidth = buffers_[0].fields[0].dtm_animation_.dirtymaskwidth_;
 
 			if (_autoregion)
 			{
 				s16 x2 = _x+_dx;
 				s16 y2 = _y+_dy;
-				if (c_num_buffers_ > 0)
-					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
-				if (c_num_buffers_ > 1)
-					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+
+				EXECUTE_PER_FIELD({buffers_[b_].fields[f_].touch_region(_x, _y, x2, y2);});
+
+//				if (c_num_buffers_ > 0)
+//					buffers_[0].fields[0].touch_region(_x, _y, x2, y2);
+//				if (c_num_buffers_ > 1)
+//					buffers_[1].fields[0].touch_region(_x, _y, x2, y2);
+//				if (c_num_buffers_ > 2)
+//					buffers_[2].fields[0].touch_region(_x, _y, x2, y2);
 			}
 
 			// find mask rectangle width
@@ -620,44 +712,79 @@ public:
 				u16 em1 = (0xffff >> (_x & 7));
 				u16 em3 = (0xffff0000UL >> (((_x + _dx - 1) & 7) + 1));
 
-				if (c_num_buffers_ > 0)
+				s16 i = 0;
+				EXECUTE_PER_FIELD({dirtylineseq[i++] = (dirtymaskindex_[b_][f_])[_y] + xoffset;});
+				dirtylineseq[i] = 0;
+				s16 **plineseq = dirtylineseq;
+
+/*				if (c_num_buffers_ > 0)
 					dirtyline0 = (dirtymaskindex_[0])[_y] + xoffset;
 				if (c_num_buffers_ > 1)
 					dirtyline1 = (dirtymaskindex_[1])[_y] + xoffset;
-
-				s16 y = _dy-1;
+*/
 
 				switch (bdx)
 				{
 				case 1:	
 					em1 &= em3;
-					do
-					{
-						if (c_num_buffers_ > 0)
-						{ dirtyline0[0] |= em1; dirtyline0 += stride; }
-						if (c_num_buffers_ > 1)
-						{ dirtyline1[0] |= em1; dirtyline1 += stride; }
 
-					} while (--y != -1);
+					for (s16 s = 0; s != i; s++)
+					{
+						s16 *dl = dirtylineseq[s];
+						s16 y = _dy-1;
+						do
+						{
+							dl[0] |= em1;
+							dl += stride;
+/*							if (c_num_buffers_ > 0)
+							{ dirtyline0[0] |= em1; dirtyline0 += stride; }
+							if (c_num_buffers_ > 1)
+							{ dirtyline1[0] |= em1; dirtyline1 += stride; }
+*/
+						} while (--y != -1);
+					}
 					break;
 				case 2:
-					do
+					for (s16 s = 0; s != i; s++)
 					{
-						if (c_num_buffers_ > 0)
+						s16 *dl = dirtylineseq[s];
+						s16 y = _dy-1;
+						do
 						{
-							dirtyline0[0] |= em1;
-							dirtyline0[1] |= em3;
-							dirtyline0 += stride;
-						}
-						if (c_num_buffers_ > 1)
-						{
-							dirtyline1[0] |= em1;
-							dirtyline1[1] |= em3;
-							dirtyline1 += stride;
-						}
-					} while (--y != -1);
+							dl[0] |= em1;
+							dl[1] |= em3;
+							dl += stride;
+
+/*							if (c_num_buffers_ > 0)
+							{
+								dirtyline0[0] |= em1;
+								dirtyline0[1] |= em3;
+								dirtyline0 += stride;
+							}
+							if (c_num_buffers_ > 1)
+							{
+								dirtyline1[0] |= em1;
+								dirtyline1[1] |= em3;
+								dirtyline1 += stride;
+							}
+*/
+						} while (--y != -1);
+					}
 					break;
 				case 3:
+					for (s16 s = 0; s != i; s++)
+					{
+						s16 *dl = dirtylineseq[s];
+						s16 y = _dy-1;
+						do
+						{
+							dl[0] |= em1;
+							dl[1] = ~0;
+							dl[2] |= em3;
+							dl += stride;
+						} while (--y != -1);
+					}
+/*
 					do
 					{
 						if (c_num_buffers_ > 0)
@@ -676,9 +803,36 @@ public:
 							dirtyline1 += stride;
 						}
 					} while (--y != -1);
+*/
 					break;
 				default:
 					{
+						for (s16 s = 0; s != i; s++)
+						{
+							s16 *dl = dirtylineseq[s];
+							s16 y = _dy-1;
+
+							s16 cc = (bdx - 2) - 1;
+							do
+							{
+								s16 *pdl = dl; 
+								dl += stride;
+
+								*pdl++ |= em1;
+
+								s16 c = cc;
+								do { 							
+									*pdl++ = ~0; 
+								} while (--c != -1);
+
+								*pdl++ |= em3;
+
+							} while (--y != -1);
+
+						}
+					}
+
+/*
 						s16 *pd0;
 						s16 *pd1;
 
@@ -709,7 +863,9 @@ public:
 								*pd1++ |= em3;
 
 						} while (--y != -1);
+
 					}
+*/
 					break;
 				}
 			}
@@ -1075,7 +1231,9 @@ public:
 				rb.fields[1].init(b, 1, display_width_, display_height_, x, y, (s16)shift_.current_mode_);
 
 			// shortcut to dirty tile masks
-			dirtymaskindex_[b] = buffers_[b].fields[0].dtm_animation_.dirtymasklines_;
+			dirtymaskindex_[b][0] = buffers_[b].fields[0].dtm_animation_.dirtymasklines_;
+			if (c_dualfield_)
+				dirtymaskindex_[b][1] = buffers_[b].fields[1].dtm_animation_.dirtymasklines_;
 		}
 		
 		select_buffer(buffer_index_, 0);
