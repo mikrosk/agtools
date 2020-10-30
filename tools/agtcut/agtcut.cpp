@@ -50,7 +50,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.456";
+static const char* const g_version_string = "v0.460";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
@@ -231,6 +231,19 @@ uword_t lofl16(uword_t _v, size_t _bits)
     return (_v << _bits) | (_v >> ((sizeof(_v) << 3) - _bits));
 }
 
+template<class T>
+inline const T bceil(const T _v)
+{
+	T t = 0;
+
+	while ((1 << t) < _v)
+	{
+		++t;
+	}
+
+	return (t);	
+}
+
 
 static void replace_extension(std::string &_fname, const char* const _ext)
 {
@@ -381,6 +394,7 @@ enum
 	OPT_GENMASK,
 	OPT_NOGENMASK,
 	OPT_MASKLAYOUT,
+	OPT_PRESHIFTSTEP,
 	OPT_SPROPT,
 	OPT_SPRXP,
 	OPT_SPRYP,
@@ -429,6 +443,9 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_MASKLAYOUT,	_T("-ml"),	 			SO_REQ_SEP	},
 	{ OPT_MASKLAYOUT,	_T("--mask-layout"),	SO_REQ_SEP	},
+	//
+	{ OPT_PRESHIFTSTEP,	_T("-pss"),	 			SO_REQ_SEP	},
+	{ OPT_PRESHIFTSTEP,	_T("--preshift-step"),	SO_REQ_SEP	},
 	//
 	{ OPT_EMXOPT,		_T("-emxopt"),	 		SO_REQ_SEP	},
 	{ OPT_EMXOPT,		_T("--emx-opt"),		SO_REQ_SEP	},
@@ -757,6 +774,8 @@ public:
 		  tilesize(16),
 		  emxoptlevel(DEFAULT_EMX_OPTLEVEL),
 		  emguardx(32),
+		  preshift_step(1),
+		  preshift_scale(0),
 		  emc(false),
 		  ocm(false),
 		  noclipx(false),
@@ -836,6 +855,8 @@ public:
 	int maprect_ysize;
 	int emxoptlevel;
 	int emguardx;
+	int preshift_step;
+	int preshift_scale;
 
 	float tolerance;
 	float keytol;
@@ -1179,6 +1200,30 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					exit(1);
 				}
 				_args.emxoptlevel = iarg;	
+			}
+			else if (args.OptionId() == OPT_PRESHIFTSTEP)
+			{
+				std::string s_arg = args.OptionArg();
+				int iarg = atoi(s_arg.c_str());
+				if 
+				(
+					!(
+						iarg == 1 || 
+						iarg == 2 ||
+						iarg == 4 ||
+						iarg == 8 ||
+						iarg == 16
+					)
+				)
+				{
+					std::cerr << "error: invalid arg for preshift step (1/2/4/8/16): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
+					getchar();
+					exit(1);
+				}
+				_args.preshift_step = iarg;	
+				_args.preshift_scale = bceil(_args.preshift_step);
+				std::cout << "preshift step=" << _args.preshift_step << " scale=" << _args.preshift_scale << std::endl;
 			}
 			else if (args.OptionId() == OPT_EMGUARDX)
 			{
@@ -3419,19 +3464,6 @@ static void emit_tiles_degas(std::string outfile, RGB *_ppalettergb, bool _mask,
 //	emit tile library data file
 // --------------------------------------------------------------------
 
-template<class T>
-inline const T bceil(const T _v)
-{
-	T t = 0;
-
-	while ((1 << t) < _v)
-	{
-		++t;
-	}
-
-	return (t);	
-}
-
 
 static void emit_tiles_cct(std::string outfile, RGB *_ppal24, int _ccf)
 {
@@ -5048,7 +5080,6 @@ public:
 	uword_t *colr1_;
 
 	preshiftlist_t pscolr_frames_;
-	//std::vector<preshiftlist_t> psmask_frames_;
 	std::vector<preshiftlist_t> psmask_frames_;
 
 	std::vector<om_descriptor> occlusion_maps_;
@@ -5260,7 +5291,7 @@ public:
 				);
 
 				if (g_allargs.verbose)
-					std::cout << " mask preshift " << s << " component " << component << " @ wordwidth " << dst_wordwidth << std::endl;
+					std::cout << " mask preshift index " << preshift_index << " step " << s << " component " << component << " @ wordwidth " << dst_wordwidth << std::endl;
 
 				consumed_dst_wordwidth += dst_wordwidth;
 				component++;
@@ -5635,7 +5666,7 @@ void add_sprite_frame
 	{
 		if (g_allargs.verbose)
 			std::cout << "preshifting mask..." << std::endl;
-		g_spriteframes.back().generate_mask_preshifts(16, 1, max_dst_wordwidth);
+		g_spriteframes.back().generate_mask_preshifts(16, g_allargs.preshift_step, max_dst_wordwidth);
 	}
 		
 	if (g_allargs.emc && g_allargs.ocm)
@@ -5739,11 +5770,11 @@ bool emit_sprite_sequence(bool _storepixels)
 		wv = endianswap16((uword_t)wv);
 		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
-		// 1: preshift range
+		// 1: preshift range (TOOD: change purpose of this field to offset)
 		wb = 0;
 		fwrite(&wb, 1, 1, hout); tracked_filesize += 1;
 		// 1: preshift step
-		wb = 0;
+		wb = g_allargs.preshift_step;
 		fwrite(&wb, 1, 1, hout); tracked_filesize += 1;
 
 		// 2: source width
@@ -5837,7 +5868,8 @@ bool emit_sprite_sequence(bool _storepixels)
 					int mask_preshift_index_fpos = tracked_filesize;
 					// write preshift set for number of required EMS sections (1 for 32-wide, 2 for 80-wide, 3 for 128-wide) 
 					//std::cout << "patch mask index..." << std::endl << std::flush;
-					for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
+					//for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
+					for (int s = 0; s < 16; s++)
 					{
 						lv = 0;
 						fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
@@ -5848,7 +5880,8 @@ bool emit_sprite_sequence(bool _storepixels)
 					{
 						//std::cout << "output maskopt index..." << std::endl << std::flush;
 						// write N offsets for optimized mask preshifts
-						for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
+						//for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
+						for (int s = 0; s < 16; s++)
 						{
 							lv = 0xBBBBBBBB;
 							fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
@@ -6253,17 +6286,24 @@ bool emit_sprite_sequence(bool _storepixels)
 						fseek(hout, mask_preshift_index_fpos + 4, 0);
 						for (std::map<std::pair<int,int>, int>::iterator it = psmask_component_index.begin(); it != psmask_component_index.end(); it++)
 						{
-							int preshift = it->first.first;
+							int preshift_index = it->first.first;
 							int component = it->first.second;
 							if (component == 0)
 							{
-								fseek(hout, mask_preshift_index_fpos + (preshift<<2) + 4, 0);
 								lv = (it->second) - mask_preshift_index_fpos;
 								lv = endianswap32(lv);
-								fwrite(&lv, 1, 4, hout);
+
+								// duplicate references for preshift steps > 1. index should always have 16 entries.
+								for (int s = 0; s < g_allargs.preshift_step; s++)
+								{
+									int preshift_entry = (preshift_index << g_allargs.preshift_scale) + s;
+									fseek(hout, mask_preshift_index_fpos + (preshift_entry << 2) + 4, 0);
+									fwrite(&lv, 1, 4, hout);
+								}
 							}
 						}
 
+						// links between components for each preshift
 						int preshift_index = 0;
 						for (std::vector<std::list<int>>::iterator pit = psmask_component_nextlinks.begin(); pit != psmask_component_nextlinks.end(); pit++, preshift_index++)
 						{
@@ -6298,14 +6338,19 @@ bool emit_sprite_sequence(bool _storepixels)
 
 						for (std::map<std::pair<int,int>, int>::iterator it = psmaskopt_component_index.begin(); it != psmaskopt_component_index.end(); it++)
 						{
-							int preshift = it->first.first;
+							int preshift_index = it->first.first;
 							int component = it->first.second;
 							if (component == 0)
 							{
-								fseek(hout, maskopt_preshift_index_fpos + (preshift<<2) + 4, 0);
 								lv = (it->second) - maskopt_preshift_index_fpos;
 								lv = endianswap32(lv);
-								fwrite(&lv, 1, 4, hout);
+								// duplicate references for preshift steps > 1. index should always have 16 entries.
+								for (int s = 0; s < g_allargs.preshift_step; s++)
+								{
+									int preshift_entry = (preshift_index << g_allargs.preshift_scale) + s;
+									fseek(hout, maskopt_preshift_index_fpos + (preshift_entry << 2) + 4, 0);
+									fwrite(&lv, 1, 4, hout);
+								}
 							}
 						}
 
