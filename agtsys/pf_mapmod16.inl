@@ -331,10 +331,16 @@ inline void dbg_vis_occlusion()
 	dm_map_tiles_x = map_tiles_x_;
 	dm_map_tiles_y = map_tiles_y_;
 	dm_dstlinewid = c_dst_linewid;
-	dm_vth = virtual_tiles_y_;
 
-	int pi = modulo_vpage_x(xpos_>>4);
-	int pj = modulo_vpage_y(ypos_>>4);
+	dm_vth = vpage_tiles_y_ * (c_vloop_ ? 2 : 1);//virtual_tiles_y_;
+
+	int pi = xpos_>>4;
+	if (c_hloop_)
+		pi = modulo_vpage_x(pi);
+
+	int pj = ypos_>>4;
+	if (c_vloop_)
+		pj = modulo_vpage_y(pj);
 
 	dm_pi = xpos_;
 

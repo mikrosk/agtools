@@ -2386,8 +2386,11 @@ void hybrid_fill()
 			//OCM_integrate_window(tx1, ty1, tx2, ty2);
 
 			// integrate both active pages for v-loopback
-			s16 pi1 = modulo_vpage_x(txpos_);
+			s16 pi1 = txpos_;
+			if (c_hloop_)
+				pi1 = modulo_vpage_x(txpos_);
 			s16 pi2 = pi1+vpage_tiles_x_;
+
 /*			{
 	//			s16 pj1 = modulo_vpage_y(typos_);
 	//			s16 pj2 = pj1+vpage_tiles_y_;
@@ -2404,7 +2407,9 @@ void hybrid_fill()
 			// update page fragments one at a time with correct map coords
 			{
 				// current, visible window
-				s16 pj1 = modulo_vpage_y(typos_);
+				s16 pj1 = typos_;
+				if (c_vloop_)
+					pj1 = modulo_vpage_y(pj1);
 				s16 pj2 = pj1+vpage_tiles_y_;
 				OCM_integrate_window(pi1, pj1, pi2, pj2);
 				OCM16_refresh_window(txpos_, typos_, pi1, pj1, pi2, pj2);
@@ -2418,7 +2423,9 @@ void hybrid_fill()
 			{
 				// upper fragment (one page ahead)
 				s16 pj1 = 0;
-				s16 pj2 = modulo_vpage_y(typos_-vpage_tiles_y_);
+				s16 pj2 = (typos_-vpage_tiles_y_);
+				if (c_vloop_)
+					pj2 = modulo_vpage_y(pj2);
 				OCM_integrate_window(pi1, pj1, pi2, pj2);
 				OCM16_refresh_window(txpos_, typos_+vpage_tiles_y_-(pj2-pj1), pi1, pj1, pi2, pj2);
 			}
@@ -2433,27 +2440,6 @@ void hybrid_fill()
 			}
 
 			}
-
-#if 0
-//			s16 pi1 = modulo_vpage_x(tx1);
-//			s16 pi2 = pi1+(tx2-tx1);
-//			s16 pj1 = modulo_vpage_y(ty1);
-//			s16 pj2 = pj1+(ty2-ty1);
-
-			s16 pi1 = modulo_vpage_x(txpos_);
-			s16 pi2 = pi1+vpage_tiles_x_;
-//			s16 pj1 = modulo_vpage_y(typos_);
-//			s16 pj2 = pj1+vpage_tiles_y_;
-
-			s16 pj1 = 0;
-			s16 pj2 = virtual_tiles_y_;
-
-			s16 myp = (typos_ / virtual_tiles_y_) * virtual_tiles_y_;
-
-			OCM_integrate_window(pi1, pj1, pi2, pj2);
-//			OCM16_refresh_window(tx1, ty1, pi1, pj1, pi2, pj2);
-			OCM16_refresh_window(txpos_, myp, pi1, pj1, pi2, pj2);
-#endif
 
 		} // c_tilerestore_
 
