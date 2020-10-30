@@ -44,30 +44,28 @@ _BLiT_EntityDeferVisibleYM_68k:
 *-------------------------------------------------------*
 *	load C args to local frame
 *-------------------------------------------------------*
-	move.l		.pctx(sp),a4
+	move.l		.pctx(a6),a4
 *-------------------------------------------------------*
 *	Reset layer chains
 *-------------------------------------------------------*
 	lea		entity_layers,a0
+	.rept		draw_layers
 	clr.l		(a0)+
-	clr.l		(a0)+
-	clr.l		(a0)+
-	clr.l		(a0)+
+	.endr
 
 *-------------------------------------------------------*
 *	load display chain terminating condition
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_fry(a0),d0
-;	add.w		#240+(32*2),d0			; todo: hardcoded visibility margin - make configurable
 	add.w		dctx_clipwindow_y2(a4),d0
 	sub.w		dctx_clipwindow_y1(a4),d0
 	add.w		dctx_guardy(a4),d0
-	move.w		d0,.sp_pxymax(sp)
-	move.w		dctx_field(a4),d0
-	add.w		d0,d0
-	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)	
+	move.w		d0,.sp_pxymax_(sp)
+;	move.w		dctx_field(a4),d0
+;	add.w		d0,d0
+;	add.w		d0,d0
+;	move.w		d0,.sp_field4(sp)	
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*
@@ -122,7 +120,7 @@ _BLiT_EntityDeferVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt		.EntityDeferVisibleYM_DEFER_next
 	bra		.EntityDeferVisibleYM_complete
 *-------------------------------------------------------*
@@ -148,7 +146,7 @@ _BLiT_EntityDeferVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		ent_pnext_y(a0),a0		; next visible entity
 	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax(sp),d2
+	cmp.w		.sp_pxymax_(sp),d2
 	blt.s		.EntityDeferVisibleYM_NONE_next
 ;	bra		.EntityDeferVisibleYM_complete
 			

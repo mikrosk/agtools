@@ -374,11 +374,12 @@ _EntitySpatial_68k:
 	include		"rmac/ste/b_slab.inc"
 
 	.if		^^defined AGT_CONFIG_WORLD_XMAJOR	
-	.if		^^defined AGT_CONFIG_ENTITYLAYERS	
+	.if		^^defined AGT_CONFIG_ENTITYLAYERS
 	include		"rmac/ste/de_xm_dp.s"
 	.else
 	include		"rmac/ste/de_xm.s"
 	.endif
+	include		"rmac/ste/de_xm_misc.s"	
 	.endif
 
 	.if		^^defined AGT_CONFIG_WORLD_YMAJOR	
@@ -387,8 +388,9 @@ _EntitySpatial_68k:
 	.else
 	include		"rmac/ste/de_ym.s"
 	.endif
+	include		"rmac/ste/de_ym_misc.s"		
 	.endif
-
+	
 	.if		^^defined AGT_CONFIG_ENTITYLAYERS	
 	include		"rmac/ste/de_layers.s"
 	.endif

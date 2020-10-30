@@ -36,6 +36,12 @@ AGT_CONFIG_SYS_GUARDX	=	32
 
 dst_linewid	set	(((20+1)+((AGT_CONFIG_SYS_GUARDX+15)>>4))*8)
 
+			.if	^^defined AGT_CONFIG_ENTITYLAYERS
+draw_layers	set	AGT_CONFIG_ENTITYLAYERS
+			.else
+draw_layers	set	1
+			.endif
+
 *-------------------------------------------------------*
 
 BGRAST			=	$64

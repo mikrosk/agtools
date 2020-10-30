@@ -705,7 +705,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 
 entity_layers:
-	ds.l		4
+	ds.l		draw_layers
 entity_layers_end:
 	dc.l		-1
 	

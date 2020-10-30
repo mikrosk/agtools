@@ -44,16 +44,15 @@ _BLiT_EntityDeferVisibleXM_68k:
 *-------------------------------------------------------*
 *	load C args to local frame
 *-------------------------------------------------------*
-	move.l		.pctx(sp),a4
+	move.l		.pctx(a6),a4
 
 *-------------------------------------------------------*
 *	Reset layer chains
 *-------------------------------------------------------*
 	lea		entity_layers,a0
+	.rept		draw_layers
 	clr.l		(a0)+
-	clr.l		(a0)+
-	clr.l		(a0)+
-	clr.l		(a0)+
+	.endr
 
 *-------------------------------------------------------*
 *	load display chain terminating condition
@@ -64,11 +63,11 @@ _BLiT_EntityDeferVisibleXM_68k:
 	add.w		dctx_clipwindow_x2p(a4),d0
 	sub.w		dctx_clipwindow_x1p(a4),d0
 	add.w		dctx_guardx(a4),d0
-	move.w		d0,.sp_pxymax(sp)
-	move.w		dctx_field(a4),d0
-	add.w		d0,d0
-	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)	
+	move.w		d0,.sp_pxymax_(sp)
+;	move.w		dctx_field(a4),d0
+;	add.w		d0,d0
+;	add.w		d0,d0
+;	move.w		d0,.sp_field4(sp)	
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*
@@ -123,7 +122,7 @@ _BLiT_EntityDeferVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxymax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt		.EntityDeferVisibleXM_DEFER_next
 	bra		.EntityDeferVisibleXM_complete
 *-------------------------------------------------------*
@@ -149,7 +148,7 @@ _BLiT_EntityDeferVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		ent_pnext_x(a0),a0		; next visible entity
 	move.w		ent_frx(a0),d1
-	cmp.w		.sp_pxymax(sp),d1
+	cmp.w		.sp_pxymax_(sp),d1
 	blt.s		.EntityDeferVisibleXM_NONE_next
 ;	bra		.EntityDeferVisibleXM_complete
 		
