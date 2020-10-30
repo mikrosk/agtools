@@ -74,6 +74,15 @@ static const int USE_EMPTYLINE_OPTIMIZATION = 1;
 // organize sprite frame lines by edge coherence before optimizing
 static const int USE_INITIAL_EDGE_SORT = 1;
 
+// forces dstlinewid (dest skip) into a free register depending on sprite width, otherwise registers are used for EM ptrs
+// this will be inefficient if most common dest skip is not a single scanline e.g. hatched masks!
+static const int USE_DSTSKIP_REG_FIXED_PRELOAD = 0;
+
+// dynamically allocate/steal registers to map the most frequently used dest skip(s)
+static const int USE_DSTSKIP_REG_OPTIMIZATION = 1;
+// fill spare EM registers (a4, a6) with popular constants
+static const int USE_DSTSKIP_REG_FIXED_PRELOAD_INCIDENCE = 1;
+
 #define USE_NOISY_REORDERING (0)
 
 // per-preshift line ordering - implies per-preshift colourdata ordering as well (too much bloat)
@@ -5226,7 +5235,7 @@ public:
 
 			int remaining_dst_wordwidth = full_dst_wordwidth;
 			int consumed_dst_wordwidth = 0;
-
+			
 			int component = 0;
 			while (remaining_dst_wordwidth > 0)
 			{
@@ -5248,11 +5257,11 @@ public:
 				uword_t *preshift = new uword_t[preshiftwords];
 				//memset(preshift, 0, 2 * preshiftwords);
 				uword_t *pout = preshift;
-
+				
 				for (int y = 0; y < h_; y++)
 				{
 					//				printf("\n");
-
+					
 					// preload shift register
 					uword_t *pin = &mask_[(y * full_src_wordwidth) + consumed_dst_wordwidth];
 					u32 shiftreg = 0;

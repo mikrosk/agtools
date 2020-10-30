@@ -337,6 +337,33 @@ public:
 
 		registers.clear();
 
+		int metrics_words_allocated = 0;
+
+		// sort datawords by incidence
+
+		std::map<int, std::list<metricmap::iterator>> sort_metrics;
+		std::map<int, metricmap::iterator> ranked_metrics;
+		for (auto it = metrics.begin(); it != metrics.end(); it++)
+		{
+			sort_metrics[it->second.incidence].push_back(it);
+		}
+
+		int ip = 0;
+		for (auto & in : sort_metrics)
+		{
+			for (auto & eit : in.second)
+			{
+				ranked_metrics[--ip] = eit;
+			}
+		}
+
+/*		for (auto & rm : ranked_metrics)
+		{
+			std::cout << "metrics for word:0x" << std::hex << rm.second->first << " incidence:" << std::dec << rm.second->second.incidence << std::endl;
+		}
+*/
+		//
+
 		if (0 && PREFER_TRANSFORMS)
 		{
 			char name[] = "r00";
@@ -352,10 +379,16 @@ public:
 
 		if (1 || !PREFER_TRANSFORMS)
 		{
-			if (srcww == 3)
-				registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true,	0xC0000000 | dstlinewid));
+			if ((srcww == 3) && USE_DSTSKIP_REG_FIXED_PRELOAD)
+			{
+				// force dstlinewid into d0.w to optimize dst skips
+				registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true, 0xC0000000 | dstlinewid));
+			}
 			else
+			{
+				// release d0 for general transforms
 				registers.push_back(dataregister("d0", r++, RegClass_Data));
+			}
 
 			registers.push_back(dataregister("d3", r++, RegClass_Data));
 			registers.push_back(dataregister("d4", r++, RegClass_Data));
@@ -409,8 +442,51 @@ public:
 			EM2_reg = r;
 			registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true,		0xffff8a2a));	// em2
 		}
+		else 
+		if (1)
+		{
+			long_t data = dstlinewid;
+
+			if (USE_DSTSKIP_REG_FIXED_PRELOAD_INCIDENCE)
+			{
+				int i = 0;
+				for (auto rmit = ranked_metrics.begin(); rmit != ranked_metrics.end(); rmit++, i++)
+				{
+					if (metrics_words_allocated == i)
+					{
+						if (rmit->second->second.incidence > 2)
+						{
+							std::cout << "preload high incidence word " << i << ":0x" << std::hex << rmit->second->first << " incidence:" << std::dec << rmit->second->second.incidence << std::endl;
+							data = (long_t)(word_t)rmit->second->first;
+							metrics_words_allocated++;
+						}
+						break;
+					}
+				}
+/*
+				for (auto it = metrics.begin(); it != metrics.end(); it++, i++)
+				{
+					if (metrics_words_allocated == i)
+					{
+						if (it->second.incidence > 2)
+						{
+							std::cout << "preload high incidence word " << i << ":0x" << std::hex << it->first << " incidence:" << std::dec << it->second.incidence << std::endl;
+							data = (long_t)(word_t)(it->first);
+							metrics_words_allocated++;
+						}
+						break;
+					}
+				}
+*/
+			}
+
+			registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true,		(ulong_t)data));
+		}
 		else
-			registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true,		dstlinewid));
+		{
+			// leave a6 free
+			registers.push_back(dataregister("a6", r++, RegClass_Address));
+		}
 
 		if (srcww > 1)
 		{
@@ -418,7 +494,38 @@ public:
 			registers.push_back(dataregister("a4", r++, RegClass_Address, setconstants, setconstants, true,		0x00ff8a2c));	// em3
 		}
 		else
-			registers.push_back(dataregister("a4", r++, RegClass_Address));
+		{
+			// leave a4 free?
+			long_t data = 0;
+			bool alloc = false;
+
+			if (USE_DSTSKIP_REG_FIXED_PRELOAD_INCIDENCE)
+			{
+				int i = 0;
+//				for (auto it = metrics.begin(); it != metrics.end(); it++, i++)
+//				for (auto & rm : ranked_metrics)
+				for (auto rmit = ranked_metrics.begin(); rmit != ranked_metrics.end(); rmit++, i++)
+				{
+					if (metrics_words_allocated == i)
+					{
+						if (rmit->second->second.incidence > 2)
+						{
+							std::cout << "preload high incidence word " << i << ":0x" << std::hex << rmit->second->first << " incidence:" << std::dec << rmit->second->second.incidence << std::endl;
+							data = (long_t)(word_t)rmit->second->first;
+							metrics_words_allocated++;
+
+							alloc = true;
+						}
+						break;
+					}
+				}
+			}
+
+			if (alloc)
+				registers.push_back(dataregister("a4", r++, RegClass_Address, setconstants, setconstants, true, data));	// em3
+			else
+				registers.push_back(dataregister("a4", r++, RegClass_Address));
+		}
 
 
 		BHOG_reg = r;
@@ -917,7 +1024,7 @@ DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _in
 				else
 				{
 					// meanwhile, look for the best still-active register to steal
-					emx_metric_t &m = metrics_sim[it->L];
+					const emx_metric_t &m = metrics_sim[it->L];
 					if (m.references < best_refcount)
 					{
 						best_refcount = m.references;
@@ -2211,7 +2318,12 @@ bool Context::promote_pass()
 			{
 				if (!(registers[r].locked) && !(registers[r].variable))
 				{
-					if (pop->alltagsL[r] < 0)
+					if (
+						(pop->alltagsL[r] < 0) &&
+						// incidence of replacement must be higher than incidence of existing
+						//(metrics_sim[iL].references > metrics_sim[registers[r].L].references)
+						1//(metrics_sim[iL].incidence > metrics_sim[registers[r].L].incidence)
+					)
 					{
 						if (pop->kind == OpKind_StoreI16)
 						{
@@ -2231,7 +2343,7 @@ bool Context::promote_pass()
 				}
 			}
 
-			if (freereg > 0)
+			if (freereg >= 0)
 			{
 				{
 					//				printf("possible reduce opportunity: reg %d [$%04x%04x]\n", reg, registers[reg].H, registers[reg].L);
@@ -3953,6 +4065,46 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		
 			// (8 + 2) - (shift.wordwidth_ << 3);
 
+			// gather metrics on LEA skip values, for loading into registers
+			// must be done before sim reset!
+			if (USE_DSTSKIP_REG_OPTIMIZATION)
+			{
+				int current_line = 0;
+
+				for (int y = 0; y < shift.height_; y++)
+				{
+					int dsty = best_pattern[y];
+
+					// is the blit going to output something?
+					if (component_livelines[dsty])
+					{
+						// line hop +/-
+						int linejump = dsty - current_line;
+
+						// all non-empty blits require a dst address update
+						// todo: linewidth should be an argument
+						if (linejump)
+						{
+							int addressjump = (linejump * context.dstlinewid);
+							if (addressjump < 32768 && addressjump >= -32768)
+							{
+								// caution: don't abs() -32768 case as it has will have no 16bit representation
+								int reduced_dataword = addressjump;
+								if (reduced_dataword > -32768)
+									reduced_dataword = abs(reduced_dataword);
+									
+								uword_t metrics_dataword = (uword_t)reduced_dataword;
+
+								context.metrics[metrics_dataword].incidence++;
+								context.metrics[metrics_dataword].references++;
+							}
+						}
+
+						current_line = dsty;
+					}
+				}
+			}
+
 			context.reset_sim(true);
 
 			// reset dirty EM registers for this blit width
@@ -4037,7 +4189,39 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 							int addressjump = (linejump * context.dstlinewid);
 							if (addressjump < 32768 && addressjump >= -32768)
 							{
-								context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, linejump));
+								if (USE_DSTSKIP_REG_OPTIMIZATION)
+								{
+
+									int reg_src = -1;
+									DataSource ds;
+
+									ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
+									if (ds == DataSource_RegisterL)
+									{
+										// for +ve steps, look for +ve equivalent register and apply ADD operation
+										// only allocates register if value does not pre-exist 
+										context.operations.push_back(new DST_AddaR16(context, reg_src, context.SCRLINE_reg));
+									}
+									else
+									{
+										// for -ve steps, look for +ve equivalent register and apply SUB operation
+										// only allocates register if value does not pre-exist 
+										ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, true);
+										if (ds == DataSource_RegisterL)
+										{
+											context.operations.push_back(new DST_SubaR16(context, reg_src, context.SCRLINE_reg));
+										}
+										else
+										{
+											// pointless allocation - fall back to LEA
+											context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, linejump));
+										}
+									}
+								}
+								else
+								{
+									context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, linejump));
+								}
 							}
 							else
 							{

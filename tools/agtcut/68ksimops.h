@@ -2113,6 +2113,7 @@ public:
 	virtual void onExecute()
 	{
 		ctx.memaddr += delta * ctx.dstww;
+		ctx.sim_track_datarefs(uword_t(delta * ctx.dstww));
 	}
 
 	int delta;
