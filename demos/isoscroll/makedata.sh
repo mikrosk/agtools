@@ -14,8 +14,8 @@
 # for this example we'll cut using a spriteguide file (villager.sgd), which overrides cutting commands with a simple script
 
 # this version cuts single-field colour sprite, biased for the high brightness field (-ccr high)
-#../../bin/agtcut -cm emxspr -vis -prv -ccr high -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s villager.png -o villager.emx -p chunky8.ccs -sg villager.sgd
+#../../bin/agtcut -cm emxspr -vis -prv -ccr high -keyrgb ff:00:ff -kg -kt 0.01 -gm -s villager.png -o villager.emx -p chunky8.ccs -sg villager.sgd
 
 # this version cuts a dual-field colour sprite, incorporating both low/high colour fields interlaced @ 50hz
-../../bin/agtcut -cm emxspr -ccf 2 -vis -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -s villager.png -o villager.emx -p chunky8.ccs -sg villager.sgd
+../../bin/agtcut -cm emxspr -ccf 2 -vis -prv -keyrgb ff:00:ff -kg -kt 0.01 -s villager.png -o villager.emx -p chunky8.ccs -sg villager.sgd
 

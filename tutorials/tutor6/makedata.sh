@@ -6,7 +6,7 @@
 
 # cut sprites
 
-../../bin/agtcut -cm imspr -vis -prv -ccr high -key 99 -keyrgb 90:c8:e8 -kg -kt 0.01 -gm -s karin5515_ac.png -o karin.ims -p chunky8.ccs -ackeyrgb 00:ff:00
+../../bin/agtcut -cm imspr -vis -prv -ccr high -keyrgb 90:c8:e8 -kg -kt 0.01 -gm -s karin5515_ac.png -o karin.ims -p chunky8.ccs -ackeyrgb 00:ff:00
 
 # cut background map & tiles
 

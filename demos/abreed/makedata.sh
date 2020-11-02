@@ -11,4 +11,4 @@
 
 # cut the monster sprite: 8 rotation frames x 4 animation frames = 32 cuts
 
-../../bin/agtcut -cm emspr -ccf 2 -prv -key 99 -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o monster.ems -p chunky8.ccs -sxp 0 -syp 256 -sxs 32 -sys 32 -sxi 32 -syi 32 -sxc 8 -syc 4
+../../bin/agtcut -cm emspr -ccf 2 -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o monster.ems -p chunky8.ccs -sxp 0 -syp 256 -sxs 32 -sys 32 -sxi 32 -syi 32 -sxc 8 -syc 4
