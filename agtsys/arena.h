@@ -66,14 +66,15 @@ class arena_template
 {
 public:
 
+	typedef _playfield_type playfield_type;
+
 	static const int c_num_buffers_ = _num_buffers;
 	static const bool c_singleframe = _singleframe;
 	static const bool c_dualfield_ = _dualfield;
+	static const bool c_force_dualfield_drawing_ = playfield_type::c_force_dualfield_drawing_;
 		
 	s16 display_width_;
 	s16 display_height_;
-
-	typedef _playfield_type playfield_type;
 
 	// context holds memory resources shared between related playfields
 	typename playfield_type::mapcontext mapctx0_;
@@ -200,7 +201,11 @@ public:
 	{
 		prf_push(prf_arena_misc);
 
-		playfield_type &pf = buffers_[buffer_index_].fields[_field];
+		s16 field = _field;
+		if (c_force_dualfield_drawing_)
+			field = 0;
+		playfield_type &pf = buffers_[buffer_index_].fields[field];
+//		playfield_type &pf = buffers_[buffer_index_].fields[_field];
 
 		r_ctx.p_pfframebuffer = pf.framebuffer_;
 		r_ctx.p_pflinemod = pf.pfieldcontext_->linemod_;
@@ -214,7 +219,7 @@ public:
 		r_ctx.p_ocm_o = pf.ocm_.oco_;
 		r_ctx.ocm_stride = pf.ocm_.stride_;
 
-		int field_active = (int)c_dualfield_ & dualfield_mask_;
+		int field_active = (int)c_force_dualfield_drawing_ | ((int)c_dualfield_ & dualfield_mask_);
 
 		// in single-vbl dual-field mode, buffer acts as field
 		r_ctx.field = (field_active & _field) | ((field_active^1) & buffer_index_);

@@ -33,6 +33,7 @@ dctx_pocm_o:		ds.l	1
 dctx_ocm_stride:	ds.w	1
 *-------------------------------------------------------*
 dctx_field:		ds.w	1
+;dctx_mfield:		ds.w	1
 *-------------------------------------------------------*
 dctx_clipwindow_x1:	ds.w	1
 dctx_clipwindow_y1:	ds.w	1
@@ -89,7 +90,9 @@ bgrframe_size:		; frame size, if page-restore mode
 .sp_yoff:		ds.w	1
 .sp_yc:			ds.w	1
 .sp_yrem:		ds.w	1
-.sp_field4:		ds.w	1
+.sp_cfield4:		ds.w	1
+.sp_mfield:		ds.w	1
+.sp__:			ds.w	1
 .sp_save_usp:		ds.l	1
 .sp_linetable:		ds.l	1
 .sp_nextcmp:		ds.l	1

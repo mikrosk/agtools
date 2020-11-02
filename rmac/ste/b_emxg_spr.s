@@ -52,7 +52,13 @@ enable_x_clipping	set	0
 	.if		(enable_clipping)
 *-------------------------------------------------------*
 
-
+	moveq		#1,d3
+	and.b		sps_flags(a0),d3		; 1 = double index
+	beq.s		.emx_no_dfm
+	add.w		d0,d0				;	
+	and.w		.sp_mfield(sp),d3		; 1 = field offset
+	add.w		d3,d0	
+.emx_no_dfm:
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
@@ -107,7 +113,7 @@ enable_x_clipping	set	0
 	
 ;	exit if we have no embedded EMS colour data
 
-	move.w		.sp_field4(sp),d6
+	move.w		.sp_cfield4(sp),d6
 	move.l		spf_emx_colour-8(a0,d6.w),d0
 	beq		.BLiT_EMXSpr_4BPL_end
 		
@@ -881,6 +887,13 @@ enable_x_clipping	set	0
 .BLiT_EMXSpr_NoClip_4BPL:
 *-------------------------------------------------------*
 
+	moveq		#1,d3
+	and.b		sps_flags(a0),d3		; 1 = double index
+	beq.s		.emx2_no_dfm
+	add.w		d0,d0				;	
+	and.w		.sp_mfield(sp),d3		; 1 = field offset
+	add.w		d3,d0	
+.emx2_no_dfm:
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
@@ -950,7 +963,7 @@ enable_x_clipping	set	0
 	
 ;	access colouropt data
 ;	move.l		spf_data+(4*1)-8(a0),a0
-	move.w		.sp_field4(sp),d0
+	move.w		.sp_cfield4(sp),d0
 	move.l		spf_emx_colouropt-8(a0,d0.w),BLiTSRC.w
 
 

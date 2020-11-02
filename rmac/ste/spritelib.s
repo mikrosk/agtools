@@ -144,10 +144,11 @@ _AGT_BLiT_IMSprDrawUnClipped:
 	move.l		dctx_framebuffer(a4),a1
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 
+	move.w		dctx_field(a4),.sp_mfield(sp)
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)
+	move.w		d0,.sp_cfield4(sp)
 	
 	move.l		.psps(a6),a0
 	move.w		.xpos+2(a6),d1
@@ -265,10 +266,11 @@ _AGT_BLiT_EMSprDrawUnClipped:
 	move.l		dctx_framebuffer(a4),a1
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 
+	move.w		dctx_field(a4),.sp_mfield(sp)
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)
+	move.w		d0,.sp_cfield4(sp)
 	
 	move.l		.psps(a6),a0
 	move.w		.xpos+2(a6),d1
@@ -345,10 +347,11 @@ _AGT_BLiT_EMXSprDrawUnClipped:
 	move.l		dctx_framebuffer(a4),a1
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 
+	move.w		dctx_field(a4),.sp_mfield(sp)
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)
+	move.w		d0,.sp_cfield4(sp)
 	
 	move.l		.psps(a6),a0
 	move.w		.xpos+2(a6),d1
@@ -440,10 +443,11 @@ _AGT_BLiT_EMSprDrawString:
 	move.w		.ypos+2(a6),.sp_y(sp)
 	move.l		.plinetable(a6),.sp_linetable(sp)
 	
+	move.w		dctx_field(a4),.sp_mfield(sp)
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)
+	move.w		d0,.sp_cfield4(sp)
 		
 *-------------------------------------------------------*
 	moveq		#0,d0

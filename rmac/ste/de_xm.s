@@ -51,10 +51,11 @@ _BLiT_EntityDrawVisibleXM_68k:
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
 	move.w		dctx_snapadjy(a4),.sp_snapy(sp)	
+	move.w		dctx_field(a4),.sp_mfield(sp)
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)		
+	move.w		d0,.sp_cfield4(sp)		
 ;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
 ;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
 ;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto

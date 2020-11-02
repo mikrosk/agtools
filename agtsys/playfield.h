@@ -236,7 +236,8 @@ enum PlayfieldAttributes
 	PFA_None			= 0,
 	PFA_TileAnimation	= 1<<0,		// allow map to be edited on-the-fly, with only the modified tiles refreshed on the next update
 	PFA_OcclusionMaps	= 1<<1,		// use a different mechanism to restore very large sprites with embedded occlusion maps
-	PFA_DualLayer		= 1<<2		// [W.I.P] draw a second transparent/masked map on top of the main opaque map, for detail variation
+	PFA_DualLayer		= 1<<2,		// [W.I.P] draw a second transparent/masked map on top of the main opaque map, for detail variation
+	PFA_DualFieldSpr	= 1<<3		// draw dual-field sprites on single-field backgrounds
 };
 
 // all of this might be deprecated in favour of STE-only support. maintaining STF support amid STE upgrades is a *lot* of hassle.
@@ -293,6 +294,7 @@ public:
 	static const bool c_ste_ = (_hwattr & PFH_STE);
 	static const bool c_hsoftscroll_ = !c_ste_;
 	static const bool c_blitter_ = false;//(_hwattr & PFH_Blitter);
+	static const bool c_force_dualfield_drawing_ = (_attr & PFA_DualFieldSpr);
 	static const UpdateMode c_updatemode_ = _updatemode;
 
 	// todo: plane support mostly hardwired for now due to specific drawing routs

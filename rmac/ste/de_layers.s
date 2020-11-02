@@ -50,10 +50,11 @@ _BLiT_EntityDrawLayers_68k:
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
 	move.w		dctx_snapadjy(a4),.sp_snapy(sp)	
+	move.w		dctx_field(a4),.sp_mfield(sp)
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)	
+	move.w		d0,.sp_cfield4(sp)	
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*

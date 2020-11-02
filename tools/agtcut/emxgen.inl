@@ -456,7 +456,7 @@ public:
 					{
 						if (rmit->second->second.incidence > 2)
 						{
-							std::cout << "preload high incidence word " << i << ":0x" << std::hex << rmit->second->first << " incidence:" << std::dec << rmit->second->second.incidence << std::endl;
+							//std::cout << "preload high incidence word " << i << ":0x" << std::hex << rmit->second->first << " incidence:" << std::dec << rmit->second->second.incidence << std::endl;
 							data = (long_t)(word_t)rmit->second->first;
 							metrics_words_allocated++;
 						}
@@ -510,7 +510,7 @@ public:
 					{
 						if (rmit->second->second.incidence > 2)
 						{
-							std::cout << "preload high incidence word " << i << ":0x" << std::hex << rmit->second->first << " incidence:" << std::dec << rmit->second->second.incidence << std::endl;
+							//std::cout << "preload high incidence word " << i << ":0x" << std::hex << rmit->second->first << " incidence:" << std::dec << rmit->second->second.incidence << std::endl;
 							data = (long_t)(word_t)rmit->second->first;
 							metrics_words_allocated++;
 

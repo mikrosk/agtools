@@ -47,6 +47,13 @@
 
 *-------------------------------------------------------*
 
+	moveq		#1,d3
+	and.b		sps_flags(a0),d3		; 1 = double index
+	beq.s		.emsc_no_dfm
+	add.w		d0,d0				;	
+	and.w		.sp_mfield(sp),d3		; 1 = field offset
+	add.w		d3,d0	
+.emsc_no_dfm:
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
@@ -118,7 +125,10 @@
 
 
 ;	access colour data
-	move.l		spf_em_colour-8(a0),a0
+	move.w		.sp_cfield4(sp),d5
+	move.l		spf_em_colour-8(a0,d5.w),a0
+
+;	move.l		spf_em_colour-8(a0),a0
 
 ;	word-width for this preshift (will be 1, 2 or 3 for normal EMS, more for wide format)
 ;	todo: relevant size & blitter fields e.g. BLiTSYI could be stored with frame

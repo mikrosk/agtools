@@ -50,7 +50,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.460";
+static const char* const g_version_string = "v0.461";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
@@ -372,6 +372,9 @@ enum
 	OPT_KEYRGB,
 	OPT_KEYGUARD,
 	OPT_KEYTOL,
+	OPT_ALPHARGB,
+	OPT_ALPHATOL,
+	OPT_DFALPHA,
 //	OPT_AUTOCUTCOL,
 	OPT_AUTOCUTRGB,
 //	OPT_HITCOL,
@@ -489,7 +492,17 @@ CSimpleOpt::SOption g_Options[] =
 	{ OPT_KEYCOL,		_T("--key"),			SO_REQ_SEP	},
 	//
 	{ OPT_KEYRGB,		_T("-keyrgb"), 			SO_REQ_SEP	},
-	{ OPT_KEYRGB,		_T("--key-rgb"),			SO_REQ_SEP	},
+	{ OPT_KEYRGB,		_T("--key-rgb"),		SO_REQ_SEP	},
+
+	//
+	{ OPT_ALPHARGB,		_T("-alphargb"), 		SO_REQ_SEP	},
+	{ OPT_ALPHARGB,		_T("--alpha-rgb"),		SO_REQ_SEP	},
+	//
+	{ OPT_ALPHATOL,		_T("-at"),	 			SO_REQ_SEP	},
+	{ OPT_ALPHATOL,		_T("--alpha-tol"),		SO_REQ_SEP	},
+	//
+	{ OPT_DFALPHA,		_T("-dfa"),	 			SO_NONE		},
+	{ OPT_DFALPHA,		_T("--df-alpha"),		SO_NONE		},
 
 	//
 //	{ OPT_AUTOCUTCOL,	_T("-ackey"),	 		SO_REQ_SEP	},
@@ -642,7 +655,7 @@ static void usage(int level)
 	std::cout << " -keyrgb, --key-rgb       > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
 	std::cout << " -kg, --key-guard         > guard against reducing colours to key colour" << std::endl;
 	std::cout << " -kt, --key-tol           > key guard tolerance: 0.0+ (default: 0.01)" << std::endl;
-	std::cout << " -ccr, --cc-remap         > cryptochrome colour field remapping: both,high,low" << std::endl;
+	std::cout << " -ccr, --cc-remap         > cryptochrome colour field remapping: both,high,low,match" << std::endl;
 	std::cout << " -nr, --no-remap          > prevent remapping of 8bit images (to 4bit), use first 16 colours only" << std::endl;
 	std::cout << " -fr, --force-remap       > force remapping of 8bit images (to 4bit) so --key-rgb is usable" << std::endl;
 	std::cout << " -vis, --visual           > provide feedback/visualisation of cut assets as .tga file" << std::endl;
@@ -666,7 +679,9 @@ static void usage(int level)
 	std::cout << " -prv, --preview          > show ASCII preview of extracted colours + masking" << std::endl;
 	std::cout << " -sg, --sprguide          > sprite guide file (ASCII)" << std::endl;
 	std::cout << " -hidden, --hidden        > hidden resource (e.g. collision/undraw) - don't store any pixel data" << std::endl;
-	std::cout << " -ackeyrgb, --ackey-rgb   > rgb value assumed to be transarent: <RR:GG:BB> in hex" << std::endl;
+	std::cout << " -alphargb, --alpha-rgb   > rgb value for 50% transparency: <RR:GG:BB> in hex" << std::endl;
+	std::cout << " -at, --alpha-tol         > rgb tolerance for 50% transparency: 0.0+" << std::endl;
+	std::cout << " -ackeyrgb, --ackey-rgb   > rgb value for 100% transparency: <RR:GG:BB> in hex" << std::endl;
 	std::cout << " -hitkeyrgb, --hitkey-rgb > rgb value used to express hidden hitboxes: <RR:GG:BB> in hex" << std::endl;
 	std::cout << " -emxopt, --emx-opt       > optimization level for EMX mask delta elimination" << std::endl;
 	std::cout << " -emgx, --emguardx        > configure x-guardband width for EMX sprites (default:32)" << std::endl;
@@ -695,9 +710,10 @@ static void usage(int level)
 
 enum CCRemap
 {
-	CCRemap_BOTH,
-	CCRemap_HIGH,
-	CCRemap_LOW
+	CCRemap_BOTH,				// high/low field dither, alternating per field
+	CCRemap_HIGH,				// high field first (low field second, if ccf=2)
+	CCRemap_LOW,				// low field first (high field second, if ccf=2)
+	CCRemap_MATCH,				// closest match available (same for all fields)
 };
 
 enum Outmode
@@ -758,8 +774,10 @@ public:
 		  visual(false),
 		  hidden(false),
 		  keyrgb_specified(false),
+		  alphargb_specified(false),
 		  hitkeyrgb_specified(false),
 		  autocutkeyrgb_specified(false),
+		  dualfield_alpha(false),
 		  colrenorm(255),
 		  tolerance(0.0f),
 		  keytol(0.01f),
@@ -807,7 +825,8 @@ public:
 		  maprect_xsize(0x7fffffff),
 		  maprect_ysize(0x7fffffff),
 		  //
-		  use_solutionpair_reduction_(false)
+		  use_solutionpair_reduction_(false),
+		  distributed_dualfield_(false)
 	{
 		keyrgb.red = 255;
 		keyrgb.green = 0;
@@ -818,6 +837,9 @@ public:
 		hitkeyrgb.red = 0;
 		hitkeyrgb.green = 255;
 		hitkeyrgb.blue = 255;
+		alphargb.red = 0;
+		alphargb.green = 0;
+		alphargb.blue = 0;
 	}
 
 	bool verbose;
@@ -831,8 +853,10 @@ public:
 	bool visual;
 	bool hidden;
 	bool keyrgb_specified;
+	bool alphargb_specified;
 	bool hitkeyrgb_specified;
 	bool autocutkeyrgb_specified;
+	bool dualfield_alpha;
 	bool translayer;
 	bool stitchmaps;
 	bool compound_slabs;
@@ -848,6 +872,7 @@ public:
 	iRGB hitkeyrgb;
 	uword_t autocutkeycol;
 	iRGB autocutkeyrgb;
+	iRGB alphargb;
 	int colrenorm;
 	int cut_xpos;
 	int cut_ypos;
@@ -869,6 +894,7 @@ public:
 
 	float tolerance;
 	float keytol;
+	float alphatol;
 	std::string sourcefile;
 	std::string outfile;
 	std::string tiletags;
@@ -898,6 +924,7 @@ public:
 
 	// internal: not set via commandline
 	bool use_solutionpair_reduction_;
+	bool distributed_dualfield_;
 };
 
 Arguments g_allargs;
@@ -1024,6 +1051,23 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				}
 				_args.keytol = farg;	
 			}
+			else if (args.OptionId() == OPT_ALPHATOL)
+			{
+				std::string s_arg = args.OptionArg();
+				float farg = (float)atof(s_arg.c_str());
+				if (farg < 0.0f || farg > 1e4f)
+				{
+					std::cerr << "error: invalid arg for alpha key tolerance: " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
+					getchar();
+					exit(1);
+				}
+				_args.alphatol = farg;	
+			}
+			else if (args.OptionId() == OPT_DFALPHA) 
+			{
+				_args.dualfield_alpha = true;
+			}			
 			else if (args.OptionId() == OPT_CUTMODE)
 			{
 				std::string s_arg = args.OptionArg();
@@ -1305,6 +1349,29 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				_args.keyrgb.blue = b;
 			}
 
+			else if (args.OptionId() == OPT_ALPHARGB)
+			{
+				_args.alphargb_specified = true;
+
+				std::string s_arg = args.OptionArg();
+				
+				int r, g, b;
+				sscanf(s_arg.c_str(), "%x:%x:%x", &r, &g, &b);
+
+				if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
+				{
+					std::cerr << "error: invalid arg for alpha rgb (hex RR:GG:BB): " << s_arg << std::endl;
+					std::cout << "press any key..." << std::endl << std::flush;
+					getchar();
+					exit(1);
+				}
+
+				printf("alpha key colour from rgb: r(%x):g(%x):b(%x):\n", r, g, b);
+
+				_args.alphargb.red = r;
+				_args.alphargb.green = g;
+				_args.alphargb.blue = b;
+			}
 			else if (args.OptionId() == OPT_AUTOCUTRGB)
 			{
 				_args.autocutkeyrgb_specified = true;
@@ -1399,8 +1466,13 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 					_args.ccremap = CCRemap_LOW;
 				}
 				else
+				if (s_arg.find("match") != std::string::npos)
 				{
-					std::cerr << "error: invalid arg for cryptochrome dualfield remap (both/high/low): " << s_arg << std::endl;
+					_args.ccremap = CCRemap_MATCH;
+				}
+				else
+				{
+					std::cerr << "error: invalid arg for cryptochrome dualfield remap (both/high/low/match): " << s_arg << std::endl;
 					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
@@ -1725,6 +1797,34 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			g_allargs.noclipx = true;
 		}
 	}
+
+	if (g_allargs.dualfield_alpha)
+	{
+		if (g_allargs.cutmode == Cutmode_EMSPR || g_allargs.cutmode == Cutmode_EMXSPR)
+		{
+			if ((g_allargs.ccfields == 1) &&
+				(g_allargs.alphargb_specified))
+			{
+				// emit 2 distinct sprite frames for each frame cut
+				g_allargs.distributed_dualfield_ = true;
+			}
+			else
+			{
+				std::cerr << "dual-field alpha (--df-alpha) requires combined settings (--alpha-rgb <RGB> --ccfields 1), producing 2x as many frames with single colour field each" << std::endl;
+				std::cout << "press any key..." << std::endl << std::flush;
+				getchar();
+				exit(1);
+			}
+		}
+		else
+		{
+			std::cerr << "dual-field alpha only supported for EMS/EMX sprites" << std::endl;
+			std::cout << "press any key..." << std::endl << std::flush;
+			getchar();
+			exit(1);
+		}
+	}
+
 
 	// adjust counts to make sense for common scenarios with terse commandlines
 
@@ -3108,6 +3208,56 @@ void review_palettes(RGB *pspal, RGB *pdpal, int _sourced)
 	}
 }
 
+static bool near_alpha(const RGB &rgb)
+{
+	static const float c_n = 1.0f / 255.0f;
+
+	if (!g_allargs.alphargb_specified)
+		return false;
+
+	u8 kr = g_allargs.alphargb.red;
+	u8 kg = g_allargs.alphargb.green;
+	u8 kb = g_allargs.alphargb.blue;
+
+	float akr = float(kr);
+	float akg = float(kg);
+	float akb = float(kb);
+
+	float pr = float(rgb.red);
+	float pg = float(rgb.green);
+	float pb = float(rgb.blue);
+
+	float dr = (akr - pr) * c_n;
+	float dg = (akg - pg) * c_n;
+	float db = (akb - pb) * c_n;
+
+	float err = (dr * dr) + (dg * dg) + (db * db);
+
+	return (err <= g_allargs.alphatol);
+}
+
+static bool near_alpha(int i, RGB *_ppal)
+{
+	const RGB &rgb = _ppal[i];
+
+	return near_alpha(rgb);
+}
+
+
+// if matched colour is within alphakeytol of alphargb, map to keycol according to (x^y)&1
+
+static int alpha_dodge(int i, int x, int y, int field, RGB *_ppal)
+{
+	if (near_alpha(i, _ppal))
+	{
+		int v = ((x^y)^field) & 1;
+		if (v) 
+			i = g_allargs.keycol;
+	}
+
+	return i;
+}
+
 static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstcol0, ubyte_t *_pdstcol1, ulong_t _sourcew, ulong_t _sourceh, ulong_t _sourced, RGB *&r_ppal)
 {
 	unsigned short r_numcolours = 0;
@@ -3226,11 +3376,62 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 								*pdst1++ = solution0;
 						}
 						else
+						if (g_allargs.ccremap == CCRemap_MATCH)
 						{
-							// both fields get alternating, complementary pattern of high/low
-							*pdst0++ = (((px ^ py) ^ 0) & 1) ? solution0 : solution1;
+							// both fields share closest match
+							ubyte_t m = match_colour(rgb, ppal, r_numcolours);
+
+							*pdst0++ = m;
 							if (pdst1)
-								*pdst1++ = (((px ^ py) ^ 1) & 1) ? solution0 : solution1;
+								*pdst1++ = m;
+						}
+						else
+						{
+							// CCRemap_BOTH
+							int field = 0;
+						
+/*							if ((g_allargs.ccfields == 1) &&
+								g_allargs.alphargb_specified)
+							{
+								// special case: spread dual-field over 2 distinct sprite frames, instead of 2 colour fields within 1 frame
+								// so we keep the fields separate, allowing the sprite cutter to do the dithering itself since it knows the frame index.
+
+								if (near_alpha(rgb))
+								{
+									// both fields share a nearest match, since alpha dither will be used on this colour!
+									ubyte_t m = match_colour(rgb, ppal, r_numcolours);
+
+									*pdst0++ = m;
+									if (pdst1)
+										*pdst1++ = m;
+								}
+								else
+								{
+									// primary field gets low intensity component, secondary field gets high intensity
+									*pdst0++ = solution0;
+									if (pdst1)
+										*pdst1++ = solution1;
+								}
+							}
+							else
+*/							{
+								if (near_alpha(rgb))
+								{
+									// both fields share a nearest match, since alpha dither will be used on this colour!
+									ubyte_t m = match_colour(rgb, ppal, r_numcolours);
+
+									*pdst0++ = m;
+									if (pdst1)
+										*pdst1++ = m;
+								}
+								else
+								{
+									// both fields get alternating, complementary pattern of high/low
+									*pdst0++ = (((px ^ py) ^ field ^ 0) & 1) ? solution0 : solution1;
+									if (pdst1)
+										*pdst1++ = (((px ^ py) ^ field ^ 1) & 1) ? solution0 : solution1;
+								}
+							}
 						}
 					}
 				}
@@ -3252,6 +3453,7 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 					for (int px = 0; px < (int)_sourcew; px++)
 					{
 						ubyte_t m = match_colour(*psrc++, r_ppal, r_numcolours);
+
 						*pdst++ = m;
 						if (unique[m] == 0)
 						{
@@ -5396,6 +5598,24 @@ void add_sprite_frame
 
 	int frame = g_spriteframes.size() + 1;
 
+	// special case:
+	// single-field colour, dual-field alpha with dual-field palette (-ccr both)
+	// in this case, alternating colour dither is distributed over 2 distinct animation frames vs 2 embedded colour fields
+	if (
+		g_allargs.distributed_dualfield_ &&
+		g_allargs.use_solutionpair_reduction_ &&
+		// don't alternate fields if a specific field (or colour-match) has been specified
+		(g_allargs.ccremap == CCRemap_BOTH)
+	)
+	{
+		if (_psource81 == nullptr)
+			std::cerr << "error!" << std::endl;
+
+		if (frame & 1)
+			std::swap(_psource80, _psource81);
+	}
+
+
 	int cxmin = 0;
 	int cymin = 0;
 	int cxmax = g_sprite_width;
@@ -5424,6 +5644,8 @@ void add_sprite_frame
 				int frameidx = g_spriteframes.size();
 
 				RGB &pix = _pvisualrgb[(frameidx * (g_sprite_width*g_sprite_height)) + (lpy*g_sprite_width) + lpx];
+
+				c = alpha_dodge(c, (px + _x), (py + _y), (frame & 1), _ppal);
 
 				if (c == g_allargs.keycol)
 				{	
@@ -5454,13 +5676,21 @@ void add_sprite_frame
 				else
 					c = g_allargs.keycol;
 
+				//c = alpha_dodge(c, (px + _x), (py + _y), (frame & 1), _ppal);
+
 				if (c == g_allargs.keycol)
 					printf(" ");
 				else
-					printf("%x", (int)(c & 0xF));
+				{
+					c = alpha_dodge(c, (px + _x), (py + _y), (frame & 1), _ppal);
+					if (c == g_allargs.keycol)
+						printf("~");
+					else
+						printf("%x", (int)(c & 0xF));
+				}
 			}
 			printf("|");
-			if (g_allargs.ccfields > 1)
+			if (_psource81/*g_allargs.ccfields > 1*/)
 			{
 				for (int lpx = 0, px = pxs; lpx < g_sprite_width; lpx++, px += pxi)
 				{
@@ -5474,7 +5704,13 @@ void add_sprite_frame
 					if (c == g_allargs.keycol)
 						printf(" ");
 					else
-						printf("%x", (int)(c & 0xF));
+					{
+						c = alpha_dodge(c, (px + _x), (py + _y), (frame & 1), _ppal);
+						if (c == g_allargs.keycol)
+							printf("~");
+						else
+							printf("%x", (int)(c & 0xF));
+					}
 				}
 				printf("|");
 			}
@@ -5522,6 +5758,19 @@ void add_sprite_frame
 		cxmax = 1;
 		cymin = 0;
 		cymax = 1;
+	}
+
+	// if preshift step applied, all anim frames should agree on x-snap
+	if (
+		(g_allargs.cutmode == Cutmode_EMSPR) ||
+		(g_allargs.cutmode == Cutmode_EMXSPR)
+		)
+	{
+		if (g_allargs.preshift_step > 1)
+		{
+			cxmin = (cxmin & -g_allargs.preshift_step);
+			//cxmax = (cxmax + (g_allargs.preshift_step - 1)) & -g_allargs.preshift_step;
+		}
 	}
 
 	g_sprite_framewidth = cxmax - cxmin;
@@ -5575,6 +5824,9 @@ void add_sprite_frame
 			{
 				c0 = c1 = g_allargs.keycol;
 			}
+
+			c0 = alpha_dodge(c0, (psxr + _x), (psyr + _y), (frame & 1), _ppal);
+			//c1 = alpha_dodge(c1, (psxr + _x), (psyr + _y), 1, _ppal);
 
 			// colour buffer receives actual colour, or 0 for keycol (so two colours can potentially map to 0)
 			g_colrbuffer80[(py * g_sprite_framebpwidth) + px] = (c0 == g_allargs.keycol) ? 0x00 : c0;
@@ -5739,7 +5991,7 @@ bool emit_sprite_sequence(bool _storepixels)
 		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 		// 2: flags
-		// 0 0 0 0 0 0 0 0 D O C Y X L L M
+		// 0 0 0 0 0 0 0 A D O C Y X L L M
 		// M	mask present (1bpl mask data before colour data)
 		// LL	mask layout mode (00=interleaved, 01=planar, 10=preshift, 11=codegen)
 		// X	suppress x clipping
@@ -5747,9 +5999,11 @@ bool emit_sprite_sequence(bool _storepixels)
 		// C	compound sprite (more than 1 component expected, no x-clip supported)
 		// O	occlusion maps
 		// D	dual-field colour data
+		// A	dual-field alpha (distributed dual-field)
 
 		wv = 0;
 		wv |= (g_allargs.genmask) ? 1 : 0;
+		wv |= (g_allargs.distributed_dualfield_) ? (1<<8) : 0;
 
 		if (g_allargs.cutmode == Cutmode_EMXSPR)
 			wv |= 3 << 1;
@@ -7971,9 +8225,13 @@ bool do_sheet()
 
 			if (m_psourcecol0)
 			{
-				if (g_allargs.keyrgb_specified || g_allargs.hitkeyrgb_specified || g_allargs.autocutkeyrgb_specified )
+				if (g_allargs.keyrgb_specified || 
+					g_allargs.alphargb_specified || 
+					g_allargs.hitkeyrgb_specified || 
+					g_allargs.autocutkeyrgb_specified )
 				{
-					std::cerr << "error: can't use -keyrgb or -hitkeyrgb <R:G:B> on non-remapped spritesheet images - use -key/-hitkey <col> instead." << std::endl;
+					std::cerr << "error: can't use -keyrgb,-alphargb,-hitkeyrgb,-autocutkeyrgb on non-remapped spritesheet images" << std::endl 
+						<< "can use -key/-hitkey <col> instead of -keyrgb." << std::endl;
 					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();	
 					exit(1);
@@ -7983,13 +8241,32 @@ bool do_sheet()
 			}
 			else
 			{
+				// special case: generate both colour fields for benefit of dual-field mask used with distributed dual-field
+				bool force_two_colour_fields =
+					!g_allargs.dualfield &&
+					(
+						g_allargs.distributed_dualfield_ &&
+						(g_allargs.ccremap == CCRemap_BOTH)
+					);
+
 				std::cout << "reducing " << ((sourced > 0) ? sourced : 24) << "-bit image to external fixed palette..." << std::endl;
 				m_psourcecol0 = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
 				m_psourcecol1 = nullptr;
-				if (g_allargs.dualfield)
+				if (g_allargs.dualfield || force_two_colour_fields)
 					m_psourcecol1 = new ubyte_t[sourcew * sourceh]; //(ubyte_t*)malloc(sourcew * sourceh);
+
+				//if (m_psourcecol1 == nullptr)
+				//	std::cerr << "error error!" << std::endl;
+
 				// reduce source image to indexed colour with fixed palette
 				reduce_image24(m_psourcergb, m_poriginalsrccol, m_psourcecol0, m_psourcecol1, sourcew, sourceh, sourced, m_ppalettergb);
+
+				if (force_two_colour_fields && !g_allargs.use_solutionpair_reduction_)
+				{
+					// apparently we were not supplied a .ccs for this single-field sprite so 2nd field can be dumped after all
+					delete[] m_psourcecol1;
+					m_psourcecol1 = nullptr;
+				}
 			}
 
 			// now generate autocut guides from source image
@@ -8362,6 +8639,10 @@ bool do_sheet()
 					}
 				}
 
+				// allocate double space for distributed transparency support
+				if (g_allargs.distributed_dualfield_)
+					total_expected_cuts <<= 1;
+
 				// configure default cut from command args
 
 				int cutting_source_xs = g_allargs.cut_xsize;
@@ -8462,6 +8743,10 @@ bool do_sheet()
 					}
 
 
+					// when 50% transparency is specified, record 2 sprite frames per source frame (one per mask field)
+					//if (g_allargs.alphargb_specified)
+					//	cuts <<= 1;
+
 					for (int event_cuts = 0, xc = 0; event_cuts < cuts; event_cuts++, total_cuts++)
 					{
 						int cx = cutting_source_x;
@@ -8471,7 +8756,13 @@ bool do_sheet()
 						int hs = 0;
 						int vs = 0;
 
-						spritemap_t::iterator found = g_allargs.spritemappings.find(total_cuts);
+						int real_cuts = total_cuts;
+						//if (g_allargs.alphargb_specified)
+						//	real_cuts >>= 1;
+
+						std::cout << "real_cuts: " << real_cuts << std::endl;
+
+						spritemap_t::iterator found = g_allargs.spritemappings.find(real_cuts);
 						if (found != g_allargs.spritemappings.end())
 						{
 							// this frame is mapped from another
@@ -8480,11 +8771,12 @@ bool do_sheet()
 							// locate cut record for 'from' frame
 							const spritemapping_t &other = g_allargs.spritemappings[from];
 
-							if (from != total_cuts)
+							if (from != real_cuts)
 							{
 								// move cutting position to that of 'from' frame, if they are different frames
 								cx = other.x;
 								cy = other.y;
+								std::cout << "from: " << cx << " " << cy << std::endl;
 							}
 
 							// check for X/Y flip-flags
@@ -8513,8 +8805,10 @@ bool do_sheet()
 							g_allargs.cutmode == Cutmode_EMXSPR)
 						{
 							std::cout << "cutting sprite frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
-							add_sprite_frame(m_psourcecol0, m_psourcecol1, m_framemask, cx, cy, xflip, yflip, hs, vs, 
-								m_ppalettergb, pvisualrgb);
+
+							add_sprite_frame(m_psourcecol0, m_psourcecol1, m_framemask, cx, cy, xflip, yflip, hs, vs, m_ppalettergb, pvisualrgb);
+							if (g_allargs.distributed_dualfield_)
+								add_sprite_frame(m_psourcecol0, m_psourcecol1, m_framemask, cx, cy, xflip, yflip, hs, vs, m_ppalettergb, pvisualrgb);
 						}
 						else
 							if (g_allargs.cutmode == Cutmode_SLABS)
@@ -8533,11 +8827,14 @@ bool do_sheet()
 
 						// store mappings for each frame, so future frames can refer to these
 						// mappings in order to re-cut earlier frames with optional flipping
-						g_allargs.spritemappings[total_cuts].x = cx;
-						g_allargs.spritemappings[total_cuts].y = cy;
+						g_allargs.spritemappings[real_cuts].x = cx;
+						g_allargs.spritemappings[real_cuts].y = cy;
+
+						// in dual-mask mode, advance only every 2nd cut
+						//if (g_allargs.alphargb_specified && ((total_cuts & 1) == 0))
+						//	continue;
 
 						cutting_source_x += g_allargs.cut_xinc;
-
 						xc++;
 
 						if (xc >= g_allargs.cut_xcount)
@@ -8547,6 +8844,7 @@ bool do_sheet()
 							cutting_source_x = g_allargs.cut_xpos;
 							cutting_source_y += g_allargs.cut_yinc;
 						}
+
 					}
 
 					// continue while guide events remain (if there were any guide events)

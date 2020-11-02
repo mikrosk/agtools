@@ -60,10 +60,11 @@ _BLiT_EntityDebugVisibleYM_68k:
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
 	move.w		dctx_snapadjy(a4),.sp_snapy(sp)	
+	move.w		dctx_field(a4),.sp_mfield(sp)
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)			
+	move.w		d0,.sp_cfield4(sp)			
 ;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
 ;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
 ;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto
@@ -425,7 +426,7 @@ _EntityInteractVisibleYM_68k:
 *-------------------------------------------------------*
 	
 	move.l		ent_phiddenasset(a0),d0
-	beq.s		.nha0yha1
+	beq		.nha0yha1
 	move.l		ent_phiddenasset(a1),d1
 	beq		.yha0nha1
 
@@ -443,6 +444,10 @@ _EntityInteractVisibleYM_68k:
 	bra.s		._ffault01
 ._fok01:
 	.endif		
+	btst.b		#(8-8),sps_flags(a2)
+	beq.s		._fndfa01
+	add.w		d0,d0
+._fndfa01:
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a2,d0.w),a2	; access sprite frame data
@@ -456,7 +461,11 @@ _EntityInteractVisibleYM_68k:
 	not.w		$ffff8240.w
 	bra.s		._ffault02
 ._fok02:
-	.endif		
+	.endif
+	btst.b		#(8-8),sps_flags(a3)
+	beq.s		._fndfa02
+	add.w		d0,d0
+._fndfa02:
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a3,d0.w),a3	; access sprite frame data
@@ -519,7 +528,11 @@ _EntityInteractVisibleYM_68k:
 	not.w		$ffff8240.w
 	bra.s		._ffault0
 ._fok1:
-	.endif		
+	.endif
+	btst.b		#(8-8),sps_flags(a3)
+	beq.s		._fndfa1
+	add.w		d0,d0
+._fndfa1:
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a3,d0.w),a3	; access sprite frame data
@@ -570,6 +583,10 @@ _EntityInteractVisibleYM_68k:
 	bra.s		._ffault2
 ._fok2:
 	.endif		
+	btst.b		#(8-8),sps_flags(a2)
+	beq.s		._fndfa2
+	add.w		d0,d0
+._fndfa2:
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a2,d0.w),a2	; access sprite frame data
@@ -743,8 +760,12 @@ _BLiT_EntityOccludeVisibleYM_68k:
 
 	;
 	
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
+	moveq		#1,d3
+	and.b		sps_flags(a0),d3
+	addq		#2,d3
+	lsl.w		d3,d0
+;	add.w		d0,d0				; todo: game layer can prescale this
+;	add.w		d0,d0
 	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
 			
 	; frame fields
@@ -848,8 +869,12 @@ _BLiT_EntityOccludeVisibleYM_68k:
 
 	;
 	
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
+	moveq		#1,d3
+	and.b		sps_flags(a0),d3
+	addq		#2,d3
+	lsl.w		d3,d0
+;	add.w		d0,d0				; todo: game layer can prescale this
+;	add.w		d0,d0
 	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
 			
 	; frame fields
