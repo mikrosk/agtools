@@ -20,6 +20,20 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+extern "C" 
+{
+	volatile shiftgroup g_groups[c_max_shiftgroups];
+	volatile shiftgroup *g_pgroups[c_max_shiftgroups]; // *g_pgroups[] = { &g_groups[0], &g_groups[1] };
+
+	volatile s16 g_active_buffer = -1;    
+	volatile shiftgroup* volatile gp_active_group = 0;
+	volatile s16 g_vbl = 0;
+	volatile s16 g_fieldmask = 0;
+	s16 g_frame = 0;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 void shifter_common::save()
 {
 	save_physbase = Physbase();
@@ -31,11 +45,15 @@ void shifter_common::save()
 
 void shifter_common::init_common()
 {	
-	for (int i = 0; i < c_max_shiftgroups; i++)
+	//for (int v = 0; v < c_max_views; v++)
 	{
-		g_pgroups[i] = &g_groups[i];
-		g_groups[i].pshiftfields_[0] = &g_groups[i].shiftfields_[0];
-		g_groups[i].pshiftfields_[1] = &g_groups[i].shiftfields_[1];
+		for (int i = 0; i < c_max_shiftgroups; i++)
+		{
+			g_pgroups[i] = &g_groups[i];
+			g_groups[i].pshiftfields_[0] = &g_groups[i].shiftfields_[0];
+			g_groups[i].pshiftfields_[1] = &g_groups[i].shiftfields_[1];
+		}
+		//g_views[v] = g_pggroups;
 	}
 
 	s_shifter = this;
@@ -85,17 +103,5 @@ void shifter_common::wait_vbl()
 
 // global shifter instance for VBL callback
 shifter_common* shifter_common::s_shifter = 0;
-
-extern "C" 
-{
-	volatile shiftgroup g_groups[c_max_shiftgroups];
-	volatile shiftgroup *g_pgroups[c_max_shiftgroups]; // *g_pgroups[] = { &g_groups[0], &g_groups[1] };
-
-	volatile s16 g_active_buffer = -1;    
-	volatile shiftgroup* volatile gp_active_group = 0;
-	volatile s16 g_vbl = 0;
-	volatile s16 g_fieldmask = 0;
-	s16 g_frame = 0;
-}
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -1,6 +1,8 @@
 
+split_point			=	136		; absolute max. around line 227 (low border)
+
 displayservice_ste136s_d0_tb	=	0
-displayservice_ste136s_ds_tb	=	136
+displayservice_ste136s_ds_tb	=	split_point
 displayservice_ste136s_dlb_tb	=	229-displayservice_ste136s_ds_tb
 	 
 *-------------------------------------------------------*

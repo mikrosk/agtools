@@ -57,7 +57,6 @@ struct shiftgroup
 
 static const int c_max_shiftgroups = 2;
 
-extern "C" volatile shiftgroup g_groups[c_max_shiftgroups];
 extern "C" volatile shiftgroup *g_pgroups[c_max_shiftgroups];
 extern "C" volatile s16 g_active_buffer;
 extern "C" volatile shiftgroup* volatile gp_active_group;
@@ -142,7 +141,7 @@ public:
 //		while (_field) { }
 
 //		volatile shiftgroup& vg = g_groups[hidden_buffer_];
-		shiftgroup& g = *(shiftgroup*)g_pgroups[hidden_buffer_];
+		shiftgroup& g = *(shiftgroup*)(g_pgroups[hidden_buffer_]);
 //		shiftfield& s = g.shiftfields_[_field];
 		shiftfield& s = *(shiftfield*)(g.pshiftfields_[_field]);
 
@@ -184,7 +183,7 @@ public:
 	inline void advance()
 	{
 		g_active_buffer = hidden_buffer_;
-		gp_active_group = &g_groups[g_active_buffer];
+		gp_active_group = g_pgroups[g_active_buffer];
 		hidden_buffer_ = (hidden_buffer_ + 1) & 1;
 	}
 
@@ -192,7 +191,7 @@ public:
 	inline void advanceto(s16 _new)
 	{
 		g_active_buffer = hidden_buffer_;
-		gp_active_group = &g_groups[g_active_buffer];
+		gp_active_group = g_pgroups[g_active_buffer];
 		hidden_buffer_ = _new;
 	}
 	
