@@ -37,7 +37,7 @@ endif
 # can disable auto-optimisations with: -no-opt
 VASM = error #$(AGTROOT)/bin/vasm16c $(VASM_CFG) -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
 # can disable auto-optimisations with: ~oall
-RMAC = $(AGTROOT)/bin/rmac $(RMAC_CFG) +oall ~O10
+RMAC = $(AGTROOT)/bin/rmac $(RMAC_CFG) +o0 +o1 +o2 +o3 +o4 +o7 +o8 +o9
 
 # -i"$(AGTROOT)"
 #i"$(AGTROOT_WIN)"
