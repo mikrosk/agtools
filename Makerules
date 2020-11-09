@@ -34,13 +34,8 @@ EXT = tos
 endif
 endif
 
-# expand posix version of AGTROOT to windows native path (for windows build of RMAC)
-ifndef AGTROOT_WIN
-AGTROOT_WIN = `command -v cygpath >/dev/null && cygpath -C ANSI -w $(AGTROOT) || wslpath -aw $(AGTROOT)`
-endif
-
 # can disable auto-optimisations with: -no-opt
-VASM = $(AGTROOT)/bin/vasm16c $(VASM_CFG) -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
+VASM = error #$(AGTROOT)/bin/vasm16c $(VASM_CFG) -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
 # can disable auto-optimisations with: ~oall
 RMAC = $(AGTROOT)/bin/rmac $(RMAC_CFG) +oall ~O10
 

@@ -4,7 +4,7 @@
 platform=`uname`
 if [ $platform = "Darwin" ] ; then
 
-$AGTBIN/mac/rmac -i$AGTROOT "$@"
+$AGTROOT/bin/mac/rmac -i$AGTROOT "$@"
 
 else
 
@@ -13,22 +13,21 @@ else
 #
 platform=`uname -o`
 if [ $platform = "Cygwin" ] ; then
-rmac.exe -i$AGTROOT_WIN "$@"
-
+$AGTROOT/bin/rmac.exe -i`command -v cygpath >/dev/null && cygpath -C ANSI -w $AGTROOT` "$@"
 else
 
 #
 # WSL: use native Windows build
 #
 if grep -iq microsoft /proc/version ; then
-$AGTBIN/rmac.exe -i$AGTROOT_WIN "$@"
+$AGTROOT/bin/rmac.exe -i`command -v cygpath >/dev/null && cygpath -C ANSI -w $AGTROOT || wslpath -aw $AGTROOT` "$@"
 
 else
 
 #
 # Linux: use WINE + native Windows build
 #
-wine $AGTBIN/rmac.exe -i$AGTROOT "$@"
+wine $AGTROOT/bin/rmac.exe -i$AGTROOT "$@"
 
 #
 
