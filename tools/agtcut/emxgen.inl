@@ -711,7 +711,6 @@ public:
 		cfile << str;  
 		cfile.close();
 		
-#if defined(_MSC_VER)
 		// execute assembler, turning our temporary .s into binary 68k
 		//		ShellExecute(NULL, "open", "rmac.exe", "-n -o tmp68k.bin tmp68k.s", NULL, SW_HIDE);
 		{
@@ -738,6 +737,10 @@ public:
 			if (g_allargs.rmacpath.length() > 1)
 				rmacpath = g_allargs.rmacpath;
 
+#if defined(_MSC_VER)
+
+			// todo: replace this with exec() below
+			
 			SHELLEXECUTEINFO ShExecInfo = { 0 };
 			ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 			ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -763,8 +766,23 @@ public:
 			}
 
 			DeleteFileA(tmp_src.c_str()/*"tmp68k.s"*/);
-		}
+#else
+			std::string command = rmacpath + " " + tmpargs;
+			
+			std::string result_str;
+			bool success = exec(command, result_str);
+			if (!success)
+			{
+				std::cerr << "error assembling intermediate code using " << command << std::endl << std::flush;
+				getchar();
+
+				exit(-1);
+			}
 #endif
+			
+		}
+
+
         
 		// read code back in
 		{
