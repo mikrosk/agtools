@@ -50,15 +50,18 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.461";
+static const char* const g_version_string = "v0.462";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
 
 static const int SLS_VERSION = 0x1201;
 
-
+#if defined(__APPLE__)
+static const char* const c_rmac_filename = "rmac";
+#else
 static const char* const c_rmac_filename = "rmac.exe";
+#endif
 
 //static const int USE_LINEDUPE_OPTIMIZATION = 1;
 static const int USE_DELTA_OPTIMIZATION = 1;
@@ -181,7 +184,7 @@ static uword_t *g_workbufferbpl = 0;
 #endif
 
 #include "../3rdparty/SimpleOpt.h"
-#include "../3rdparty/SimpleGlob.h"
+//#include "../3rdparty/SimpleGlob.h"
 
 // --------------------------------------------------------------------
 //	misc. small helper functions
@@ -701,6 +704,36 @@ static void usage(int level)
 		
 	getchar();	
 	exit(1);
+}
+
+// --------------------------------------------------------------------
+
+#if defined(_MSC_VER)
+#define POPEN _popen
+#define PCLOSE _pclose
+#else
+#define POPEN popen
+#define PCLOSE pclose
+#endif
+
+static bool exec(const std::string &cmd, std::string &r_result)
+{
+	char buffer[4096] = { 0 };
+	std::string result;
+	std::shared_ptr<FILE> pipe(POPEN(cmd.c_str(), "r"), PCLOSE);
+
+	if (pipe == nullptr)
+		return false;
+
+	while (!feof(pipe.get()))
+	{
+		if (fgets(buffer, (4096-1), pipe.get()) != nullptr)
+			result += buffer;
+	}
+	
+	r_result = result;
+	
+	return true;
 }
 
 // --------------------------------------------------------------------
@@ -1720,6 +1753,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		{
 			std::cout << "single source specified - expanding glob/wildcards..." << std::endl;
 
+#if defined(_MSC_VER)
 			CSimpleGlob glob(SG_GLOB_NOCHECK);
 			if (SG_SUCCESS != glob.Add(_args.sourcefile.c_str()))
 			{
@@ -1753,6 +1787,9 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 						_args.sourcefile = namein;
 				}
 			}
+#else
+			_args.sources.push_back(_args.sourcefile);
+#endif
 		}
 	}
 	else

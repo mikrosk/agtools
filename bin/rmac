@@ -1,8 +1,37 @@
+#
+# MacOS/Darwin: WINE/32bit no longer supported by MacOS - use native build
+#
+platform=`uname`
+if [ $platform = "Darwin" ] ; then
+
+$AGTBIN/mac/rmac -i$AGTROOT "$@"
+
+else
+
+#
+# Cygwin: use native Windows build
+#
 platform=`uname -o`
 if [ $platform = "Cygwin" ] ; then
-rmac.exe "$@"
-elif grep -iq microsoft /proc/version ; then
-$AGTBIN/rmac.exe "$@"
+rmac.exe -i$AGTROOT_WIN "$@"
+
 else
-wine $AGTBIN/rmac.exe "$@"
-fi
+
+#
+# WSL: use native Windows build
+#
+if grep -iq microsoft /proc/version ; then
+$AGTBIN/rmac.exe -i$AGTROOT_WIN "$@"
+
+else
+
+#
+# Linux: use WINE + native Windows build
+#
+wine $AGTBIN/rmac.exe -i$AGTROOT "$@"
+
+#
+
+fi #!WSL
+fi #!Cygwin
+fi #!Darwin

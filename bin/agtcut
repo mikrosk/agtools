@@ -1,8 +1,38 @@
+#
+# MacOS/Darwin: WINE/32bit no longer supported by MacOS - use native build
+#
+platform=`uname`
+if [ $platform = "Darwin" ] ; then
+$AGTBIN/mac/agtcut "$@" --rmac $AGTBIN/mac/rmac
+
+else
+
+#
+# Cygwin: use native Windows build
+#
 platform=`uname -o`
 if [ $platform = "Cygwin" ]; then
 agtcut.exe "$@"
-elif grep -iq microsoft /proc/version ; then
-$AGTBIN/agtcut.exe "$@" --rmac "`wslpath -aw $AGTBIN`\\rmac.exe"
+
 else
+
+#
+# WSL: use native Windows build
+#
+if grep -iq microsoft /proc/version ; then
+$AGTBIN/agtcut.exe "$@" --rmac "`wslpath -aw $AGTBIN`\\rmac.exe"
+
+else
+
+#
+# Linux: use WINE + native Windows build
+#
+
 wine $AGTBIN/agtcut.exe "$@"
-fi
+
+#
+
+fi #!WSL
+fi #!Cygwin
+fi #!Darwin
+

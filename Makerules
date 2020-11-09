@@ -40,9 +40,12 @@ AGTROOT_WIN = `command -v cygpath >/dev/null && cygpath -C ANSI -w $(AGTROOT) ||
 endif
 
 # can disable auto-optimisations with: -no-opt
-VASM = $(WINE) $(AGTROOT)/bin/vasm16c $(VASM_CFG) -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
+VASM = $(AGTROOT)/bin/vasm16c $(VASM_CFG) -showcrit -noesc -I$(AGTROOT)/vasm -I$(AGTROOT)/
 # can disable auto-optimisations with: ~oall
-RMAC = $(WINE) $(AGTROOT)/bin/rmac $(RMAC_CFG) +oall -i"$(AGTROOT_WIN)"
+RMAC = $(AGTROOT)/bin/rmac $(RMAC_CFG) +oall ~O10
+
+# -i"$(AGTROOT)"
+#i"$(AGTROOT_WIN)"
 
 
 CC = $(TOOLCHAIN_PREFIX)gcc
