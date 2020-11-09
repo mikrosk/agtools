@@ -20,7 +20,7 @@ else
 # WSL: use native Windows build
 #
 if grep -iq microsoft /proc/version ; then
-$AGTROOT/bin/agtcut.exe "$@" --rmac "`wslpath -aw $AGTBIN`\\rmac.exe"
+$AGTROOT/bin/agtcut.exe "$@" --rmac "`wslpath -aw $AGTROOT`\\bin\\rmac.exe"
 
 else
 
