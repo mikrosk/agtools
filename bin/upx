@@ -1,8 +1,39 @@
+#
+# MacOS/Darwin: WINE/32bit no longer supported by MacOS - use native build
+#
+platform=`uname`
+if [ $platform = "Darwin" ] ; then
+
+echo "*** UPX not supported natively on MacOS ***"
+error
+
+else
+
+#
+# Cygwin: use native Windows build
+#
 platform=`uname -o`
 if [ $platform = "Cygwin" ]; then
-upx.exe "$@"
-elif grep -iq microsoft /proc/version ; then
-$AGTBIN/upx.exe "$@"
+$AGTROOT/bin/upx.exe "$@"
+
 else
-wine $AGTBIN/upx.exe "$@"
-fi
+
+#
+# WSL: use native Windows build
+#
+if grep -iq microsoft /proc/version ; then
+$AGTROOT/bin/upx.exe "$@"
+
+else
+
+#
+# Linux: use WINE + native Windows build
+#
+wine $AGTROOT/bin/upx.exe "$@"
+
+#
+
+fi #!WSL
+fi #!Cygwin
+fi #!Darwin
+

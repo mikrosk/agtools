@@ -1,9 +1,40 @@
+#
+# MacOS/Darwin: WINE/32bit no longer supported by MacOS - use native build
+#
+platform=`uname`
+if [ $platform = "Darwin" ] ; then
+
+echo "*** PACK2E not yet supported natively on MacOS ***"
+error
+
+else
+
+#
+# Cygwin: use native Windows build
+#
 platform=`uname -o`
 if [ $platform = "Cygwin" ]; then
-pack2e.exe "$@"
-elif grep -iq microsoft /proc/version ; then
-$AGTBIN/pack2e.exe "$@"
+$AGTROOT/bin/pack2e.exe "$@"
+
 else
-wine $AGTBIN/pack2e.exe "$@"
-fi
+
+#
+# WSL: use native Windows build
+#
+
+if grep -iq microsoft /proc/version ; then
+$AGTROOT/bin/pack2e.exe "$@"
+
+else
+
+#
+# Linux: use WINE + native Windows build
+#
+wine $AGTROOT/bin/pack2e.exe "$@"
+
+#
+
+fi #!WSL
+fi #!Cygwin
+fi #!Darwin
 
