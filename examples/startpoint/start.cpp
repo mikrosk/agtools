@@ -254,7 +254,7 @@ int AGT_EntryPoint()
 		//	create an instance of the arena (our game world), connected to the shifter interface
 
 		printf("creating world...\n");
-		arena_t myworld(shift, SCREEN_XSIZE, SCREEN_YSIZE, /*dualfield=*/false);
+		arena_t myworld(shift, SCREEN_XSIZE, SCREEN_YSIZE);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the arena playfield(s)
@@ -265,7 +265,7 @@ int AGT_EntryPoint()
 		printf("assigning world tiles to each playfield buffer...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
 		{
-			myworld.select_buffer(b, 0);
+			myworld.select_buffer(b);
 			myworld.settiles(&mytiles, &mytiles);
 		}
 
@@ -425,7 +425,7 @@ int AGT_EntryPoint()
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			myworld.select_buffer(backbuffer_num % c_num_buffers, 0);
+			myworld.select_buffer(backbuffer_num % c_num_buffers);
 
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
