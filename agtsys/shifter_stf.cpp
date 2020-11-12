@@ -91,7 +91,7 @@ static inline u16 offset_stfcol(u16 _rgb444, s16 _cindex, s16 _field, s16 _offse
 
 void shifter_stf::setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c)
 {
-	volatile shiftgroup& g = *(g_pgroups[_buffer]);//g_groups[_buffer];
+	volatile shiftgroup& g = *(g_pgroups[0][_buffer]);//g_groups[_buffer];
 	volatile shiftfield& s = *(g.pshiftfields_[_field]);//g.shiftfields_[_field];	
 
 	s.palette_[_ci]    = offset_stfcol(_c, _ci, 0, 1); 
@@ -100,7 +100,7 @@ void shifter_stf::setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c)
 
 void shifter_stf::setpalette(s16 _buffer, s16 _field, u16* _colours)
 {
-	volatile shiftgroup& g = *(g_pgroups[_buffer]);//g_groups[_buffer];
+	volatile shiftgroup& g = *(g_pgroups[0][_buffer]);//g_groups[_buffer];
 	volatile shiftfield& s = *(g.pshiftfields_[_field]);//g.shiftfields_[_field];	
 
 	for (s16 c = 0; c < 16; ++c)

@@ -96,8 +96,13 @@ enum EntityType : int
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// sorry... screen height is hacked for now...
-#define SCREEN_LINES (240)
+// physical display size
+#define SCREEN_XSIZE (320)
+#define SCREEN_YSIZE (240)
+
+// virtual display size including h-scroll margin
+#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
@@ -199,7 +204,7 @@ mersenne_twister prng;
 // static pointers to significant entities (still these must be created the usual way)
 
 // viewport entity is global and part of the entity drawing system
-entity_t *g_pe_viewport = NULL;
+static entity_t *s_pe_viewport = NULL;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -321,15 +326,15 @@ int AGT_EntryPoint()
 		g_fscrolly = c_scroll_safety_margin<<16;//(map_ysize<<(16-1)) - (120<<16);
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
-		g_map_fxlimit = ((map_xsize/2)-320-c_scroll_safety_margin)<<16;
-		g_map_fylimit = ((map_ysize/2)-SCREEN_LINES-c_scroll_safety_margin)<<16;
+		g_map_fxlimit = ((map_xsize/2)-VIEWPORT_XSIZE-c_scroll_safety_margin)<<16;
+		g_map_fylimit = ((map_ysize/2)-VIEWPORT_YSIZE-c_scroll_safety_margin)<<16;
 
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
 
 		printf("creating world...\n");
-		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
+		arena_t myworld(shift, SCREEN_XSIZE, SCREEN_YSIZE);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the world buffers.
@@ -343,7 +348,7 @@ int AGT_EntryPoint()
 		pprintf("assigning world tiles...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
 		{
-			myworld.select_buffer(b,0);
+			myworld.select_buffer(b);
 			pprintf("assigning buffer %d world tileset...\n", b);
 
 			myworld.settiles(&mytiles, &mytiles);
@@ -451,7 +456,10 @@ restart_game:
 		//	create some significant 'static' entities related to the player
 
 		// create the viewport so we can track its relationship with everything else
-		g_pe_viewport = EntitySpawn(EntityType_VIEWPORT, 0, 0);
+		s_pe_viewport = EntitySpawn(EntityType_VIEWPORT, 0, 0);
+
+		// select this as the active viewport
+		EntitySelectViewport(s_pe_viewport);
 
 		// =====================================================================================================================
 		//	must link any pending entities before starting mainloop (viewport is an entity and viewport scans rely on it)
@@ -512,7 +520,7 @@ mainloop:
 			//	the interaction is reciprocal, so both entities will perform the same test on each other with their own flags.
 			//	a particular interaction order is not guaranteed although it will be stable.
 
-			EntityInteractVisible(320, c_viewport_xmargin, 240, c_viewport_ymargin);
+			EntityInteractVisible(VIEWPORT_XSIZE, c_viewport_xmargin, VIEWPORT_YSIZE, c_viewport_ymargin);
 
 			TIMING_MAIN(0x707);	
 
@@ -536,7 +544,7 @@ mainloop:
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			myworld.select_buffer((buffer_index & 1), ((field_index+1) & 1));
+			myworld.select_buffer((buffer_index & 1));
 
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
@@ -550,14 +558,6 @@ mainloop:
 			TIMING_MAIN(0x373);	
 
 			// ---------------------------------------------------------------------------------------------------------------------
-			// select the working 50hz field (odd/even) from the currently active playfield buffer (back)
-			// in single-field config, this is always 0
-			// in dual-field FPS<=25hz config, its 0 or 1 for even/odd VBLs (4 buffers: front/back + even/odd)
-			// in dual-field 50hz config, it's always 0, because front/back handles our even/odd fields
-
-			s16 working_field = (c_dualfield && !c_singlevbl) ? ((field_index+1) & 1) : 0;
-
-			// ---------------------------------------------------------------------------------------------------------------------
 			// retrieve playfield [drawcontext] structure for sharing with low-level drawing functions
 			// e.g.
 			// - current framebuffer
@@ -567,7 +567,7 @@ mainloop:
 			// - other devious details used to synchronize drawing with playfields
 			// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
-			myworld.get_context(drawcontext, working_field, 320+16, SCREEN_LINES);
+			myworld.get_context(drawcontext, 0, VIEWPORT_XSIZE, VIEWPORT_YSIZE);
 
 			TIMING_MAIN(0x753);	
 

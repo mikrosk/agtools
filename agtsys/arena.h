@@ -33,7 +33,7 @@ extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 	for (s16 b = 0; b != c_num_buffers_; b++) \
 	{ \
 		s16 b_ = b; \
-		if (c_dualfield_ && c_singleframe) \
+		if (c_dualfield_ && c_singleframe_) \
 		{ \
 			int f_ = 0; \
 			_x_; \
@@ -42,7 +42,26 @@ extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 		{ \
 			int f_ = 0; \
 			_x_; \
-			if (c_dualfield_ && dualfield_mask_) \
+			if (c_dualfield_) \
+			{ \
+				int f_ = 1; \
+				_x_; \
+			} \
+		} \
+	}
+
+#define EXECUTE_BUFFER_FIELDS(_x_) \
+	{ \
+		if (c_dualfield_ && c_singleframe_) \
+		{ \
+			int f_ = 0; \
+			_x_; \
+		} \
+		else \
+		{ \
+			int f_ = 0; \
+			_x_; \
+			if (c_dualfield_) \
 			{ \
 				int f_ = 1; \
 				_x_; \
@@ -69,12 +88,14 @@ public:
 	typedef _playfield_type playfield_type;
 
 	static const int c_num_buffers_ = _num_buffers;
-	static const bool c_singleframe = _singleframe;
+	static const bool c_singleframe_ = _singleframe;
 	static const bool c_dualfield_ = _dualfield;
 	static const bool c_force_dualfield_drawing_ = playfield_type::c_force_dualfield_drawing_;
 		
 	s16 display_width_;
 	s16 display_height_;
+	s16 viewport_xoffset_;
+	s16 viewport_yoffset_;
 
 	// context holds memory resources shared between related playfields
 	typename playfield_type::mapcontext mapctx0_;
@@ -95,23 +116,31 @@ public:
 	s16 *dirtylineseq_[8];
 
 	s16 buffer_index_;
-	s16 field_index_;
-	s16 dualfield_mask_;
+	//s16 field_index_;
+	//s16 dualfield_mask_;
 	buffer *pactive_;
+	s16 viewbind_;
 	//s16 xpos_;
 	//s16 ypos_;
 
 	shifter_common& shift_;
 	
-	arena_template(shifter_common& _shift, s16 _display_width, s16 _display_height, int _dualfield_mask)
+	arena_template(shifter_common& _shift, s16 _display_width, s16 _display_height/*, int _dualfield_mask*/)
 		: shift_(_shift),
 		  display_width_(_display_width),
 		  display_height_(_display_height),
-		  buffer_index_(0), field_index_(0),
+		  viewport_xoffset_(0),
+		  viewport_yoffset_(0),
+		  buffer_index_(0), //field_index_(0),
 		  //xpos_(0), ypos_(0),
 		  pactive_(0),
-		  dualfield_mask_(_dualfield_mask)
+		  viewbind_(0)//,
+		  //dualfield_mask_(_dualfield_mask)
 	{
+
+		EXECUTE_PER_FIELD({buffers_[b_].fields[f_].setcontext(&mapctx0_, &pfctx_);});
+
+#if 0
 		// make sure all playfields share common context
 		for (s16 b = 0; b < c_num_buffers_; b++)
 		{
@@ -143,32 +172,44 @@ public:
 			//// shortcut to dirty tile masks
 			//dirtymaskindex_[b] = buffers_[b].fields[0].dirtymasklines_;
 		}
+#endif
 	}
 	
 	~arena_template()
 	{
 		dprintf("destroy arena\n");
 	}
-
-	inline void snapview(drawcontext_t& r_ctx, s16 _vpw, s16 _vph)
+/*
+	inline void dbg_verify(u16 _col)
+	{
+		EXECUTE_PER_FIELD({buffers_[b_].fields[f_].dbg_validate_restorestack(_col);});
+	}
+*/
+	inline void snapview(drawcontext_t& r_ctx, s16 _vpw, s16 _vph, s16 _vpxo, s16 _vpyo)
 	{
 		buffer& b = *pactive_;
 		playfield_type& pf = b.fields[0];
 
 		// generate loopback snapping adjustments
+
+		s16 snapadjx = 0;
+		s16 snapadjy = 0;
+
 		if (pf.c_hloop_)
-			r_ctx.pfsnapadjx = pf.xpos_ - tmod16(pf.xpos_, pf.wrap_width_>>0);
-		else
-			r_ctx.pfsnapadjx = 0;
+			snapadjx = pf.xpos_ - tmod16(pf.xpos_, pf.wrap_width_);
 
 		if (pf.c_vloop_)
-			r_ctx.pfsnapadjy = pf.ypos_ - tmod16(pf.ypos_, pf.wrap_height_>>0);
-		else
-			r_ctx.pfsnapadjy = 0;
+			snapadjy = pf.ypos_ - tmod16(pf.ypos_, pf.wrap_height_);
 
 		// produce workbuffer page coordinates which follow any hops performed by the playfield engine
-		r_ctx.vpagex = pf.xpos_ - r_ctx.pfsnapadjx;
-		r_ctx.vpagey = pf.ypos_ - r_ctx.pfsnapadjy;
+		r_ctx.vpagex = pf.xpos_ - snapadjx;
+		r_ctx.vpagey = pf.ypos_ - snapadjy;
+
+		// for sprites:
+		// incorporate  optional viewport offset compensation, where
+		// sprites require drawing contiguously over viewport seams
+		r_ctx.pfsnapadjx = snapadjx + _vpxo;
+		r_ctx.pfsnapadjy = snapadjy + _vpyo;
 
 		// generate clipping window
 		s16 guardx = playfield_type::c_guardx;
@@ -201,11 +242,14 @@ public:
 	{
 		prf_push(prf_arena_misc);
 
-		s16 field = _field;
-		if (c_force_dualfield_drawing_)
-			field = 0;
-		playfield_type &pf = buffers_[buffer_index_].fields[field];
-//		playfield_type &pf = buffers_[buffer_index_].fields[_field];
+		// playfield field active
+		int pf_field_active = ((int)(!c_singleframe_ && c_dualfield_));// & dualfield_mask_);
+		int sp_field_active = (int)c_dualfield_ | (int)c_force_dualfield_drawing_;
+
+		int pf_field_idx = _field & pf_field_active;
+		int sp_field_idx = _field & sp_field_active;
+
+		playfield_type &pf = buffers_[buffer_index_].fields[pf_field_idx];
 
 		r_ctx.p_pfframebuffer = pf.framebuffer_;
 		r_ctx.p_pflinemod = pf.pfieldcontext_->linemod_;
@@ -219,22 +263,25 @@ public:
 		r_ctx.p_ocm_o = pf.ocm_.oco_;
 		r_ctx.ocm_stride = pf.ocm_.stride_;
 
-		int field_active = (int)c_force_dualfield_drawing_ | ((int)c_dualfield_ & dualfield_mask_);
+		//int field_active = (int)c_force_dualfield_drawing_ | ((int)c_dualfield_ & dualfield_mask_);
 
 		// in single-vbl dual-field mode, buffer acts as field
-		r_ctx.field = (field_active & _field) | ((field_active^1) & buffer_index_);
+		//r_ctx.field = (sp_field_idx & _field) | ((sp_field_idx^1) & buffer_index_);
+		r_ctx.field = (s16)sp_field_idx;
 
-		snapview(r_ctx, _vpw, _vph);
+		snapview(r_ctx, _vpw, _vph, viewport_xoffset_, viewport_yoffset_);
+
+		drawcontext = r_ctx;
 
 		prf_pop();
 	}
 
-	void select_buffer(s16 _index, s16 _field)
+	void select_buffer(s16 _index)
 	{
 		prf_push(prf_arena_misc);
 
 		buffer_index_ = _index;
-		field_index_ = _field;
+
 		pactive_ = &buffers_[buffer_index_];
 		playfield_type& pf0 = pactive_->fields[0];
 
@@ -252,9 +299,12 @@ public:
 		s16 b = c_num_buffers_-1;
 		do {
 			buffer& rb = buffers_[b];
+			EXECUTE_BUFFER_FIELDS({rb.fields[f_].bgrestore_init();});
+/*
 			rb.fields[0].bgrestore_init();
 			if (c_dualfield_ && dualfield_mask_)
 				rb.fields[1].bgrestore_init();
+*/
 		} while (--b != -1);		
 
 		prf_pop();
@@ -267,9 +317,13 @@ public:
 		s16 b = c_num_buffers_-1;
 		do {
 			buffer& rb = buffers_[b];
+
+			EXECUTE_BUFFER_FIELDS({rb.fields[f_].bgrestore_reset();});
+/*
 			rb.fields[0].bgrestore_reset();
 			if (c_dualfield_ && dualfield_mask_)
 				rb.fields[1].bgrestore_reset();
+*/
 		} while (--b != -1);		
 
 		prf_pop();
@@ -280,7 +334,9 @@ public:
 		prf_push(prf_arena_bgrestore);
 
 		buffer& b = *pactive_;
-	
+
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].bgrestore_reset();});
+/*
 		if (c_dualfield_ && dualfield_mask_)
 		{
 			// 2 fields at once
@@ -292,7 +348,7 @@ public:
 			// one field
 			b.fields[0].bgrestore_reset();
 		}		
-
+*/
 		prf_pop();
 	}
 
@@ -301,7 +357,9 @@ public:
 		prf_push(prf_arena_bgrestore);
 
 		buffer& b = *pactive_;
-	
+
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].bgrestore();});
+/*
 		if (c_dualfield_ && dualfield_mask_)
 		{
 			// 2 fields at once
@@ -313,7 +371,7 @@ public:
 			// one field
 			b.fields[0].bgrestore();
 		}
-		
+*/	
 		prf_pop();
 	}
 
@@ -322,10 +380,14 @@ public:
 		prf_push(prf_arena_misc);
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
-		b.fields[0].select(shift_);
-		if (c_dualfield_ && dualfield_mask_)
-			b.fields[1].select(shift_);
-		shift_.advance();
+
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].select(shift_,viewbind_);});
+
+//		b.fields[0].select(shift_,_viewbind);
+//		if (c_dualfield_ && dualfield_mask_)
+//			b.fields[1].select(shift_,_viewbind);
+
+		shift_.advance(viewbind_);
 
 		g_frame++;
 
@@ -355,17 +417,31 @@ public:
 		//xpos_ = _x;
 		//ypos_ = _y;
 
+		// don't permit playfield offsets on axes where scrolling is disabled
+
 		// protect against -ve map coords for speculative updates
+		if (!playfield_type::c_hscroll_)
+			_x = 0;
+		else
 		if (playfield_type::c_hspeculative_)
-			if (_x < playfield_type::c_hspeculative_margin_size_) _x = playfield_type::c_hspeculative_margin_size_;
+			if (_x < playfield_type::c_hspeculative_margin_)
+				_x = playfield_type::c_hspeculative_margin_;
+
+		if (!playfield_type::c_vscroll_)
+			_y = 0;
+		else
 		if (playfield_type::c_vspeculative_)
-			if (_y < playfield_type::c_vspeculative_margin_size_) _y = playfield_type::c_vspeculative_margin_size_;
+			if (_y < playfield_type::c_vspeculative_margin_)
+				_y = playfield_type::c_vspeculative_margin_;
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
-		b.fields[0].setpos(_x, _y);		
+
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].setpos(_x, _y);});
+
+/*		b.fields[0].setpos(_x, _y);		
 		if (c_dualfield_ && dualfield_mask_)
 			b.fields[1].setpos(_x, _y);		
-
+*/
 		prf_pop();
 	}
 		
@@ -404,24 +480,27 @@ public:
 	void settiles(tileset* _tiles0, tileset* _tiles1)
 	{
 		buffer& b = *pactive_;
+
 		b.fields[0].settiles(_tiles0);
-		if (c_dualfield_ && dualfield_mask_)
+		if (c_dualfield_ /*&& dualfield_mask_*/ && !c_singleframe_)
 			b.fields[1].settiles(_tiles1);
 	}	
 
 	void setoverlaytiles(tileset* _tiles0, tileset* _tiles1)
 	{
 		buffer& b = *pactive_;
+
 		b.fields[0].setoverlaytiles(_tiles0);
-		if (c_dualfield_ && dualfield_mask_)
+		if (c_dualfield_ /*&& dualfield_mask_*/ && !c_singleframe_)
 			b.fields[1].setoverlaytiles(_tiles1);
 	}	
 
 	void setpreshift(s16 _xps)
 	{
 		buffer& b = *pactive_;
+
 		b.fields[0].setpreshift(_xps);
-		if (c_dualfield_ && dualfield_mask_)
+		if (c_dualfield_ /*&& dualfield_mask_*/ && !c_singleframe_)
 			b.fields[1].setpreshift(_xps);
 	}
 
@@ -889,6 +968,8 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].fill_abs();});
+/*
 		if (c_dualfield_ && dualfield_mask_)
 		{
 			if (c_singleframe && !_force)
@@ -905,7 +986,7 @@ public:
 		{
 			b.fields[0].fill_abs();
 		}
-
+*/
 		prf_pop();
 	}	
 
@@ -915,6 +996,8 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 	
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].fill();});
+/*
 		if (c_dualfield_ && dualfield_mask_)
 		{
 			if (c_singleframe && !_force)
@@ -930,7 +1013,8 @@ public:
 		else
 		{
 			b.fields[0].fill();
-		}		
+		}
+*/
 		//b.fields[0].fill();
 		//if (dualfield_)
 		//	b.fields[1].fill();
@@ -944,6 +1028,8 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].speculative_fill();});
+/*
 		if (c_dualfield_ && dualfield_mask_)
 		{
 			if (c_singleframe && !_force)
@@ -960,6 +1046,7 @@ public:
 		{
 			b.fields[0].speculative_fill();
 		}
+*/
 //		b.fields[0].speculative_fill();
 //		if (dualfield_)
 //			b.fields[1].speculative_fill();
@@ -973,6 +1060,8 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].hybrid_fill();});
+/*
 		if (c_dualfield_ && dualfield_mask_)
 		{
 			if (c_singleframe && !_force)
@@ -989,6 +1078,7 @@ public:
 		{
 			b.fields[0].hybrid_fill();
 		}
+*/
 		//b.fields[0].hybrid_fill();
 		//if (dualfield_)
 		//	b.fields[1].hybrid_fill();
@@ -1039,6 +1129,17 @@ public:
 	//	}
 	//}
 
+	agt_inline void bind_displayport(s16 _port)
+	{
+		viewbind_ = _port;
+	}
+
+	agt_inline void set_viewport_offset(s16 _vpxo, s16 _vpyo)
+	{
+		viewport_xoffset_ = _vpxo;
+		viewport_yoffset_ = _vpyo;
+	}
+
 	void reset(s16 x, s16 y, bool _nowait = false)
 	{
 		prf_push(prf_arena_misc);
@@ -1054,7 +1155,7 @@ public:
 				curr_vbl = g_vbl;
 			}
 
-			select_buffer((tb + b) % c_num_buffers_,0);
+			select_buffer((tb + b) % c_num_buffers_);
 			setpos(x,y);
 			fill_abs(true);
 
@@ -1095,16 +1196,16 @@ public:
 //			}
 
 			rb.fields[0].init(b, 0, display_width_, display_height_, x, y, (s16)shift_.current_mode_);
-			if (c_dualfield_ && dualfield_mask_)
+			if (c_dualfield_ /*&& dualfield_mask_*/ && !c_singleframe_)
 				rb.fields[1].init(b, 1, display_width_, display_height_, x, y, (s16)shift_.current_mode_);
 
 			// shortcut to dirty tile masks
 			dirtymaskindex_[b][0] = buffers_[b].fields[0].dtm_animation_.dirtymasklines_;
-			if (c_dualfield_)
+			if (c_dualfield_ && !c_singleframe_)
 				dirtymaskindex_[b][1] = buffers_[b].fields[1].dtm_animation_.dirtymasklines_;
 		}
 		
-		select_buffer(buffer_index_, 0);
+		select_buffer(buffer_index_);
 		setpos(x,y);
 		//activate_buffer();	
 

@@ -169,6 +169,8 @@ static s16 entity_histogram[256];
 
 static s16 s_max_entities = 0;
 
+extern "C" { entitybase_t *g_pe_viewport = nullptr; };
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 static int s_entity_size = 0;

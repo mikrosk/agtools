@@ -100,8 +100,13 @@ enum EntityType : int
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// sorry... screen height is hacked for now...
-#define SCREEN_LINES (240)
+// physical display size
+#define SCREEN_XSIZE (320)
+#define SCREEN_YSIZE (240)
+
+// virtual display size including h-scroll margin
+#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
@@ -172,7 +177,7 @@ static const s16 c_player_tilt_fracbits = 2;
 static s16 g_player_tilt = 0;
 
 // player viewport coordinates (local, control coordinates, relative to current screen position)
-static s16 g_player_viewx = 160;
+static s16 g_player_viewx = 160+16;
 static s16 g_player_viewy = 100;
 
 // player world coordinates (created from local coords, for interactions with world & other objects)
@@ -203,7 +208,7 @@ static s16 g_frame_prng = 0;
 // static pointers to significant entities (still these must be created the usual way)
 
 // viewport entity is global and part of the entity drawing system
-entity_t *g_pe_viewport = NULL;
+entity_t *s_pe_viewport = NULL;
 
 entity_t *g_pe_boss = NULL;
 
@@ -258,8 +263,8 @@ mainloop:
 			// ---------------------------------------------------------------------------------------------------------------------
 			// update the viewport first
 
-			g_pe_viewport->rx = g_viewport_worldx - c_viewport_xmargin;
-			g_pe_viewport->ry = g_viewport_worldy - c_viewport_ymargin;
+			s_pe_viewport->rx = g_viewport_worldx - c_viewport_xmargin;
+			s_pe_viewport->ry = g_viewport_worldy - c_viewport_ymargin;
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	tick all currently linked objects
@@ -285,7 +290,7 @@ mainloop:
 			//	the interaction is reciprocal, so both entities will perform the same test on each other with their own flags.
 			//	a particular interaction order is not guaranteed although it will be stable.
 
-			EntityInteractVisible(320, c_viewport_xmargin, 240, c_viewport_ymargin);
+			EntityInteractVisible(VIEWPORT_XSIZE, c_viewport_xmargin, VIEWPORT_YSIZE, c_viewport_ymargin);
 
 			TIMING_MAIN(0x707);	
 
@@ -309,7 +314,7 @@ mainloop:
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			g_pworld->select_buffer((buffer_index & 1), ((field_index+1) & 1));
+			g_pworld->select_buffer((buffer_index & 1));
 
 			// update the playfield coordinates for this draw pass
 			g_pworld->setpos(g_viewport_worldx, g_viewport_worldy);
@@ -323,14 +328,6 @@ mainloop:
 			TIMING_MAIN(0x373);	
 
 			// ---------------------------------------------------------------------------------------------------------------------
-			// select the working 50hz field (odd/even) from the currently active playfield buffer (back)
-			// in single-field config, this is always 0
-			// in dual-field FPS<=25hz config, its 0 or 1 for even/odd VBLs (4 buffers: front/back + even/odd)
-			// in dual-field 50hz config, it's always 0, because front/back handles our even/odd fields
-
-			s16 working_field = (c_dualfield && !c_singlevbl) ? ((field_index+1) & 1) : 0;
-
-			// ---------------------------------------------------------------------------------------------------------------------
 			// retrieve playfield [drawcontext] structure for sharing with low-level drawing functions
 			// e.g.
 			// - current framebuffer
@@ -340,7 +337,7 @@ mainloop:
 			// - other devious details used to synchronize drawing with playfields
 			// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
-			g_pworld->get_context(drawcontext, working_field, 320+16, SCREEN_LINES);
+			g_pworld->get_context(drawcontext, 0, VIEWPORT_XSIZE, VIEWPORT_YSIZE);
 
 			TIMING_MAIN(0x753);	
 
@@ -516,7 +513,7 @@ int AGT_EntryPoint()
 		g_fscrolly = 0;
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
-		g_map_fxlimit = (map_xsize-320-c_scroll_safety_margin)<<16;
+		g_map_fxlimit = (map_xsize-VIEWPORT_XSIZE-c_scroll_safety_margin)<<16;
 		g_map_fylimit = 0;
 
 
@@ -524,7 +521,7 @@ int AGT_EntryPoint()
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
 
 		pprintf("creating world...\n");
-		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
+		arena_t myworld(shift, SCREEN_XSIZE, SCREEN_YSIZE);
 
 		g_pworld = &myworld;
 
@@ -539,7 +536,7 @@ int AGT_EntryPoint()
 		pprintf("assigning world tiles...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
 		{
-			myworld.select_buffer(b,0);
+			myworld.select_buffer(b);
 			pprintf("assigning buffer %d world tileset...\n", b);
 
 			// what kind of dual-field drawing do we want?
@@ -739,14 +736,18 @@ restart_game:
 		//	create some significant 'static' entities related to the player
 
 		// create the viewport so we can track its relationship with everything else
-		g_pe_viewport = EntitySpawn(EntityType_VIEWPORT, 0, 0);
+		s_pe_viewport = EntitySpawn(EntityType_VIEWPORT, 0, 0);
+
+		// select this as the active viewport
+		EntitySelectViewport(s_pe_viewport);
 
 		// create the player entity
 		g_pe_player = EntitySpawn(EntityType_PLAYER, 0, 0);
 
+		// create the boss
 		g_pe_boss = EntitySpawn(EntityType_BOSS, 100, -100);
 
-		g_pe_boss->wx = 320-80;
+		g_pe_boss->wx = VIEWPORT_XSIZE-80;
 		g_pe_boss->wy = -96;
 		g_pe_boss->wz = 0;
 
@@ -933,7 +934,7 @@ void bullet_fntick(entity_t *_pself)
 
 	// terminate offscreen. careful to use world coordinates.
 	// todo: can precalculate left/right limits once per frame and save precious cycles
-	if ((self.rx >= (g_viewport_worldx + 320)) /*|| (self.rx <= (g_viewport_worldx - 32))*/)
+	if ((self.rx >= (g_viewport_worldx + VIEWPORT_XSIZE)) /*|| (self.rx <= (g_viewport_worldx - 32))*/)
 		EntityRemove(_pself);
 }
 
@@ -998,7 +999,7 @@ void boss_state0_enter_fntick(entity_t *_pself)
 	// drift onto play area until we get to the middle
 	self.wy += 1;
 	// then switch tick behaviour to start attack patterns
-	if (self.wy >= (SCREEN_LINES/2))
+	if (self.wy >= (VIEWPORT_YSIZE/2))
 	{
 		self.fntick = &boss_state1_eyeopen_fntick;
 		// reset counter
@@ -1141,7 +1142,7 @@ void boss_state3_moveA_fntick(entity_t *_pself)
 	case 0:
 		// move downwards until crossing low border, then advance to next sub-state
 		self.wy += 1;
-		if (self.wy >= (SCREEN_LINES-24))
+		if (self.wy >= (VIEWPORT_YSIZE-24))
 			self.counter++;
 
 		// berzerk spray towards the left
@@ -1171,7 +1172,7 @@ void boss_state3_moveA_fntick(entity_t *_pself)
 	case 1:
 		// move upwards until low-middle of screen
 		self.wy -= 1;
-		if (self.wy <= (SCREEN_LINES-64))
+		if (self.wy <= (VIEWPORT_YSIZE-64))
 			self.counter++;
 
 		// berzerk spray towards the left
@@ -1472,7 +1473,7 @@ void boss_state7_sweep_fntick(entity_t *_pself)
 	case 2:
 		// move downwards
 		self.wy += 1;
-		if (self.wy >= (SCREEN_LINES-50))
+		if (self.wy >= (VIEWPORT_YSIZE-50))
 		{
 			self.counter++;
 			// reset spare counter for next sub-state
@@ -1518,7 +1519,7 @@ void boss_state7_sweep_fntick(entity_t *_pself)
 		// move right, spraying balls
 		{
 			self.wx += 2;
-			if (self.wx >= (320-80))
+			if (self.wx >= (VIEWPORT_XSIZE-80))
 				self.counter++;
 
 			if (--self.wz < 0)
@@ -1564,7 +1565,7 @@ void bossbeam_fntick(entity_t *_pself)
 	// terminate offscreen. careful to use world coordinates.
 	// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 	u16 spx = self.rx - (g_viewport_worldx-30);
-	if (spx > (320+60))
+	if (spx > (VIEWPORT_XSIZE+60))
 		EntityRemove(_pself);
 }
 
@@ -1595,7 +1596,7 @@ void bossball_fntick(entity_t *_pself)
 		// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 		u16 spx = self.rx - (g_viewport_worldx-5);
 		u16 spy = self.ry - (g_viewport_worldy-5);
-		if ((spx > (320+10)) || (spy > (SCREEN_LINES+10)))
+		if ((spx > (VIEWPORT_XSIZE+10)) || (spy > (VIEWPORT_YSIZE+10)))
 			EntityRemove(_pself);
 	}
 }

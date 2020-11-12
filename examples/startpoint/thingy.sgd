@@ -1,0 +1,16 @@
+; <xsize>,<ysize>
+[size]
+32,32
+
+; <xi>,<yi> distance/separation between each frame in this cut
+; e.g. yi=0 for row cut, xi=0 for column cut
+[step]
+96,0
+
+
+; <framecount>,<xstart>,<ystart>
+[cut]
+4,0,0
+
+[cut]
+4,0,32

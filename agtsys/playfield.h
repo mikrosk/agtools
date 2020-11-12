@@ -11,11 +11,11 @@
 
 #include "drawcontext.h"
 
-extern "C" u16 *g_rst_pfb;
-extern "C" s32 *g_rst_pflineidx;
-extern "C" s32 g_rst_vpagebytes;
-extern "C" s16 g_rst_vpageh;
-extern "C" restorestate_t *g_rst_state;
+extern "C" u16 * volatile g_rst_pfb;
+extern "C" s32 * volatile g_rst_pflineidx;
+extern "C" volatile s32 g_rst_vpagebytes;
+extern "C" volatile s16 g_rst_vpageh;
+extern "C" volatile restorestate_t * volatile g_rst_state;
 
 extern "C" s16 * volatile dm_dstaddr;
 extern "C" s16 * volatile dm_dirtymask;
@@ -329,6 +329,8 @@ public:
 	static const bool c_updatecols_ = (_hscroll != HScrollMode_NONE) && (_hscroll != HScrollMode_MARGIN);
 	// only update tile rows if full vertical scrolling is possible
 	static const bool c_updaterows_ = (_vscroll != VScrollMode_NONE) && (_vscroll != VScrollMode_MARGIN);
+	static const bool c_hscroll_ = (_hscroll != HScrollMode_NONE);
+	static const bool c_vscroll_ = (_vscroll != VScrollMode_NONE);
 
 	static const bool c_hdynamic_ = c_dynamic_ && c_updatecols_;
 	static const bool c_vdynamic_ = c_dynamic_ && c_updaterows_;
@@ -365,8 +367,10 @@ public:
 //	static const s16 c_max_vt_ = 32768 / c_tilesize_;
 	static const s16 c_max_vt_ = _max_scroll / c_tilesize_;
 
-	static const int c_hspeculative_margin_size_ = c_hspeculative_ ? (c_tilesize_ * 2) : 0;
-	static const int c_vspeculative_margin_size_ = c_vspeculative_ ? (c_tilesize_ * 2) : 0;
+	static const int c_hspeculative_margin_ = c_hspeculative_ ? c_tilesize_ : 0;
+	static const int c_hspeculative_margin_size_ = c_hspeculative_margin_ * 2;
+	static const int c_vspeculative_margin_ = c_vspeculative_ ? c_tilesize_ : 0;
+	static const int c_vspeculative_margin_size_ = c_vspeculative_margin_ * 2;
 
 //	typedef s32 mapmul_t;
 
@@ -894,6 +898,10 @@ public:
 		else
 			xpos_ = _x;
 
+		// don't permit playfield offsets on axes where scrolling is disabled
+		if (!c_hscroll_) _x = 0;
+		if (!c_vscroll_) _y = 0;
+
 		ypos_ = _y;
 		txpos_ = xpos_ >> c_tilestep_;
 		typos_ = ypos_ >> c_tilestep_;
@@ -968,7 +976,7 @@ public:
 		tileoverlaydata_ = tilesoverlay_->get();
 	}
 
-	inline void select(shifter_common& _shift)
+	inline void select(shifter_common& _shift, s16 _viewbind)
 	{
 		u32 addr = (u32)display_;
 
@@ -980,7 +988,7 @@ public:
 		if (c_vloop_)
 			my = tmod16(my, wrap_height_);
 
-		_shift.setdisplay(field_, addr, 320/*display_width_*/, virtual_width_, mx, my);
+		_shift.setdisplay(field_, addr, 320/*display_width_*/, virtual_width_, mx, my, _viewbind);
 
 /*		if (c_scanwalk_)
 			// todo: fast mod here
@@ -1826,6 +1834,7 @@ playfield_template()
 	  dirty_ocmstride_(0),
 */	  maskedges_(0)
 {
+	restorestate_.init();
 }
 
 ~playfield_template()
@@ -1894,7 +1903,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// all systems add one extra visible row when vscroll is active
 	// vertical height always rounded up to next tile
 	if (c_ste_)
-	visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols_ &&*/ c_ste_) ? c_hscrolltiles_ : 0);  // keep horizontal margin for fixed 184 byte line
+		visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) + ((/*c_updatecols_ &&*/ c_ste_) ? c_hscrolltiles_ : 0);  // keep horizontal margin for fixed 184 byte line
 	else
 		visible_tiles_x_ = ((display_width_ + (c_tilesize_-1)) / c_tilesize_) - (c_stf_maskedspeculation_ ? 2 : 0);
 		
@@ -1923,7 +1932,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 	vpage_tiles_y_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
 
-	// incorporate guardband in virtual playfield
+	// incorporate x-guardband in virtual playfield
 	vpage_tiles_x_ += ((c_guardx - 32) >> 4) * c_tiles_per_word_;
 
 	pfieldcontext_->prepare(vpage_tiles_x_, vpage_tiles_y_);
@@ -1980,6 +1989,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// pad for left guardband
 	bufferwords_ += guardx_safety_words;
 
+//	bufferwords_ += 10000;
 
 	pprintf("init playfield:\n");
 #if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
@@ -2245,14 +2255,14 @@ void fill_abs()
 	if (c_ste_)
 	{
 		fill_block_virtual
-	(
-		txp, typ,
-		txp, typ, 
-		txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
-	);
-}
+		(
+			txp, typ,
+			txp, typ, 
+			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+		);
+	}
 	else
-{		
+	{		
 		shift_block_virtual
 		(
 			txp, typ,
@@ -2271,7 +2281,7 @@ void fill_abs()
 // ---------------------------------------------------------------------------------------------------------------------
 
 agt_outline void warp_catchup()
-	{
+{
 		// 'warp' by at least viewport dimensions - full refill
 #ifdef TIMING_RASTERS_MAIN		
 		reg16(ffff8240) = 0x400;
@@ -2288,6 +2298,7 @@ agt_outline void warp_catchup()
 
 	//	int qqq = 200000; while (qqq--) { };
 	
+		//dbg_validate_restorestack(0x500);
 		if (c_ste_)
 		fill_block_virtual
 		(
@@ -2295,7 +2306,7 @@ agt_outline void warp_catchup()
 			txp, typ, 
 			txpos_-c_hmargin_ + vpage_tiles_x_, 
 			typos_-c_vmargin_ + vpage_tiles_y_
-			);			
+		);	
 		else
 		shift_block_virtual
 		(
@@ -2303,7 +2314,9 @@ agt_outline void warp_catchup()
 			txp, typ, 
 			txpos_-c_hmargin_ + vpage_tiles_x_, 
 			typos_-c_vmargin_ + vpage_tiles_y_
-			);				
+		);	
+		//dbg_validate_restorestack(0x050);
+
 #endif
 #ifdef TIMING_RASTERS_MAIN
 		reg16(ffff8240) = 0xf00;
@@ -2323,7 +2336,7 @@ agt_outline void warp_catchup()
 	last_typos_ = typos_;
 	last_xpos_ = xpos_;
 	last_ypos_ = ypos_;
-		last_slice_ = slice_;
+	last_slice_ = slice_;
 }
 
 void hybrid_fill()
@@ -2596,8 +2609,8 @@ void hybrid_fill()
 	{
 		warp_catchup();
 	}
-		else
-		{
+	else
+	{
 
 	s16 x1 = tx;
 	s16 y1 = ty;
@@ -2988,7 +3001,7 @@ void hybrid_fill()
 	}
 	}
 	}
-	else
+	else if (c_updaterows_)
 	{
 		if (tdy > 0)
 		{	
@@ -3024,6 +3037,8 @@ void hybrid_fill()
 		}
 	}
 
+	if (1)
+	{
 	if (c_updatecols_ && (c_hspeculative_ /*|| c_hbufferspeculation_*/) && (c_ste_ || drawshift_))
 	{
 	if (dx > 0)
@@ -3340,7 +3355,8 @@ void hybrid_fill()
 		}			
 	}
 	}
-	else // c_hspecultive_
+	//else // c_hspecultive_
+	else if (c_updatecols_)
 	{
 //		printf("xxxx\n");
 		if (tdx > 0)
@@ -3444,6 +3460,8 @@ void hybrid_fill()
 		}
 	}
 
+	} //0
+
 #if !defined(AGT_CONFIG_STF_NOEDGEMASKING)
 	// erase trailing edge
 	if (c_hsyncshift_ && c_updatecols_)
@@ -3515,9 +3533,25 @@ agt_inline void bgrestore_reset()
 	restorestate_.pstack[0] = 0;
 	restorestate_.ptide = &restorestate_.pstack[1];
 }
-
+/*
+agt_inline void dbg_validate_restorestack(u16 _col)
+{
+	if (restorestate_.pstack[0] != 0)
+	{
+		//AGT_DBG_HALT(_col);
+		while(1){*(volatile word_t*)(0xffff8240) ^= _col;}
+	}
+}
+*/
 agt_inline void bgrestore()
 {
+/*	if (restorestate_.pstack[0] != 0)
+	{
+		while(1){*(volatile word_t*)(0xffff8240) ^= 0x555;}
+	}
+*/
+	//dbg_validate_restorestack(0x555);
+
 	if (restorestate_.ptide != &restorestate_.pstack[1])
 	{
 		// todo: store these together as an internal context, pass a pointer to it
@@ -3532,8 +3566,10 @@ agt_inline void bgrestore()
 		else
 			AGT_STF_PlayfieldRestore();
 
-//	bgrestore_reset();
+	//bgrestore_reset();
 	}
+
+	//dbg_validate_restorestack(0x005);
 }
 
 agt_inline void touch_reset()

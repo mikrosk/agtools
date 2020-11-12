@@ -422,6 +422,7 @@ _FNEntityDraw_EMXSlabRestore:
 
 	; compensate for loopback buffer
 
+	sub.w		.sp_snapx(sp),d1		; must be done if LOOPBACK used for VSCROLL - very likely
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame
@@ -465,6 +466,7 @@ enable_clipping	set	1				; enable full xy clipping
 	beq		.no_restore
 	
 	move.w		ent_frx(a0),d1
+	sub.w		.sp_snapx(sp),d1
 	move.w		ent_fry(a0),d2
 	sub.w		.sp_snapy(sp),d2
 	move.w		ent_frame(a0),d0

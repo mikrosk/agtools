@@ -15,6 +15,12 @@ typedef struct restorestate_s
 	s32 *pstack;
 	s32 *ptide;
 
+	void init()
+	{
+		pstack = nullptr;
+		ptide = nullptr;
+	}
+
 } restorestate_t;
 
 typedef struct drawcontext_s
@@ -27,7 +33,7 @@ typedef struct drawcontext_s
 	// playfield info fields
 	s32 pfvpagebytes;
 	s16 pfvpageh;
-	s16 pfviewy;
+	//s16 pfviewy;
 	s16 pfsnapadjx;
 	s16 pfsnapadjy;
 	s16 vpagex;

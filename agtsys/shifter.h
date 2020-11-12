@@ -16,7 +16,8 @@ enum STEDisplayMode
 	STLow256,
 	STLow272,
 	//
-	STLowSplit136
+	STLowSplit136,
+	STLowSplitX
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -56,10 +57,12 @@ struct shiftgroup
 // ---------------------------------------------------------------------------------------------------------------------
 
 static const int c_max_shiftgroups = 2;
+static const int c_max_views = 4;
 
-extern "C" volatile shiftgroup *g_pgroups[c_max_shiftgroups];
-extern "C" volatile s16 g_active_buffer;
-extern "C" volatile shiftgroup* volatile gp_active_group;
+extern "C" volatile shiftgroup *g_pgroups[c_max_views][c_max_shiftgroups];
+//extern "C" volatile shiftgroup **g_views[c_max_views];
+//extern "C" volatile s16 g_active_buffer[c_max_views];
+extern "C" volatile shiftgroup* volatile gp_active_group[c_max_views];
 extern "C" volatile s16 g_vbl;
 extern "C" s16 g_frame;
 
@@ -81,17 +84,19 @@ public:
 /*	volatile shiftgroup groups_[2];
 	volatile s16 active_buffer_;
 */
-	s16 hidden_buffer_;
+	s16 hidden_buffer_[c_max_views];
 	
 	shifter_common()
 		: save_physbase(0),
 		  //save_logbase(0),
 		  //save_res(0),
 		  //save_vbl(0),
-		  hidden_buffer_(0),
+		  //hidden_buffer_(0),
 		  fieldmask_(0),
 		  current_mode_(0)
 	{
+		for (int v = 0; v < c_max_views; v++)
+			hidden_buffer_[v] = 0;
 	}
 
 	~shifter_common()
@@ -136,12 +141,12 @@ public:
 	}
 
 	// set display_ state for one field of hidden buffer, before g_displaylocked it
-	inline void setdisplay(s16 _field, u32 _address, s16 _ppixelwidth, s16 _vpixelwidth, u16 _x, u16 _y) const
+	inline void setdisplay(s16 _field, u32 _address, s16 _ppixelwidth, s16 _vpixelwidth, u16 _x, u16 _y, s16 _view) const
 	{
 //		while (_field) { }
 
 //		volatile shiftgroup& vg = g_groups[hidden_buffer_];
-		shiftgroup& g = *(shiftgroup*)(g_pgroups[hidden_buffer_]);
+		shiftgroup& g = *(shiftgroup*)(g_pgroups[_view][hidden_buffer_[_view]]);
 //		shiftfield& s = g.shiftfields_[_field];
 		shiftfield& s = *(shiftfield*)(g.pshiftfields_[_field]);
 
@@ -180,19 +185,20 @@ public:
 	}
 
 	// advance display_ queue (i.e. swap buffers)
-	inline void advance()
+	inline void advance(int _view)
 	{
-		g_active_buffer = hidden_buffer_;
-		gp_active_group = g_pgroups[g_active_buffer];
-		hidden_buffer_ = (hidden_buffer_ + 1) & 1;
+		//g_active_buffer[_view] 
+		s16 next = hidden_buffer_[_view];
+		hidden_buffer_[_view] ^= 1;
+		gp_active_group[_view] = g_pgroups[_view][next];
 	}
 
 	// advance display_ queue (i.e. swap buffers)
-	inline void advanceto(s16 _new)
+	inline void advanceto(int _new, int _view)
 	{
-		g_active_buffer = hidden_buffer_;
-		gp_active_group = g_pgroups[g_active_buffer];
-		hidden_buffer_ = _new;
+		s16 next = hidden_buffer_[_view];
+		hidden_buffer_[_view] = _new;
+		gp_active_group[_view] = g_pgroups[_view][next];
 	}
 	
 protected:
@@ -215,6 +221,11 @@ class shifter_stf : public shifter_common
 {
 public:
 
+	shifter_stf()
+		: shifter_common()
+	{
+	}
+
 	void configure(s16 _hscrollmask);
 
 	void init();
@@ -234,6 +245,7 @@ class shifter_ste : public shifter_common
 public:
 
 	shifter_ste()
+		: shifter_common()
 	{
 		current_mode_ = (s16)STEDisplayMode::STLow240;
 	}
@@ -243,8 +255,8 @@ public:
 	void init(STEDisplayMode _mode = STEDisplayMode::STLow240);
 	void restore();
 
-	void setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c);
-	void setpalette(s16 _buffer, s16 _field, u16* _colours);
+	void setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c, s16 _view = 0);
+	void setpalette(s16 _buffer, s16 _field, u16* _colours, s16 _view = 0);
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

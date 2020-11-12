@@ -20,11 +20,11 @@
 
 extern "C" 
 {
-	u16 *g_rst_pfb;
-	s32 *g_rst_pflineidx;
-	s32 g_rst_vpagebytes;
-	s16 g_rst_vpageh;
-	restorestate_t *g_rst_state;
+	u16 * volatile g_rst_pfb;
+	s32 * volatile g_rst_pflineidx;
+	volatile s32 g_rst_vpagebytes;
+	volatile s16 g_rst_vpageh;
+	volatile restorestate_t * volatile g_rst_state;
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

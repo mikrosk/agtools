@@ -66,11 +66,6 @@
 // entity/gameobject interface
 #include "agtsys/entity.h"
 
-// ---------------------------------------------------------------------------------------------------------------------7
-// some things we currently need to define even if we don't use them
-
-entity_t *g_pe_viewport = NULL;
-
 // ---------------------------------------------------------------------------------------------------------------------
 //	hardware interfaces
 

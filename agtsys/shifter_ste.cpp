@@ -39,29 +39,33 @@ void shifter_ste::init(STEDisplayMode _mode)
 
 	current_mode_ = _mode;
 
+#if !defined(AGT_DISABLE_DISPLAYSERVICE)
 	STE_InstallDisplayService((int)_mode);
+#endif
 }
 
 void shifter_ste::restore()
 {
 	restore_common();
 
+#if !defined(AGT_DISABLE_DISPLAYSERVICE)
 	STE_RemoveDisplayService();
+#endif
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-void shifter_ste::setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c)
+void shifter_ste::setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c, s16 _view)
 {
-	volatile shiftgroup& g = *(g_pgroups[_buffer]);//g_groups[_buffer];
+	volatile shiftgroup& g = *(g_pgroups[_view][_buffer]);//g_groups[_buffer];
 	volatile shiftfield& s = *(g.pshiftfields_[_field]);//g.shiftfields_[_field];	
 
 	s.palette_[_ci] = _c;	
 }
 
-void shifter_ste::setpalette(s16 _buffer, s16 _field, u16* _colours)
+void shifter_ste::setpalette(s16 _buffer, s16 _field, u16* _colours, s16 _view)
 {
-	volatile shiftgroup& g = *(g_pgroups[_buffer]);//g_groups[_buffer];
+	volatile shiftgroup& g = *(g_pgroups[_view][_buffer]);//g_groups[_buffer];
 	volatile shiftfield& s = *(g.pshiftfields_[_field]);//g.shiftfields_[_field];	
 
 	for (s16 c = 0; c < 16; ++c)

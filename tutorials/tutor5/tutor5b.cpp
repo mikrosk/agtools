@@ -84,9 +84,9 @@ enum EntityType : int
 };
 
 // ---------------------------------------------------------------------------------------------------------------------7
-// some things we currently need to define even if we don't use them
+// pointer to our viewport
 
-entity_t *g_pe_viewport = NULL;
+static entity_t *s_pe_viewport = NULL;
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	hardware interfaces
@@ -108,7 +108,13 @@ AGT_MAIN;
 // ---------------------------------------------------------------------------------------------------------------------
 //	define some space for the display.
 
-#define SCREEN_LINES (240)
+// physical display size
+#define SCREEN_XSIZE (320)
+#define SCREEN_YSIZE (240)
+
+// virtual display size including h-scroll margin
+#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
@@ -256,14 +262,14 @@ int AGT_EntryPoint()
 		s16 map_ypixels = map_ytiles << 4;
 
 		// max scroll is map size minus screen dimensions (plus safety margin for the scrolling axes)
-		s16 map_xlimit = (map_xpixels-320);
-		s16 map_ylimit = (map_ypixels-SCREEN_LINES-c_scroll_safety_margin);
+		s16 map_xlimit = (map_xpixels-VIEWPORT_XSIZE);
+		s16 map_ylimit = (map_ypixels-VIEWPORT_YSIZE-c_scroll_safety_margin);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create an instance of the double-buffered arena (our game world), connected to the shifter interface
 
 		printf("creating world...\n");
-		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
+		arena_t myworld(shift, SCREEN_XSIZE, SCREEN_YSIZE);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the arena playfield(s)
@@ -274,7 +280,7 @@ int AGT_EntryPoint()
 		printf("assigning world tiles to each playfield buffer...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
 		{
-			myworld.select_buffer(b, 0);
+			myworld.select_buffer(b);
 			myworld.settiles(&mytiles, &mytiles);
 		}
 
@@ -362,7 +368,10 @@ int AGT_EntryPoint()
 		//	create entities needed for this session - Viewport
 
 		// create a viewport entity so we can track its relationship with everything else in the world
-		g_pe_viewport = EntitySpawn(EntityType_VIEWPORT, g_viewport_worldx-c_viewport_xmargin, g_viewport_worldy-c_viewport_ymargin);
+		s_pe_viewport = EntitySpawn(EntityType_VIEWPORT, g_viewport_worldx-c_viewport_xmargin, g_viewport_worldy-c_viewport_ymargin);
+
+		// select this as the active viewport
+		EntitySelectViewport(s_pe_viewport);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create entities needed for this session - 'X e n o n'
@@ -387,7 +396,7 @@ int AGT_EntryPoint()
 		EntityMakeRelative(penew, g_viewport_worldx, g_viewport_worldy);
 		penew->wz = index++;
 	
-		penew = EntitySpawn(EntityType_LETTER_e,	g_viewport_worldx+50+4,		g_viewport_worldy+c_xenon_yoffset+SCREEN_LINES+(time_separation*5));
+		penew = EntitySpawn(EntityType_LETTER_e,	g_viewport_worldx+50+4,		g_viewport_worldy+c_xenon_yoffset+VIEWPORT_YSIZE+(time_separation*5));
 		EntityMakeRelative(penew, g_viewport_worldx, g_viewport_worldy);
 		penew->wz = index++;
 
@@ -395,7 +404,7 @@ int AGT_EntryPoint()
 		EntityMakeRelative(penew, g_viewport_worldx, g_viewport_worldy);
 		penew->wz = index++;
 
-		penew = EntitySpawn(EntityType_LETTER_o,	g_viewport_worldx+50,		g_viewport_worldy+c_xenon_yoffset+SCREEN_LINES+(time_separation*3));
+		penew = EntitySpawn(EntityType_LETTER_o,	g_viewport_worldx+50,		g_viewport_worldy+c_xenon_yoffset+VIEWPORT_YSIZE+(time_separation*3));
 		EntityMakeRelative(penew, g_viewport_worldx, g_viewport_worldy);
 		penew->wz = index++;
 
@@ -424,7 +433,6 @@ int AGT_EntryPoint()
 
 		s16 scroll_speed = 1;			// disable scrolling
 		s16 backbuffer_num = 0;			// index of current backbuffer (0 or 1)
-		s16 curr_vbl = g_vbl;			// initial vblank number
 		s16 animation_timer = 0;
 
 		// ---------------------------------------------------------------------------------------------------------------------
@@ -436,8 +444,7 @@ int AGT_EntryPoint()
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	wait for the current VBL period to elapse
 
-			curr_vbl = g_vbl;
-			while (g_vbl == curr_vbl) { /* spin until counter changes */ }
+			shift.wait_vbl();
 
 			TIMING_MAIN(0x077);	
 
@@ -469,7 +476,7 @@ int AGT_EntryPoint()
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			myworld.select_buffer(backbuffer_num, 0);
+			myworld.select_buffer(backbuffer_num);
 
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
@@ -492,7 +499,7 @@ int AGT_EntryPoint()
 			// - other devious details used to synchronize drawing with playfields
 			// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
-			myworld.get_context(drawcontext, 0, 320, SCREEN_LINES);
+			myworld.get_context(drawcontext, 0, VIEWPORT_XSIZE, VIEWPORT_YSIZE);
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	draw 'all the things'
@@ -567,7 +574,7 @@ int AGT_EntryPoint()
 // screen offset for entire word, to help center things
 // note - the y coord here affects arrival time/order of the various letters so use c_xenon_yoffset to move the word up/down
 static const s16 xenonx = 80;
-static const s16 xenony = (SCREEN_LINES/2)-7+c_xenon_yoffset;
+static const s16 xenony = (VIEWPORT_YSIZE/2)-7+c_xenon_yoffset;
 
 // individial target x,y pairs (one per letter instance)
 s16 letter_target_X[] =		{ xenonx+0,				xenony+0 };

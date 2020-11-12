@@ -374,6 +374,8 @@ extern "C" int agtprintf(const char *pFormat, ...);
 #define AGT_TOSTRING(x) AGT_STRINGIFY(x)
 #define AGT_AT __FILE__ ":" AGT_TOSTRING(__LINE__)
 
+#define AGT_DBG_HALT(_c_) { while (1) { reg16(ffff8240) ^= _c_; }  }
+
 extern "C" void SYS_Assert();
 
 // fancy assert which invokes vector $1C with a message param

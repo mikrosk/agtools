@@ -111,7 +111,7 @@ _BLiT_EntityDebugVisibleYM_68k:
 	
 	; compensate for loopback buffer
 	
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; use frame number as colour
@@ -735,7 +735,7 @@ _BLiT_EntityOccludeVisibleYM_68k:
 
 	; compensate for loopback buffer
 
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame
@@ -844,7 +844,7 @@ _BLiT_EntityOccludeVisibleYM_68k:
 
 	; compensate for loopback buffer
 
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame

@@ -56,11 +56,6 @@
 // entity/gameobject interface
 #include "agtsys/entity.h"
 
-// ---------------------------------------------------------------------------------------------------------------------7
-// some things we currently need to define even if we don't use them
-
-entity_t *g_pe_viewport = NULL;
-
 // ---------------------------------------------------------------------------------------------------------------------
 //	hardware interfaces
 
@@ -80,7 +75,13 @@ AGT_MAIN;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-#define SCREEN_LINES (240)
+// physical display size
+#define SCREEN_XSIZE (320)
+#define SCREEN_YSIZE (240)
+
+// virtual display size including h-scroll margin
+#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
@@ -203,14 +204,14 @@ int AGT_EntryPoint()
 		s16 map_ypixels = map_ytiles << 4;
 
 		// max scroll is map size minus screen dimensions (plus safety margin for the scrolling axes)
-		s16 map_xlimit = (map_xpixels-320);
-		s16 map_ylimit = (map_ypixels-SCREEN_LINES-c_scroll_safety_margin);
+		s16 map_xlimit = (map_xpixels-VIEWPORT_XSIZE);
+		s16 map_ylimit = (map_ypixels-VIEWPORT_YSIZE-c_scroll_safety_margin);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create an isntance of the double-buffered arena (our game world), connected to the shifter interface
 
 		printf("creating world...\n");
-		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/false);
+		arena_t myworld(shift, SCREEN_XSIZE, SCREEN_YSIZE);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the arena playfield(s)
@@ -221,7 +222,7 @@ int AGT_EntryPoint()
 		printf("assigning world tiles to each playfield buffer...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
 		{
-			myworld.select_buffer(b, 0);
+			myworld.select_buffer(b);
 			myworld.settiles(&mytiles, &mytiles);
 		}
 
@@ -277,7 +278,6 @@ int AGT_EntryPoint()
 
 		s16 scroll_speed = -1;			// scroll upwards
 		s16 backbuffer_num = 0;			// index of current backbuffer (0 or 1)
-		s16 curr_vbl = g_vbl;			// initial vblank number
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	start the mainloop - run forever
@@ -288,14 +288,13 @@ int AGT_EntryPoint()
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	wait for the current VBL period to elapse
 
-			curr_vbl = g_vbl;
-			while (g_vbl == curr_vbl) { /* spin until counter changes */ }
+			shift.wait_vbl();
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			myworld.select_buffer(backbuffer_num, /*field=*/0);
+			myworld.select_buffer(backbuffer_num);
 
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);

@@ -159,7 +159,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: ste
+all: demo1 demo2
 
 
 # =============================================================================
@@ -177,19 +177,17 @@ include $(AGTROOT)/Makerules
 # - the AGLIB platform to use in the build rules (STF/STE)
 # - the prerequisites themselves (AGLIB and the name of the demo ?.c/cpp -> ?.tos)
 
-ste: AGLIB=$(AGLIB_STE)
-ste: $(AGLIB_STE) abreed.$(EXT)
+demo1: AGLIB=$(AGLIB_STE)
+demo1: $(AGLIB_STE) abreed.$(EXT)
 
-# note: STF builds currently require vasm - rmac port is pending
-
-stf: AGLIB=$(AGLIB_STF)
-stf: $(AGLIB_STF) stf.$(EXT)
+demo2: AGLIB=$(AGLIB_STE)
+demo2: $(AGLIB_STE) coop.$(EXT)
 
 # treat these names as targets not sourcefiles otherwise bad stuff can get
 # accidentally added to the link line (we have some sourcefiles with the same
 # names as some targets, sending make to confusionland)
-.PHONY: ste
-.PHONY: stf
+.PHONY: demo1
+.PHONY: demo2
 
 # =============================================================================
 #	Build rules for preparing data

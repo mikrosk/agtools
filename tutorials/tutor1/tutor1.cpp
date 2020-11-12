@@ -62,11 +62,6 @@
 // entity/gameobject interface
 #include "agtsys/entity.h"
 
-// ---------------------------------------------------------------------------------------------------------------------7
-// some things we currently need to define even if we don't use them
-
-entity_t *g_pe_viewport = NULL;
-
 // ---------------------------------------------------------------------------------------------------------------------
 //	hardware interfaces
 
@@ -88,12 +83,20 @@ AGT_MAIN;
 //	define some space for the display.
 //	CAUTION: this is only meant to be simple for the tutorial - could end up in TTRam on some Ataris and break...
 
-#define SCREEN_LINES (240)
+// physical display size
+#define SCREEN_XSIZE (320)
+#define SCREEN_YSIZE (240)
+
+// virtual display size including h-scroll margin
+#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_YSIZE (SCREEN_YSIZE)
+
+
 #define SCREEN_LINES_STORAGE (256)
 
 // define word buffers for a couple of hardcoded screens. add a single column of +16 to accommodate hscroll.
-u16 screenbuffer0[SCREEN_LINES_STORAGE * ((320+16)/4)];
-u16 screenbuffer1[SCREEN_LINES_STORAGE * ((320+16)/4)];
+u16 screenbuffer0[SCREEN_LINES_STORAGE * ((SCREEN_XSIZE+16)/4)];
+u16 screenbuffer1[SCREEN_LINES_STORAGE * ((SCREEN_XSIZE+16)/4)];
 
 // an array of 2 pointers, one for each screenbuffer. used to manually select between them using index 0 or 1.
 u16* screenbuffer_ptrs[] =
@@ -228,7 +231,6 @@ int AGT_EntryPoint()
 
 		s16 backbuffer_num = 0;			// index of current backbuffer (0 or 1)
 		s16 xscroll = 0, yscroll = 0;	// scrolling offsets 
-		s16 curr_vbl = g_vbl;			// initial vblank number
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	start the mainloop - 256 frames and then quit
@@ -239,8 +241,7 @@ int AGT_EntryPoint()
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	wait for the current VBL period to elapse
 
-			while (g_vbl == curr_vbl) { /* spin until counter changes */ }
-			curr_vbl = g_vbl;
+			shift.wait_vbl();
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	cycle colour 0 for a short while, then restore it to black
@@ -259,11 +260,11 @@ int AGT_EntryPoint()
 			u16 *backbuffer_ptr = screenbuffer_ptrs[backbuffer_num];
 
 			// configure shifter with our buffer, sizes and scroll offsets
-			shift.setdisplay(0, (u32)backbuffer_ptr, 320, 320+16, xscroll, yscroll);
+			shift.setdisplay(0, (u32)backbuffer_ptr, SCREEN_XSIZE, VIEWPORT_XSIZE, xscroll, yscroll, /*displayport=*/0);
 
 			// 'commit' these shifter changes on the *next* vblank to occur (i.e. the shifter interrupt)
 			// (without this, the display changes will only be pending)
-			shift.advance();
+			shift.advance(/*displayport=*/0);
 
 			// scroll the screen towards the left, but loop back after 16 pixels
 			xscroll = (xscroll + 1) & 15;

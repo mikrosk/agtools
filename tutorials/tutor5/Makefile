@@ -137,11 +137,11 @@ COMPILERDEFS += \
 # -----------------------------------------------------------------------------
 
 COMPILERDEFS += \
+		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
 #		-DAGT_CONFIG_SAFETY_CHECKS \
 #		-DAGT_CONFIG_DEBUG_CONSOLE \
 #		-DAGT_CONFIG_DEBUGDRAW \
 #		-DAGT_CONFIG_STEEM_DEBUG \
-#		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
 #		-DUSE_MEMTRACE \
 
 # -----------------------------------------------------------------------------

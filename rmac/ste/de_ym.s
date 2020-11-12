@@ -109,7 +109,7 @@ _BLiT_EntityDrawVisibleYM_68k:
 
 	; compensate for loopback buffer
 
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame
@@ -181,7 +181,7 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; compensate for loopback buffer
 
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame
@@ -253,7 +253,7 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; compensate for loopback buffer
 
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame
@@ -325,7 +325,7 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; compensate for loopback buffer
 
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame
@@ -397,7 +397,7 @@ enable_clipping	set	1				; enable full xy clipping
 	
 	; compensate for loopback buffer
 	
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame
@@ -467,7 +467,7 @@ enable_clipping	set	1				; enable full xy clipping
 	
 	; compensate for loopback buffer
 	
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; access sprite frame
@@ -509,6 +509,7 @@ preserve_usp		set	1
 	beq		.no_restore
 	
 	move.w		ent_frx(a0),d1
+	sub.w		.sp_snapx(sp),d1
 	move.w		ent_fry(a0),d2
 	sub.w		.sp_snapy(sp),d2
 	move.w		ent_frame(a0),d0
@@ -625,7 +626,7 @@ preserve_usp		set	0
 	
 	; compensate for loopback buffer
 	
-;	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
 	; use frame number as colour

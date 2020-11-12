@@ -19,7 +19,7 @@ dctx_linemod:		ds.l	1
 *-------------------------------------------------------*
 dctx_vpagebytes:	ds.l	1
 dctx_vpageh:		ds.w	1
-dctx_viewy:		ds.w	1
+;dctx_viewy:		ds.w	1
 dctx_snapadjx:		ds.w	1
 dctx_snapadjy:		ds.w	1
 dctx_vpagex:		ds.w	1

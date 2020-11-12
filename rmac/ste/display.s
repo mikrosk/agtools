@@ -68,10 +68,10 @@ use_lower_border		=	1		; enable/disable lower border specifically, when use_over
 use_overscan_timera		=	1		; use timera instead of timerd for upper border sync
 
 ; internal timera/timerb schedule for overscan mode
-displayservice_upper_delay	=	(94+4)		; safety padding of 6...3, but err towards more padding (smaller value) with blitter in use
-timecritical_pad_tb		=	3-1		; TimerB padding (in scanlines)
-timecritical_pad_ta		=	6-1		; TimerA padding
-timecritical_pad_td		=	7-1		; TimerD padding
+displayservice_upper_delay	set	(94+4)		; safety padding of 6...3, but err towards more padding (smaller value) with blitter in use
+timecritical_pad_tb		set	3-1		; TimerB padding (in scanlines)
+timecritical_pad_ta		set	6-1		; TimerA padding
+timecritical_pad_td		set	7-1		; TimerD padding
 
 *-------------------------------------------------------*
 	.abs
@@ -129,6 +129,7 @@ DISP_size:
 	include		"rmac/ste/disp256.s"
 	include		"rmac/ste/disp272.s"
 	include		"rmac/ste/disp136s.s"
+	include		"rmac/ste/dispxs.s"
 	
 *-------------------------------------------------------*
 *	some overscan modes burn display lines
@@ -141,6 +142,7 @@ _g_displayservice_consumed_lines:
 	dc.w		displayservice_ste256_d0_tb
 	dc.w		displayservice_ste272_d0_tb
 	dc.w		displayservice_ste136s_d0_tb
+	dc.w		0
 
 *-------------------------------------------------------*
 _STE_ConfigureDisplayService:
@@ -260,6 +262,7 @@ _STE_InstallDisplayService:
 	dc.l		displayservice_ste256_vbi
 	dc.l		displayservice_ste272_vbi
 	dc.l		displayservice_ste136s_vbi
+	dc.l		displayservice_stexs_vbi
 	
 *-------------------------------------------------------*
 _STE_RemoveDisplayService:

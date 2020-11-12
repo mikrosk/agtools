@@ -1,5 +1,5 @@
 
-split_point			=	136		; absolute max. around line 227 (low border)
+split_point			set	136		; absolute max. around line 227 (low border)
 
 displayservice_ste136s_d0_tb	=	0
 displayservice_ste136s_ds_tb	=	split_point
@@ -59,7 +59,7 @@ displayservice_ste136s_vbi:
 	.endif
 	
 .normal:
-	move.l		_gp_active_group,d0
+	move.l		_gp_active_group+0,d0
 	beq		.skip
 	
 	move.l		d0,a0
@@ -328,8 +328,9 @@ displayservice_ste136s_split_b:
 
 	movem.l		d0/a0/a1,-(sp)
 
-	move.l		_gp_active_group,d0
-;	beq.s		.skip
+	move.l		_gp_active_group+4,d0
+	beq.s		.skip
+	
 	move.l		d0,a0
 	moveq		#1,d0
 	and.w		_g_vbl,d0
@@ -361,6 +362,7 @@ displayservice_ste136s_split_b:
 
 	move.l		#displayservice_ste136s_lower_b,$120.w
 
+.skip:
 	movem.l		(sp)+,d0/a0/a1
 
 *-----------------------------------------------------------------------------*

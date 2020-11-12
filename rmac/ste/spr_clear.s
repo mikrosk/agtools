@@ -600,6 +600,7 @@ _AGT_BLiT_PlayfieldRestore:
 	lea		BLiTCTRL.w,a2
 	lea		BLiTDST.w,a6
 ;.wait:	btst		d5,(a2)
+;	nop
 ;	bne.s		.wait
 
 *-------------------------------------------------------*	
@@ -612,7 +613,7 @@ _AGT_BLiT_PlayfieldRestore:
 	move.l		d0,a0				; (current)++ restore context
 	move.l		d0,a5				; --(prev) restore context
 
-	move.w		(a0)+,d0			; pf-y (pixel)
+	move.w		(a0)+,d0			; pf-y (pixel)	
 	move.w		(a0)+,d1			; pf-x (addr)
 	move.l		(a0)+,a1			; clear dstaddr
 
@@ -704,9 +705,14 @@ _AGT_BLiT_PlayfieldRestore:
 	move.l		a0,BLiTSRC.w
 
 	move.l		a1,(a6)+
-	move.w		d3,(a6)+
+	move.w		d3,(a6)+	
 	move.w		d7,(a6)
 	subq		#6,a6
+
+;	bra.s		.yg1
+;.yc1:	move.w		#1,BLiTYC.w
+;	move.b		#$c0,(a2)
+;.yg1:	dbra		d7,.yc1
 
 	move.b		#$80,(a2)
 .go1:	bset.b		d5,(a2)
@@ -746,6 +752,11 @@ _AGT_BLiT_PlayfieldRestore:
 	move.w		d3,(a6)+
 	move.w		d7,(a6)
 	subq		#6,a6
+	
+;	bra.s		.yg
+;.yc:	move.w		#1,BLiTYC.w
+;	move.b		#$c0,(a2)
+;.yg:	dbra		d7,.yc
 
 	move.b		#$80,(a2)
 .go2:	bset.b		d5,(a2)

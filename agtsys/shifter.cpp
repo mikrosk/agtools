@@ -22,11 +22,12 @@
 
 extern "C" 
 {
-	volatile shiftgroup g_groups[c_max_shiftgroups];
-	volatile shiftgroup *g_pgroups[c_max_shiftgroups]; // *g_pgroups[] = { &g_groups[0], &g_groups[1] };
+	volatile shiftgroup g_groups[c_max_shiftgroups*c_max_views];
 
-	volatile s16 g_active_buffer = -1;    
-	volatile shiftgroup* volatile gp_active_group = 0;
+	volatile shiftgroup *g_pgroups[c_max_views][c_max_shiftgroups]; // *g_pgroups[] = { &g_groups[0], &g_groups[1] };
+	//volatile shiftgroup **g_views[c_max_views];
+	//volatile s16 g_active_buffer[c_max_views] = { -1 };    
+	volatile shiftgroup* volatile gp_active_group[c_max_views] = { 0 };
 	volatile s16 g_vbl = 0;
 	volatile s16 g_fieldmask = 0;
 	s16 g_frame = 0;
@@ -45,15 +46,17 @@ void shifter_common::save()
 
 void shifter_common::init_common()
 {	
-	//for (int v = 0; v < c_max_views; v++)
+	int n = 0;
+	for (int v = 0; v < c_max_views; v++)
 	{
-		for (int i = 0; i < c_max_shiftgroups; i++)
+		for (int i = 0; i < c_max_shiftgroups; i++, n++)
 		{
-			g_pgroups[i] = &g_groups[i];
-			g_groups[i].pshiftfields_[0] = &g_groups[i].shiftfields_[0];
-			g_groups[i].pshiftfields_[1] = &g_groups[i].shiftfields_[1];
+			volatile shiftgroup *pgroup = &g_groups[n];
+			g_pgroups[v][i] = pgroup;
+			pgroup->pshiftfields_[0] = &pgroup->shiftfields_[0];
+			pgroup->pshiftfields_[1] = &pgroup->shiftfields_[1];
 		}
-		//g_views[v] = g_pggroups;
+		//g_views[v] = g_pggroups[v];
 	}
 
 	s_shifter = this;
@@ -64,10 +67,10 @@ void shifter_common::restore_common()
 	// todo: should save/restore regs instead of using this API - lazy today
 	for (int f = 0; f < c_max_shiftfields; f++)
 	{
-		setdisplay(f, (u32)save_physbase, 320, 320, 0, 0); //update();	
+		setdisplay(f, (u32)save_physbase, 320, 320, 0, 0, 0); //update();	
 		//setdisplay(1, (u32)save_physbase, 160, 160, 0, 0); //update();
 	}
-	advance();
+	advance(0);
 	
 	// VSync
 	s16 field_index = reg16(464);

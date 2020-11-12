@@ -147,8 +147,14 @@ enum EntityType : int
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// sorry... screen height is hacked for now...
-#define SCREEN_LINES (240)
+
+// physical display size
+#define SCREEN_XSIZE (320)
+#define SCREEN_YSIZE (240)
+
+// virtual display size including h-scroll margin
+#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
@@ -235,7 +241,7 @@ static s16 g_player_viewy = 100;
 // player world coordinates (derived from local coords each frame, for interactions with world & other objects)
 static s16 g_player_worldx = 0;
 // start player roughly in middle of map's vertical range
-static s16 g_player_worldy = (240/2)+((352-240)/2);
+static s16 g_player_worldy = (VIEWPORT_YSIZE/2)+((352-VIEWPORT_YSIZE)/2);
 
 // COMPLETE HACK to spawn different entities at regular intervals. this is *not* typical of a real game.
 static s16 g_spawn_countdown = 0;
@@ -250,7 +256,7 @@ static const s16 c_scroll_safety_margin = 32;
 // start position on map
 static s16 c_xstart = c_scroll_safety_margin + 96;
 // start viewport roughly in middle of map's vertical range (upper left corner of viewport)
-static s16 c_ystart = (352-240)/2;
+static s16 c_ystart = (352-VIEWPORT_YSIZE)/2;
 
 // viewport (scroll) starting position in world map
 static s16 g_viewport_worldx = c_xstart; 
@@ -276,7 +282,7 @@ static s16 g_frame_prng = 0;
 // static pointers to significant entities (still these must be created the usual way)
 
 // viewport entity is global and part of the entity drawing system
-entity_t *g_pe_viewport = NULL;
+static entity_t *s_pe_viewport = NULL;
 
 // useful to have direct/global access to player-related entities 
 static entity_t *g_pe_player = NULL;
@@ -428,13 +434,13 @@ int AGT_EntryPoint()
 		int map_ysize = mymap0.getheight() << 4;
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
-		g_map_xlimit = map_xsize-320-c_scroll_safety_margin;
+		g_map_xlimit = map_xsize-VIEWPORT_XSIZE-c_scroll_safety_margin;
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
 
 		printf("creating world...\n");
-		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
+		arena_t myworld(shift, SCREEN_XSIZE, SCREEN_YSIZE);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the world buffers.
@@ -447,7 +453,7 @@ int AGT_EntryPoint()
 		pprintf("assigning world tiles...\n");
 		for (int b = myworld.c_num_buffers_-1; b >= 0; b--)
 		{
-			myworld.select_buffer(b,0);
+			myworld.select_buffer(b);
 			pprintf("assigning buffer %d world tileset...\n", b);
 
 			// what kind of dual-field drawing do we want?
@@ -671,7 +677,7 @@ restart_game:
 
 		// player coords within the world
 		g_player_worldx = 0; // calculated by controller from viewport coords & scroll
-		g_player_worldy = (240/2)+((352-240)/2);
+		g_player_worldy = (VIEWPORT_YSIZE/2)+((352-VIEWPORT_YSIZE)/2);
 
 		// player coords within viewport
 		g_player_viewx = 160;
@@ -690,7 +696,10 @@ restart_game:
 		//	create some significant 'static' entities related to the player
 
 		// create the viewport so we can track its relationship with everything else
-		g_pe_viewport = EntitySpawn(EntityType_VIEWPORT, 0, 0);
+		s_pe_viewport = EntitySpawn(EntityType_VIEWPORT, 0, 0);
+
+		// select this as the active viewport
+		EntitySelectViewport(s_pe_viewport);
 
 		// create the player entity
 		g_pe_player = EntitySpawn(EntityType_PLAYER, 0, 0);
@@ -778,7 +787,7 @@ mainloop:
 						(
 							EntityType_WAVESPAWN,
 							g_viewport_worldx + offset, 
-							spawn_yoff + (SCREEN_LINES>>1)
+							spawn_yoff + (VIEWPORT_YSIZE>>1)
 						);
 						if (pnme)
 						{
@@ -798,7 +807,7 @@ mainloop:
 						(
 							EntityType_WAVESPAWN,
 							g_viewport_worldx + offset, 
-							spawn_yoff + (SCREEN_LINES>>1)
+							spawn_yoff + (VIEWPORT_YSIZE>>1)
 						);
 						if (pnme)
 						{
@@ -822,7 +831,7 @@ mainloop:
 						(
 							EntityType_NMEJELLY,
 							g_viewport_worldx + 320, 
-							spawn_yoff + (SCREEN_LINES>>1)
+							spawn_yoff + (VIEWPORT_YSIZE>>1)
 						);
 
 						// spawn the enemy and let it go about its business
@@ -830,7 +839,7 @@ mainloop:
 						(
 							EntityType_WAVESPAWN,
 							g_viewport_worldx + offset, 
-							spawn_yoff + (SCREEN_LINES>>1)
+							spawn_yoff + (VIEWPORT_YSIZE>>1)
 						);
 						if (pnme)
 						{
@@ -852,7 +861,7 @@ mainloop:
 						(
 							EntityType_WAVESPAWN,
 							g_viewport_worldx + offset, 
-							spawn_yoff + (SCREEN_LINES>>1)
+							spawn_yoff + (VIEWPORT_YSIZE>>1)
 						);
 						if (pnme)
 						{
@@ -893,8 +902,8 @@ mainloop:
 							entity_t *pnme = EntitySpawnRel
 							(
 								EntityType_NMEQUAD,
-								g_pe_viewport,
-								xo + 320, 
+								s_pe_viewport,
+								xo + SCREEN_XSIZE, 
 								yo + 120
 							);
 						}
@@ -909,7 +918,7 @@ mainloop:
 						(
 							EntityType_WAVESPAWN,
 							g_viewport_worldx + offset, 
-							spawn_yoff + (SCREEN_LINES>>1)
+							spawn_yoff + (VIEWPORT_YSIZE>>1)
 						);
 						if (pnme)
 						{
@@ -921,9 +930,9 @@ mainloop:
 								pnme->vy = 1;
 						}
 
-						EntitySpawn(EntityType_NMEWALKER, g_viewport_worldx + 320+16, 208);
+						EntitySpawn(EntityType_NMEWALKER, g_viewport_worldx + SCREEN_XSIZE+16, 208);
 
-						EntitySpawn(EntityType_NMEWALKER, g_viewport_worldx + 320+64, 208);
+						EntitySpawn(EntityType_NMEWALKER, g_viewport_worldx + SCREEN_XSIZE+64, 208);
 					}
 					break;
 				case 6:
@@ -933,7 +942,7 @@ mainloop:
 						(
 							EntityType_WAVESPAWN,
 							g_viewport_worldx + offset, 
-							spawn_yoff + (SCREEN_LINES>>1)
+							spawn_yoff + (VIEWPORT_YSIZE>>1)
 						);
 						if (pnme)
 						{
@@ -953,7 +962,7 @@ mainloop:
 							entity_t *pnme = EntitySpawn
 							(
 								EntityType_WAVESPAWN,
-								g_viewport_worldx + 320, 
+								g_viewport_worldx + SCREEN_XSIZE, 
 								8
 							);
 							if (pnme)
@@ -1003,7 +1012,7 @@ mainloop:
 							(
 								EntityType_NMEJELLY,
 								g_viewport_worldx + 320 + xoff, 
-								spawn_yoff + (SCREEN_LINES>>1) + yoff
+								spawn_yoff + (VIEWPORT_YSIZE>>1) + yoff
 							);
 						}
 
@@ -1022,8 +1031,8 @@ mainloop:
 			// ---------------------------------------------------------------------------------------------------------------------
 			// update the viewport first.
 
-			g_pe_viewport->rx = g_viewport_worldx - c_viewport_xmargin;
-			g_pe_viewport->ry = g_viewport_worldy - c_viewport_ymargin;
+			s_pe_viewport->rx = g_viewport_worldx - c_viewport_xmargin;
+			s_pe_viewport->ry = g_viewport_worldy - c_viewport_ymargin;
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	tick all currently linked objects
@@ -1073,7 +1082,7 @@ mainloop:
 			//	update the background & scroll
 
 			// select the next workbuffer (..of two - we're using double buffering here)
-			myworld.select_buffer((buffer_index & 1), ((field_index+1) & 1));
+			myworld.select_buffer((buffer_index & 1));
 
 			// update the playfield coordinates for this draw pass
 			myworld.setpos(g_viewport_worldx, g_viewport_worldy);
@@ -1092,7 +1101,7 @@ mainloop:
 			// in dual-field FPS<=25hz config, its 0 or 1 for even/odd VBLs (4 buffers: front/back + even/odd)
 			// in dual-field 50hz config, it's always 0, because front/back handles our even/odd fields
 
-			s16 working_field = (c_dualfield && !c_singlevbl) ? ((field_index+1) & 1) : 0;
+			s16 working_field = (buffer_index & 1);
 
 			// ---------------------------------------------------------------------------------------------------------------------
 			// retrieve playfield [drawcontext] structure for sharing with low-level drawing functions
@@ -1104,7 +1113,7 @@ mainloop:
 			// - other devious details used to synchronize drawing with playfields
 			// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
-			myworld.get_context(drawcontext, working_field, 320+16, SCREEN_LINES);
+			myworld.get_context(drawcontext, working_field, VIEWPORT_XSIZE, VIEWPORT_YSIZE);
 
 			TIMING_MAIN(0x753);	
 
@@ -1499,11 +1508,11 @@ void wavespawn_fntick(entity_t *_pself)
 
 		// avoid saturating the entity chain with enemies - leave appropriate space for player bullets
 		if (entities_freelist_count > (c_max_entities >> 2))
-		EntitySpawnFrom
-		(
-			EntityType(self.frame),
-			_pself
-		);
+			EntitySpawnFrom
+			(
+				EntityType(self.frame),
+				_pself
+			);
 
 		// delete self as soon as wave is complete (controlled by counter configured when spawner was created)
 		if (self.counter == 0)
@@ -1571,7 +1580,7 @@ void nmeamoeba_fntick(entity_t *_pself)
 		// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 		u16 spx = self.rx - (g_viewport_worldx-16);
 		u16 spy = self.ry - (g_viewport_worldy-16);
-		if ((spx > (320+32)) || (spy > (SCREEN_LINES+32)))
+		if ((spx > (VIEWPORT_XSIZE+32)) || (spy > (VIEWPORT_YSIZE+32)))
 			EntityRemove(_pself);
 	}
 }
@@ -1613,7 +1622,7 @@ void nmeamoeba_dash_fntick(entity_t *_pself)
 		// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 		u16 spx = self.rx - (g_viewport_worldx-16);
 		u16 spy = self.ry - (g_viewport_worldy-16);
-		if ((spx > (320+32)) || (spy > (SCREEN_LINES+32)))
+		if ((spx > (VIEWPORT_XSIZE+32)) || (spy > (VIEWPORT_YSIZE+32)))
 			EntityRemove(_pself);
 	}
 }
@@ -1762,7 +1771,7 @@ void nmefly_fntick(entity_t *_pself)
 		// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 		u16 spx = self.rx - (g_viewport_worldx-16);
 		u16 spy = self.ry - (g_viewport_worldy-16);
-		if ((spx > (320+64)) || (spy > (SCREEN_LINES+32)))
+		if ((spx > (VIEWPORT_XSIZE+64)) || (spy > (VIEWPORT_YSIZE+32)))
 			EntityRemove(_pself);
 	}
 
@@ -1870,7 +1879,7 @@ void nmefly2_fntick(entity_t *_pself)
 		// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 		u16 spx = self.rx - (g_viewport_worldx-16);
 		u16 spy = self.ry - (g_viewport_worldy-16);
-		if ((spx > (320+64)) || (spy > (SCREEN_LINES+32)))
+		if ((spx > (VIEWPORT_XSIZE+64)) || (spy > (VIEWPORT_YSIZE+32)))
 			EntityRemove(_pself);
 	}
 
@@ -1943,7 +1952,7 @@ void nmequad_fntick(entity_t *_pself)
 			// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 			u16 spx = self.rx - (g_viewport_worldx-16);
 			u16 spy = self.ry - (g_viewport_worldy-16);
-			if ((spx > (320+128)) || (spy > (SCREEN_LINES+16)))
+			if ((spx > (VIEWPORT_XSIZE+128)) || (spy > (VIEWPORT_YSIZE+16)))
 				EntityRemove(_pself);
 		}
 	}
@@ -1975,7 +1984,7 @@ void nmesquare_fntick(entity_t *_pself)
 		// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 		u16 spx = self.rx - (g_viewport_worldx-32);
 		u16 spy = self.ry - (g_viewport_worldy-32);
-		if ((spx > (320+64)) || (spy > (SCREEN_LINES+32)))
+		if ((spx > (VIEWPORT_XSIZE+64)) || (spy > (VIEWPORT_YSIZE+32)))
 		{
 			EntityRemove(_pself);
 			return;
@@ -2178,7 +2187,7 @@ void nmepellet_fntick(entity_t *_pself)
 		// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 		u16 spx = self.rx - g_viewport_worldx;
 		u16 spy = self.ry - g_viewport_worldy;
-		if ((spx >= 320) || (spy >= SCREEN_LINES))
+		if ((spx >= VIEWPORT_XSIZE) || (spy >= VIEWPORT_YSIZE))
 			EntityRemove(_pself);
 	}
 }
@@ -2242,7 +2251,7 @@ void nmejelly_fntick(entity_t *_pself)
 		// note: we use unsigned comparison for fast 2D window check (-ve values look like large +ve values)...
 		u16 spx = self.rx - (g_viewport_worldx-32);
 		u16 spy = self.ry - (g_viewport_worldy-32);
-		if ((spx > (320+128)) || (spy > (SCREEN_LINES+32)))
+		if ((spx > (VIEWPORT_XSIZE+128)) || (spy > (VIEWPORT_YSIZE+32)))
 			EntityRemove(_pself);
 	}
 }
@@ -2432,7 +2441,7 @@ void player_death_fntick(entity_t *_pself)
 	}
 
 	// finally remove the player from the system when it passes the bottom of the screen. then it's over.
-	if (self.ry >= SCREEN_LINES)
+	if (self.ry >= VIEWPORT_YSIZE)
 		EntityRemove(_pself);
 }
 
@@ -2612,7 +2621,7 @@ void powerup2_fncol(entity_t *_pself, entity_t *_pother)
 	if (self.health < 0)
 	{
 		// kill all-the-things by spawning a giant death-slab
-		EntitySpawnRel(EntityType_SMARTBOMB, g_pe_viewport, c_viewport_xmargin, c_viewport_ymargin);
+		EntitySpawnRel(EntityType_SMARTBOMB, s_pe_viewport, c_viewport_xmargin, c_viewport_ymargin);
 
 		// remove powerup
 		EntityRemove(_pself);

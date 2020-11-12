@@ -125,7 +125,7 @@
 ../../bin/agtcut -cm emxspr -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o blobs.emx -p chunky8.ccs -sxp 323 -syp 273 -sxs 8 -sys 8 -sxi 11 -sc 2
 
 # nme: jelly
-../../bin/agtcut -cm emxspr -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o jelly.emx -p chunky8.ccs -sxp 283 -syp 254 -sxs 32 -sys 30 -sc 1
+../../bin/agtcut -cm emxspr -ccf 2 -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o jelly.emx -p chunky8.ccs -sxp 283 -syp 254 -sxs 32 -sys 30 -sc 1
 
 # nme: beam
 ../../bin/agtcut -cm emxspr -nc -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s sprites.png -o beam.emx -p chunky8.ccs -sxp 361 -syp 162 -sxs 30 -sys 4 -sc 1

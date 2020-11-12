@@ -343,7 +343,12 @@ extern entitybase_t *s_entity_links[c_entity_max_links];
 // ---------------------------------------------------------------------------------------------------------------------
 // global viewport object
 // todo: this won't remain a single global - will become part of drawcontext
-extern entity_t *g_pe_viewport;
+extern "C" entitybase_t *g_pe_viewport;
+
+static agt_inline void EntitySelectViewport(entbaseptr_t _pvp)
+{
+	g_pe_viewport = _pvp;
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // internal functions
