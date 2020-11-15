@@ -44,11 +44,14 @@ draw_layers	set	1
 
 *-------------------------------------------------------*
 
-BGRAST			=	$64
-BGRSAVE			=	$34
-VBServiceVec		=	$a0
-DMAFlag			=	$a4
-g_dbg_curr_entity	=	$a8
+BGRSAVE			=	$34		;CPV/030
+BGRAST			=	$64		;L1 AutoVec/TTVME
+DPNickelEventPos	=	$90		;Trap #4
+DPNickelPortPos		=	$94		;Trap #5
+DPFieldIndex		=	$9c		;Trap #7
+VBServiceVec		=	$a0		;Trap #8
+DMAFlag			=	$a4		;Trap #9
+g_dbg_curr_entity	=	$a8		;Trap #10
 
 *-------------------------------------------------------*
 	

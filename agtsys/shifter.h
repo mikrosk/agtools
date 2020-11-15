@@ -17,8 +17,45 @@ enum STEDisplayMode
 	STLow272,
 	//
 	STLowSplit136,
-	STLowSplitX
+	//
+	Nickel
 };
+
+enum NickelEvent
+{
+	NE_PortSelect,		// begin displaying pixels using next queued displayport config (i.e. next viewport)
+	NE_ColourBurst,		// write sequence of contiguous palette colours
+	NE_RegisterLoad,	// write constants into specific hardware registers, pattern specified by user
+	NE_CallBack,		// call some user code
+	NE_Blank,			// stop displaying pixels (temporarily) but continue processing events
+	NE_Stop,			// stop processing events AND stop displaying pixels
+	NE_End				// stop processing events but continue displaying pixels (until the next natural border)
+};
+
+enum NickelPort
+{
+	NickelPort0,	
+		NickelPortDefault = NickelPort0,
+	NickelPort1,
+	NickelPort2,
+	NickelPort3,
+	NickelPort4,
+	NickelPort5,
+	NickelPort6,
+	NickelPort7,
+//	..
+};
+
+
+typedef struct nickel_op_s
+{
+	s16 type;
+	s16 line;
+	s16 index;
+	s16 count;
+	void *pvalues;
+
+} nickel_op_t;
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -57,7 +94,7 @@ struct shiftgroup
 // ---------------------------------------------------------------------------------------------------------------------
 
 static const int c_max_shiftgroups = 2;
-static const int c_max_views = 4;
+static const int c_max_views = 16;
 
 extern "C" volatile shiftgroup *g_pgroups[c_max_views][c_max_shiftgroups];
 //extern "C" volatile shiftgroup **g_views[c_max_views];
@@ -257,6 +294,8 @@ public:
 
 	void setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c, s16 _view = 0);
 	void setpalette(s16 _buffer, s16 _field, u16* _colours, s16 _view = 0);
+
+	void load_nickel(nickel_op_t *_pevents, s16 _timing_resilience = 1);
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

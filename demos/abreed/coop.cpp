@@ -104,7 +104,7 @@ enum EntityType : int
 
 // physical display size
 #define SCREEN_XSIZE (320)
-#define SCREEN_YSIZE (136)
+#define SCREEN_YSIZE (128)
 
 // virtual display size including h-scroll margin
 #define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
@@ -688,9 +688,19 @@ int AGT_EntryPoint()
 		// The logical shifstate is always the one to be written by the game loop because it will not reach the HW registers 
 		// until the framebuffers are exchanged.
 
+
+		nickel_op_t nickel_commands[] =
+		{
+			{ NE_PortSelect,	0+8,	NickelPort0	},
+			{ NE_PortSelect,	128+8,	NickelPort1	},
+			{ NE_Stop,			256+8	}
+		};
+
+		shift.load_nickel(nickel_commands);
+
 		printf("init shifter...\n");
 		shift.set_fieldmode(/*dualfield=*/(c_dualfield && !c_singlevbl));
-		shift.init(STLowSplit136);
+		shift.init(Nickel);
 
 		// on F030 we can just open the top/bottom border through Videl
 		if (bFalcon030)

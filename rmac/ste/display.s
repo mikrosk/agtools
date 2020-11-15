@@ -55,9 +55,6 @@ imrb		=	$fffffa15
 isra		=	$fffffa0f
 isrb		=	$fffffa11
 
-;VBServiceVec			=	$a0
-;DMAFlag				=	$a4
-
 *-------------------------------------------------------*
 highlight_statusbar		=	0
 
@@ -72,6 +69,8 @@ displayservice_upper_delay	set	(94+4)		; safety padding of 6...3, but err toward
 timecritical_pad_tb		set	3-1		; TimerB padding (in scanlines)
 timecritical_pad_ta		set	6-1		; TimerA padding
 timecritical_pad_td		set	7-1		; TimerD padding
+
+max_displayports	=	16
 
 *-------------------------------------------------------*
 	.abs
@@ -137,12 +136,12 @@ DISP_size:
 *-------------------------------------------------------*
 _g_displayservice_consumed_lines:
 *-------------------------------------------------------*
-	dc.w		0
-	dc.w		displayservice_ste240_d0_tb
-	dc.w		displayservice_ste256_d0_tb
-	dc.w		displayservice_ste272_d0_tb
-	dc.w		displayservice_ste136s_d0_tb
-	dc.w		0
+	dc.w		0				; 200
+	dc.w		0				; 240	displayservice_ste240_d0_tb
+	dc.w		0				; 256	displayservice_ste256_d0_tb
+	dc.w		0				; 272	displayservice_ste272_d0_tb
+	dc.w		0				; 136s	displayservice_ste136s_d0_tb
+	dc.w		0				; nickel
 
 *-------------------------------------------------------*
 _STE_ConfigureDisplayService:
@@ -258,11 +257,13 @@ _STE_InstallDisplayService:
 
 .service_table:
 	dc.l		displayservice_ste200_vbi
-	dc.l		displayservice_ste240_vbi
-	dc.l		displayservice_ste256_vbi
+	dc.l		displayservice_nickel_vbi	; 240
+	dc.l		displayservice_nickel_vbi	; 256
+;	dc.l		displayservice_ste240_vbi
+;	dc.l		displayservice_ste256_vbi
 	dc.l		displayservice_ste272_vbi
 	dc.l		displayservice_ste136s_vbi
-	dc.l		displayservice_stexs_vbi
+	dc.l		displayservice_nickel_vbi
 	
 *-------------------------------------------------------*
 _STE_RemoveDisplayService:
