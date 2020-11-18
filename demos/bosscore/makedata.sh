@@ -3,8 +3,8 @@
 
 
 # boss
-#../../bin/agtcut -cm slabs -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s xenboss.png -o bosscore.sls -p xenpal.pi1 -sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
-#../../bin/agtcut -cm slabrestore -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s xenboss.png -o bosscore.slr -p xenpal.pi1 -sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
+../../bin/agtcut -cm slabs -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s xenboss.png -o bosscore.sls -p xenpal.pi1 -sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
+../../bin/agtcut -cm slabrestore -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s xenboss.png -o bosscore.slr -p xenpal.pi1 -sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
 
 # boss parts
 ../../bin/agtcut -cm emxspr -prv -keyrgb ff:00:ff -kg -kt 0.01 -gm -s bosseye.png -o bosseye.emx -p xenpal.pi1 -sxp 0 -syp 0 -sxs 22 -sys 16 -sxi 22 -syi 0 -sc 6

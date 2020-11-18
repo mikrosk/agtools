@@ -50,7 +50,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.462";
+static const char* const g_version_string = "v0.463";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
@@ -184,7 +184,9 @@ static uword_t *g_workbufferbpl = 0;
 #endif
 
 #include "../3rdparty/SimpleOpt.h"
-//#include "../3rdparty/SimpleGlob.h"
+#if defined(_MSC_VER)
+#include "../3rdparty/SimpleGlob.h"
+#endif
 
 // --------------------------------------------------------------------
 //	misc. small helper functions
@@ -7112,6 +7114,7 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 			int yy = pframecomponent->yo_;
 			for (auto & s : pframecomponent->spans_)
 			{
+				// optional lineskip
 				for (int py = yy; py < (yy + s.dy_); py++)
 				{
 					printf("\t");
@@ -7121,6 +7124,7 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 				}
 				yy += s.dy_;
 
+				// body
 				for (int py = yy; py < (yy + s.ys_); py++)
 				{
 					printf("\t");
@@ -7148,6 +7152,25 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 			printf("\n<<<\n");
 		}
 
+		if (g_allargs.preview)
+		{
+			printf("\nsource updated:\n");
+			for (int y = cymin; (y < cymax); y++)
+			{
+				for (int x = cxmin; x < cxmax; x++)
+				{
+					ubyte_t c = g_colrbuffer8[(y * g_sprite_framebpwidth) + x];
+
+					if (c == g_allargs.keycol)
+						printf(" ");
+					else
+						printf("%x", (int)(c & 0x0F));
+				}
+				printf("\n");
+			}
+			printf("\n");
+		}
+
 		components_remaining = false;
 
 		if (g_allargs.compound_slabs)
@@ -7157,11 +7180,12 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 			{
 				for (int x = cxmin; x < cxmax; x++)
 				{
-					byte_t c = g_colrbuffer8[(y * g_sprite_framebpwidth) + x];
+					ubyte_t c = g_colrbuffer8[(y * g_sprite_framebpwidth) + x];
 					if (c != g_allargs.keycol)
 					{
 						components_remaining = true;
 						std::cout << "slab components remaining - performing another cut pass..." << std::endl;
+						//getchar();
 
 
 						int live_height = -1;

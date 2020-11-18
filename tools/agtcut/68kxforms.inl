@@ -1244,7 +1244,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							// filter out side effects of BCHG on H word
 							((registers[rs].L & 31) < 16) &&
 							// desired data matches BCHG output
-							(data16 == (it_treg->L ^ (1 << (registers[rs].L & 31)))) &&
+							(data16 == (it_treg->L ^ (1UL << (registers[rs].L & 31)))) &&
 							// don't permit rename if it affects a high word dependency - unless high words are stable and equal
 							safe_rename_H(curr, it_treg, _rold)
 						)
@@ -1261,7 +1261,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								registers[rs].name.c_str(),
 								it_treg->name.c_str(),
 								it_treg->L,
-								(1 << (registers[rs].L & 31))
+								(1UL << (registers[rs].L & 31))
 								);
 
 							register_rename(curr, _rold, rnew);
@@ -1277,7 +1277,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						// OPPORTUNITY: (BCHG Rx,Ry.L == EXPECTED)
 						if ((it_treg->regclass == RegClass_Data) && (registers[rs].regclass == RegClass_Data) &&
 							valid_treg32 &&
-							(data32 == (((ulong_t(it_treg->H) << 16) | it_treg->L) ^ (ulong_t(1) << (registers[rs].L & 31))))
+							(data32 == (((ulong_t(it_treg->H) << 16) | it_treg->L) ^ (1UL << (registers[rs].L & 31))))
 						)
 						{
 							if (g_allargs.verbose)
@@ -1287,7 +1287,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								registers[rs].name.c_str(),
 								it_treg->name.c_str(),
 								it_treg->H, it_treg->L,
-								(1 << (registers[rs].L & 31))
+								(1UL << (registers[rs].L & 31))
 								);
 
 							register_rename(curr, _rold, rnew);

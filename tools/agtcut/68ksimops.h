@@ -1803,8 +1803,10 @@ public:
 
 	virtual void onExecute()
 	{
-		ctx.registers[dreg].H = ctx.registers[dreg].H ^ ((1 << (ctx.registers[sreg].L & 31)) >> 16);
-		ctx.registers[dreg].L = ctx.registers[dreg].L ^ ((1 << (ctx.registers[sreg].L & 31)) & 0xFFFF);
+		int shift = ctx.registers[sreg].L & 31;
+		ulong_t bit = 1UL << shift;
+		ctx.registers[dreg].H ^= ((bit & 0xFFFF0000) >> 16);
+		ctx.registers[dreg].L ^= ((bit & 0x0000FFFF) >> 0);
 		ctx.cycles += cost;
 	}
 };
