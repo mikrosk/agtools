@@ -8,6 +8,11 @@
 #define vec_h_
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+static agt_inline s16 as_i(const s32 &_f) { return (_f >> 16); }
+static agt_inline s32 as_f(const s16 &_i) { return (s32(_i) << 16); }
+
+// ---------------------------------------------------------------------------------------------------------------------
 //	vec1_t: scalar/1D value type
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -33,6 +38,10 @@ public:
 		: f(s32(_i)<<16)
 	{
 	}
+
+	// direct assignment allowed from basic types, in vec1_t (but not vec2_t)
+	vec1_t & operator =(const s16 &_o)    { f  = as_f(_o); return *this; } 
+	vec1_t & operator =(const s32 &_o)    { f  = _o; return *this; } 
 
 	vec1_t & operator =(const vec1_t &_o) { f  = _o.f; f  = _o.f; return *this; } 
 	vec1_t & operator+=(const vec1_t &_o) { f += _o.f; f += _o.f; return *this; } 
@@ -75,6 +84,11 @@ public:
 	{
 	}
 
+	vec2_t(const vec1_t &_ox, const vec1_t &_oy)
+		: fx(_ox.f), fy(_oy.f)
+	{
+	}
+
 	explicit vec2_t(s32 _fx, s32 _fy)
 		: fx(_fx), fy(_fy)
 	{
@@ -96,12 +110,17 @@ public:
 	void addf(s32 _fx, s32 _fy) { fx += _fx; fy += _fy; }
 	void subf(s32 _fx, s32 _fy) { fx -= _fx; fy -= _fy; }
 
+	void add(const vec1_t &_ox, const vec1_t &_oy) { fx += _ox.f; fy += _oy.f; }
+	void sub(const vec1_t &_ox, const vec1_t &_oy) { fx -= _ox.f; fy -= _oy.f; }
+
 	void neg() { fx = -fx; fy = -fy; }
 	void negx() { fx = -fx; }
 	void negy() { fy = -fy; }
 
 	void seti(s16 _ix, s16 _iy) { fx = s32(_ix)<<16; fy = s32(_iy)<<16; }
 	void setf(s32 _fx, s32 _fy) { fx = _fx; fy = _fy; }
+
+	void set(const vec1_t &_ox, const vec1_t &_oy) { fx = _ox.f; fy = _oy.f; }
 
 	union { s16 ix; s32 fx; };
 	union { s16 iy; s32 fy; };
@@ -179,9 +198,6 @@ public:
 	vec2_t p;
 	vec2_t s;
 };
-
-static agt_inline s16 as_i(const s32 &_f) { return (_f >> 16); }
-static agt_inline s32 as_f(const s16 &_i) { return (s32(_i) << 16); }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
