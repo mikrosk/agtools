@@ -53,7 +53,7 @@ public:
 	union { s16 i; s32 f; };
 };
 
-static inline s16 i_distance(const vec1_t &_a, const vec1_t &_b) 
+static agt_inline s16 i_distance(const vec1_t &_a, const vec1_t &_b) 
 {
 	return _b.i - _a.i;
 }
@@ -107,12 +107,12 @@ public:
 	union { s16 iy; s32 fy; };
 };
 
-static inline s16 ix_distance(const vec2_t &_a, const vec2_t &_b) 
+static agt_inline s16 ix_distance(const vec2_t &_a, const vec2_t &_b) 
 {
 	return _b.ix - _a.ix;
 }
 
-static inline s16 iy_distance(const vec2_t &_a, const vec2_t &_b) 
+static agt_inline s16 iy_distance(const vec2_t &_a, const vec2_t &_b) 
 {
 	return _b.iy - _a.iy;
 }
@@ -164,13 +164,13 @@ public:
 		// todo
 	}
 */
-	void from_points(const vec2_t &_p1, const vec2_t &_p2)
+	agt_inline void from_points(const vec2_t &_p1, const vec2_t &_p2)
 	{
 		p = _p1;
 		s = _p2 - _p1;
 	}
 
-	void to_points(vec2_t &_p1, vec2_t &_p2) const
+	agt_inline void to_points(vec2_t &_p1, vec2_t &_p2) const
 	{
 		_p1 = p;
 		_p2 = p + s;
@@ -179,6 +179,9 @@ public:
 	vec2_t p;
 	vec2_t s;
 };
+
+static agt_inline s16 as_i(const s32 &_f) { return (_f >> 16); }
+static agt_inline s32 as_f(const s16 &_i) { return (s32(_i) << 16); }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
