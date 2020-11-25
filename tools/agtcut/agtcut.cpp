@@ -718,6 +718,8 @@ static void usage(int level)
 #define PCLOSE pclose
 #endif
 
+#include <memory>
+
 static bool exec(const std::string &cmd, std::string &r_result)
 {
 	char buffer[4096] = { 0 };
@@ -1816,6 +1818,11 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 	// trounce verbosity in quickcut mode
 	//if (g_allargs.quickcut)
 	//	g_allargs.verbose = false;
+
+	if (_args.cutmode == Cutmode_SLABRESTORE)
+	{
+		_args.compound_slabs = false;
+	}
 
 	if (g_allargs.hidden)
 	{
@@ -6086,6 +6093,9 @@ bool emit_sprite_sequence(bool _storepixels)
 		wv = endianswap16((uword_t)g_sprite_height);
 		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
+		std::cout << "bound xs: " << std::dec << g_sprite_width << std::endl;
+		std::cout << "bound ys: " << std::dec << g_sprite_width << std::endl;
+
 		// create sprite index (patched before closing)
 		int sprite_index_fpos = tracked_filesize;
 		lv = 0xBBBBBBBB;
@@ -6095,8 +6105,11 @@ bool emit_sprite_sequence(bool _storepixels)
 		}
 
 		// individual sprites follow
-		for (spritelist_t::iterator it = g_spriteframes.begin(); it != g_spriteframes.end(); it++)
+		int si = 0;
+		for (spritelist_t::iterator it = g_spriteframes.begin(); it != g_spriteframes.end(); it++, si++)
 		{
+			printf("frame: %03d xo:%03d yo:%03d xs:%03d ys:%02d\n", si, it->xo_, it->yo_, it->w_, it->h_);
+
 			// record file-offset to sprite in sprite index, for patching later
 			sprite_index.push_back(tracked_filesize);
 
@@ -6113,6 +6126,7 @@ bool emit_sprite_sequence(bool _storepixels)
 			// 2: sprite frame yoff
 			wv = endianswap16(it->yo_);
 			fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
 
 			// 2: occlusion map offset
 			int omap_base_fpos = tracked_filesize;
@@ -6888,6 +6902,7 @@ void extract_spanblock(slabframe_t &slab, int _spanblock_firstx, int _spanblock_
 
 
 	int spanlength = (_spanblock_lastx - _spanblock_firstx) + 1;
+	//std::cerr << "slen: " << spanlength << std::endl;
 	int spanlength16 = (spanlength + (16 - 1)) & -16;
 	int spanlengthwords = spanlength16 >> 4;
 
@@ -7061,8 +7076,9 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 			else
 				// otherwise extract everything as a single component, between left and rightmost edge
 			{
-				lastx = cxmax - 1;
-				for (int psx = cxmin; psx < cxmax; psx++, lastx--)
+				lastx = (cxmax-cxmin) - 1;
+				//for (int psx = cxmin; psx < cxmax; psx++, lastx--)
+				for (; lastx >= 0; lastx--)
 				{
 					ubyte_t c = g_colrbuffer8[(py * g_sprite_framebpwidth) + lastx];
 					if (c != g_allargs.keycol) break;
@@ -7076,8 +7092,16 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 				{
 					// completion of non-empty spanblock
 
+					printf("fx:%d lx:%d xs:%d\n", spanblock_firstx, spanblock_lastx, (spanblock_lastx - spanblock_firstx) + 1);
 					// extract spanblock, left-justified to workbuffer and erase original (for multiple extractions)
-					extract_spanblock(*pframecomponent, spanblock_firstx, spanblock_lastx, spanblock_firsty, spanblock_lasty, (spanblock_firsty - prevlasty), cxmax);
+					extract_spanblock
+					(
+						*pframecomponent, 
+						spanblock_firstx, spanblock_lastx, 
+						spanblock_firsty, spanblock_lasty, 
+						(spanblock_firsty - prevlasty), 
+						cxmax
+					);
 					prevlasty = spanblock_lasty;
 				}
 				else
@@ -7103,7 +7127,14 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 			// final spanblock (if any)
 
 			// extract spanblock, left-justified to workbuffer and erase original (for multiple extractions)
-			extract_spanblock(*pframecomponent, spanblock_firstx, spanblock_lastx, spanblock_firsty, spanblock_lasty, (spanblock_firsty - prevlasty), cxmax);
+			extract_spanblock
+			(
+				*pframecomponent, 
+				spanblock_firstx, spanblock_lastx, 
+				spanblock_firsty, spanblock_lasty, 
+				(spanblock_firsty - prevlasty), 
+				cxmax
+			);
 		}
 
 		if (g_allargs.preview)
@@ -7111,6 +7142,7 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 			printf("\nreconstruction:\n");
 			//
 
+			int xx = pframecomponent->xo_;
 			int yy = pframecomponent->yo_;
 			for (auto & s : pframecomponent->spans_)
 			{
@@ -7127,17 +7159,22 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 				// body
 				for (int py = yy; py < (yy + s.ys_); py++)
 				{
+					int xxo = xx + s.xo_;
 					printf("\t");
-					for (int t = 0; t < s.xo_; t++)
+					int t = 0;
+					for (; t < xx; t++)
+						printf("~");
+					for (; t < xxo; t++)
 						printf(".");
 
-					int px = s.xo_;
-					for (; px < (s.xo_ + s.xs_); px++)
+					int px = xxo;
+					for (; px < (xxo + s.xs_); px++)
 					{
 						ubyte_t c = _psource8[((py + _y) * g_spritesource_w) + (px + _x)];
 
+						//printf("x");
 						if (c == g_allargs.keycol)
-							printf(" ");
+							printf("*");
 						else
 							printf("%x", (int)(c & 0xF));
 					}
@@ -7294,6 +7331,7 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 		int workarea_h = g_sprite_height;
 
 		ubyte_t * workarea = new ubyte_t[workarea_w * workarea_h];
+		memset(workarea, g_allargs.keycol, workarea_w * workarea_h);
 
 		for (int py = 0; py < g_sprite_height; py++)
 		{

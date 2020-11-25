@@ -257,6 +257,7 @@ enum OpKind
 	//
 	OpKind_SYSPageRestore,
 	OpKind_BLITInit,
+	OpKind_BLITXMod,
 	OpKind_BLITSetup,
 	OpKind_BLITGo,
 	OpKind_SRCSkip,
@@ -292,6 +293,7 @@ static const char* const as_str[] =
 	//
 	"OpKind_SYSPageRestore",
 	"OpKind_BLITInit",
+	"OpKind_BLITXMod",
 	"OpKind_BLITSetup",
 	"OpKind_BLITGo",
 	"OpKind_SRCSkip",
@@ -3630,8 +3632,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					{
 						// gather metrics for datawords on this line
 						bool line_changed = false;
-					for (int x = 0; x < 3; x++)
-					{
+						for (int x = 0; x < 3; x++)
+						{
 							if (!linechanges[x])
 							{
 								if (!g_allargs.quickcut)
@@ -4176,6 +4178,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 				int src_lines_skipped = 0;
 
+				int curr_line_words = shift.wordwidth_;
+
 				linemap lines;
 				for (int y = 0; y < shift.height_; y++)
 				{
@@ -4192,6 +4196,27 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 					//	line |= srcdata[x];
 					//}
 
+					// determine true [offset,width] for this line only
+/*
+					int live_line_words = 0;
+					switch (curr_line_words)
+					{
+
+					};
+
+					for (int mi = 3-1; mi >= 0; mi--)
+					{
+						if (srcdata[mi] != 0)
+							live_line_words++;
+					}
+
+					if ((live_line_words > 0) && (live_line_words != curr_line_words))
+					{
+						context.blitter.xcount = curr_line_words;
+						context.operations.push_back(new BLiT_XMod(context, (live_line_words- curr_line_words)));
+						curr_line_words = live_line_words;
+					}
+*/
 					// is the blit going to output something?
 					//if (line)
 					if (component_livelines[dsty])

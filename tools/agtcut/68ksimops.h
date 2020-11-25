@@ -1927,6 +1927,43 @@ public:
 	}
 };
 
+class BLiT_XMod : public Operation
+{
+public:
+
+	BLiT_XMod(Context &_ctx, int _changew)
+		: Operation(_ctx, OpKind_BLITXMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0, -1),
+		  changew_(_changew)
+	{
+	}
+
+	virtual void onEmit()
+	{
+		char buf[1024];
+
+		if (changew_ > 0)
+		{
+			sprintf(ctx.buf, " addq.w #%d,%s\t;%d\n", changew_, ctx.BLiTXC_name.c_str(), 16);
+			sprintf(buf,     " subq.w #%d,%s\t;%d\n", changew_*2, ctx.BLiTSYI_name.c_str(), 16);
+			strcat(ctx.buf, buf);
+		}
+		else
+		if (changew_ < 0)
+		{
+			sprintf(ctx.buf, " subq.w #%d,%s\t;%d\n", -changew_, ctx.BLiTXC_name.c_str(), 16);
+			sprintf(buf,     " addq.w #%d,%s\t;%d\n", -changew_*2, ctx.BLiTSYI_name.c_str(), 16);
+			strcat(ctx.buf, buf);
+		}
+	}
+
+	virtual void onExecute()
+	{
+	}
+
+	int changew_;
+	int changeo_;
+};
+
 
 class SYS_PageRestore : public Operation
 {
