@@ -157,7 +157,7 @@ static inline void nickel_set_ringbuffer_pos(s16 codegen_wordindex)
 extern "C" volatile s16 g_nickel_read_idx;
 extern "C" s16 g_nickel_write_idx;
 
-void shifter_ste::load_nickel(nickel_op_t *_pevents, s16 _timing_resilience)
+void shifter_ste::load_nickel(nickel_op_t *_pevents, int _timing_resilience)
 {
 	s16 slot;
 	while ((slot = ((g_nickel_write_idx + 1) & 1)) == g_nickel_read_idx)
@@ -165,6 +165,7 @@ void shifter_ste::load_nickel(nickel_op_t *_pevents, s16 _timing_resilience)
 	}
 
 	s16 timecritical_pad_tb = _timing_resilience;
+
 	nickel_ins_t * pinstruction = g_a_nickel_eventbase[slot];
 	u16* pcodegenbase = (u16*)((int)g_a_nickel_codegen_area[slot] & -256);
 	s16* pportmap = (s16*)(g_a_displayport_maps[slot]);

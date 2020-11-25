@@ -176,6 +176,19 @@ inline unsigned long nlpo2(unsigned long x)
         return (x+1);
 }
 
+template<class T>
+inline const T bceil(const T _v)
+{
+	T t = 0;
+
+	while ((1 << t) < _v)
+	{
+		++t;
+	}
+
+	return (t);	
+}
+
 inline unsigned long reverse(unsigned long x)
 {
     x = ((x >> 1)  & 0x55555555u) | ((x & 0x55555555u) << 1);

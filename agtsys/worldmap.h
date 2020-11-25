@@ -108,7 +108,7 @@ private:
 
 		int preshift = (tilestep + tilestep + 2) - 3 + overlay;
 
-		// we now preshift for 16x16 tiles since other bits are unused (so far - can be masked later)
+		// we now preshift for 16x16 or 8x8 tiles since other bits are unused (so far - can be masked later)
 		for (s32 m = 0; m < _mapspace; m++)
 		{
 			map_[m] <<= preshift;

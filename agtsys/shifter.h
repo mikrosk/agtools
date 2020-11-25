@@ -46,6 +46,15 @@ enum NickelPort
 //	..
 };
 
+//----------------------------------------------------------------------------------------------------------------------
+// convert R8,G8,B8 to STE swizzled 0x0RGB (compiletime constant)
+
+#define STE_RGB8(_r_,_g_,_b_) \
+		(((((((_r_ + 0x07) > 0xFF) ? 0xFF : (_r_ + 0x07)) >> 1) & 0x08) | (((((_r_ + 0x07) > 0xFF) ? 0xFF : (_r_ + 0x07)) >> 5) & 0x07))<<8) | \
+		(((((((_g_ + 0x07) > 0xFF) ? 0xFF : (_g_ + 0x07)) >> 1) & 0x08) | (((((_g_ + 0x07) > 0xFF) ? 0xFF : (_g_ + 0x07)) >> 5) & 0x07))<<4) | \
+		(((((((_b_ + 0x07) > 0xFF) ? 0xFF : (_b_ + 0x07)) >> 1) & 0x08) | (((((_b_ + 0x07) > 0xFF) ? 0xFF : (_b_ + 0x07)) >> 5) & 0x07))<<0)
+
+//----------------------------------------------------------------------------------------------------------------------
 
 typedef struct nickel_op_s
 {
@@ -295,7 +304,7 @@ public:
 	void setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c, s16 _view = 0);
 	void setpalette(s16 _buffer, s16 _field, u16* _colours, s16 _view = 0);
 
-	void load_nickel(nickel_op_t *_pevents, s16 _timing_resilience = 1);
+	void load_nickel(nickel_op_t *_pevents, int _timing_resilience = 1);
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

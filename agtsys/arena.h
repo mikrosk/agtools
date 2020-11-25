@@ -880,6 +880,13 @@ public:
 
 	//
 
+	template<PFLayer _layercode = PFLayer_Base>
+	agt_inline s32 sample(s16 _x, s16 _y)
+	{
+		// update map tiles
+		return mapctx0_.template sample<_layercode>(_x, _y);
+	}
+
 	// modify multiple map tiles before next refresh: single tile at a time (using plain index, i.e. not pre-formatted for map)
 	// note: no dualfield support yet - will implement shared dualfield maps first
 	template<PFLayer _layercode = PFLayer_Base, bool _autoregion = true>

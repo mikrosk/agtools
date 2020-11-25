@@ -11,6 +11,7 @@
 
 // required for EntityDrawVisible?? functions
 #include "drawcontext.h"
+#include "vec.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 // external configuration
@@ -175,10 +176,10 @@ struct entitybase_t
 	s16 rev_user;
 
 	// [coordinates]
-	union { s16 wx; s32 fwx; };	\
-	union { s16 wy; s32 fwy; };	\
-	union { s16 wz; s32 fwz; };	\
-	union { s16 vz; s32 fvz; };	\
+	union { s16 wx; s32 fwx; };
+	union { s16 wy; s32 fwy; };
+	union { s16 wz; s32 fwz; };
+	union { s16 vz; s32 fvz; };
 
 	// [static]
 

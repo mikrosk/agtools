@@ -364,7 +364,6 @@ public:
 	static const int c_hscrolltiles_ = (16 / c_tilesize_) > 0 ? (16 / c_tilesize_) : 1;
 
 	// maximum number of virtual tiles possible on any axis
-//	static const s16 c_max_vt_ = 32768 / c_tilesize_;
 	static const s16 c_max_vt_ = _max_scroll / c_tilesize_;
 
 	static const int c_hspeculative_margin_ = c_hspeculative_ ? c_tilesize_ : 0;
@@ -372,7 +371,8 @@ public:
 	static const int c_vspeculative_margin_ = c_vspeculative_ ? c_tilesize_ : 0;
 	static const int c_vspeculative_margin_size_ = c_vspeculative_margin_ * 2;
 
-//	typedef s32 mapmul_t;
+	static const s16 c_minsafex = c_hspeculative_margin_;
+	static const s16 c_minsafey = c_vspeculative_margin_;
 
 	// ---------------------------------------------------------------------------------------------------------------------
 
@@ -467,6 +467,20 @@ public:
 		void setoverlaymap(worldmap* _map)
 		{
 			mapoverlay_ = _map->get();
+		}
+
+		template<PFLayer _layercode = PFLayer_Base>
+		agt_inline s32 sample(s16 _x, s16 _y)
+		{
+			s32 val;
+
+			s32 index = mul_map_x_[_y] + _x;
+			if (_layercode & PFLayer_Base)
+				val = map_[index];
+			if (_layercode & PFLayer_Overlay)
+				val = mapoverlay_[index];
+
+			return val;
 		}
 
 		template<PFLayer _layercode = PFLayer_Base>
