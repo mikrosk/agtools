@@ -247,6 +247,11 @@ public:
 		: Operation(_ctx, OpKind_StoreR32, OpSize_32, OpSource_Register, OpSource_Memory, OpWrite_Replace, 12, 0, 1),
 		  em(_em)
 	{
+		if (_areg >= 256)
+		{
+			__debugbreak();
+		}
+
 		assert(_reg < 256);
 		sreg = _reg;
 		assert(_areg < 256);
@@ -1927,32 +1932,77 @@ public:
 	}
 };
 
-class BLiT_XMod : public Operation
+class BLiT_XCMod : public Operation
 {
 public:
 
-	BLiT_XMod(Context &_ctx, int _changew)
-		: Operation(_ctx, OpKind_BLITXMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0, -1),
+	BLiT_XCMod(Context &_ctx, int _changew)
+		: Operation(_ctx, OpKind_BLITXCMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
 		  changew_(_changew)
 	{
 	}
 
 	virtual void onEmit()
 	{
-		char buf[1024];
-
 		if (changew_ > 0)
 		{
-			sprintf(ctx.buf, " addq.w #%d,%s\t;%d\n", changew_, ctx.BLiTXC_name.c_str(), 16);
-			sprintf(buf,     " subq.w #%d,%s\t;%d\n", changew_*2, ctx.BLiTSYI_name.c_str(), 16);
-			strcat(ctx.buf, buf);
+			sprintf(ctx.buf, " add.w #%d,%s\t;%d (XC:+%d)\n",
+				changew_,
+				ctx.BLiTXC_name.c_str(), 
+				cost, 
+				changew_
+			);
 		}
 		else
 		if (changew_ < 0)
 		{
-			sprintf(ctx.buf, " subq.w #%d,%s\t;%d\n", -changew_, ctx.BLiTXC_name.c_str(), 16);
-			sprintf(buf,     " addq.w #%d,%s\t;%d\n", -changew_*2, ctx.BLiTSYI_name.c_str(), 16);
-			strcat(ctx.buf, buf);
+			sprintf(ctx.buf, " sub.w #%d,%s\t;%d (XC:-%d)\n", 
+				-changew_,
+				ctx.BLiTXC_name.c_str(),
+				cost, 
+				-changew_
+			);
+		}
+	}
+
+	virtual void onExecute()
+	{
+		ctx.blitter.xcount_adj += changew_;
+	}
+
+	int changew_;
+};
+
+class BLiT_DYIMod : public Operation
+{
+public:
+
+	BLiT_DYIMod(Context &_ctx, int _changew)
+		: Operation(_ctx, OpKind_BLITDYIMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
+		changew_(_changew)
+	{
+	}
+
+	virtual void onEmit()
+	{
+		if (changew_ > 0)
+		{
+			sprintf(ctx.buf, " add.w #%d,%s\t;%d (DYI:+%d)\n", 
+				changew_ * 8, 
+				ctx.BLiTDYI_name.c_str(), 
+				cost, 
+				changew_
+			);
+		}
+		else
+		if (changew_ < 0)
+		{
+			sprintf(ctx.buf, " sub.w #%d,%s\t;%d (DYI:-%d)\n", 
+				-changew_ * 8, 
+				ctx.BLiTDYI_name.c_str(), 
+				cost, 
+				-changew_
+			);
 		}
 	}
 
@@ -1961,9 +2011,74 @@ public:
 	}
 
 	int changew_;
-	int changeo_;
 };
 
+class BLiT_SYIMod : public Operation
+{
+public:
+
+	BLiT_SYIMod(Context &_ctx, int _changew)
+		: Operation(_ctx, OpKind_BLITSYIMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
+		changew_(_changew)
+	{
+	}
+
+	virtual void onEmit()
+	{
+		if (changew_ > 0)
+		{
+			sprintf(ctx.buf,     " add.w #%d,%s\t;%d (SYI:+%d)\n",
+				changew_*2, 
+				ctx.BLiTSYI_name.c_str(), 
+				cost, 
+				changew_
+			);
+		}
+		else
+		if (changew_ < 0)
+		{
+			sprintf(ctx.buf,     " sub.w #%d,%s\t;%d (SYI:-%d)\n", 
+				-changew_*2, 
+				ctx.BLiTSYI_name.c_str(), 
+				cost,
+				-changew_
+			);
+		}
+	}
+
+	virtual void onExecute()
+	{
+	}
+
+	int changew_;
+};
+
+class BLiT_Skew : public Operation
+{
+public:
+
+	BLiT_Skew(Context &_ctx, u8 _skew)
+		: Operation(_ctx, OpKind_BLITSkew, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
+		  skew_(_skew)
+	{
+	}
+
+	virtual void onEmit()
+	{
+		sprintf(ctx.buf, " move.b #%d,%s\t;%d (SKEW:%02x)\n",
+			skew_, 
+			ctx.BLiTSKEW_name.c_str(), 
+			cost, 
+			skew_
+		);
+	}
+
+	virtual void onExecute()
+	{
+	}
+
+	u8 skew_;
+};
 
 class SYS_PageRestore : public Operation
 {
@@ -2053,10 +2168,11 @@ class BLiT_Go : public Operation
 {
 public:
 
-	BLiT_Go(Context &_ctx, int _sreg, int _sline, int _dline)
+	BLiT_Go(Context &_ctx, int _sreg, int _sline, int _dline, int _order)
 		: Operation(_ctx, OpKind_BLITGo, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 0, -1),
 		  sline(_sline),
-		  dline(_dline)
+		  dline(_dline),
+		  order(_order)
 	{
 		sreg = _sreg;
 	}
@@ -2064,53 +2180,78 @@ public:
 	virtual void onEmit()
 	{
 		sprintf
-			(
+		(
 			ctx.buf,
-			" move.b %s,%s\t;%d BLiT(s=%d,d=%d)\n",
+			" move.b %s,%s\t;%d BLiT(s=%d,d=%d,o=%d)\n",
 			ctx.registers[sreg].name.c_str(), 
 			ctx.BLiTCTRL_name.c_str(), 
-			8,
-			sline, dline
+			cost,
+			sline, dline, order
 		);
 	}
 
 	virtual void onExecute()
 	{
+		//if ((order == 0) || (order == 43))
+		//	__debugbreak();
+
+		int width = ctx.blitter.xcount + ctx.blitter.xcount_adj;
+
 		ctx.memory[ctx.dstaddr + 0] = ctx.blitter.em[0];
 
-		if (ctx.blitter.xcount == 2)
+		if (width == 2)
 		{
 			ctx.memory[ctx.dstaddr + 1] = ctx.blitter.em[2];
 		}
 		else
-		if (ctx.blitter.xcount == 3)
+		if (width == 3)
 		{
 			ctx.memory[ctx.dstaddr + 1] = ctx.blitter.em[1];
 			ctx.memory[ctx.dstaddr + 2] = ctx.blitter.em[2];
 		}
+		else 
+		if (width > 3)
+		{
+			// multi-word case
+			int m = 1;
+			for (; m < (width - 1); m++)
+				ctx.memory[ctx.dstaddr + m] = ctx.blitter.em[1];
+			ctx.memory[ctx.dstaddr + m] = ctx.blitter.em[2];
+		}
+
 	}
 
 	int sline;
 	int dline;
+	int order;
 };
 
 class SRC_Skip : public Operation
 {
 public:
 
-	SRC_Skip(Context &_ctx, int _skips)
+	SRC_Skip(Context &_ctx, int _worddelta, int _linedelta)
 		: Operation(_ctx, OpKind_SRCSkip, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
-		  delta(_skips)
+		  worddelta(_worddelta),
+		  linedelta(_linedelta)
 	{
+	}
+
+	int delta(int srccolww)
+	{
+		return (linedelta * (srccolww * 8)) + (worddelta * 2);
 	}
 
 	virtual void onEmit()
 	{
 		sprintf
-			(
+		(
 			ctx.buf,
-			" add.l #%d,$ffff8a24\n",
-			delta * (ctx.srccolww * 8)
+			" add.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
+			delta(ctx.srccolww),
+			ctx.BLiTSRC_name.c_str(),
+			cost,
+			worddelta, linedelta
 		);
 	}
 
@@ -2119,80 +2260,114 @@ public:
 		//ctx.memaddr += delta * ctx.dstww;
 	}
 
-	int delta;
+	int worddelta;
+	int linedelta;
 };
 
 class DST_Lea : public Operation
 {
 public:
 
-	DST_Lea(Context &_ctx, int _sreg, int _dreg, int _delta)
+	DST_Lea(Context &_ctx, int _sreg, int _dreg, int _worddelta, int _linedelta)
 		: Operation(_ctx, OpKind_DSTLea, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, 2),
-		  delta(_delta)
+		  linedelta(_linedelta),
+		  worddelta(_worddelta)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
 	}
 
+	int delta(int _dlw) 
+	{
+		return (linedelta * _dlw) + (worddelta * 8);
+	}
+
 	virtual void onEmit()
 	{
+		int offset = delta(ctx.dstlinewid);
+
 		sprintf
 		(
 			ctx.buf, 
-			" lea %d(%s),%s\t;%d\n", 
-			delta * ctx.dstlinewid, 
+			" lea %d(%s),%s\t;%d (x:%d,y:%d)\n", 
+			offset, 
 			ctx.registers[sreg].name.c_str(),
 			ctx.registers[dreg].name.c_str(),
 			//ctx.DSTADDR_regname.c_str(), 
 			//ctx.DSTADDR_regname.c_str(), 
-			cost
+			cost,
+			worddelta, 
+			linedelta
 		);
+	}
+
+	int sim_delta() 
+	{
+		return (linedelta * ctx.dstww) + worddelta;
 	}
 
 	virtual void onExecute()
 	{
-		ctx.memaddr += delta * ctx.dstww;
-		ctx.sim_track_datarefs(uword_t(delta * ctx.dstww));
+		ctx.memaddr += sim_delta();
+
+		ctx.sim_track_datarefs(uword_t(delta(ctx.dstlinewid)));
 	}
 
-	int delta;
+	int linedelta;
+	int worddelta;
 };
 
 class DST_AddaIL : public Operation
 {
 public:
 
-	DST_AddaIL(Context &_ctx, int _dreg, int _delta)
+	DST_AddaIL(Context &_ctx, int _dreg, int _worddelta, int _linedelta)
 		: Operation(_ctx, OpKind_DSTAddaIL, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 4, 2),
-		  delta(_delta)
+		  worddelta(_worddelta),
+		  linedelta(_linedelta)
 	{
 		sreg = _dreg;
 		dreg = _dreg;
 	}
 
+	int delta(int _dlw) 
+	{
+		return (linedelta * _dlw) + (worddelta * 8);
+	}
+
 	virtual void onEmit()
 	{
-		sprintf(ctx.buf, " adda.l #%d,%s\t;%d\n", 
-			int(delta * ctx.dstlinewid), 
+		sprintf(ctx.buf, " adda.l #%d,%s\t;%d (x:%d,y:%d)\n", 
+			delta(ctx.dstlinewid), 
 			ctx.registers[dreg].name.c_str(), 
-			cost
-			);
+			cost,
+			worddelta, linedelta
+		);
+	}
+
+	int sim_delta() 
+	{
+		return (linedelta * ctx.dstww) + worddelta;
 	}
 
 	virtual void onExecute()
 	{
-		ctx.memaddr += delta * ctx.dstww;
+		ctx.memaddr += sim_delta();
+		//ctx.sim_track_datarefs(uword_t(delta(ctx.dstlinewid)));
 	}
 
-	int delta;
+	int worddelta;
+	int linedelta;
 };
 
 class DST_AddaR16 : public Operation
 {
 public:
 
-	DST_AddaR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_DSTAddaR16, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
+	DST_AddaR16(Context &_ctx, int _sreg, int _dreg, int _worddelta, int _linedelta)
+		: Operation(_ctx, OpKind_DSTAddaR16, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1),
+		  worddelta(_worddelta),
+		  linedelta(_linedelta)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -2200,25 +2375,38 @@ public:
 
 	virtual void onEmit()
 	{
-		sprintf(ctx.buf, " adda.w %s,%s\t;%d\n", 
+		sprintf(ctx.buf, " adda.w %s,%s\t;%d (x:%d,y:%d)\n", 
 			ctx.registers[sreg].name.c_str(),
 			ctx.registers[dreg].name.c_str(), 
-			cost
+			cost,
+			worddelta,
+			linedelta
 			);
+	}
+
+	int sim_delta() 
+	{
+		return (linedelta * ctx.dstww) + worddelta;
 	}
 
 	virtual void onExecute()
 	{
-		ctx.memaddr += word_t((word_t(ctx.registers[sreg].L) / ctx.dstlinewid) * ctx.dstww);
+		//ctx.memaddr += word_t((word_t(ctx.registers[sreg].L) / ctx.dstlinewid) * ctx.dstww);
+		ctx.memaddr += sim_delta();
 	}
+
+	int worddelta;
+	int linedelta;
 };
 
 class DST_SubaR16 : public Operation
 {
 public:
 
-	DST_SubaR16(Context &_ctx, int _sreg, int _dreg)
-		: Operation(_ctx, OpKind_DSTSubaR16, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1)
+	DST_SubaR16(Context &_ctx, int _sreg, int _dreg, int _worddelta, int _linedelta)
+		: Operation(_ctx, OpKind_DSTSubaR16, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Combine, 8, 4, 1),
+		  worddelta(_worddelta),
+		  linedelta(_linedelta)
 	{
 		sreg = _sreg;
 		dreg = _dreg;
@@ -2226,17 +2414,31 @@ public:
 
 	virtual void onEmit()
 	{
-		sprintf(ctx.buf, " suba.w %s,%s\t;%d\n", 
+		sprintf(ctx.buf, " suba.w %s,%s\t;%d (x:%d,y:%d)\n",
 			ctx.registers[sreg].name.c_str(),
 			ctx.registers[dreg].name.c_str(), 
-			cost
+			cost,
+			worddelta,
+			linedelta
 			);
+	}
+
+	// note: simulator provides signed word/line hops, so result may be -ve, so do not use SUB
+	int sim_delta()
+	{
+		return (linedelta * ctx.dstww) + worddelta;
 	}
 
 	virtual void onExecute()
 	{
-		ctx.memaddr -= word_t((word_t(ctx.registers[sreg].L) / ctx.dstlinewid) * ctx.dstww);
+		//ctx.memaddr -= word_t((word_t(ctx.registers[sreg].L) / ctx.dstlinewid) * ctx.dstww);
+
+		// note: operation is SUB, but simulator provides signed word/line hops, so we ADD here
+		ctx.memaddr += sim_delta();
 	}
+
+	int worddelta;
+	int linedelta;
 };
 
 class Terminate : public Operation

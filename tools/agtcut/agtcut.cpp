@@ -10,6 +10,7 @@
 
 #define PREFER_TRANSFORMS (1) // hacks for testing
 #define USE_MOVEQ_INITS (0) // hacks for testing
+#define USE_EMX2
 
 #if defined(_MSC_VER)
 #define _CRT_SECURE_NO_WARNINGS
@@ -5232,6 +5233,96 @@ public:
 	}
 };
 
+class constrained_wordspan
+{
+public:
+
+	constrained_wordspan() = default;
+	constrained_wordspan(const constrained_wordspan&) = default;
+
+	constrained_wordspan
+	(
+		int _ws, 
+		int _ww, 
+		bool _cxs, 
+		bool _cxe, 
+		int _sline, 
+		int _sline_aw, 
+		u16 *_pmasks, 
+		//int _dline, 
+		int _bccount
+	)
+		: ws(_ws), 
+		  ww(_ww), 
+		  cxs(_cxs), 
+		  cxe(_cxe), 
+		  sline(_sline),
+		  sline_aw(_sline_aw),
+		  //dline(_dline), 
+		  bccount(_bccount),
+		  draw_order(0)
+	{
+		switch (_ww)
+		{
+		case 0:
+			printf("error!\n"); exit(1);
+			break;
+		case 1:
+			em[0] = _pmasks[0];
+			em[1] = 0;
+			em[2] = 0;
+			break;
+		case 2:
+			em[0] = _pmasks[0];
+			em[1] = 0;
+			em[2] = _pmasks[1];
+			break;
+		default:
+			em[0] = _pmasks[0];
+			if (_pmasks[2])
+			{
+				// span ended with EM2!=EM3
+				em[1] = _pmasks[1];
+				em[2] = _pmasks[2];
+			}
+			else
+			{
+				// special case: span ended with EM2==EM3 but blitter enforces EM1:EM2:EM3
+				em[1] = _pmasks[1];
+				em[2] = _pmasks[1];
+			}
+			break;
+		};
+	}
+
+	// source fields
+//	int fxs;		// fine x start
+//	int fxe;		// fine x end
+	int ws;			// word start
+	int ww;			// word width
+	bool cxs;		// cropped x start (+FISR)
+	bool cxe;		// cropped x end   (-NFSR)
+	int sline_aw;	// source line active width
+	int sline;		// source line index
+
+	// dest fields
+	u16 em[3];		// endmasks
+
+	//int dline;		// dest line index
+	int bccount;	// bus cycles required
+	int reordered_sline;
+	int draw_order;
+};
+
+typedef std::list<constrained_wordspan> span_hseq_t;
+
+class span_analysis
+{
+public:
+
+	std::vector<span_hseq_t> span_vpattern_;
+};
+
 class preshift_t
 {
 public:
@@ -5246,6 +5337,9 @@ public:
 	uword_t *data_;
 	ubyte_t *p68kbin;
 	size_t size68kbin;
+
+	span_analysis sa;
+
 
 	preshift_t
 	(
@@ -5342,6 +5436,9 @@ public:
 	std::vector<om_descriptor> occlusion_maps_;
 
 	std::vector<int> lineorder;
+	std::vector<int> invlineorder;
+	std::vector<int> active_starts;
+	std::vector<int> active_widths;
 
 	spriteframe_t(int _w, int _h, int _xo, int _yo, uword_t *_mask, uword_t *_colr0, uword_t *_colr1)
 		: w_(_w),
@@ -5962,8 +6059,11 @@ void add_sprite_frame
 	// limit the max destination width of preshifted masks to 3 words for EMS/EMX
 	int max_dst_wordwidth = 0;
 	if (
-		(g_allargs.cutmode == Cutmode_EMSPR) ||
+		(g_allargs.cutmode == Cutmode_EMSPR)
+#if !defined(USE_EMX2)
+		||
 		(g_allargs.cutmode == Cutmode_EMXSPR)
+#endif
 	)
 	{
 		max_dst_wordwidth = 3;
@@ -5984,6 +6084,9 @@ void add_sprite_frame
 // --------------------------------------------------------------------
 
 #include "emxgen.inl"
+
+#include "emximpl_v1.inl"
+#include "emximpl_v2.inl"
 
 // --------------------------------------------------------------------
 //	emit .sps spritesheet sequence file
@@ -8954,18 +9057,24 @@ bool do_sheet()
 			}
 
 			// create sprite datafile
-
+			
 			switch (g_allargs.cutmode)
 			{
 			//
 			case Cutmode_EMXSPR:
 				// code-generated preshifted blitter EM sprites
+#if defined(USE_EMX2)
+				generate_emx2_sequence();
+#else
 				generate_emx_sequence();
+#endif
 			case Cutmode_SPRITES:
 			case Cutmode_EMSPR:
 				// non-code-generated sprite formats
 				std::cout << "outputting data..." << std::endl;
+//#if !defined(USE_EMX2)
 				emit_sprite_sequence(!g_allargs.hidden);
+//#endif
 				break;
 			//
 			case Cutmode_SLABS:
