@@ -1633,569 +1633,626 @@ void generate_emx2_metaprogram(spriteframe_t &spr, int _frame)
 			}
 #endif
 
-			//__debugbreak();
-			context.reset_sim(true);
+			// analyse dst skips
 
-			// reset dirty EM registers for this blit width
-			//em_dirty[0] = true;
-			//em_dirty[1] = (shift.wordwidth_ > 2);
-			//em_dirty[2] = (shift.wordwidth_ > 1);
+			// analyse src skips
 
-			bool NFSR = false;
+			// 
+			for (int mode = 0; mode < 2; mode++)
+			{
+				bool analyse_constants = (mode == 0);
+				bool build_metaprogram = (mode == 1);
+
+				//__debugbreak();
+				context.reset_sim(true);
+
+				// reset dirty EM registers for this blit width
+				//em_dirty[0] = true;
+				//em_dirty[1] = (shift.wordwidth_ > 2);
+				//em_dirty[2] = (shift.wordwidth_ > 1);
+
+				bool NFSR = false;
 				//(shift.wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
 				//(shift.wordsremaining_ == 0) &&
 				//(((spr.w_ + 15) >> 4) != (shift.wordwidth_ + shift.wordoffset_));
 
-			bool FISR = false;// (shift.wordoffset_ > 0);
+				bool FISR = false;// (shift.wordoffset_ > 0);
 
-			u8 current_skew =
-				//false;// ((shift.wordwidth_ << 4) == ((spr.w_ + 15) & -16));
-				(shift.shift_ & 15) |
-				(NFSR ? 0x40 : 0x00) |
-				(FISR ? 0x80 : 0x00);
+				u16 current_skew = 0xffff;
 
-			s16 current_skew_syinc_adj =
-				(NFSR ? 1 : 0) -
-				(FISR ? 1 : 0);
+				/*			u8 current_skew =
+								//false;// ((shift.wordwidth_ << 4) == ((spr.w_ + 15) & -16));
+								(shift.shift_ & 15) |
+								(NFSR ? 0x40 : 0x00) |
+								(FISR ? 0x80 : 0x00);
+				*/
+				s16 current_skew_syinc_adj =
+					(NFSR ? 1 : 0) -
+					(FISR ? 1 : 0);
 
-			s16 current_skew_syoff_adj =
-				0 -
-				(FISR ? 1 : 0);
+				s16 current_skew_syoff_adj =
+					0 -
+					(FISR ? 1 : 0);
 
-			// SYINC = difference between source wordwidth & preshift wordwidth, + 2
-			// note: compensate for NFSR!
-			s16 current_syinc =
-				(((((spr.w_ + 15) >> 4) - shift.wordwidth_) << 1) + 2)
-				+ (current_skew_syinc_adj * 2);
-//				+ (NFSR ? 2 : 0)
-//				- (FISR ? 2 : 0);
+				// SYINC = difference between source wordwidth & preshift wordwidth, + 2
+				// note: compensate for NFSR!
+				s16 current_syinc =
+					(((((spr.w_ + 15) >> 4) - shift.wordwidth_) << 1) + 2)
+					+ (current_skew_syinc_adj * 2);
+				//				+ (NFSR ? 2 : 0)
+				//				- (FISR ? 2 : 0);
 
-			s16 current_dyinc = (8 + 2) - (shift.wordwidth_ << 3);
+				s16 current_dyinc = (8 + 2) - (shift.wordwidth_ << 3);
 
-			context.blitter.skew = current_skew;
-			context.blitter.syinc = current_syinc;
-			context.blitter.dyinc = current_dyinc;
+				context.blitter.skew = current_skew;
+				context.blitter.syinc = current_syinc;
+				context.blitter.dyinc = current_dyinc;
 
-			// generate operations
-			int current_dline = 0;
-			int current_dline_wordoffset = 0;
-			int current_sline = 0;
-			int current_sline_wordoffset = 0;
-			int current_ww = context.blitter.xcount;
+				// generate operations
+				int current_dline = 0;
+				int current_dline_wordoffset = 0;
+				int current_sline = 0;
+				int current_sline_wordoffset = 0;
+				int current_ww = context.blitter.xcount;
 
-			int reg_index = 0;
-			int reg_index2 = 0;
-			int reg_index3 = 0;
-			{
-	#if (USE_NOP_BINARY_VALIDATION)
-				context.operations.push_back(new NoOp(context));
-				context.operations.back()->execute();
-	#endif
-
-//				context.operations.push_back(new SYS_PageRestore(context));
-//				context.operations.back()->execute();
-
-				context.operations.push_back(new BLiT_Init(context));
-				context.operations.back()->execute();
-			
-	//			context.operations.push_back(new Terminate(context));
-	//			context.operations.back()->execute();
-
-				// load fixed registers
-				if (1)
+				int reg_index = 0;
+				int reg_index2 = 0;
+				int reg_index3 = 0;
 				{
-					for (std::vector<dataregister>::iterator it = context.registers.begin(); it != context.registers.end(); it++)
+
+					if (build_metaprogram)
 					{
-						if (it->constant)
-						{
-							// use standard immediate load - let the optimizer reduce it if possible
-							context.operations.push_back(new DR_LoadI32(context, it->index, it->H, it->L));
 
-							it->constant = false;
-
-							it->allocatedH = true;
-							it->allocatedL = true;
-
-							context.operations.back()->execute();
-						}
-					}
-
-					// on next reset, registers will no longer be constant/preallocated
-					context.setconstants = false;
-				}
-			
-
-//				int src_lines_skipped = 0;
-
-//				int curr_line_words = shift.wordwidth_;
-
-//				linemap lines;
-//				for (int y = 0; y < shift.height_; y++)
-//				{
-//					int dsty = best_pattern[y];
-
-				for (auto pspan : stacked_spans)
-				{
-					//__debugbreak();
-
-					int span_draw_order = pspan->draw_order;
-					int span_orig_sline = pspan->sline;
-					int span_source_sline = pspan->reordered_sline;
-					int span_dline = span_orig_sline;
-					int span_syi_change = 0;
-
-					int dsty = span_draw_order;
-					uword_t *srcdata = &buffer[dsty * 3];
-					ubyte_t *linechanges = &changes[dsty * 3];
-
-					// FISR is set when span begins with colour data from previous a word 
-					bool span_FISR = pspan->cxs;
-
-					// NFSR can be set on FINAL spans where scrolled width exceeds defined source colour width
-					bool span_NFSR = pspan->cxe;
-//						(shift.wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
-//						(shift.wordsremaining_ == 0) &&
-//						(((spr.w_ + 15) >> 4) != (shift.wordwidth_ + shift.wordoffset_));
-
-					u8 span_skew =
-						(shift.shift_ & 15) |
-						(span_NFSR ? 0x40 : 0x00) |
-						(span_FISR ? 0x80 : 0x00);
-
-					// SYINC = difference between source wordwidth & preshift wordwidth, + 2
-					// note: compensate for NFSR/FISR!
-					s16 span_skew_syinc_adj =
-						(span_NFSR ? 1 : 0) -
-						(span_FISR ? 1 : 0);
-
-					s16 span_skew_syoff_adj =
-						0 -
-						(span_FISR ? 1 : 0);
-
-					int span_ww_change = pspan->ww - current_ww;
-
-					if (span_ww_change)
-					{
-						context.operations.push_back(new BLiT_XCMod(context, span_ww_change));
+#if (USE_NOP_BINARY_VALIDATION)
+						context.operations.push_back(new NoOp(context));
 						context.operations.back()->execute();
-						context.operations.push_back(new BLiT_DYIMod(context, -span_ww_change));
+#endif
+
+						//context.operations.push_back(new SYS_PageRestore(context));
+						//context.operations.back()->execute();
+
+						context.operations.push_back(new BLiT_Defs(context));
 						context.operations.back()->execute();
 
-						span_syi_change -= span_ww_change;
+						context.operations.push_back(new BLiT_Init(context));
+						context.operations.back()->execute();
 
-						current_ww += span_ww_change;
-					}
-
-					// emit SYI changes
-					{
-						// incorporate SKEW FISR/NFSR SYI changes
-						s16 span_skew_syinc_change = span_skew_syinc_adj - current_skew_syinc_adj;
-						current_skew_syinc_adj = span_skew_syinc_adj;
-						span_syi_change += span_skew_syinc_change;
-
-						if (span_syi_change)
+						// load fixed registers
 						{
-							context.operations.push_back(new BLiT_SYIMod(context, span_syi_change));
-							context.operations.back()->execute();
+							for (std::vector<dataregister>::iterator it = context.registers.begin(); it != context.registers.end(); it++)
+							{
+								if (it->constant)
+								{
+									// use standard immediate load - let the optimizer reduce it if possible
+									context.operations.push_back(new DR_LoadI32(context, it->index, it->H, it->L));
+
+									it->constant = false;
+
+									it->allocatedH = true;
+									it->allocatedL = true;
+
+									context.operations.back()->execute();
+								}
+							}
+
+							// on next reset, registers will no longer be constant/preallocated
+							context.setconstants = false;
 						}
 					}
 
-					// emit SKEW changes
+
+					//				int src_lines_skipped = 0;
+
+					//				int curr_line_words = shift.wordwidth_;
+
+					//				linemap lines;
+					//				for (int y = 0; y < shift.height_; y++)
+					//				{
+					//					int dsty = best_pattern[y];
+
+					for (auto pspan : stacked_spans)
 					{
-						u8 span_skew_change = current_skew ^ span_skew;
-						current_skew = span_skew;
-
-						if (span_skew_change)
-						{
-							context.operations.push_back(new BLiT_Skew(context, span_skew));
-							context.operations.back()->execute();
-						}
-					}
-
-					// determine true [offset,width] for this line only
-					{
-						// source hop +/-
-						int src_linejump = span_source_sline - current_sline;
-						current_sline = span_source_sline;
-
-						int src_wordjump = pspan->ws - current_sline_wordoffset;
-						current_sline_wordoffset = pspan->ws;
-
-						// incorporate FISR adjust
-						src_wordjump += span_skew_syoff_adj - current_skew_syoff_adj;
-						current_skew_syoff_adj = span_skew_syoff_adj;
-
-						if (src_linejump || src_wordjump)
-						{
-							context.operations.push_back(new SRC_Skip(context, src_wordjump, src_linejump));
-							context.operations.back()->execute();
-
-							//src_lines_skipped += src_linejump;
-						}
-
-						// destination hop +/-
-						int dst_linejump = span_dline - current_dline;
-						int dst_wordjump = pspan->ws - current_dline_wordoffset;
-
 						//__debugbreak();
 
-						if (dst_linejump || dst_wordjump)
-						{
-							// caution: can't use LEA for jumps > +/-32k
-							int addressjump = (dst_linejump * context.dstlinewid) + (dst_wordjump*8);
-							if (addressjump < 32768 && addressjump >= -32768)
-							{
-								if (USE_DSTSKIP_REG_OPTIMIZATION)
-								{
-									int reg_src = -1;
-									DataSource ds;
+						int span_draw_order = pspan->draw_order;
+						int span_orig_sline = pspan->sline;
+						int span_source_sline = pspan->reordered_sline;
+						int span_dline = span_orig_sline;
+						int span_syi_change = 0;
 
-									ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
-									if (ds == DataSource_RegisterL)
+						int dsty = span_draw_order;
+						uword_t *srcdata = &buffer[dsty * 3];
+						ubyte_t *linechanges = &changes[dsty * 3];
+
+						// FISR is set when span begins with colour data from previous a word 
+						bool span_FISR = pspan->cxs;
+
+						// NFSR can be set on FINAL spans where scrolled width exceeds defined source colour width
+						bool span_NFSR = pspan->cxe;
+						//						(shift.wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
+						//						(shift.wordsremaining_ == 0) &&
+						//						(((spr.w_ + 15) >> 4) != (shift.wordwidth_ + shift.wordoffset_));
+
+						u8 span_skew =
+							(shift.shift_ & 15) |
+							(span_NFSR ? 0x40 : 0x00) |
+							(span_FISR ? 0x80 : 0x00);
+
+						// SYINC = difference between source wordwidth & preshift wordwidth, + 2
+						// note: compensate for NFSR/FISR!
+						s16 span_skew_syinc_adj =
+							(span_NFSR ? 1 : 0) -
+							(span_FISR ? 1 : 0);
+
+						s16 span_skew_syoff_adj =
+							0 -
+							(span_FISR ? 1 : 0);
+
+						int span_ww_change = pspan->ww - current_ww;
+
+						if (span_ww_change)
+						{
+							if (build_metaprogram)
+							{
+								context.operations.push_back(new BLiT_XCMod(context, span_ww_change));
+								context.operations.back()->execute();
+								context.operations.push_back(new BLiT_DYIMod(context, -span_ww_change));
+								context.operations.back()->execute();
+							}
+
+							span_syi_change -= span_ww_change;
+
+							current_ww += span_ww_change;
+						}
+
+						// emit SYI changes
+						{
+							// incorporate SKEW FISR/NFSR SYI changes
+							s16 span_skew_syinc_change = span_skew_syinc_adj - current_skew_syinc_adj;
+							current_skew_syinc_adj = span_skew_syinc_adj;
+							span_syi_change += span_skew_syinc_change;
+
+							if (span_syi_change)
+							{
+								if (build_metaprogram)
+								{
+									context.operations.push_back(new BLiT_SYIMod(context, span_syi_change));
+									context.operations.back()->execute();
+								}
+							}
+						}
+
+						// emit SKEW changes
+						{
+							u8 span_skew_change = current_skew ^ span_skew;
+							current_skew = span_skew;
+
+							if (span_skew_change)
+							{
+								if (build_metaprogram)
+								{
+									//context.operations.push_back(new BLiT_Skew(context, span_skew));
+									context.operations.push_back(new DR_LoadI16(context, context.BHOG_reg, 0xc000 | (span_skew & 0xCF)));
+									context.operations.back()->execute();
+								}
+
+								if (analyse_constants)
+								{
+								}
+							}
+						}
+
+						// determine true [offset,width] for this line only
+						{
+							// source hop +/-
+							int src_linejump = span_source_sline - current_sline;
+							current_sline = span_source_sline;
+
+							int src_wordjump = pspan->ws - current_sline_wordoffset;
+							current_sline_wordoffset = pspan->ws;
+
+							// incorporate FISR adjust
+							src_wordjump += span_skew_syoff_adj - current_skew_syoff_adj;
+							current_skew_syoff_adj = span_skew_syoff_adj;
+
+							if (src_linejump || src_wordjump)
+							{
+								if (build_metaprogram)
+								{
+									context.operations.push_back(new SRC_Skip(context, src_wordjump, src_linejump));
+									context.operations.back()->execute();
+								}
+
+								if (analyse_constants)
+								{
+								}
+								//src_lines_skipped += src_linejump;
+							}
+
+							// destination hop +/-
+							int dst_linejump = span_dline - current_dline;
+							int dst_wordjump = pspan->ws - current_dline_wordoffset;
+
+							//__debugbreak();
+
+							if (dst_linejump || dst_wordjump)
+							{
+								// caution: can't use LEA for jumps > +/-32k
+								int addressjump = (dst_linejump * context.dstlinewid) + (dst_wordjump * 8);
+								if (addressjump < 32768 && addressjump >= -32768)
+								{
+									if (build_metaprogram)
 									{
-										// for +ve steps, look for +ve equivalent register and apply ADD operation
-										// only allocates register if value does not pre-exist 
-										context.operations.push_back(new DST_AddaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
-									}
-									else
-									{
-										// for -ve steps, look for +ve equivalent register and apply SUB operation
-										// only allocates register if value does not pre-exist 
-										ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, true);
-										if (ds == DataSource_RegisterL)
+										if (USE_DSTSKIP_REG_OPTIMIZATION)
 										{
-											context.operations.push_back(new DST_SubaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+											int reg_src = -1;
+											DataSource ds;
+
+											ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
+											if (ds == DataSource_RegisterL)
+											{
+												// for +ve steps, look for +ve equivalent register and apply ADD operation
+												// only allocates register if value does not pre-exist 
+												context.operations.push_back(new DST_AddaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+											}
+											else
+											{
+												// for -ve steps, look for +ve equivalent register and apply SUB operation
+												// only allocates register if value does not pre-exist 
+												ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, true);
+												if (ds == DataSource_RegisterL)
+												{
+													context.operations.push_back(new DST_SubaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+												}
+												else
+												{
+													// pointless allocation - fall back to LEA
+													context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+												}
+											}
 										}
 										else
 										{
-											// pointless allocation - fall back to LEA
 											context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, dst_wordjump, dst_linejump));
 										}
-									}
-								}
-								else
-								{
-									context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, dst_wordjump, dst_linejump));
-								}
-							}
-							else
-							{
-								context.operations.push_back(new DST_AddaIL(context, context.SCRLINE_reg, dst_wordjump, dst_linejump));
-							}
-							context.operations.back()->execute();
-
-							current_dline = span_dline;
-							current_dline_wordoffset = pspan->ws;
-						}
-
-						// check for all 3 changing
-						if ((linechanges[0]/* || em_dirty[0]*/) &&
-							(linechanges[1]/* || em_dirty[1]*/) &&
-							(linechanges[2]/* || em_dirty[2]*/))
-						{
-							int sumA = 0, sumB = 0;
-
-							// test-resolve EM1:EM2 and EM2:EM3, looking for the cheapest solution
-							DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, false);
-							DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, false);
-
-							sumA += DataSource_costs[ds12];
-							sumA += DataSource_costs[ds3];
-
-							DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, false);
-							DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, false);
-
-							sumB += DataSource_costs[ds23];
-							sumB += DataSource_costs[ds1];
-
-							int chosen = -1;
-							if (sumA == sumB)
-							{
-								chosen = 0;
-
-								// competing longs on same line
-								if (ds12 == DataSource_Immediate32)
-								{
-									// competing immediates - pick immediate more likely to be optimized
-									if (long_cost(srcdata[1], srcdata[2]) < long_cost(srcdata[0], srcdata[1]))
-									{
-										chosen = 1;
-										if (g_allargs.verbose)
-											printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[1],srcdata[2]);
-									}
-									else
-									{
-										if (g_allargs.verbose)
-											printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[0], srcdata[1]);
-									}
-								}
-								else 
-								if (ds12 == DataSource_MixedIR || 
-									ds12 == DataSource_RegisterHL)
-								{
-									// prefer long with higher incidence L
-									if (context.metrics_sim[srcdata[2]].incidence < context.metrics_sim[srcdata[1]].incidence)
-									{
-										chosen = 1;
-										if (g_allargs.verbose)
-											printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[1],srcdata[2]);
-									}
-									else
-									{
-										if (g_allargs.verbose)
-											printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[0],srcdata[1]);
-									}
-								}
-								else
-								{
-									// don't care
-								}
-							}
-
-							if ((sumA < sumB) || (chosen == 0))
-							{
-								DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
-								if (ds12 == DataSource_RegisterHL)
-								{
-									context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
-									context.operations.back()->execute();
-								}
-								else
-								if (ds12 == DataSource_RegisterLL)
-								{
-									context.operations.push_back(new EM_MoveR16(context, 0, reg_index, context.EM1_reg));
-									context.operations.back()->execute();
-									context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
-									context.operations.back()->execute();
-								}
-								else
-								if (ds12 == DataSource_MixedIR)
-								{
-									context.operations.push_back(new EM_MoveI16(context, 0, srcdata[0], context.EM1_reg));
-									context.operations.back()->execute();
-									context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
-									context.operations.back()->execute();
-								}
-								else
-								{
-									context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1], context.EM1_reg));
-									context.operations.back()->execute();
-								}
-
-								DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, true);
-								if (ds3 == DataSource_RegisterL)
-								{
-									context.operations.push_back(new EM_MoveR16(context, 2, reg_index3, context.EM3_reg));
-									context.operations.back()->execute();
-								}
-								else
-								{
-									context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2], context.EM3_reg));
-									context.operations.back()->execute();
-								}
-							}
-							else
-							if ((sumA > sumB) || (chosen == 1))
-							{
-								DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
-								if (ds23 == DataSource_RegisterHL)
-								{
-									context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
-									context.operations.back()->execute();
-								}
-								else
-								if (ds23 == DataSource_RegisterLL)
-								{
-									context.operations.push_back(new EM_MoveR16(context, 1, reg_index, context.EM2_reg));
-									context.operations.back()->execute();
-									context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
-									context.operations.back()->execute();
-								}
-								else
-								if (ds23 == DataSource_MixedIR)
-								{
-									context.operations.push_back(new EM_MoveI16(context, 1, srcdata[1], context.EM2_reg));
-									context.operations.back()->execute();
-									context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
-									context.operations.back()->execute();
-								}
-								else
-									context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
-
-								DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, true);
-								if (ds1 == DataSource_RegisterL)
-								{
-									context.operations.push_back(new EM_MoveR16(context, 0, reg_index3, context.EM1_reg));
-									context.operations.back()->execute();
-								}
-								else
-								{
-									context.operations.push_back(new EM_MoveI16(context, 0, srcdata[0], context.EM1_reg));
-									context.operations.back()->execute();
-								}
-							}
-
-							//context.sim_track_datarefs(srcdata[0]);
-							//context.sim_track_datarefs(srcdata[1]);
-							//context.sim_track_datarefs(srcdata[2]);
-
-							//em_dirty[0] = em_dirty[1] = em_dirty[2] = false;
-						}
-						else
-						if ((linechanges[0]/* || em_dirty[0]*/) && 
-							(linechanges[1]/* || em_dirty[1]*/))
-						{
-	//						context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1]));
-							DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
-							if (ds == DataSource_RegisterHL)
-							{
-								context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
-								context.operations.back()->execute();
-							}
-							else
-							if (ds == DataSource_RegisterLL)
-							{
-								context.operations.push_back(new EM_MoveR16(context, 0, reg_index, context.EM1_reg));
-								context.operations.back()->execute();
-								context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
-								context.operations.back()->execute();
-							}
-							else
-							{
-								context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1], context.EM1_reg));
-								context.operations.back()->execute();
-							}
-
-							//context.sim_track_datarefs(srcdata[0]);
-							//context.sim_track_datarefs(srcdata[1]);
-
-							//em_dirty[0] = em_dirty[1] = false;
-
-	//						if (linechanges[2] || em_dirty[2])
-	//						{
-	////							context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2]));
-	//							if (context.resolve_data16(srcdata[2], reg_index, true) == DataSource_RegisterL)
-	//								context.operations.push_back(new EM_MoveR16(context, 2, reg_index));
-	//							else
-	//								context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2]));
-	//
-	//							context.track_datarefs(srcdata[2]);
-	//
-	//							em_dirty[2] = false;
-	//						}
-						}
-						else
-						if ((linechanges[1]/* || em_dirty[1]*/) && 
-							(linechanges[2]/* || em_dirty[2]*/))
-						{
-							// longword to EM2
-	//						context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2]));
-	//						context.operations.back()->execute();
-
-							//context.sim_track_datarefs(srcdata[1]);
-							//context.sim_track_datarefs(srcdata[2]);
-
-	//						em_dirty[1] = em_dirty[2] = false;
-
-							DataSource ds = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
-							if (ds == DataSource_RegisterHL)
-							{
-								context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
-								context.operations.back()->execute();
-							}
-							else
-							if (ds == DataSource_RegisterLL)
-							{
-								context.operations.push_back(new EM_MoveR16(context, 1, reg_index, context.EM2_reg));
-								context.operations.back()->execute();
-								context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
-								context.operations.back()->execute();
-							}
-							else
-							{
-								context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
-								context.operations.back()->execute();
-							}
-
-							//context.sim_track_datarefs(srcdata[0]);
-							//context.sim_track_datarefs(srcdata[1]);
-
-							//em_dirty[1] = em_dirty[2] = false;
-						}
-						else
-						{
-							// words only
-
-							// this line involves at least one write to EM1/EM2/EM3
-							for (int x = 0; x < 3; x++)
-							{
-								int EM_reg = context.EM1_reg;
-								if (x == 1)
-									EM_reg = context.EM2_reg;
-								else
-								if (x == 2)
-									EM_reg = context.EM3_reg;
-
-								if (linechanges[x]/* || em_dirty[x]*/)
-								{
-									if (context.sim_resolve_data16(srcdata[x], reg_index, true) == DataSource_RegisterL)
-									{
-										context.operations.push_back(new EM_MoveR16(context, x, reg_index, EM_reg));
-										context.operations.back()->execute();
-									}
-									else
-									{
-										context.operations.push_back(new EM_MoveI16(context, x, srcdata[x], EM_reg));
 										context.operations.back()->execute();
 									}
 
-									//context.sim_track_datarefs(srcdata[x]);
+									if (analyse_constants)
+									{
+										// caution: don't abs() -32768 case as it has will have no 16bit representation
+										int reduced_dataword = addressjump;
+										if (reduced_dataword > -32768)
+											reduced_dataword = abs(reduced_dataword);
 
-									//em_dirty[x] = false;
+										uword_t metrics_dataword = (uword_t)reduced_dataword;
+
+										context.metrics[metrics_dataword].incidence++;
+										context.metrics[metrics_dataword].references++;
+									}
 								}
+								else
+								{
+									if (build_metaprogram)
+									{
+										context.operations.push_back(new DST_AddaIL(context, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+										context.operations.back()->execute();
+									}
+
+									if (analyse_constants)
+									{
+									}
+								}
+
+								current_dline = span_dline;
+								current_dline_wordoffset = pspan->ws;
 							}
+
+							if (build_metaprogram)
+							{
+
+								// check for all 3 changing
+								if ((linechanges[0]/* || em_dirty[0]*/) &&
+									(linechanges[1]/* || em_dirty[1]*/) &&
+									(linechanges[2]/* || em_dirty[2]*/))
+								{
+									int sumA = 0, sumB = 0;
+
+									// test-resolve EM1:EM2 and EM2:EM3, looking for the cheapest solution
+									DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, false);
+									DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, false);
+
+									sumA += DataSource_costs[ds12];
+									sumA += DataSource_costs[ds3];
+
+									DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, false);
+									DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, false);
+
+									sumB += DataSource_costs[ds23];
+									sumB += DataSource_costs[ds1];
+
+									int chosen = -1;
+									if (sumA == sumB)
+									{
+										chosen = 0;
+
+										// competing longs on same line
+										if (ds12 == DataSource_Immediate32)
+										{
+											// competing immediates - pick immediate more likely to be optimized
+											if (long_cost(srcdata[1], srcdata[2]) < long_cost(srcdata[0], srcdata[1]))
+											{
+												chosen = 1;
+												if (g_allargs.verbose)
+													printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[1], srcdata[2]);
+											}
+											else
+											{
+												if (g_allargs.verbose)
+													printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[0], srcdata[1]);
+											}
+										}
+										else
+											if (ds12 == DataSource_MixedIR ||
+												ds12 == DataSource_RegisterHL)
+											{
+												// prefer long with higher incidence L
+												if (context.metrics_sim[srcdata[2]].incidence < context.metrics_sim[srcdata[1]].incidence)
+												{
+													chosen = 1;
+													if (g_allargs.verbose)
+														printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[1], srcdata[2]);
+												}
+												else
+												{
+													if (g_allargs.verbose)
+														printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[0], srcdata[1]);
+												}
+											}
+											else
+											{
+												// don't care
+											}
+									}
+
+									if ((sumA < sumB) || (chosen == 0))
+									{
+										DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
+										if (ds12 == DataSource_RegisterHL)
+										{
+											context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
+											context.operations.back()->execute();
+										}
+										else
+											if (ds12 == DataSource_RegisterLL)
+											{
+												context.operations.push_back(new EM_MoveR16(context, 0, reg_index, context.EM1_reg));
+												context.operations.back()->execute();
+												context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
+												context.operations.back()->execute();
+											}
+											else
+												if (ds12 == DataSource_MixedIR)
+												{
+													context.operations.push_back(new EM_MoveI16(context, 0, srcdata[0], context.EM1_reg));
+													context.operations.back()->execute();
+													context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
+													context.operations.back()->execute();
+												}
+												else
+												{
+													context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1], context.EM1_reg));
+													context.operations.back()->execute();
+												}
+
+										DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, true);
+										if (ds3 == DataSource_RegisterL)
+										{
+											context.operations.push_back(new EM_MoveR16(context, 2, reg_index3, context.EM3_reg));
+											context.operations.back()->execute();
+										}
+										else
+										{
+											context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2], context.EM3_reg));
+											context.operations.back()->execute();
+										}
+									}
+									else
+										if ((sumA > sumB) || (chosen == 1))
+										{
+											DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
+											if (ds23 == DataSource_RegisterHL)
+											{
+												context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
+												context.operations.back()->execute();
+											}
+											else
+												if (ds23 == DataSource_RegisterLL)
+												{
+													context.operations.push_back(new EM_MoveR16(context, 1, reg_index, context.EM2_reg));
+													context.operations.back()->execute();
+													context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
+													context.operations.back()->execute();
+												}
+												else
+													if (ds23 == DataSource_MixedIR)
+													{
+														context.operations.push_back(new EM_MoveI16(context, 1, srcdata[1], context.EM2_reg));
+														context.operations.back()->execute();
+														context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
+														context.operations.back()->execute();
+													}
+													else
+														context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
+
+											DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, true);
+											if (ds1 == DataSource_RegisterL)
+											{
+												context.operations.push_back(new EM_MoveR16(context, 0, reg_index3, context.EM1_reg));
+												context.operations.back()->execute();
+											}
+											else
+											{
+												context.operations.push_back(new EM_MoveI16(context, 0, srcdata[0], context.EM1_reg));
+												context.operations.back()->execute();
+											}
+										}
+
+									//context.sim_track_datarefs(srcdata[0]);
+									//context.sim_track_datarefs(srcdata[1]);
+									//context.sim_track_datarefs(srcdata[2]);
+
+									//em_dirty[0] = em_dirty[1] = em_dirty[2] = false;
+								}
+								else
+									if ((linechanges[0]/* || em_dirty[0]*/) &&
+										(linechanges[1]/* || em_dirty[1]*/))
+									{
+										//						context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1]));
+										DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
+										if (ds == DataSource_RegisterHL)
+										{
+											context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
+											context.operations.back()->execute();
+										}
+										else
+											if (ds == DataSource_RegisterLL)
+											{
+												context.operations.push_back(new EM_MoveR16(context, 0, reg_index, context.EM1_reg));
+												context.operations.back()->execute();
+												context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
+												context.operations.back()->execute();
+											}
+											else
+											{
+												context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1], context.EM1_reg));
+												context.operations.back()->execute();
+											}
+
+										//context.sim_track_datarefs(srcdata[0]);
+										//context.sim_track_datarefs(srcdata[1]);
+
+										//em_dirty[0] = em_dirty[1] = false;
+
+				//						if (linechanges[2] || em_dirty[2])
+				//						{
+				////							context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2]));
+				//							if (context.resolve_data16(srcdata[2], reg_index, true) == DataSource_RegisterL)
+				//								context.operations.push_back(new EM_MoveR16(context, 2, reg_index));
+				//							else
+				//								context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2]));
+				//
+				//							context.track_datarefs(srcdata[2]);
+				//
+				//							em_dirty[2] = false;
+				//						}
+									}
+									else
+										if ((linechanges[1]/* || em_dirty[1]*/) &&
+											(linechanges[2]/* || em_dirty[2]*/))
+										{
+											// longword to EM2
+					//						context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2]));
+					//						context.operations.back()->execute();
+
+											//context.sim_track_datarefs(srcdata[1]);
+											//context.sim_track_datarefs(srcdata[2]);
+
+					//						em_dirty[1] = em_dirty[2] = false;
+
+											DataSource ds = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
+											if (ds == DataSource_RegisterHL)
+											{
+												context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
+												context.operations.back()->execute();
+											}
+											else
+												if (ds == DataSource_RegisterLL)
+												{
+													context.operations.push_back(new EM_MoveR16(context, 1, reg_index, context.EM2_reg));
+													context.operations.back()->execute();
+													context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
+													context.operations.back()->execute();
+												}
+												else
+												{
+													context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
+													context.operations.back()->execute();
+												}
+
+											//context.sim_track_datarefs(srcdata[0]);
+											//context.sim_track_datarefs(srcdata[1]);
+
+											//em_dirty[1] = em_dirty[2] = false;
+										}
+										else
+										{
+											// words only
+
+											// this line involves at least one write to EM1/EM2/EM3
+											for (int x = 0; x < 3; x++)
+											{
+												int EM_reg = context.EM1_reg;
+												if (x == 1)
+													EM_reg = context.EM2_reg;
+												else
+													if (x == 2)
+														EM_reg = context.EM3_reg;
+
+												if (linechanges[x]/* || em_dirty[x]*/)
+												{
+													if (context.sim_resolve_data16(srcdata[x], reg_index, true) == DataSource_RegisterL)
+													{
+														context.operations.push_back(new EM_MoveR16(context, x, reg_index, EM_reg));
+														context.operations.back()->execute();
+													}
+													else
+													{
+														context.operations.push_back(new EM_MoveI16(context, x, srcdata[x], EM_reg));
+														context.operations.back()->execute();
+													}
+
+													//context.sim_track_datarefs(srcdata[x]);
+
+													//em_dirty[x] = false;
+												}
+											}
+										}
+							}
+
+							if (build_metaprogram)
+							{
+								// update blitter dest/ycount
+								context.operations.push_back(new BLiT_SetYC(context, context.PLANES_reg));
+								context.operations.back()->execute();
+								context.operations.push_back(new BLiT_SetDSTADDR(context, context.SCRLINE_reg));
+								context.operations.back()->execute();
+
+								// execute the blit for this line
+								context.operations.push_back(new BLiT_GoSkew(context, context.BHOG_reg, span_orig_sline, span_dline, span_draw_order));
+								context.operations.back()->execute();
+							}
+
+							// SYI accounts for this automatically, except for real skips
+							current_sline++;
+
+							// next linejump+blit will be relative to this one (and not an empty one)
+							//span_dline = dsty;
 						}
-
-						// update blitter dest/ycount
-						context.operations.push_back(new BLiT_SetYC(context, context.PLANES_reg));
-						context.operations.back()->execute();
-						context.operations.push_back(new BLiT_SetDSTADDR(context, context.SCRLINE_reg));
-						context.operations.back()->execute();
-
-						// execute the blit for this line
-						context.operations.push_back(new BLiT_Go(context, context.BHOG_reg, span_orig_sline, span_dline, span_draw_order));
-						context.operations.back()->execute();
-
-						// SYI accounts for this automatically, except for real skips
-						current_sline++;
-
-						// next linejump+blit will be relative to this one (and not an empty one)
-						//span_dline = dsty;
+						//else
+						//{
+						//	src_lines_skipped++;
+						//}
 					}
-					//else
-					//{
-					//	src_lines_skipped++;
-					//}
+				}
+
+				if (build_metaprogram)
+				{
+					// emit terminal
+					context.operations.push_back(new Terminate(context));
+					context.operations.back()->execute();
 				}
 			}
-
-			//int job = 0;
-			//for (std::vector<dataregister>::iterator rit = regs.begin(); rit != regs.end(); rit++)
-			//{
-			//	dataregister &dr = *rit;
-			//	if (job != dr.job)
-			//	{
-			//		// previous job complete - emit blit operations
-			//		job = dr.job;
-
-			//		operations.push_back(new BLiT_Go(context));
-			//	}
-			//}
-			// emit final blit operations
-			//operations.push_back(new BLiT_Go(context));
-			// emit terminal
-			context.operations.push_back(new Terminate(context));
-			context.operations.back()->execute();
 
 	#if (SIM_ALL_STAGES)
 			run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);

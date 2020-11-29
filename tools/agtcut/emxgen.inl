@@ -542,7 +542,8 @@ public:
 
 
 		BHOG_reg = r;
-		registers.push_back(dataregister("d1", r++, RegClass_Data,		setconstants, setconstants, true,		0x00ffffc0));
+//		registers.push_back(dataregister("d1", r++, RegClass_Data,		setconstants, setconstants, true,		0x00ffffc0));
+		registers.push_back(dataregister("d1", r++, RegClass_Data,		setconstants, setconstants, true,		0x00ffc000));
 
 		PLANES_reg = r;
 		registers.push_back(dataregister("d2", r++, RegClass_Data,		setconstants, setconstants, true,		0xFF000004));
@@ -603,13 +604,13 @@ public:
 		//BLiTEM2_name = "(a6)";
 		//BLiTEM3_name = "(a4)";
 
-		BLiTSYI_name = "$ffff8a22.w";
-		BLiTDYI_name = "$ffff8a30.w";
-		BLiTXC_name = "$ffff8a36.w";
-		BLiTSKEW_name = "$ffff8a3d.w";
-		BLiTSRC_name = "$ffff8a24.w";
-
+		BLiTSYI_name = "BLiTSYI.w";
+		BLiTDYI_name = "BLiTDYI.w";
+		BLiTXC_name = "BLiTXC.w";
+		BLiTSKEW_name = "BLiTSKEW.w";
+		BLiTSRC_name = "BLiTSRC.w";
 		DSTADDR_regname = "a1";
+
 		BLiTCTRL_go_srcname = "d1";	//#$c0;
 		BLiTYC_planes_srcname = "d2";	//#4;
 

@@ -42,6 +42,7 @@ public:
 
 	virtual void onExecute() = 0;
 	virtual void onEmit() { };
+	virtual std::string comment() { return std::string();  };
 
 	void execute()
 	{
@@ -69,6 +70,14 @@ public:
 
 	void emit()
 	{
+		ctx.buf[0] = 0;
+
+		std::string cm = comment();
+		if (cm.length() > 1)
+		{
+			ctx.genout << "; " << cm << std::endl;
+		}
+
 		onEmit();
 		if (g_allargs.verbose)
 			printf("%s", ctx.buf);
@@ -77,9 +86,13 @@ public:
 
 	std::string describe()
 	{
+		ctx.buf[0] = 0;
+
 		onEmit();
 		return std::string(ctx.buf);
 	}
+
+	static char s_buf[1024];
 
 	int alltagsH[max_registers];
 	int alltagsL[max_registers];
@@ -1906,6 +1919,49 @@ public:
 	uword_t dataL;
 };
 
+
+class BLiT_Defs : public Operation
+{
+public:
+
+	BLiT_Defs(Context &_ctx)
+		: Operation(_ctx, OpKind_BLITInit, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0, -1)
+	{
+	}
+
+	virtual void onEmit()
+	{
+		char buf[1024];
+		ctx.buf[0] = 0;
+
+		sprintf(buf, "BLiTSXI = $ffff8a20;\t2\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTSYI = $ffff8a22;\t2\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTSRC = $ffff8a24;\t4\n"); strcat(ctx.buf, buf);
+
+		sprintf(buf, "BLiTEM1 = $ffff8a28;\t2\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTEM2 = $ffff8a2a;\t2\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTEM3 = $ffff8a2c;\t2\n"); strcat(ctx.buf, buf);
+
+		sprintf(buf, "BLiTDXI = $ffff8a2e;\t2\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTDYI = $ffff8a30;\t2\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTDST = $ffff8a32;\t4\n"); strcat(ctx.buf, buf);
+
+		sprintf(buf, "BLiTXC = $ffff8a36;\t2\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTYC = $ffff8a38;\t2\n"); strcat(ctx.buf, buf);
+
+		sprintf(buf, "BLiTHOP = $ffff8a3a;\t1\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTLOP = $ffff8a3b;\t1\n"); strcat(ctx.buf, buf);
+
+		sprintf(buf, "BLiTCTRL = $ffff8a3c;\t1\n"); strcat(ctx.buf, buf);
+		sprintf(buf, "BLiTSKEW = $ffff8a3d;\t1\n\n"); strcat(ctx.buf, buf);
+	}
+
+	virtual void onExecute()
+	{
+	}
+};
+
+
 class BLiT_Init : public Operation
 {
 public:
@@ -1923,8 +1979,8 @@ public:
 		strcat(ctx.buf, buf);
 		sprintf(buf,		" move.w #$%04x,%s\t;%d\n", ctx.blitter.xcount, ctx.BLiTXC_name.c_str(), 16);
 		strcat(ctx.buf, buf);
-		sprintf(buf,		" move.b #$%02x,%s\t;%d\n", ctx.blitter.skew, ctx.BLiTSKEW_name.c_str(), 16);
-		strcat(ctx.buf, buf);
+//		sprintf(buf,		" move.b #$%02x,%s\t;%d\n", ctx.blitter.skew, ctx.BLiTSKEW_name.c_str(), 16);
+//		strcat(ctx.buf, buf);
 	}
 
 	virtual void onExecute()
@@ -1940,6 +1996,11 @@ public:
 		: Operation(_ctx, OpKind_BLITXCMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
 		  changew_(_changew)
 	{
+	}
+
+	virtual std::string comment()
+	{
+		return "BLiT_XCMod";
 	}
 
 	virtual void onEmit()
@@ -2058,25 +2119,39 @@ class BLiT_Skew : public Operation
 public:
 
 	BLiT_Skew(Context &_ctx, u8 _skew)
-		: Operation(_ctx, OpKind_BLITSkew, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
-		  skew_(_skew)
+		: Operation(_ctx, OpKind_BLITSkew, OpSize_16, OpSource_Register, OpSource_Register, OpWrite_Replace, 8, 0, -1),
+		skew_(_skew),
+		data_(0xc000 | _skew)
 	{
+		dreg = _ctx.BHOG_reg;
 	}
 
 	virtual void onEmit()
 	{
+/*
 		sprintf(ctx.buf, " move.b #%d,%s\t;%d (SKEW:%02x)\n",
 			skew_, 
 			ctx.BLiTSKEW_name.c_str(), 
 			cost, 
 			skew_
 		);
+*/
+		sprintf(ctx.buf, " move.w #$%x,%s\t;%d (SKEW:%02x)\n",
+			data_,
+			ctx.registers[dreg].name.c_str(),
+			cost,
+			skew_
+		);
 	}
 
 	virtual void onExecute()
 	{
+		ctx.registers[dreg].L = data_;
+
+		ctx.cycles += cost;
 	}
 
+	u16 data_;
 	u8 skew_;
 };
 
@@ -2177,6 +2252,11 @@ public:
 		sreg = _sreg;
 	}
 
+	virtual std::string comment()
+	{
+		return "Blit:";
+	}
+
 	virtual void onEmit()
 	{
 		sprintf
@@ -2226,6 +2306,73 @@ public:
 	int order;
 };
 
+class BLiT_GoSkew : public Operation
+{
+public:
+
+	BLiT_GoSkew(Context &_ctx, int _sreg, int _sline, int _dline, int _order)
+		: Operation(_ctx, OpKind_BLITGo, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 0, -1),
+		sline(_sline),
+		dline(_dline),
+		order(_order)
+	{
+		sreg = _sreg;
+	}
+
+	virtual std::string comment()
+	{
+		return "Blit:";
+	}
+
+	virtual void onEmit()
+	{
+		sprintf
+		(
+			ctx.buf,
+			" move.w %s,%s\t;%d BLiT(s=%d,d=%d,o=%d)\n",
+			ctx.registers[sreg].name.c_str(),
+			ctx.BLiTCTRL_name.c_str(),
+			cost,
+			sline, dline, order
+		);
+	}
+
+	virtual void onExecute()
+	{
+		//if ((order == 0) || (order == 43))
+		//	__debugbreak();
+
+		int width = ctx.blitter.xcount + ctx.blitter.xcount_adj;
+
+		ctx.memory[ctx.dstaddr + 0] = ctx.blitter.em[0];
+
+		if (width == 2)
+		{
+			ctx.memory[ctx.dstaddr + 1] = ctx.blitter.em[2];
+		}
+		else
+			if (width == 3)
+			{
+				ctx.memory[ctx.dstaddr + 1] = ctx.blitter.em[1];
+				ctx.memory[ctx.dstaddr + 2] = ctx.blitter.em[2];
+			}
+			else
+				if (width > 3)
+				{
+					// multi-word case
+					int m = 1;
+					for (; m < (width - 1); m++)
+						ctx.memory[ctx.dstaddr + m] = ctx.blitter.em[1];
+					ctx.memory[ctx.dstaddr + m] = ctx.blitter.em[2];
+				}
+
+	}
+
+	int sline;
+	int dline;
+	int order;
+};
+
 class SRC_Skip : public Operation
 {
 public:
@@ -2237,6 +2384,11 @@ public:
 	{
 	}
 
+	virtual std::string comment()
+	{
+		return "SRC_Skip";
+	}
+
 	int delta(int srccolww)
 	{
 		return (linedelta * (srccolww * 8)) + (worddelta * 2);
@@ -2244,20 +2396,35 @@ public:
 
 	virtual void onEmit()
 	{
-		sprintf
-		(
-			ctx.buf,
-			" add.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
-			delta(ctx.srccolww),
-			ctx.BLiTSRC_name.c_str(),
-			cost,
-			worddelta, linedelta
-		);
+		int offset = delta(ctx.srccolww);
+		if (offset < 0)
+		{
+			sprintf
+			(
+				ctx.buf,
+				" sub.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
+				-offset,
+				ctx.BLiTSRC_name.c_str(),
+				cost,
+				worddelta, linedelta
+			);
+		}
+		else
+		{
+			sprintf
+			(
+				ctx.buf,
+				" add.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
+				offset,
+				ctx.BLiTSRC_name.c_str(),
+				cost,
+				worddelta, linedelta
+			);
+		}
 	}
 
 	virtual void onExecute()
 	{
-		//ctx.memaddr += delta * ctx.dstww;
 	}
 
 	int worddelta;
@@ -2330,7 +2497,12 @@ public:
 		dreg = _dreg;
 	}
 
-	int delta(int _dlw) 
+	virtual std::string comment()
+	{
+		return "DST_AddaIL";
+	}
+
+	int delta(int _dlw)
 	{
 		return (linedelta * _dlw) + (worddelta * 8);
 	}
@@ -2459,4 +2631,7 @@ public:
 	{
 	}
 };
+
+char Operation::s_buf[1024];
+
 
