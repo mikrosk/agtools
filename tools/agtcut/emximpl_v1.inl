@@ -26,7 +26,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		if (g_allargs.verbose)
 			std::cout << "optimizing common line order across all preshifts..." << std::endl << std::flush;
 
-		int shiftcount = spr.psmask_frames_.size();
+		int shiftcount = spr.psmask_frames_emx_.size();
 
 		// make copy of data in terms of 3*y EM words
 		uword_t *buffer = new uword_t[3 * spr.h_ * shiftcount * c_max_ems_components];
@@ -35,8 +35,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 		int max_ci = 0;
 		{
 			int si = 0;
-			std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_.begin();
-			for (; pmit != spr.psmask_frames_.end(); pmit++, si++)
+			std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin();
+			for (; pmit != spr.psmask_frames_emx_.end(); pmit++, si++)
 			{
 				// components within a preshift
 				int ci = 0;
@@ -371,7 +371,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 						double dtotalcost = 0;
 						int loadcost = 0;
 
-						int shiftcount = spr.psmask_frames_.size();
+						int shiftcount = spr.psmask_frames_emx_.size();
 						for (int si = 0; si < shiftcount; si++)
 						{
 							for (int ci = 0; ci <= max_ci; ci++)
@@ -552,7 +552,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 	}
 
 
-	spr.lineorder = best_pattern;
+	spr.linemap_opt_2_src = best_pattern;
 
 	//exit(-1);
 
@@ -572,7 +572,7 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 
 	// generate metrics for each data word
 	int pi = 0;
-	for (std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_.begin(); pmit != spr.psmask_frames_.end(); pmit++, pi++)
+	for (std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, pi++)
 	{
 		for (preshiftlist_t::iterator pit = pmit->begin(); pit != pmit->end(); pit++)
 		{
@@ -587,7 +587,8 @@ void generate_emx_frame(spriteframe_t &spr, int _frame)
 				shift.height_, 
 				/*srccol_wordwidth*/((spr.w_ + 15) >> 4), 
 				3,
-				/*guardxs=*/g_allargs.emguardx
+				/*guardxs=*/g_allargs.emguardx,
+				/*shared_mask=*/false
 			);
 
 			// output the source image pattern

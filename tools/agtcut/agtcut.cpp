@@ -51,7 +51,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.463";
+static const char* const g_version_string = "v0.470b";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
@@ -5246,21 +5246,22 @@ public:
 		int _ww, 
 		bool _cxs, 
 		bool _cxe, 
-		int _sline, 
-		int _sline_aw, 
+		int _line_orig,
+		int _line_aww, 
 		u16 *_pmasks, 
-		//int _dline, 
-		int _bccount
+		int _buscycle_count
 	)
 		: ws(_ws), 
 		  ww(_ww), 
 		  cxs(_cxs), 
 		  cxe(_cxe), 
-		  sline(_sline),
-		  sline_aw(_sline_aw),
-		  //dline(_dline), 
-		  bccount(_bccount),
-		  draw_order(0)
+		  line_orig(_line_orig),
+		  line_active_wordwidth(_line_aww),
+		  buscycle_count(_buscycle_count),
+		  draw_order(0),
+		  sww(0),
+		  sws(0),
+		  span_src_wos(0)
 	{
 		switch (_ww)
 		{
@@ -5268,28 +5269,51 @@ public:
 			printf("error!\n"); exit(1);
 			break;
 		case 1:
-			em[0] = _pmasks[0];
-			em[1] = 0;
-			em[2] = 0;
+			{
+				em[0] = _pmasks[0];
+				em[1] = 0;
+				em[2] = 0;
+			}
+			//printf("em1:%04x [em2:%04x em3:%04x]\n", em[0], em[1], em[2]);
 			break;
 		case 2:
-			em[0] = _pmasks[0];
-			em[1] = 0;
-			em[2] = _pmasks[1];
+			{
+				em[0] = _pmasks[0];
+				em[1] = 0;
+				if (_pmasks[1])
+				{
+					em[2] = _pmasks[1];
+				}
+				else
+				{
+					em[2] = _pmasks[0];
+				}
+			}
+			//printf("em1:%04x [em2:%04x] em3:%04x\n", em[0], em[1], em[2]);
 			break;
 		default:
-			em[0] = _pmasks[0];
-			if (_pmasks[2])
 			{
-				// span ended with EM2!=EM3
-				em[1] = _pmasks[1];
-				em[2] = _pmasks[2];
-			}
-			else
-			{
-				// special case: span ended with EM2==EM3 but blitter enforces EM1:EM2:EM3
-				em[1] = _pmasks[1];
-				em[2] = _pmasks[1];
+				em[0] = _pmasks[0];
+				if (_pmasks[2])
+				{
+					// all 3 masks allocated
+					em[1] = _pmasks[1];
+					em[2] = _pmasks[2];
+				}
+				else
+				if (_pmasks[1])
+				{
+					// special case: span ended with 2 words allocated, so expand
+					em[1] = _pmasks[1];
+					em[2] = _pmasks[1];
+				}
+				else
+				{
+					// special case: span ended with 1 word allocated, so expand
+					em[1] = _pmasks[0];
+					em[2] = _pmasks[0];
+				}
+				//printf("em1:%04x em2:%04x em3:%04x\n", em[0], em[1], em[2]);
 			}
 			break;
 		};
@@ -5302,15 +5326,16 @@ public:
 	int ww;			// word width
 	bool cxs;		// cropped x start (+FISR)
 	bool cxe;		// cropped x end   (-NFSR)
-	int sline_aw;	// source line active width
-	int sline;		// source line index
 
-	// dest fields
+	int line_active_wordwidth;	// source line active width
+	int line_orig;	// original line index
 	u16 em[3];		// endmasks
+	int buscycle_count;	// bus cycles required
 
-	//int dline;		// dest line index
-	int bccount;	// bus cycles required
-	int reordered_sline;
+	int sww;
+	int sws;
+	int span_src_wos;
+	int line_opt;	// order-optimized line index
 	int draw_order;
 };
 
@@ -5340,6 +5365,7 @@ public:
 
 	span_analysis sa;
 
+	std::vector<u16> shared_mask_words;
 
 	preshift_t
 	(
@@ -5431,12 +5457,13 @@ public:
 	uword_t *colr1_;
 
 	preshiftlist_t pscolr_frames_;
-	std::vector<preshiftlist_t> psmask_frames_;
+	std::vector<preshiftlist_t> psmask_frames_emx_;
+	std::vector<preshiftlist_t> psmask_frames_ems_;
 
 	std::vector<om_descriptor> occlusion_maps_;
 
-	std::vector<int> lineorder;
-	std::vector<int> invlineorder;
+	std::vector<int> linemap_opt_2_src;
+	std::vector<int> linemap_src_2_opt;
 	std::vector<int> active_starts;
 	std::vector<int> active_widths;
 
@@ -5564,7 +5591,7 @@ public:
 		}
 	}
 
-	void generate_mask_preshifts(int _range, int _step, int _max_dst_wordwidth)
+	void generate_mask_preshifts(int _range, int _step, int _max_dst_wordwidth, bool _ems)
 	{
 		int src_wordwidth = ((w_ + 15) & -16) >> 4;
 
@@ -5631,18 +5658,36 @@ public:
 					}
 				}
 
-				if (preshift_index >= psmask_frames_.size())
-					psmask_frames_.resize(preshift_index + 1);
+				if (_ems)
+				{
+					if (preshift_index >= psmask_frames_ems_.size())
+						psmask_frames_ems_.resize(preshift_index + 1);
 
-				psmask_frames_[preshift_index].emplace_back
-				(
-					preshift_t
+					psmask_frames_ems_[preshift_index].emplace_back
 					(
-						s, 1, h_, 
-						dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
-						preshift
-					)
-				);
+						preshift_t
+						(
+							s, 1, h_,
+							dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
+							preshift
+						)
+					);
+				}
+				else
+				{
+					if (preshift_index >= psmask_frames_emx_.size())
+						psmask_frames_emx_.resize(preshift_index + 1);
+
+					psmask_frames_emx_[preshift_index].emplace_back
+					(
+						preshift_t
+						(
+							s, 1, h_,
+							dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
+							preshift
+						)
+					);
+				}
 
 				if (g_allargs.verbose)
 					std::cout << " mask preshift index " << preshift_index << " step " << s << " component " << component << " @ wordwidth " << dst_wordwidth << std::endl;
@@ -6060,10 +6105,10 @@ void add_sprite_frame
 	int max_dst_wordwidth = 0;
 	if (
 		(g_allargs.cutmode == Cutmode_EMSPR)
-#if !defined(USE_EMX2)
+//#if !defined(USE_EMX2)
 		||
 		(g_allargs.cutmode == Cutmode_EMXSPR)
-#endif
+//#endif
 	)
 	{
 		max_dst_wordwidth = 3;
@@ -6073,7 +6118,10 @@ void add_sprite_frame
 	{
 		if (g_allargs.verbose)
 			std::cout << "preshifting mask..." << std::endl;
-		g_spriteframes.back().generate_mask_preshifts(16, g_allargs.preshift_step, max_dst_wordwidth);
+
+		g_spriteframes.back().generate_mask_preshifts(16, g_allargs.preshift_step, max_dst_wordwidth, /*ems=*/true);
+		if (g_allargs.cutmode == Cutmode_EMXSPR)
+			g_spriteframes.back().generate_mask_preshifts(16, g_allargs.preshift_step, 0, /*ems=*/false);
 	}
 		
 	if (g_allargs.emc && g_allargs.ocm)
@@ -6197,7 +6245,7 @@ bool emit_sprite_sequence(bool _storepixels)
 		fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 		std::cout << "bound xs: " << std::dec << g_sprite_width << std::endl;
-		std::cout << "bound ys: " << std::dec << g_sprite_width << std::endl;
+		std::cout << "bound ys: " << std::dec << g_sprite_height << std::endl;
 
 		// create sprite index (patched before closing)
 		int sprite_index_fpos = tracked_filesize;
@@ -6435,7 +6483,7 @@ bool emit_sprite_sequence(bool _storepixels)
 							// reorder colour data if necessary
 							int realy = y;
 							//if (g_allargs.cutmode == Cutmode_EMXSPR)
-							realy = it->lineorder[y];
+							realy = it->linemap_opt_2_src[y];
 
 							for (int p = 0; p < g_allargs.planes; p++)
 							{
@@ -6475,9 +6523,9 @@ bool emit_sprite_sequence(bool _storepixels)
 						//std::cout << "output mask..." << std::endl << std::flush;
 
 						// track mask preshifts
-						psmask_component_nextlinks.resize(it->psmask_frames_.size());
+						psmask_component_nextlinks.resize(it->psmask_frames_ems_.size());
 						int preshift_index = 0;
-						for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++, preshift_index++)
+						for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_ems_.begin(); itpm != it->psmask_frames_ems_.end(); itpm++, preshift_index++)
 						{
 							int component = 0;
 							for (preshiftlist_t::iterator itc = itpm->begin(); itc != itpm->end(); itc++, component++)
@@ -6584,9 +6632,9 @@ bool emit_sprite_sequence(bool _storepixels)
 					{
 						//std::cout << "output maskopt..." << std::endl << std::flush;
 
-						psmaskopt_component_nextlinks.resize(it->psmask_frames_.size());
+						psmaskopt_component_nextlinks.resize(it->psmask_frames_emx_.size());
 						int preshift_index = 0;
-						for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++, preshift_index++)
+						for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_emx_.begin(); itpm != it->psmask_frames_emx_.end(); itpm++, preshift_index++)
 						{
 							int component = 0;
 							for (preshiftlist_t::iterator itc = itpm->begin(); itc != itpm->end(); itc++, component++)

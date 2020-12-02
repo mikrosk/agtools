@@ -7,7 +7,12 @@ static const int c_max_buscycles_per_blit = 64;
 // [preshift0 mask width] [span width] [span offset] [span masks]
 
 
-void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, preshift_t &_shift, int _psi)
+void generate_emx2_preshift_analysis
+(
+	const spriteframe_t &spr, int _frame, 
+	preshift_t &_shift, int _psi, 
+	bool _horizontal_ordering
+)
 {
 	//int full_src_wordwidth = ((spr.w_ + 15) & -16) >> 4;
 	//int src_pixwidth = full_src_wordwidth << 4;
@@ -48,6 +53,9 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 
 				if (nonzero_words > 0)
 				{
+//					printf("zero-term:\n");
+//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
+
 					// check reference to shifted previous data
 					bool FISR = 
 						(span_pos > 0) && 
@@ -73,6 +81,7 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 							/*bccount=*/accumulated_bcycles
 						)
 					);
+					em[0] = em[1] = em[2] = 0;
 
 					span_pos = -1;
 					accumulated_words = 0;
@@ -91,6 +100,9 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 
 				if ((accumulated_bcycles + word_bcycles) > c_max_buscycles_per_blit)
 				{
+//					printf("bus limit:\n");
+//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
+
 					// check reference to shifted previous data
 					bool FISR =
 						(span_pos > 0) &&
@@ -116,6 +128,7 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 							/*bccount=*/accumulated_bcycles
 						)
 					);
+					em[0] = em[1] = em[2] = 0;
 
 					span_pos = -1;
 					accumulated_words = 0;
@@ -139,10 +152,14 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 				// check constraints
 				if
 				(
-					(w == _shift.wordwidth_) ||
-					(nonzero_words == 3)
+					// note: can reach end of line with width >2 on a fill, but not allocated EM3 yet!
+					(w == _shift.wordwidth_) ||	// end of line
+					(nonzero_words == 3)		// exhausted EMs
 				)
 				{
+//					printf("eol:%d\n", (w == _shift.wordwidth_) ? 1 : 0);
+//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
+
 					// check reference to shifted previous data
 					bool FISR =
 						(span_pos > 0) &&
@@ -168,6 +185,7 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 							/*bccount=*/accumulated_bcycles
 						)
 					);
+					em[0] = em[1] = em[2] = 0;
 
 					span_pos = -1;
 					accumulated_words = 0;
@@ -260,6 +278,7 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 
 	printf("...\n");
 
+#if 0
 	std::map<uint64_t, std::vector<constrained_wordspan*>> coherent_wordspans;
 
 	v = 0;
@@ -267,16 +286,28 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 	{
 		for (auto &span : ln)
 		{
-			uint64_t coherence_criteria =
-/*				(uint64_t(span.em[1]) << (64-16)) |
-				(uint64_t(span.em[2]) << (64-32)) |
-				(uint64_t(span.em[0]) << (64-48)) |
-				//(span.ww << 8) |
-				(span.ws << 0)
-*/
-				(span.sline << 8) |
-				(span.ws << 0)
-			;
+			uint64_t coherence_criteria;
+			
+			if (_horizontal_ordering)
+			{
+				coherence_criteria =
+					(span.ws << (64-8)) |
+					(span.line_opt << 0)
+					;
+			}
+			else
+			{
+				coherence_criteria =
+					/*				(uint64_t(span.em[1]) << (64-16)) |
+									(uint64_t(span.em[2]) << (64-32)) |
+									(uint64_t(span.em[0]) << (64-48)) |
+									//(span.ww << 8) |
+									(span.ws << 0)
+					*/
+					(span.line_opt << 8) |
+					(span.ws << 0)
+					;
+			}
 
 			coherent_wordspans[coherence_criteria].push_back(&span);
 
@@ -348,7 +379,7 @@ void generate_emx2_preshift_analysis(const spriteframe_t &spr, int _frame, presh
 		}
 		printf("\n");
 	}
-
+#endif
 }
 
 void generate_emx2_active_linewidths(spriteframe_t &spr)
@@ -360,7 +391,7 @@ void generate_emx2_active_linewidths(spriteframe_t &spr)
 
 	// process only preshift[0] to establish source colour active widths
 	{
-		std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_.begin();
+		std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin();
 
 		// compute active mask widths
 		{
@@ -582,32 +613,38 @@ int generate_emx2_emdata_scoring(Context &context)
 	return assigned_registers;
 }
 
-void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_pattern, std::vector<int> &best_invpattern)
+void generate_emx2_common_lineorder
+(
+	spriteframe_t &spr, 
+	std::vector<int> &linemap_opt_2_src, 
+	std::vector<int> &linemap_src_2_opt, 
+	bool _optimize
+)
 {
 	static const int c_max_line_spans = 320 / 48;
 
 	// default line order
 
-	best_pattern.clear();
-	best_invpattern.clear();
+	linemap_opt_2_src.clear();
+	linemap_opt_2_src.reserve(spr.h_);
 	for (int f = 0; f < spr.h_; f++)
 	{
-		best_pattern.push_back(f);
+		linemap_opt_2_src.push_back(f);
 	}
 
 	ubyte_t *emptylines = new ubyte_t[spr.h_];
-	memset(emptylines, 0, spr.h_);
+	memset(emptylines, 1, spr.h_);
 
 	ubyte_t *livelines = new ubyte_t[spr.h_];
 	memset(livelines, 0, spr.h_);
 
 	// find common optimized line order
-	if (0 && USE_COMMON_LINEORDER_OPTIMIZATION && (spr.h_ > 2))
+	if (_optimize &&  USE_COMMON_LINEORDER_OPTIMIZATION && (spr.h_ > 2))
 	{
 		if (g_allargs.verbose)
 			std::cout << "optimizing common line order across all preshifts..." << std::endl << std::flush;
 
-		int shiftcount = spr.psmask_frames_.size();
+		int shiftcount = spr.psmask_frames_emx_.size();
 
 		// make copy of data in terms of 3*y EM words
 		uword_t *buffer = new uword_t[3 * spr.h_ * shiftcount * c_max_line_spans];
@@ -616,8 +653,8 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 		int max_ci = 0;
 		{
 			int si = 0;
-			std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_.begin();
-			for (; pmit != spr.psmask_frames_.end(); pmit++, si++)
+			std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin();
+			for (; pmit != spr.psmask_frames_emx_.end(); pmit++, si++)
 			{
 				// components within a preshift
 				//int ci = 0;
@@ -652,9 +689,13 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 							if (USE_EMPTYLINE_OPTIMIZATION)
 							{
 								if (sbuffer[(v * 3) + 0] || sbuffer[(v * 3) + 1] || sbuffer[(v * 3) + 2])
+								{
 									livelines[v] = 1;
-								else
-									emptylines[v] = 1;
+									emptylines[v] = 0;
+								}
+//									livelines[v] = 1;
+//								else
+//									emptylines[v] = 1;
 							}
 							else
 							{
@@ -667,6 +708,7 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			}
 		}
 
+
 		// force fully empty lines to end of pattern
 		{
 			bool busy;
@@ -676,13 +718,13 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 
 				for (int v = 0; v < (spr.h_ - 1); v++)
 				{
-					int v0 = best_pattern[v + 0];
-					int v1 = best_pattern[v + 1];
+					int v0 = linemap_opt_2_src[v + 0];
+					int v1 = linemap_opt_2_src[v + 1];
 
 					if (!livelines[v0] && livelines[v1])
 					{
-						best_pattern[v + 0] = v1;
-						best_pattern[v + 1] = v0;
+						linemap_opt_2_src[v + 0] = v1;
+						linemap_opt_2_src[v + 1] = v0;
 						busy = true;
 						break;
 					}
@@ -691,17 +733,21 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			} while (busy);
 		}
 
+
 		// find active region
-		int live_line_count = best_pattern.size();
-		for (int v = 0; v < best_pattern.size(); v++)
+		int live_line_count = linemap_opt_2_src.size();
+		for (int v = 0; v < linemap_opt_2_src.size(); v++)
 		{
-			if (!livelines[best_pattern[v]])
+			if (!livelines[linemap_opt_2_src[v]])
 			{
 				live_line_count = v;
 				break;
 			}
 		}
+		linemap_opt_2_src.resize(live_line_count);
+
 		int empty_line_count = spr.h_ - live_line_count;
+
 
 		// initial sort of mask edges
 		if (USE_INITIAL_EDGE_SORT)
@@ -712,7 +758,7 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			{
 				auto &s = sorting[v];
 				s.first = 0;
-				s.second = best_pattern[v];
+				s.second = linemap_opt_2_src[v];
 			}
 
 			int full_src_wordwidth = ((spr.w_ + 15) & -16) >> 4;
@@ -721,7 +767,7 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			for (int v = 0; v < live_line_count; v++)
 			{
 				int ordering = v;
-				int orig_y = best_pattern[ordering];
+				int orig_y = linemap_opt_2_src[ordering];
 				uword_t *line = &spr.mask_[(orig_y * full_src_wordwidth)];
 
 				int le = 0;
@@ -781,7 +827,7 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			std::sort(sorting.begin(), sorting.end());
 			for (int vnew = 0; vnew < live_line_count; vnew++)
 			{
-				best_pattern[vnew] = sorting[vnew].second;
+				linemap_opt_2_src[vnew] = sorting[vnew].second;
 			}
 		}
 
@@ -794,7 +840,7 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 
 
 
-		// can optimize ordering here
+		// can anneal-optimize ordering here
 
 
 
@@ -807,7 +853,7 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			for (int v = 0; v < live_line_count; v++)
 			{
 				int order = v;
-				int orig_y = best_pattern[order];
+				int orig_y = linemap_opt_2_src[order];
 				uword_t *line = &spr.mask_[(orig_y * full_src_wordwidth)];
 
 				for (int w = 0; w < full_src_wordwidth; w++)
@@ -837,13 +883,15 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			}
 		}
 
-		for (int v = 0; v < best_pattern.size(); v++)
+		linemap_src_2_opt.clear();
+		linemap_src_2_opt.resize(spr.h_, 0);
+		for (int v = 0; v < spr.h_; v++)
 		{
-			for (int i = 0; i < best_pattern.size(); i++)
+			for (int i = 0; i < linemap_opt_2_src.size(); i++)
 			{
-				if (v == best_pattern[i])
+				if (v == linemap_opt_2_src[i])
 				{
-					best_invpattern.push_back(i);
+					linemap_src_2_opt[v] = i;
 					break;
 				}
 			}
@@ -858,15 +906,15 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			{
 				int orig_y = v;
 
-				if (orig_y >= best_invpattern.size())
+				if (orig_y >= linemap_src_2_opt.size())
 				{
 					printf(" ...\n");
 				}
 				else
 				{
-					int order = best_invpattern[orig_y];
+					int order = linemap_src_2_opt[orig_y];
 
-					int src_y = best_pattern[order];
+					int src_y = linemap_opt_2_src[order];
 
 					uword_t *line = &spr.mask_[(src_y * full_src_wordwidth)];
 
@@ -928,7 +976,7 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 			printf("\nreordered:\n");
 			for (int v = 0; v < spr.h_; v++)
 			{
-				int dsty = best_pattern[v];
+				int dsty = linemap_opt_2_src[v];
 				printf("s:%02d ", dsty);
 				for (int ci = 0; ci <= max_ci; ci++)
 				{
@@ -953,18 +1001,21 @@ void generate_emx2_common_lineorder(spriteframe_t &spr, std::vector<int> &best_p
 	}
 	else
 	{
-		for (int v = 0; v < best_pattern.size(); v++)
+		linemap_src_2_opt.clear();
+		linemap_src_2_opt.resize(spr.h_, 0);
+		for (int v = 0; v < spr.h_; v++)
 		{
-			for (int i = 0; i < best_pattern.size(); i++)
+			for (int i = 0; i < linemap_opt_2_src.size(); i++)
 			{
-				if (v == best_pattern[i])
+				if (v == linemap_opt_2_src[i])
 				{
-					best_invpattern.push_back(i);
+					linemap_src_2_opt[v] = i;
 					break;
 				}
 			}
-		}	
+		}
 	}
+//	exit(1);
 }
 
 void generate_emx2_emdata_metrics
@@ -987,10 +1038,9 @@ void generate_emx2_emdata_metrics
 
 	//		int unique_datawords = 0; // each unique dataword has a uid so it can be reused
 	{
-		int v = -1;
 		for (auto pspan : stacked_spans)
 		{
-			v++;
+			int v = pspan->draw_order;
 			int dsty = v;
 
 			uword_t *srcdata = &buffer[dsty * 3];
@@ -1073,47 +1123,119 @@ void generate_emx2_emdata_metrics
 			printf("total surviving = %d\n", context.metrics.size());
 }
 
-void generate_emx2_extract_deltas(std::vector<constrained_wordspan*> &stacked_spans, ubyte_t *changes, uword_t *buffer)
+void generate_emx2_map_span_sources
+(
+	spriteframe_t &spr,
+	std::vector<constrained_wordspan*> &stacked_spans,
+	int _shift
+)
+{
+	int full_src_wordwidth = ((spr.w_ + 15) & -16) >> 4;
+
+	for (auto pspan : stacked_spans)
+	{
+		int sww = pspan->ww;
+		int sws = pspan->ws;
+
+		if (_shift > 0)
+			sww++;
+
+		if (pspan->cxs)
+		{
+			sww++;
+			sws--;
+		}
+
+		if (pspan->cxe)
+			sww--;
+
+		pspan->sww = sww;
+		pspan->sws = sws;
+
+		pspan->span_src_wos = (full_src_wordwidth * pspan->line_opt) + pspan->sws;
+	}
+}
+
+void generate_emx2_extract_deltas
+(
+	std::vector<constrained_wordspan*> &stacked_spans, 
+	ubyte_t *changes, 
+	uword_t *buffer
+)
 {
 	// generate map for only changing EM registers 
 	// (excluding first output line - this is handled as dirty registers to minimize initial setup if the first line is empty)
 
 	if (USE_DELTA_OPTIMIZATION)
 	{
-		uword_t lastchanges[3];
-		bool dirtyline = true;
+		uword_t lastchanges[3] = { 0,0,0 };
+		//bool dirtyline = true;
 
 		//printf("shift wordwidth: %d", shift.wordwidth_);
 
-		int v = -1;
 		for (auto pspan : stacked_spans)
 		{
-			v++;
-			int dsty = v;
-			//int dsty = best_pattern[v];
+			int v = pspan->draw_order;
+			int v3 = v * 3;
+
+			if (lastchanges[0] != buffer[v3 + 0])
+			{
+				lastchanges[0] = buffer[v3 + 0];
+
+				changes[v3 + 0] = 1;
+			}
+
+			if (pspan->ww >= 3)
+			{
+				if (lastchanges[1] != buffer[v3 + 1])
+				{
+					lastchanges[1] = buffer[v3 + 1];
+
+					changes[v3 + 1] = 1;
+				}
+			}
+
+			if (pspan->ww >= 2)
+			{
+				if (lastchanges[2] != buffer[v3 + 2])
+				{
+					lastchanges[2] = buffer[v3 + 2];
+
+					changes[v3 + 2] = 1;
+				}
+			}
+			/*
+			//int dsty = v;
+			//int dsty = linemap_opt_2_src[v];
 
 			// generate deltas for all but 1st BUSY line
-			int yn3 = dsty * 3;
+			int yn3 = v * 3;
 			int yp3 = yn3;
 			if (v > 0)
-				yp3 = (v - 1) * 3;// best_pattern[v - 1] * 3;
+				yp3 = (v - 1) * 3;// linemap_opt_2_src[v - 1] * 3;
 
 			// generate deltas for only real lines
 			{
 				if (1)
+				{
 					changes[yn3 + 0] = (dirtyline || (lastchanges[0] != buffer[yn3 + 0])) ? 1 : 0;
-				if (pspan->ww >= 3)
-					changes[yn3 + 1] = (dirtyline || (lastchanges[1] != buffer[yn3 + 1])) ? 1 : 0;
-				if (pspan->ww >= 2)
-					changes[yn3 + 2] = (dirtyline || (lastchanges[2] != buffer[yn3 + 2])) ? 1 : 0;
+					lastchanges[0] = buffer[yn3 + 0];
+				}
 
-				// accept new data for non-empty lines
-				lastchanges[0] = buffer[yn3 + 0];
-				lastchanges[1] = buffer[yn3 + 1];
-				lastchanges[2] = buffer[yn3 + 2];
+				if (pspan->ww >= 3)
+				{
+					changes[yn3 + 1] = (dirtyline || (lastchanges[1] != buffer[yn3 + 1])) ? 1 : 0;
+					lastchanges[1] = buffer[yn3 + 1];
+				}
+				if (pspan->ww >= 2)
+				{
+					changes[yn3 + 2] = (dirtyline || (lastchanges[2] != buffer[yn3 + 2])) ? 1 : 0;
+					lastchanges[2] = buffer[yn3 + 2];
+				}
 
 				dirtyline = false;
 			}
+*/
 		}
 	}
 	else
@@ -1123,7 +1245,7 @@ void generate_emx2_extract_deltas(std::vector<constrained_wordspan*> &stacked_sp
 		{
 			v++;
 			int dsty = v;
-			//int dsty = best_pattern[v];
+			//int dsty = linemap_opt_2_src[v];
 
 			//if (component_livelines[dsty])
 			{
@@ -1151,7 +1273,7 @@ void generate_emx2_extract_deltas(std::vector<constrained_wordspan*> &stacked_sp
 
 	//			for (int v = 0; v < shift.height_; v++)
 	//			{
-	//				int dsty3 = best_pattern[v] * 3;
+	//				int dsty3 = linemap_opt_2_src[v] * 3;
 
 	int v = -1;
 	for (auto pspan : stacked_spans)
@@ -1364,761 +1486,731 @@ void generate_emx2_store_dependencies
 		}
 }
 
-void generate_emx2_metaprogram(spriteframe_t &spr, int _frame)
+void generate_emx2_order_spans
+(
+	spriteframe_t &spr, int _frame, 
+	preshift_t &shift, int pi, 
+	std::vector<constrained_wordspan*> &_stacked_spans, 
+	bool _horizontal_ordering
+)
+{
+	// stack all spans for state change optimization
+	std::map<uint32_t, std::vector<constrained_wordspan*>> ordered_spans;
+	for (auto & spanlist : shift.sa.span_vpattern_)
+	{
+		int horizontal_index = 0;
+		for (auto &span : spanlist)
+		{
+			span.line_opt = spr.linemap_src_2_opt[span.line_orig];
+
+			// span index has priority so spans rendered vertically for edge coherence, never horizontally
+			// otherwise, frame common lineorder prevails
+			uint32_t ordering_key =
+				(uint32_t(horizontal_index) << (32 - 5)) |
+				(uint32_t(span.ws) << (32 - 15)) |
+				(uint32_t(span.ww) << (32 - 10)) |
+				(uint32_t(span.line_opt) << 0)
+				;
+
+			ordered_spans[ordering_key].push_back(&span);
+
+			horizontal_index++;
+		}
+	}
+
+	int o = 0;
+	for (auto group_it = ordered_spans.begin(); group_it != ordered_spans.end(); group_it++)
+	{
+		for (auto pspan : group_it->second)
+		{
+			pspan->draw_order = o++;
+			_stacked_spans.push_back(pspan);
+		}
+	}
+}
+
+void generate_emx2_metaprogram
+(
+	spriteframe_t &spr, int _frame, 
+	preshift_t &shift, int pi, 
+	std::vector<constrained_wordspan*> stacked_spans,
+	bool _shared_mask,
+	std::vector<u16> &shared_mask_words
+)
 {
 	// generate metrics for each data word
-	int pi = 0;
-	for (std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_.begin(); pmit != spr.psmask_frames_.end(); pmit++, pi++)
-	{
-		//for (preshiftlist_t::iterator pit = pmit->begin(); pit != pmit->end(); pit++)
-		preshiftlist_t::iterator pit = pmit->begin();
-		{
-			preshift_t &shift = *pit;
-
-			if ((DEBUG_PRESHIFT >= 0) && (pi != DEBUG_PRESHIFT))
-				continue;
-
-			// stack all spans for state change optimization
-			std::map<uint32_t, std::vector<constrained_wordspan*>> ordered_spans;
-			for (auto & spanlist : shift.sa.span_vpattern_)
-			{
-				int horizontal_index = 0;
-				for (auto &span : spanlist)
-				{
-					span.reordered_sline = spr.invlineorder[span.sline];
-
-					// span index has priority so spans rendered vertically for edge coherence, never horizontally
-					// otherwise, frame common lineorder prevails
-					uint32_t ordering_key =
-						(uint32_t(horizontal_index) << 16) |
-						(uint32_t(span.reordered_sline) << 0)
-						;
-
-					ordered_spans[ordering_key].push_back(&span);
-
-					horizontal_index++;
-				}
-			}
-
-			std::vector<constrained_wordspan*> stacked_spans;
-			int o = 0;
-			for (auto & group : ordered_spans)
-			{
-				for (auto pspan : group.second)
-				{
-					pspan->draw_order = o++;
-					stacked_spans.push_back(pspan);
-				}
-			}
 					
-			size_t spancount = stacked_spans.size();
+	size_t spancount = stacked_spans.size();
 
-			//if (g_allargs.verbose)
+	//if (g_allargs.verbose)
+	{
+		printf("\n\nframe %d spans %d preview:\n", _frame, pi);
+		for (auto pspan : stacked_spans)
+		{
+			print_dataword(pspan->em[0]);
+			print_dataword(pspan->em[1]);
+			print_dataword(pspan->em[2]);
+			printf("\n");
+		}
+		printf("\n");
+	}
+
+	Context context
+	(
+		/*masksrcww=*/shift.wordwidth_, 
+		/*masksrch=*/shift.height_, 
+		/*srccol_wordwidth*/((spr.w_ + 15) >> 4), 
+		/*simdstww=*/shift.wordwidth_, 
+		/*guardxs=*/g_allargs.emguardx,
+		_shared_mask
+	);
+
+	context.shared_mask_words = shift.shared_mask_words;
+
+
+	ubyte_t *changes = new ubyte_t[3 * spancount/*shift.height_*/];
+	memset(changes, 0, 3 * spancount/*shift.height_*/);
+
+	// make copy of data in terms of 3*y EM words
+	uword_t *buffer = new uword_t[3 * spancount/*shift.height_*/];
+	memset(buffer, 0, 2 * 3 * spancount/*shift.height_*/);
+	{
+		for (auto pspan : stacked_spans)
+		{
+			int v = pspan->draw_order;
+			buffer[(v * 3) + 0] = pspan->em[0];
+			buffer[(v * 3) + 1] = pspan->em[1];
+			buffer[(v * 3) + 2] = pspan->em[2];
+		}
+	}
+
+	ubyte_t *component_livelines = nullptr;// new ubyte_t[shift.height_];
+	//memset(component_livelines, 0, shift.height_);
+
+	// find nonempty lines
+/*	for (int y = 0; y < shift.height_; y++)
+	{
+		int dsty = spr.linemap_src_2_opt[y];
+
+		if (USE_EMPTYLINE_OPTIMIZATION)
+		{
+			uword_t *srcdata = &buffer[dsty * 3];
+
+			// look for empty blits (all EMs == 0)
+			u64 line = 0;
+			for (int x = 0; x < shift.wordwidth_; x++)
 			{
-				printf("\n\nframe %d spans %d preview:\n", _frame, pi);
-				for (auto pspan : stacked_spans)
-				{
-					print_dataword(pspan->em[0]);
-					print_dataword(pspan->em[1]);
-					print_dataword(pspan->em[2]);
-					printf("\n");
-				}
-				printf("\n");
+				line <<= 16;
+				line |= srcdata[x];
 			}
 
-			Context context
-			(
-				/*masksrcww=*/shift.wordwidth_, 
-				/*masksrch=*/shift.height_, 
-				/*srccol_wordwidth*/((spr.w_ + 15) >> 4), 
-				/*simdstww=*/shift.wordwidth_, 
-				/*guardxs=*/g_allargs.emguardx
-			);
-
-
-			ubyte_t *changes = new ubyte_t[3 * spancount/*shift.height_*/];
-			memset(changes, 0, 3 * spancount/*shift.height_*/);
-
-			// make copy of data in terms of 3*y EM words
-			uword_t *buffer = new uword_t[3 * spancount/*shift.height_*/];
-			memset(buffer, 0, 2 * 3 * spancount/*shift.height_*/);
-			{
-				for (auto pspan : stacked_spans)
-				{
-					int v = pspan->draw_order;
-					buffer[(v * 3) + 0] = pspan->em[0];
-					buffer[(v * 3) + 1] = pspan->em[1];
-					buffer[(v * 3) + 2] = pspan->em[2];
-				}
-			}
-
-			ubyte_t *component_livelines = new ubyte_t[shift.height_];
-			memset(component_livelines, 0, shift.height_);
-
-			// find nonempty lines
-			for (int y = 0; y < shift.height_; y++)
-			{
-				int dsty = spr.invlineorder[y];
-
-				if (USE_EMPTYLINE_OPTIMIZATION)
-				{
-					uword_t *srcdata = &buffer[dsty * 3];
-
-					// look for empty blits (all EMs == 0)
-					u64 line = 0;
-					for (int x = 0; x < shift.wordwidth_; x++)
-					{
-						line <<= 16;
-						line |= srcdata[x];
-					}
-
-					component_livelines[dsty] = (line != 0);
-				}
-				else
-				{
-					component_livelines[dsty] = 1;
-				}
-			}
-
-			generate_emx2_extract_deltas(stacked_spans, changes, buffer);
+			component_livelines[dsty] = (line != 0);
+		}
+		else
+		{
+			component_livelines[dsty] = 1;
+		}
+	}
+*/
+	generate_emx2_extract_deltas(stacked_spans, changes, buffer);
 
 
 /*
 
-			class lineout
-			{
-			public:
+	class lineout
+	{
+	public:
 
-				lineout(int s, int d)
-					: sline(s), dline(d)
-				{
-				}
+		lineout(int s, int d)
+			: sline(s), dline(d)
+		{
+		}
 
-				int sline;
-				int dline;
-			};
+		int sline;
+		int dline;
+	};
 
-			std::vector<lineout> active_lines;
+	std::vector<lineout> active_lines;
 */
 
-			std::vector<constrained_wordspan*> active_spans;
-			generate_emx2_emdata_metrics(context, stacked_spans, changes, buffer, active_spans);
+	std::vector<constrained_wordspan*> active_spans;
+	generate_emx2_emdata_metrics(context, stacked_spans, changes, buffer, active_spans);
 
-			int assigned_registers = generate_emx2_emdata_scoring(context);
-
-
-			// preload most useful values
-
-			//context
-
-			// data dependencies
-			// process all *changing words* on *changing lines* in *optimized line order*
+	int assigned_registers = generate_emx2_emdata_scoring(context);
 
 
-			std::vector<storedependency> deps;
-			std::vector<u64> lifespans;
+	// preload most useful values
 
-			generate_emx2_store_dependencies
-			(
-				context, 
-				changes,
-				buffer,
-				assigned_registers,
-				active_spans,
-				deps, 
-				lifespans
-			);
+	//context
+
+	// data dependencies
+	// process all *changing words* on *changing lines* in *optimized line order*
+
+
+	std::vector<storedependency> deps;
+	std::vector<u64> lifespans;
+
+	generate_emx2_store_dependencies
+	(
+		context, 
+		changes,
+		buffer,
+		assigned_registers,
+		active_spans,
+		deps, 
+		lifespans
+	);
 
 
 
 #if 0
 
-			// look for ways to derive unique values without loads, by transforming values with expired lifespan
+	// look for ways to derive unique values without loads, by transforming values with expired lifespan
 			
-			//for (std::vector<storedependency>::iterator dit = deps.begin(); dit != deps.end(); dit++)
-			//{
-			//	storedependency &dep = *dit;
+	//for (std::vector<storedependency>::iterator dit = deps.begin(); dit != deps.end(); dit++)
+	//{
+	//	storedependency &dep = *dit;
 
-			//	if (dep.type == 1)
-			//	{
-			//		// this dependency is isolated and expensive to load, so look for different ways to derive it from spent values
-			//	}
-			//}
+	//	if (dep.type == 1)
+	//	{
+	//		// this dependency is isolated and expensive to load, so look for different ways to derive it from spent values
+	//	}
+	//}
 
-			//for (std::vector<storedependency>::iterator dit = deps.begin(); dit != deps.end(); dit++)
-			//{
-			//	storedependency &dep = *dit;
+	//for (std::vector<storedependency>::iterator dit = deps.begin(); dit != deps.end(); dit++)
+	//{
+	//	storedependency &dep = *dit;
 
-			//	if (dep.type == 0)
-			//	{
-			//		// this value gets reused so place it in registers
-
-
-			//	}
-			//}
+	//	if (dep.type == 0)
+	//	{
+	//		// this value gets reused so place it in registers
 
 
-			// 3)
-			// optimize assignments to fit available resources
-			// - finish with no more than max_registers unique names
-			// - avoid interrupting long lifespans (or lifespans of high incidence data)
-			// - don't mess with immediate types
-			// - minimize number of load events
+	//	}
+	//}
+
+
+	// 3)
+	// optimize assignments to fit available resources
+	// - finish with no more than max_registers unique names
+	// - avoid interrupting long lifespans (or lifespans of high incidence data)
+	// - don't mess with immediate types
+	// - minimize number of load events
 
 
 
-			//std::vector<int>::reverse_iterator lit = lifespans.rbegin();
-			//for (std::vector<dataregister>::reverse_iterator rit = regs.rbegin(); rit != regs.rend(); rit++, lit++)
-			//{
-			//	dataregister &dr = *rit;
-			//	int &lifebits = *lit;
+	//std::vector<int>::reverse_iterator lit = lifespans.rbegin();
+	//for (std::vector<dataregister>::reverse_iterator rit = regs.rbegin(); rit != regs.rend(); rit++, lit++)
+	//{
+	//	dataregister &dr = *rit;
+	//	int &lifebits = *lit;
 
-			//	// register name for this data
-			//	int activebit = 1 << dr.name;
+	//	// register name for this data
+	//	int activebit = 1 << dr.name;
 
-			//	// prevent cancelling of this data's lifespan from here backwards
-			//	cancelbits |= activebit;
+	//	// prevent cancelling of this data's lifespan from here backwards
+	//	cancelbits |= activebit;
 
-			//	// cancel lifespans for data not yet encountered
-			//	lifebits &= cancelbits;
-			//}
+	//	// cancel lifespans for data not yet encountered
+	//	lifebits &= cancelbits;
+	//}
 
-			// todo: enable dynamic NFSR with single or final component
+	// todo: enable dynamic NFSR with single or final component
 
-			// SKEW + NFSR, DYINC
-	//		context.blitter.skew = (shift.shift_ & 15) | (((shift.wordwidth_ << 4) == ((spr.w_ + 15) & -16)) ? 0x00 : 0x40);
+	// SKEW + NFSR, DYINC
+//		context.blitter.skew = (shift.shift_ & 15) | (((shift.wordwidth_ << 4) == ((spr.w_ + 15) & -16)) ? 0x00 : 0x40);
 #endif
 
 
-			// (8 + 2) - (shift.wordwidth_ << 3);
+	// (8 + 2) - (shift.wordwidth_ << 3);
 #if 0
-			// gather metrics on LEA skip values, for loading into registers
-			// must be done before sim reset!
-			if (USE_DSTSKIP_REG_OPTIMIZATION)
+	// gather metrics on LEA skip values, for loading into registers
+	// must be done before sim reset!
+	if (USE_DSTSKIP_REG_OPTIMIZATION)
+	{
+		int current_line = 0;
+
+		for (int y = 0; y < shift.height_; y++)
+		{
+			int dsty = linemap_opt_2_src[y];
+
+			// is the blit going to output something?
+			if (component_livelines[dsty])
 			{
-				int current_line = 0;
+				// line hop +/-
+				int linejump = dsty - current_line;
 
-				for (int y = 0; y < shift.height_; y++)
+				// all non-empty blits require a dst address update
+				// todo: linewidth should be an argument
+				if (linejump)
 				{
-					int dsty = best_pattern[y];
-
-					// is the blit going to output something?
-					if (component_livelines[dsty])
+					int addressjump = (linejump * context.dstlinewid);
+					if (addressjump < 32768 && addressjump >= -32768)
 					{
-						// line hop +/-
-						int linejump = dsty - current_line;
+						// caution: don't abs() -32768 case as it has will have no 16bit representation
+						int reduced_dataword = addressjump;
+						if (reduced_dataword > -32768)
+							reduced_dataword = abs(reduced_dataword);
+									
+						uword_t metrics_dataword = (uword_t)reduced_dataword;
 
-						// all non-empty blits require a dst address update
-						// todo: linewidth should be an argument
-						if (linejump)
+						context.metrics[metrics_dataword].incidence++;
+						context.metrics[metrics_dataword].references++;
+					}
+				}
+
+				current_line = dsty;
+			}
+		}
+	}
+#endif
+
+	// analyse dst skips
+
+	// analyse src skips
+
+	// 
+	for (int mode = 0; mode < 2; mode++)
+	{
+		bool analyse_constants = (mode == 0);
+		bool build_metaprogram = (mode == 1);
+
+		//__debugbreak();
+		context.reset_sim(true);
+
+		// reset dirty EM registers for this blit width
+		//em_dirty[0] = true;
+		//em_dirty[1] = (shift.wordwidth_ > 2);
+		//em_dirty[2] = (shift.wordwidth_ > 1);
+
+		bool NFSR = false;
+		//(shift.wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
+		//(shift.wordsremaining_ == 0) &&
+		//(((spr.w_ + 15) >> 4) != (shift.wordwidth_ + shift.wordoffset_));
+
+		bool FISR = false;// (shift.wordoffset_ > 0);
+
+		u16 current_skew = 0xffff;
+
+		/*			u8 current_skew =
+						//false;// ((shift.wordwidth_ << 4) == ((spr.w_ + 15) & -16));
+						(shift.shift_ & 15) |
+						(NFSR ? 0x40 : 0x00) |
+						(FISR ? 0x80 : 0x00);
+		*/
+		s16 current_skew_syinc_adj =
+			(NFSR ? 1 : 0) -
+			(FISR ? 1 : 0);
+
+		s16 current_skew_syoff_adj =
+			0 -
+			(FISR ? 1 : 0);
+
+		// SYINC = difference between source wordwidth & preshift wordwidth, + 2
+		// note: compensate for NFSR!
+		s16 current_syinc =
+			(((((spr.w_ + 15) >> 4) - shift.wordwidth_) << 1) + 2)
+			+ (current_skew_syinc_adj * 2);
+		//				+ (NFSR ? 2 : 0)
+		//				- (FISR ? 2 : 0);
+
+		s16 current_dyinc = (8 + 2) - (shift.wordwidth_ << 3);
+
+		context.blitter.skew = current_skew;
+		context.blitter.syinc = current_syinc;
+		context.blitter.dyinc = current_dyinc;
+
+		// generate operations
+		int current_dline = 0;
+		int current_dline_wordoffset = 0;
+		int current_sline = 0;
+		int current_sline_wordoffset = 0;
+		int current_ww = context.blitter.xcount;
+
+		int reg_index = 0;
+		int reg_index2 = 0;
+		int reg_index3 = 0;
+		{
+
+			if (build_metaprogram)
+			{
+
+#if (USE_NOP_BINARY_VALIDATION)
+				context.operations.push_back(new NoOp(context));
+				context.operations.back()->execute();
+#endif
+
+				//context.operations.push_back(new SYS_PageRestore(context));
+				//context.operations.back()->execute();
+
+				context.operations.push_back(new BLiT_Defs(context));
+				context.operations.back()->execute();
+
+				context.operations.push_back(new BLiT_Init(context));
+				context.operations.back()->execute();
+
+				// load fixed registers
+				{
+					for (std::vector<dataregister>::iterator it = context.registers.begin(); it != context.registers.end(); it++)
+					{
+						if (it->constant)
 						{
-							int addressjump = (linejump * context.dstlinewid);
-							if (addressjump < 32768 && addressjump >= -32768)
+							// use standard immediate load - let the optimizer reduce it if possible
+							context.operations.push_back(new DR_LoadI32(context, it->index, it->H, it->L));
+
+							it->constant = false;
+
+							it->allocatedH = true;
+							it->allocatedL = true;
+
+							context.operations.back()->execute();
+						}
+					}
+
+					// on next reset, registers will no longer be constant/preallocated
+					context.setconstants = false;
+				}
+			}
+
+
+			//				int src_lines_skipped = 0;
+
+			//				int curr_line_words = shift.wordwidth_;
+
+			//				linemap lines;
+			//				for (int y = 0; y < shift.height_; y++)
+			//				{
+			//					int dsty = linemap_opt_2_src[y];
+
+			for (auto pspan : stacked_spans)
+			{
+				//__debugbreak();
+
+				int span_draw_order = pspan->draw_order;
+				int span_orig_sline = pspan->line_orig;
+				int span_source_sline = pspan->line_opt;
+				int span_dline = span_orig_sline;
+				int span_syi_change = 0;
+
+				int dsty = span_draw_order;
+				uword_t *srcdata = &buffer[dsty * 3];
+				ubyte_t *linechanges = &changes[dsty * 3];
+
+
+				// FISR is set when span begins with colour data from previous a word 
+				bool span_FISR = pspan->cxs;
+
+				// NFSR can be set on FINAL spans where scrolled width exceeds defined source colour width
+				bool span_NFSR = pspan->cxe;
+				//						(shift.wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
+				//						(shift.wordsremaining_ == 0) &&
+				//						(((spr.w_ + 15) >> 4) != (shift.wordwidth_ + shift.wordoffset_));
+
+				u8 span_skew =
+					(shift.shift_ & 15) |
+					(span_NFSR ? 0x40 : 0x00) |
+					(span_FISR ? 0x80 : 0x00);
+
+
+				// emit SKEW changes
+				{
+					u8 span_skew_change = current_skew ^ span_skew;
+					current_skew = span_skew;
+
+					if (span_skew_change)
+					{
+						u16 data = 0xc000 | (span_skew & 0xCF);
+
+						if (build_metaprogram)
+						{
+							//context.operations.push_back(new BLiT_Skew(context, span_skew));
+							context.operations.push_back(new DR_LoadI16(context, context.BHOG_reg, data));
+							context.operations.back()->execute();
+						}
+
+						if (analyse_constants)
+						{
+							uword_t metrics_dataword = data;
+
+							context.metrics[metrics_dataword].incidence++;
+							context.metrics[metrics_dataword].references++;
+						}
+					}
+				}
+
+
+
+
+
+
+
+				// SYINC = difference between source wordwidth & preshift wordwidth, + 2
+				// note: compensate for NFSR/FISR!
+				s16 span_skew_syinc_adj =
+					(span_NFSR ? 1 : 0) -
+					(span_FISR ? 1 : 0);
+
+				s16 span_skew_syoff_adj =
+					0 -
+					(span_FISR ? 1 : 0);
+
+				int span_ww_change = pspan->ww - current_ww;
+
+				if (span_ww_change)
+				{
+					if (build_metaprogram)
+					{
+						context.operations.push_back(new BLiT_XCMod(context, span_ww_change));
+						context.operations.back()->execute();
+						context.operations.push_back(new BLiT_DYIMod(context, -span_ww_change));
+						context.operations.back()->execute();
+					}
+
+					span_syi_change -= span_ww_change;
+
+					current_ww += span_ww_change;
+				}
+
+				// emit SYI changes
+				{
+					// incorporate SKEW FISR/NFSR SYI changes
+					s16 span_skew_syinc_change = span_skew_syinc_adj - current_skew_syinc_adj;
+					current_skew_syinc_adj = span_skew_syinc_adj;
+					span_syi_change += span_skew_syinc_change;
+
+					if (span_syi_change)
+					{
+						if (build_metaprogram)
+						{
+							context.operations.push_back(new BLiT_SYIMod(context, span_syi_change));
+							context.operations.back()->execute();
+						}
+					}
+				}
+
+
+				// determine true [offset,width] for this line only
+				{
+					{
+						// source hop +/-
+						int src_linejump = span_source_sline - current_sline;
+						current_sline = span_source_sline;
+
+						int src_wordjump = pspan->ws - current_sline_wordoffset;
+						current_sline_wordoffset = pspan->ws;
+
+						// incorporate FISR adjust
+						src_wordjump += span_skew_syoff_adj - current_skew_syoff_adj;
+						current_skew_syoff_adj = span_skew_syoff_adj;
+
+						if (src_linejump || src_wordjump)
+						{
+							if (build_metaprogram)
+							{
+								int addressjump = (src_linejump * (context.srccolww * 8)) + (src_wordjump * 2);
+
+								//int reg_src = -1;
+								//ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
+								//if (ds == DataSource_RegisterL)
+
+								context.operations.push_back(new SRC_Skip(context, src_wordjump, src_linejump));
+								context.operations.back()->execute();
+							}
+
+							if (analyse_constants)
+							{
+							}
+							//src_lines_skipped += src_linejump;
+						}
+					}
+
+					// destination hop +/-
+					int dst_linejump = span_dline - current_dline;
+					int dst_wordjump = pspan->ws - current_dline_wordoffset;
+
+					//__debugbreak();
+
+					if (dst_linejump || dst_wordjump)
+					{
+						// caution: can't use LEA for jumps > +/-32k
+						int addressjump = (dst_linejump * context.dstlinewid) + (dst_wordjump * 8);
+						if (addressjump < 32768 && addressjump >= -32768)
+						{
+							if (build_metaprogram)
+							{
+								if (USE_DSTSKIP_REG_OPTIMIZATION)
+								{
+									int reg_src = -1;
+									DataSource ds;
+
+									ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
+									if (ds == DataSource_RegisterL)
+									{
+										// for +ve steps, look for +ve equivalent register and apply ADD operation
+										// only allocates register if value does not pre-exist 
+										context.operations.push_back(new DST_AddaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+									}
+									else
+									{
+										// for -ve steps, look for +ve equivalent register and apply SUB operation
+										// only allocates register if value does not pre-exist 
+										ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, true);
+										if (ds == DataSource_RegisterL)
+										{
+											context.operations.push_back(new DST_SubaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+										}
+										else
+										{
+											// pointless allocation - fall back to LEA
+											context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+										}
+									}
+								}
+								else
+								{
+									context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+								}
+								context.operations.back()->execute();
+							}
+
+							if (analyse_constants)
 							{
 								// caution: don't abs() -32768 case as it has will have no 16bit representation
 								int reduced_dataword = addressjump;
 								if (reduced_dataword > -32768)
 									reduced_dataword = abs(reduced_dataword);
-									
+
 								uword_t metrics_dataword = (uword_t)reduced_dataword;
 
 								context.metrics[metrics_dataword].incidence++;
 								context.metrics[metrics_dataword].references++;
 							}
 						}
+						else
+						{
+							if (build_metaprogram)
+							{
+								context.operations.push_back(new DST_AddaIL(context, context.SCRLINE_reg, dst_wordjump, dst_linejump));
+								context.operations.back()->execute();
+							}
 
-						current_line = dsty;
+							if (analyse_constants)
+							{
+								uword_t dH = u32(addressjump) >> 16;
+								uword_t dL = u32(addressjump) & 0xFFFF;
+
+								context.metrics[dH].incidence++;
+								context.metrics[dH].references++;
+								context.metrics[dL].incidence++;
+								context.metrics[dL].references++;
+							}
+						}
+
+						current_dline = span_dline;
+						current_dline_wordoffset = pspan->ws;
 					}
-				}
-			}
-#endif
-
-			// analyse dst skips
-
-			// analyse src skips
-
-			// 
-			for (int mode = 0; mode < 2; mode++)
-			{
-				bool analyse_constants = (mode == 0);
-				bool build_metaprogram = (mode == 1);
-
-				//__debugbreak();
-				context.reset_sim(true);
-
-				// reset dirty EM registers for this blit width
-				//em_dirty[0] = true;
-				//em_dirty[1] = (shift.wordwidth_ > 2);
-				//em_dirty[2] = (shift.wordwidth_ > 1);
-
-				bool NFSR = false;
-				//(shift.wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
-				//(shift.wordsremaining_ == 0) &&
-				//(((spr.w_ + 15) >> 4) != (shift.wordwidth_ + shift.wordoffset_));
-
-				bool FISR = false;// (shift.wordoffset_ > 0);
-
-				u16 current_skew = 0xffff;
-
-				/*			u8 current_skew =
-								//false;// ((shift.wordwidth_ << 4) == ((spr.w_ + 15) & -16));
-								(shift.shift_ & 15) |
-								(NFSR ? 0x40 : 0x00) |
-								(FISR ? 0x80 : 0x00);
-				*/
-				s16 current_skew_syinc_adj =
-					(NFSR ? 1 : 0) -
-					(FISR ? 1 : 0);
-
-				s16 current_skew_syoff_adj =
-					0 -
-					(FISR ? 1 : 0);
-
-				// SYINC = difference between source wordwidth & preshift wordwidth, + 2
-				// note: compensate for NFSR!
-				s16 current_syinc =
-					(((((spr.w_ + 15) >> 4) - shift.wordwidth_) << 1) + 2)
-					+ (current_skew_syinc_adj * 2);
-				//				+ (NFSR ? 2 : 0)
-				//				- (FISR ? 2 : 0);
-
-				s16 current_dyinc = (8 + 2) - (shift.wordwidth_ << 3);
-
-				context.blitter.skew = current_skew;
-				context.blitter.syinc = current_syinc;
-				context.blitter.dyinc = current_dyinc;
-
-				// generate operations
-				int current_dline = 0;
-				int current_dline_wordoffset = 0;
-				int current_sline = 0;
-				int current_sline_wordoffset = 0;
-				int current_ww = context.blitter.xcount;
-
-				int reg_index = 0;
-				int reg_index2 = 0;
-				int reg_index3 = 0;
-				{
 
 					if (build_metaprogram)
 					{
 
-#if (USE_NOP_BINARY_VALIDATION)
-						context.operations.push_back(new NoOp(context));
-						context.operations.back()->execute();
-#endif
-
-						//context.operations.push_back(new SYS_PageRestore(context));
-						//context.operations.back()->execute();
-
-						context.operations.push_back(new BLiT_Defs(context));
-						context.operations.back()->execute();
-
-						context.operations.push_back(new BLiT_Init(context));
-						context.operations.back()->execute();
-
-						// load fixed registers
+						// check for all 3 changing
+						if ((linechanges[0]/* || em_dirty[0]*/) &&
+							(linechanges[1]/* || em_dirty[1]*/) &&
+							(linechanges[2]/* || em_dirty[2]*/))
 						{
-							for (std::vector<dataregister>::iterator it = context.registers.begin(); it != context.registers.end(); it++)
+							if (_shared_mask)
 							{
-								if (it->constant)
-								{
-									// use standard immediate load - let the optimizer reduce it if possible
-									context.operations.push_back(new DR_LoadI32(context, it->index, it->H, it->L));
+								shared_mask_words.push_back(srcdata[0]);
+								shared_mask_words.push_back(srcdata[1]);
+								shared_mask_words.push_back(srcdata[2]);
 
-									it->constant = false;
-
-									it->allocatedH = true;
-									it->allocatedL = true;
-
-									context.operations.back()->execute();
-								}
-							}
-
-							// on next reset, registers will no longer be constant/preallocated
-							context.setconstants = false;
-						}
-					}
-
-
-					//				int src_lines_skipped = 0;
-
-					//				int curr_line_words = shift.wordwidth_;
-
-					//				linemap lines;
-					//				for (int y = 0; y < shift.height_; y++)
-					//				{
-					//					int dsty = best_pattern[y];
-
-					for (auto pspan : stacked_spans)
-					{
-						//__debugbreak();
-
-						int span_draw_order = pspan->draw_order;
-						int span_orig_sline = pspan->sline;
-						int span_source_sline = pspan->reordered_sline;
-						int span_dline = span_orig_sline;
-						int span_syi_change = 0;
-
-						int dsty = span_draw_order;
-						uword_t *srcdata = &buffer[dsty * 3];
-						ubyte_t *linechanges = &changes[dsty * 3];
-
-						// FISR is set when span begins with colour data from previous a word 
-						bool span_FISR = pspan->cxs;
-
-						// NFSR can be set on FINAL spans where scrolled width exceeds defined source colour width
-						bool span_NFSR = pspan->cxe;
-						//						(shift.wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
-						//						(shift.wordsremaining_ == 0) &&
-						//						(((spr.w_ + 15) >> 4) != (shift.wordwidth_ + shift.wordoffset_));
-
-						u8 span_skew =
-							(shift.shift_ & 15) |
-							(span_NFSR ? 0x40 : 0x00) |
-							(span_FISR ? 0x80 : 0x00);
-
-						// SYINC = difference between source wordwidth & preshift wordwidth, + 2
-						// note: compensate for NFSR/FISR!
-						s16 span_skew_syinc_adj =
-							(span_NFSR ? 1 : 0) -
-							(span_FISR ? 1 : 0);
-
-						s16 span_skew_syoff_adj =
-							0 -
-							(span_FISR ? 1 : 0);
-
-						int span_ww_change = pspan->ww - current_ww;
-
-						if (span_ww_change)
-						{
-							if (build_metaprogram)
-							{
-								context.operations.push_back(new BLiT_XCMod(context, span_ww_change));
+								context.operations.push_back(new EM_MoveMPI32(context, 0, context.SM_reg, 0, context.EM1_reg));
 								context.operations.back()->execute();
-								context.operations.push_back(new BLiT_DYIMod(context, -span_ww_change));
+								context.operations.push_back(new EM_MoveMPI16(context, 2, context.SM_reg, 0, context.EM3_reg));
 								context.operations.back()->execute();
 							}
-
-							span_syi_change -= span_ww_change;
-
-							current_ww += span_ww_change;
-						}
-
-						// emit SYI changes
-						{
-							// incorporate SKEW FISR/NFSR SYI changes
-							s16 span_skew_syinc_change = span_skew_syinc_adj - current_skew_syinc_adj;
-							current_skew_syinc_adj = span_skew_syinc_adj;
-							span_syi_change += span_skew_syinc_change;
-
-							if (span_syi_change)
+							else
 							{
-								if (build_metaprogram)
+
+								int sumA = 0, sumB = 0;
+
+								// test-resolve EM1:EM2 and EM2:EM3, looking for the cheapest solution
+								DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, false);
+								DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, false);
+
+								sumA += DataSource_costs[ds12];
+								sumA += DataSource_costs[ds3];
+
+								DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, false);
+								DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, false);
+
+								sumB += DataSource_costs[ds23];
+								sumB += DataSource_costs[ds1];
+
+								int chosen = -1;
+								if (sumA == sumB)
 								{
-									context.operations.push_back(new BLiT_SYIMod(context, span_syi_change));
-									context.operations.back()->execute();
-								}
-							}
-						}
+									chosen = 0;
 
-						// emit SKEW changes
-						{
-							u8 span_skew_change = current_skew ^ span_skew;
-							current_skew = span_skew;
-
-							if (span_skew_change)
-							{
-								if (build_metaprogram)
-								{
-									//context.operations.push_back(new BLiT_Skew(context, span_skew));
-									context.operations.push_back(new DR_LoadI16(context, context.BHOG_reg, 0xc000 | (span_skew & 0xCF)));
-									context.operations.back()->execute();
-								}
-
-								if (analyse_constants)
-								{
-								}
-							}
-						}
-
-						// determine true [offset,width] for this line only
-						{
-							// source hop +/-
-							int src_linejump = span_source_sline - current_sline;
-							current_sline = span_source_sline;
-
-							int src_wordjump = pspan->ws - current_sline_wordoffset;
-							current_sline_wordoffset = pspan->ws;
-
-							// incorporate FISR adjust
-							src_wordjump += span_skew_syoff_adj - current_skew_syoff_adj;
-							current_skew_syoff_adj = span_skew_syoff_adj;
-
-							if (src_linejump || src_wordjump)
-							{
-								if (build_metaprogram)
-								{
-									context.operations.push_back(new SRC_Skip(context, src_wordjump, src_linejump));
-									context.operations.back()->execute();
-								}
-
-								if (analyse_constants)
-								{
-								}
-								//src_lines_skipped += src_linejump;
-							}
-
-							// destination hop +/-
-							int dst_linejump = span_dline - current_dline;
-							int dst_wordjump = pspan->ws - current_dline_wordoffset;
-
-							//__debugbreak();
-
-							if (dst_linejump || dst_wordjump)
-							{
-								// caution: can't use LEA for jumps > +/-32k
-								int addressjump = (dst_linejump * context.dstlinewid) + (dst_wordjump * 8);
-								if (addressjump < 32768 && addressjump >= -32768)
-								{
-									if (build_metaprogram)
+									// competing longs on same line
+									if (ds12 == DataSource_Immediate32)
 									{
-										if (USE_DSTSKIP_REG_OPTIMIZATION)
+										// competing immediates - pick immediate more likely to be optimized
+										if (long_cost(srcdata[1], srcdata[2]) < long_cost(srcdata[0], srcdata[1]))
 										{
-											int reg_src = -1;
-											DataSource ds;
-
-											ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
-											if (ds == DataSource_RegisterL)
-											{
-												// for +ve steps, look for +ve equivalent register and apply ADD operation
-												// only allocates register if value does not pre-exist 
-												context.operations.push_back(new DST_AddaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
-											}
-											else
-											{
-												// for -ve steps, look for +ve equivalent register and apply SUB operation
-												// only allocates register if value does not pre-exist 
-												ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, true);
-												if (ds == DataSource_RegisterL)
-												{
-													context.operations.push_back(new DST_SubaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
-												}
-												else
-												{
-													// pointless allocation - fall back to LEA
-													context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, dst_wordjump, dst_linejump));
-												}
-											}
+											chosen = 1;
+											if (g_allargs.verbose)
+												printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[1], srcdata[2]);
 										}
 										else
 										{
-											context.operations.push_back(new DST_Lea(context, context.SCRLINE_reg, context.SCRLINE_reg, dst_wordjump, dst_linejump));
-										}
-										context.operations.back()->execute();
-									}
-
-									if (analyse_constants)
-									{
-										// caution: don't abs() -32768 case as it has will have no 16bit representation
-										int reduced_dataword = addressjump;
-										if (reduced_dataword > -32768)
-											reduced_dataword = abs(reduced_dataword);
-
-										uword_t metrics_dataword = (uword_t)reduced_dataword;
-
-										context.metrics[metrics_dataword].incidence++;
-										context.metrics[metrics_dataword].references++;
-									}
-								}
-								else
-								{
-									if (build_metaprogram)
-									{
-										context.operations.push_back(new DST_AddaIL(context, context.SCRLINE_reg, dst_wordjump, dst_linejump));
-										context.operations.back()->execute();
-									}
-
-									if (analyse_constants)
-									{
-									}
-								}
-
-								current_dline = span_dline;
-								current_dline_wordoffset = pspan->ws;
-							}
-
-							if (build_metaprogram)
-							{
-
-								// check for all 3 changing
-								if ((linechanges[0]/* || em_dirty[0]*/) &&
-									(linechanges[1]/* || em_dirty[1]*/) &&
-									(linechanges[2]/* || em_dirty[2]*/))
-								{
-									int sumA = 0, sumB = 0;
-
-									// test-resolve EM1:EM2 and EM2:EM3, looking for the cheapest solution
-									DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, false);
-									DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, false);
-
-									sumA += DataSource_costs[ds12];
-									sumA += DataSource_costs[ds3];
-
-									DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, false);
-									DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, false);
-
-									sumB += DataSource_costs[ds23];
-									sumB += DataSource_costs[ds1];
-
-									int chosen = -1;
-									if (sumA == sumB)
-									{
-										chosen = 0;
-
-										// competing longs on same line
-										if (ds12 == DataSource_Immediate32)
-										{
-											// competing immediates - pick immediate more likely to be optimized
-											if (long_cost(srcdata[1], srcdata[2]) < long_cost(srcdata[0], srcdata[1]))
-											{
-												chosen = 1;
-												if (g_allargs.verbose)
-													printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[1], srcdata[2]);
-											}
-											else
-											{
-												if (g_allargs.verbose)
-													printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[0], srcdata[1]);
-											}
-										}
-										else
-											if (ds12 == DataSource_MixedIR ||
-												ds12 == DataSource_RegisterHL)
-											{
-												// prefer long with higher incidence L
-												if (context.metrics_sim[srcdata[2]].incidence < context.metrics_sim[srcdata[1]].incidence)
-												{
-													chosen = 1;
-													if (g_allargs.verbose)
-														printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[1], srcdata[2]);
-												}
-												else
-												{
-													if (g_allargs.verbose)
-														printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[0], srcdata[1]);
-												}
-											}
-											else
-											{
-												// don't care
-											}
-									}
-
-									if ((sumA < sumB) || (chosen == 0))
-									{
-										DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
-										if (ds12 == DataSource_RegisterHL)
-										{
-											context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
-											context.operations.back()->execute();
-										}
-										else
-											if (ds12 == DataSource_RegisterLL)
-											{
-												context.operations.push_back(new EM_MoveR16(context, 0, reg_index, context.EM1_reg));
-												context.operations.back()->execute();
-												context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
-												context.operations.back()->execute();
-											}
-											else
-												if (ds12 == DataSource_MixedIR)
-												{
-													context.operations.push_back(new EM_MoveI16(context, 0, srcdata[0], context.EM1_reg));
-													context.operations.back()->execute();
-													context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
-													context.operations.back()->execute();
-												}
-												else
-												{
-													context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1], context.EM1_reg));
-													context.operations.back()->execute();
-												}
-
-										DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, true);
-										if (ds3 == DataSource_RegisterL)
-										{
-											context.operations.push_back(new EM_MoveR16(context, 2, reg_index3, context.EM3_reg));
-											context.operations.back()->execute();
-										}
-										else
-										{
-											context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2], context.EM3_reg));
-											context.operations.back()->execute();
+											if (g_allargs.verbose)
+												printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[0], srcdata[1]);
 										}
 									}
 									else
-										if ((sumA > sumB) || (chosen == 1))
+										if (ds12 == DataSource_MixedIR ||
+											ds12 == DataSource_RegisterHL)
 										{
-											DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
-											if (ds23 == DataSource_RegisterHL)
+											// prefer long with higher incidence L
+											if (context.metrics_sim[srcdata[2]].incidence < context.metrics_sim[srcdata[1]].incidence)
 											{
-												context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
-												context.operations.back()->execute();
-											}
-											else
-												if (ds23 == DataSource_RegisterLL)
-												{
-													context.operations.push_back(new EM_MoveR16(context, 1, reg_index, context.EM2_reg));
-													context.operations.back()->execute();
-													context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
-													context.operations.back()->execute();
-												}
-												else
-													if (ds23 == DataSource_MixedIR)
-													{
-														context.operations.push_back(new EM_MoveI16(context, 1, srcdata[1], context.EM2_reg));
-														context.operations.back()->execute();
-														context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
-														context.operations.back()->execute();
-													}
-													else
-														context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
-
-											DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, true);
-											if (ds1 == DataSource_RegisterL)
-											{
-												context.operations.push_back(new EM_MoveR16(context, 0, reg_index3, context.EM1_reg));
-												context.operations.back()->execute();
+												chosen = 1;
+												if (g_allargs.verbose)
+													printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[1], srcdata[2]);
 											}
 											else
 											{
-												context.operations.push_back(new EM_MoveI16(context, 0, srcdata[0], context.EM1_reg));
-												context.operations.back()->execute();
+												if (g_allargs.verbose)
+													printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[0], srcdata[1]);
 											}
 										}
-
-									//context.sim_track_datarefs(srcdata[0]);
-									//context.sim_track_datarefs(srcdata[1]);
-									//context.sim_track_datarefs(srcdata[2]);
-
-									//em_dirty[0] = em_dirty[1] = em_dirty[2] = false;
-								}
-								else
-									if ((linechanges[0]/* || em_dirty[0]*/) &&
-										(linechanges[1]/* || em_dirty[1]*/))
-									{
-										//						context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1]));
-										DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
-										if (ds == DataSource_RegisterHL)
+										else
 										{
-											context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
+											// don't care
+										}
+								}
+
+								if ((sumA < sumB) || (chosen == 0))
+								{
+									DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
+									if (ds12 == DataSource_RegisterHL)
+									{
+										context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
+										context.operations.back()->execute();
+									}
+									else
+										if (ds12 == DataSource_RegisterLL)
+										{
+											context.operations.push_back(new EM_MoveR16(context, 0, reg_index, context.EM1_reg));
+											context.operations.back()->execute();
+											context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
 											context.operations.back()->execute();
 										}
 										else
-											if (ds == DataSource_RegisterLL)
+											if (ds12 == DataSource_MixedIR)
 											{
-												context.operations.push_back(new EM_MoveR16(context, 0, reg_index, context.EM1_reg));
+												context.operations.push_back(new EM_MoveI16(context, 0, srcdata[0], context.EM1_reg));
 												context.operations.back()->execute();
 												context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
 												context.operations.back()->execute();
@@ -2129,237 +2221,393 @@ void generate_emx2_metaprogram(spriteframe_t &spr, int _frame)
 												context.operations.back()->execute();
 											}
 
-										//context.sim_track_datarefs(srcdata[0]);
-										//context.sim_track_datarefs(srcdata[1]);
-
-										//em_dirty[0] = em_dirty[1] = false;
-
-				//						if (linechanges[2] || em_dirty[2])
-				//						{
-				////							context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2]));
-				//							if (context.resolve_data16(srcdata[2], reg_index, true) == DataSource_RegisterL)
-				//								context.operations.push_back(new EM_MoveR16(context, 2, reg_index));
-				//							else
-				//								context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2]));
-				//
-				//							context.track_datarefs(srcdata[2]);
-				//
-				//							em_dirty[2] = false;
-				//						}
+									DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, true);
+									if (ds3 == DataSource_RegisterL)
+									{
+										context.operations.push_back(new EM_MoveR16(context, 2, reg_index3, context.EM3_reg));
+										context.operations.back()->execute();
 									}
 									else
-										if ((linechanges[1]/* || em_dirty[1]*/) &&
-											(linechanges[2]/* || em_dirty[2]*/))
+									{
+										context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2], context.EM3_reg));
+										context.operations.back()->execute();
+									}
+								}
+								else
+									if ((sumA > sumB) || (chosen == 1))
+									{
+										DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
+										if (ds23 == DataSource_RegisterHL)
 										{
-											// longword to EM2
-					//						context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2]));
-					//						context.operations.back()->execute();
-
-											//context.sim_track_datarefs(srcdata[1]);
-											//context.sim_track_datarefs(srcdata[2]);
-
-					//						em_dirty[1] = em_dirty[2] = false;
-
-											DataSource ds = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
-											if (ds == DataSource_RegisterHL)
+											context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
+											context.operations.back()->execute();
+										}
+										else
+											if (ds23 == DataSource_RegisterLL)
 											{
-												context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
+												context.operations.push_back(new EM_MoveR16(context, 1, reg_index, context.EM2_reg));
+												context.operations.back()->execute();
+												context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
 												context.operations.back()->execute();
 											}
 											else
-												if (ds == DataSource_RegisterLL)
+												if (ds23 == DataSource_MixedIR)
 												{
-													context.operations.push_back(new EM_MoveR16(context, 1, reg_index, context.EM2_reg));
+													context.operations.push_back(new EM_MoveI16(context, 1, srcdata[1], context.EM2_reg));
 													context.operations.back()->execute();
 													context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
 													context.operations.back()->execute();
 												}
 												else
-												{
 													context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
-													context.operations.back()->execute();
-												}
 
-											//context.sim_track_datarefs(srcdata[0]);
-											//context.sim_track_datarefs(srcdata[1]);
-
-											//em_dirty[1] = em_dirty[2] = false;
+										DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, true);
+										if (ds1 == DataSource_RegisterL)
+										{
+											context.operations.push_back(new EM_MoveR16(context, 0, reg_index3, context.EM1_reg));
+											context.operations.back()->execute();
 										}
 										else
 										{
-											// words only
-
-											// this line involves at least one write to EM1/EM2/EM3
-											for (int x = 0; x < 3; x++)
-											{
-												int EM_reg = context.EM1_reg;
-												if (x == 1)
-													EM_reg = context.EM2_reg;
-												else
-													if (x == 2)
-														EM_reg = context.EM3_reg;
-
-												if (linechanges[x]/* || em_dirty[x]*/)
-												{
-													if (context.sim_resolve_data16(srcdata[x], reg_index, true) == DataSource_RegisterL)
-													{
-														context.operations.push_back(new EM_MoveR16(context, x, reg_index, EM_reg));
-														context.operations.back()->execute();
-													}
-													else
-													{
-														context.operations.push_back(new EM_MoveI16(context, x, srcdata[x], EM_reg));
-														context.operations.back()->execute();
-													}
-
-													//context.sim_track_datarefs(srcdata[x]);
-
-													//em_dirty[x] = false;
-												}
-											}
+											context.operations.push_back(new EM_MoveI16(context, 0, srcdata[0], context.EM1_reg));
+											context.operations.back()->execute();
 										}
+									}
+
+								//context.sim_track_datarefs(srcdata[0]);
+								//context.sim_track_datarefs(srcdata[1]);
+								//context.sim_track_datarefs(srcdata[2]);
+
+								//em_dirty[0] = em_dirty[1] = em_dirty[2] = false;
 							}
-
-							if (build_metaprogram)
-							{
-								// update blitter dest/ycount
-								context.operations.push_back(new BLiT_SetYC(context, context.PLANES_reg));
-								context.operations.back()->execute();
-								context.operations.push_back(new BLiT_SetDSTADDR(context, context.SCRLINE_reg));
-								context.operations.back()->execute();
-
-								// execute the blit for this line
-								context.operations.push_back(new BLiT_GoSkew(context, context.BHOG_reg, span_orig_sline, span_dline, span_draw_order));
-								context.operations.back()->execute();
-							}
-
-							// SYI accounts for this automatically, except for real skips
-							current_sline++;
-
-							// next linejump+blit will be relative to this one (and not an empty one)
-							//span_dline = dsty;
 						}
-						//else
-						//{
-						//	src_lines_skipped++;
-						//}
+						else
+						if ((linechanges[0]/* || em_dirty[0]*/) &&
+							(linechanges[1]/* || em_dirty[1]*/))
+						{
+							if (_shared_mask)
+							{
+								shared_mask_words.push_back(srcdata[0]);
+								shared_mask_words.push_back(srcdata[1]);
+
+								context.operations.push_back(new EM_MoveMPI32(context, 0, context.SM_reg, 0, context.EM1_reg));
+								context.operations.back()->execute();
+							}
+							else
+							{
+
+								//						context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1]));
+								DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
+								if (ds == DataSource_RegisterHL)
+								{
+									context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
+									context.operations.back()->execute();
+								}
+								else
+									if (ds == DataSource_RegisterLL)
+									{
+										context.operations.push_back(new EM_MoveR16(context, 0, reg_index, context.EM1_reg));
+										context.operations.back()->execute();
+										context.operations.push_back(new EM_MoveR16(context, 1, reg_index2, context.EM2_reg));
+										context.operations.back()->execute();
+									}
+									else
+									{
+										context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1], context.EM1_reg));
+										context.operations.back()->execute();
+									}
+
+								//context.sim_track_datarefs(srcdata[0]);
+								//context.sim_track_datarefs(srcdata[1]);
+
+								//em_dirty[0] = em_dirty[1] = false;
+
+		//						if (linechanges[2] || em_dirty[2])
+		//						{
+		////							context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2]));
+		//							if (context.resolve_data16(srcdata[2], reg_index, true) == DataSource_RegisterL)
+		//								context.operations.push_back(new EM_MoveR16(context, 2, reg_index));
+		//							else
+		//								context.operations.push_back(new EM_MoveI16(context, 2, srcdata[2]));
+		//
+		//							context.track_datarefs(srcdata[2]);
+		//
+		//							em_dirty[2] = false;
+		//						}
+							}
+						}
+						else
+						if ((linechanges[1]/* || em_dirty[1]*/) &&
+							(linechanges[2]/* || em_dirty[2]*/))
+						{
+							if (_shared_mask)
+							{
+								shared_mask_words.push_back(srcdata[1]);
+								shared_mask_words.push_back(srcdata[2]);
+
+								context.operations.push_back(new EM_MoveMPI32(context, 1, context.SM_reg, 2, context.EM1_reg));
+								context.operations.back()->execute();
+							}
+							else
+							{
+								// longword to EM2
+		//						context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2]));
+		//						context.operations.back()->execute();
+
+								//context.sim_track_datarefs(srcdata[1]);
+								//context.sim_track_datarefs(srcdata[2]);
+
+		//						em_dirty[1] = em_dirty[2] = false;
+
+								DataSource ds = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
+								if (ds == DataSource_RegisterHL)
+								{
+									context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
+									context.operations.back()->execute();
+								}
+								else
+									if (ds == DataSource_RegisterLL)
+									{
+										context.operations.push_back(new EM_MoveR16(context, 1, reg_index, context.EM2_reg));
+										context.operations.back()->execute();
+										context.operations.push_back(new EM_MoveR16(context, 2, reg_index2, context.EM3_reg));
+										context.operations.back()->execute();
+									}
+									else
+									{
+										context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
+										context.operations.back()->execute();
+									}
+
+								//context.sim_track_datarefs(srcdata[0]);
+								//context.sim_track_datarefs(srcdata[1]);
+
+								//em_dirty[1] = em_dirty[2] = false;
+							}
+						}
+						else
+						{
+							// words only
+
+							// this line involves at least one write to EM1/EM2/EM3
+							for (int x = 0; x < 3; x++)
+							{
+								int EM_reg = context.EM1_reg;
+								if (x == 1)
+									EM_reg = context.EM2_reg;
+								else
+									if (x == 2)
+										EM_reg = context.EM3_reg;
+
+								if (linechanges[x]/* || em_dirty[x]*/)
+								{
+									if (_shared_mask)
+									{
+										shared_mask_words.push_back(srcdata[x]);
+
+										if (x == 1)
+										{
+											// 2(a2)
+											context.operations.push_back(new EM_MoveMPI16(context, 1, context.SM_reg, 2, context.EM1_reg));
+											context.operations.back()->execute();
+										}
+										else
+										{
+											// (a2)/(a4)
+											context.operations.push_back(new EM_MoveMPI16(context, x, context.SM_reg, 0, EM_reg));
+											context.operations.back()->execute();
+										}
+									}
+									else
+									{
+										if (context.sim_resolve_data16(srcdata[x], reg_index, true) == DataSource_RegisterL)
+										{
+											context.operations.push_back(new EM_MoveR16(context, x, reg_index, EM_reg));
+											context.operations.back()->execute();
+										}
+										else
+										{
+											context.operations.push_back(new EM_MoveI16(context, x, srcdata[x], EM_reg));
+											context.operations.back()->execute();
+										}
+									}
+
+									//context.sim_track_datarefs(srcdata[x]);
+
+									//em_dirty[x] = false;
+								}
+							}
+						}
 					}
-				}
 
-				if (build_metaprogram)
-				{
-					// emit terminal
-					context.operations.push_back(new Terminate(context));
-					context.operations.back()->execute();
-				}
-			}
-
-	#if (SIM_ALL_STAGES)
-			run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
-	#endif
-			// peephole passes
-
-			bool changed = !g_allargs.quickcut;
-			int xform_passes = 0;
-
-	//		if (!g_allargs.quickcut)
-
-#if 0
-			while (changed)
-			{
-				changed = false;
-
-				// immediate loads to registers with register-derived values
-	
-				while (context.transform_pass())
-				{
-					changed = true;
-					xform_passes++;
-	#if (SIM_ALL_STAGES)
-					run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
-	#endif
-				}
-
-				changed |= context.cleanup_pass();
-	#if (SIM_ALL_STAGES)
-				run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
-	#endif
-				{
-					while (context.promote_pass())
+					if (build_metaprogram)
 					{
-						changed = true;
-	#if (SIM_ALL_STAGES)
-						run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
-	#endif
+						// update blitter dest/ycount
+						context.operations.push_back(new BLiT_SetYC(context, context.PLANES_reg));
+						context.operations.back()->execute();
+						context.operations.push_back(new BLiT_SetDSTADDR(context, context.SCRLINE_reg));
+						context.operations.back()->execute();
+
+						// execute the blit for this line
+						context.operations.push_back(new BLiT_GoSkew(context, context.BHOG_reg, span_orig_sline, span_dline, span_draw_order));
+						context.operations.back()->execute();
 					}
+
+					// SYI accounts for this automatically, except for real skips
+					current_sline++;
+
+					// next linejump+blit will be relative to this one (and not an empty one)
+					//span_dline = dsty;
 				}
+				//else
+				//{
+				//	src_lines_skipped++;
+				//}
 			}
-			
+		}
+
+		if (build_metaprogram)
+		{
+			// emit terminal
+			context.operations.push_back(new Terminate(context));
+			context.operations.back()->execute();
+		}
+	}
+
+	if (shared_mask_words.size() != shift.shared_mask_words.size())
+	{
+		printf("error: metaprogram mask sequence (%d) != analysed mask sequence (%d)\n", shared_mask_words.size(), shift.shared_mask_words.size());
+		//exit(1);
+
+		for (int m = 0; (m < shared_mask_words.size()) || (m < shift.shared_mask_words.size()); m++)
+		{
+			if (m < shared_mask_words.size())
+				print_dataword(shared_mask_words[m]);
+			printf(":");
+			if (m < shift.shared_mask_words.size())
+				print_dataword(shift.shared_mask_words[m]);
+			printf("\n");
+		}
+	}
+
+	int metaprogram_cost_built = context.cycle_sum();
+	printf("metaprogram cycles [built] = %d\n", metaprogram_cost_built);
+
+#if (SIM_ALL_STAGES)
+	run_sim(context, component_livelines, _frame, pi, shift, linemap_src_2_opt, /*generate=*/false);
+#endif
+	// peephole passes
+
+	bool changed = !g_allargs.quickcut;
+	int xform_passes = 0;
+
+//		if (!g_allargs.quickcut)
+
+#if 1
+	while (changed)
+	{
+		changed = false;
+
+		// immediate loads to registers with register-derived values
+	
+		while (context.transform_pass())
+		{
+			changed = true;
+			xform_passes++;
+#if (SIM_ALL_STAGES)
+			run_sim(context, component_livelines, _frame, pi, shift, linemap_src_2_opt, /*generate=*/false);
+#endif
+		}
+
+		changed |= context.cleanup_pass();
+#if (SIM_ALL_STAGES)
+		run_sim(context, component_livelines, _frame, pi, shift, linemap_src_2_opt, /*generate=*/false);
+#endif
+		{
+			while (context.promote_pass())
+			{
+				changed = true;
+#if (SIM_ALL_STAGES)
+				run_sim(context, component_livelines, _frame, pi, shift, linemap_src_2_opt, /*generate=*/false);
+#endif
+			}
+		}
+	}
+
+	int metaprogram_cost_transforms = context.cycle_sum();
+	printf("metaprogram cycles [xforms] = %d\n", metaprogram_cost_transforms);
+
 #if 0
 // not working yet - should probably be performed as fallback case for a failed transform of LEA
 // so subsequent LEAs can take advantage of reused register load
-			{
-				while (context.promote_lea_pass())
-				{
+	{
+		while (context.promote_lea_pass())
+		{
 #if (SIM_ALL_STAGES)
-					run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
+			run_sim(context, component_livelines, _frame, pi, shift, linemap_src_2_opt, /*generate=*/false);
 #endif
-				}
-			}
-#endif
-
-			//if (!g_allargs.quickcut)
-			{
-				context.reduce_pass();
-	#if (SIM_ALL_STAGES)
-				run_sim(context, component_livelines, _frame, pi, shift, best_invpattern, /*generate=*/false);
-	#endif
-			}
-
-			// optimize instruction tail / blitter overlaps
-			if (!g_allargs.quickcut)
-				context.tail_pass();
+		}
+	}
 #endif
 
-			if (!g_allargs.quickcut && g_allargs.verbose)
-				std::cout << "preshift " << pi << " codegen optimization transforms: " << xform_passes << std::endl;
+	//if (!g_allargs.quickcut)
+	{
+		context.reduce_pass();
+#if (SIM_ALL_STAGES)
+		run_sim(context, component_livelines, _frame, pi, shift, linemap_src_2_opt, /*generate=*/false);
+#endif
+	}
+
+	int metaprogram_cost_reduced = context.cycle_sum();
+	printf("metaprogram cycles [reduced] = %d\n", metaprogram_cost_reduced);
+
+	// optimize instruction tail / blitter overlaps
+	if (!g_allargs.quickcut)
+		context.tail_pass();
+
+	int metaprogram_cost_tails = context.cycle_sum();
+	printf("metaprogram cycles [tails] = %d\n", metaprogram_cost_reduced);
+
+#endif
+
+
+	if (!g_allargs.quickcut && g_allargs.verbose)
+		std::cout << "preshift " << pi << " codegen optimization transforms: " << xform_passes << std::endl;
 		
-			//
-			run_sim(context, component_livelines, _frame, pi, shift, spr.invlineorder, /*generate=*/true);
+	//
+	run_sim(context, component_livelines, _frame, pi, shift, spr.linemap_src_2_opt, /*generate=*/true);
 
 
 
-			ubyte_t *p68kbin = 0;
-			size_t size68kbin = 0;
+	ubyte_t *p68kbin = 0;
+	size_t size68kbin = 0;
 		
-			context.assemble(p68kbin, size68kbin, g_allargs.mactmp);
+	context.assemble(p68kbin, size68kbin, g_allargs.mactmp);
 
-			if (p68kbin)
-			{
-				shift.p68kbin = p68kbin;
-				shift.size68kbin = size68kbin;
-			}
-			else
-			{
-				std::cerr << "error generating 68k binary code!" << std::endl;
-				getchar();
-				exit(1);
-			}
+	if (p68kbin)
+	{
+		shift.p68kbin = p68kbin;
+		shift.size68kbin = size68kbin;
+	}
+	else
+	{
+		std::cerr << "error generating 68k binary code!" << std::endl;
+		getchar();
+		exit(1);
+	}
 
-			delete[] changes; changes = 0;
-			delete[] buffer; buffer = 0;
+	delete[] changes; changes = 0;
+	delete[] buffer; buffer = 0;
 
-			//delete[] component_livelines; component_livelines = 0;
+	//delete[] component_livelines; component_livelines = 0;
 //#endif
 
-		} // components
-	} // preshifts
 
 //	delete[] livelines; livelines = 0;
 	// generate the generator
 }
 
-void generate_emx2_frame(spriteframe_t &spr, int _frame)
+void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 {
 	if (g_allargs.verbose)
 		std::cout << "frame [" << _frame << "]" << std::endl << std::flush;
@@ -2369,37 +2617,473 @@ void generate_emx2_frame(spriteframe_t &spr, int _frame)
 
 	// analyse all preshifts within this frame
 	{
-		std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_.begin();
+		std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin();
 
 		int psi = 0;
-		for (; pmit != spr.psmask_frames_.end(); pmit++, psi++)
+		for (; pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
 		{
 			// first component within a preshift
 			preshiftlist_t::iterator cit = pmit->begin();
 			{
 				preshift_t &shift = *cit;
 
-				generate_emx2_preshift_analysis(spr, _frame, shift, psi);
+				generate_emx2_preshift_analysis(spr, _frame, shift, psi, /*horizontal_ordering=*/false);
 			}
 		}
 	}
 
 	// find common line order
+	generate_emx2_common_lineorder(spr, spr.linemap_opt_2_src, spr.linemap_src_2_opt, /*optimize=*/true);
+
+	int pi = 0;
+	for (std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, pi++)
 	{
-		std::vector<int> best_pattern;
-		std::vector<int> best_invpattern;
+		//for (preshiftlist_t::iterator pit = pmit->begin(); pit != pmit->end(); pit++)
+		preshiftlist_t::iterator pit = pmit->begin();
+		{
+			preshift_t &shift = *pit;
 
-		generate_emx2_common_lineorder(spr, best_pattern, best_invpattern);
+			if ((DEBUG_PRESHIFT >= 0) && (pi != DEBUG_PRESHIFT))
+				continue;
 
-		spr.lineorder = best_pattern;
-		spr.invlineorder = best_invpattern;
-	}
+			std::vector<constrained_wordspan*> stacked_spans;
+			generate_emx2_order_spans(spr, _frame, shift, pi, stacked_spans, /*horizontal_ordering=*/false);
 
-	generate_emx2_metaprogram(spr, _frame);
+			std::vector<u16> shared_mask_words;
+			generate_emx2_metaprogram(spr, _frame, shift, pi, stacked_spans, /*shared_mask=*/false, shared_mask_words);
+
+		} // components
+
+	} // preshifts
 
 	//
 }
 
+void generate_emx2_mask_sequence
+(
+	spriteframe_t &spr, 
+	preshift_t &shift, 
+	std::vector<constrained_wordspan*> stacked_spans, 
+	uword_t *psharedmask,
+	int sharedmask_wordwidth
+)
+{
+	u16 last_sm1 = 0;
+	u16 last_sm2 = 0;
+	u16 last_sm3 = 0;
+
+	for (auto pspan : stacked_spans)
+	{
+		int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+
+		u16 *psourceline = &shift.data_[(orig_y * shift.wordwidth_)];
+		u16 *psharedline = &psharedmask[(orig_y * sharedmask_wordwidth)];
+
+		u16 em1 = 0;
+		u16 em2 = 0;
+		u16 em3 = 0;
+
+		u16 sm1 = 0;
+		u16 sm2 = 0;
+		u16 sm3 = 0;
+
+		int o1 = pspan->ws;
+		int o2 = pspan->ws + 1;
+		int o3 = (pspan->ws + pspan->ww) - 1;
+
+		sm1 = psharedline[o1];
+		em1 = psourceline[o1];
+
+		if (sm1 != last_sm1)
+		{
+			shift.shared_mask_words.push_back(em1);
+			last_sm1 = sm1;
+		}
+
+		if (pspan->ww >= 3)
+		{
+			sm2 = psharedline[o2];
+			if (o2 < shift.wordwidth_)
+				em2 = psourceline[o2];
+
+			if (sm2 != last_sm2)
+			{
+				shift.shared_mask_words.push_back(em2);
+				last_sm2 = sm2;
+			}
+		}
+
+		if (pspan->ww >= 2)
+		{
+			sm3 = psharedline[o3];
+			if (o3 < shift.wordwidth_)
+				em3 = psourceline[o3];
+
+			if (sm3 != last_sm3)
+			{
+				shift.shared_mask_words.push_back(em3);
+				last_sm3 = sm3;
+			}
+		}
+	}
+
+	printf("mask seq len: %d\n", shift.shared_mask_words.size());
+}
+
+void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
+{
+	if (g_allargs.verbose)
+		std::cout << "frame [" << _frame << "]" << std::endl << std::flush;
+
+	// find min source colour spans
+	generate_emx2_active_linewidths(spr);
+
+
+	// analyse all preshifts within this frame
+	int sharedmask_wordwidth = 0;
+
+	// find widest mask pattern actually used
+	for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++)
+	{
+		preshiftlist_t::iterator cit = pmit->begin();
+		if (cit->wordwidth_ > sharedmask_wordwidth)
+			sharedmask_wordwidth = cit->wordwidth_;
+	}
+
+	// allocate new shared mask for each axis
+	size_t totalmaskwords = spr.h_ * sharedmask_wordwidth;
+
+	uword_t * psharedmask_h = new uword_t[totalmaskwords];
+	memset(psharedmask_h, 0, sizeof(uword_t) * totalmaskwords);
+
+	uword_t * psharedmask_v = new uword_t[totalmaskwords];
+	memset(psharedmask_v, 0, sizeof(uword_t) * totalmaskwords);
+
+	int psi = 0;
+	for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+	{
+		// first component within a preshift
+		preshiftlist_t::iterator cit = pmit->begin();
+		{
+			preshift_t &shift = *cit;
+
+			// find all mask words which change relative to their predecessor, build a shared mask for encoding
+
+			for (int v = 0; v < spr.h_; v++)
+			{
+				u16 last_word = 0;
+
+				u16 *psourceline = &shift.data_[(v * shift.wordwidth_)];
+				u16 *psharedline = &psharedmask_h[(v * sharedmask_wordwidth)];
+
+				int w = 0;
+				while (w < shift.wordwidth_)
+				{
+					// fetch next word
+					int word_pos = w++;
+					u16 word = psourceline[word_pos];
+
+					// mark all nonzero words seen on this preshift
+					if (word != 0)
+						psharedline[word_pos] |= 0x4000;
+
+					// mark any adjacent deltas seen on this preshift
+					// including first nonzero word used
+					if (word != last_word)
+						psharedline[word_pos] |= 0x8000;
+
+					last_word = word;
+				}
+
+			} // lines
+
+		} // components
+
+	} // preshifts
+
+	// generate word pattern to drive production of a common mask
+	for (int v = 0; v < spr.h_; v++)
+	{
+		u16 *psharedline = &psharedmask_h[(v * sharedmask_wordwidth)];
+
+		u16 last_encoding = 0;
+
+		int w = 0;
+		while (w < sharedmask_wordwidth)
+		{
+			// fetch next word
+			int word_pos = w++;
+			u16 word = psharedline[word_pos];
+
+			if (word & 0x4000)
+			{
+				// words which were seen to contain nonzero on any preshift, must be encoded
+				if (word & 0x8000)
+				{
+					// words which saw at least one change are encoded uniquely
+					word = ++last_encoding;
+				}
+				else
+				{
+					if (last_encoding == 0)
+					{
+						printf("error: bad EM pattern encoding\n");
+						exit(1);
+					}
+
+					// words which did not see any changes and are always nonzero are encoded as repeats (usually a fill)
+					word = last_encoding;
+				}
+			}
+			else
+			{
+				// always-zero words remain zero words
+				word = 0;
+			}
+
+			psharedline[word_pos] = word;
+		}
+	}
+
+	// dump shared mask encoding
+	printf("shared mask encoding pass 1 (horizontal)...\n");
+	{
+		for (int v = 0; v < spr.h_; v++)
+		{
+			u16 *psharedline = &psharedmask_h[(v * sharedmask_wordwidth)];
+
+			int w = 0;
+			while (w < sharedmask_wordwidth)
+			{
+				// fetch next word
+				int word_pos = w++;
+				u16 word = psharedline[word_pos];
+
+				print_dataword(word);
+				printf(":");
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+
+	preshift_t &ref = *(spr.psmask_frames_emx_.begin()->begin());
+
+	// create new, common shift accommodating all preshifts
+	preshift_t *pshared_shift = new
+	preshift_t 
+	(
+		/*shift=*/0,
+		/*planes=*/ref.planes_,
+		/*height=*/ref.height_,
+		/*wordwidth=*/sharedmask_wordwidth,
+		/*wordoffset=*/ref.wordoffset_,
+		/*wordsremaining=*/ref.wordsremaining_,
+		/*data=*/psharedmask_h
+	);
+
+	preshift_t &shared_shift = *pshared_shift;
+
+	// build span representation
+	generate_emx2_preshift_analysis(spr, _frame, shared_shift, /*psi=*/0, /*horizontal_ordering=*/false);
+
+	// find common line order
+	generate_emx2_common_lineorder(spr, spr.linemap_opt_2_src, spr.linemap_src_2_opt, /*optimize=*/false);
+
+	std::vector<constrained_wordspan*> stacked_spans;
+	generate_emx2_order_spans(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*horizontal_ordering=*/false);
+
+	size_t spancount = stacked_spans.size();
+
+	// assign EM index to source mask words according to their position in each span
+	{
+		for (auto pspan : stacked_spans)
+		{
+			int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+
+			u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
+
+			int o1 = pspan->ws;
+			int o2 = pspan->ws + 1;
+			int o3 = (pspan->ws + pspan->ww) - 1;
+
+			psharedline[o1] = 1;
+
+			if (pspan->ww >= 2)
+				psharedline[o3] = 3;
+
+			if (pspan->ww >= 3)
+			{
+				for (int p = o2; p < o3; p++)
+					psharedline[p] = 2;
+			}
+		}
+	}
+
+	// analyse EM deltas between spans, in span-order.
+	// update the common mask to indicate deltas seen within any preshift.
+	// then re-generate the common mask to encode these changes.
+	{
+		for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+		{
+			// first component within a preshift
+			preshiftlist_t::iterator cit = pmit->begin();
+			{
+				preshift_t &shift = *cit;
+
+				{
+					u16 em_last[3] = { 0,0,0 };
+					u16 em_gens[3] = { 1,1,1 };
+
+					for (auto pspan : stacked_spans)
+					{
+						int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+
+						u16 *psourceline = &shift.data_[(orig_y * shift.wordwidth_)];
+						u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
+
+						// load real EM values for this span, for this preshift (for those within h-window)
+						u16 em1 = 0;
+						u16 em2 = 0;
+						u16 em3 = 0;
+
+						int o1 = pspan->ws;
+						int o2 = pspan->ws + 1;
+						int o3 = (pspan->ws + pspan->ww) - 1;
+
+						if (o1 < shift.wordwidth_)
+							em1 = psourceline[o1];
+
+						if (o2 < shift.wordwidth_)
+							em2 = psourceline[o2];
+							
+						if (o3 < shift.wordwidth_)
+							em3 = psourceline[o3];
+
+						// signal state changes via EM index generations
+	
+						psharedline[o1] |= em_gens[0] << 8;
+
+						if (em1 != em_last[0])
+						{
+							// EM1 changed
+							em_gens[0]++;
+							em_last[0] = em1;
+						}
+
+						if (pspan->ww >= 2)
+						{
+							psharedline[o3] |= em_gens[2] << 8;
+
+							if (em3 != em_last[2])
+							{
+								// EM3 changed
+								em_gens[2]++;
+								em_last[2] = em3;
+							}
+						}
+
+						if (pspan->ww >= 3)
+						{
+							// this can be a run, so mark all affected words
+							for (int p = o2; p < o3; p++)
+								psharedline[p] |= em_gens[1] << 8;
+
+							if (em2 != em_last[1])
+							{
+								// EM2 changed
+								em_gens[1]++;
+								em_last[1] = em2;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// load new pseudo-masks back into spans for metaprogram gen / simulation
+	{
+		for (auto pspan : stacked_spans)
+		{
+			//int v = pspan->draw_order;
+			int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+
+			u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
+
+			pspan->em[0] = psharedline[pspan->ws];
+			if (pspan->ww >= 2)
+				pspan->em[2] = psharedline[(pspan->ws + pspan->ww) - 1];
+			if (pspan->ww >= 3)
+				pspan->em[1] = psharedline[pspan->ws + 1];
+		}
+	}
+
+	// dump shared mask encoding
+	printf("shared mask encoding pass 2 (vertical)...\n");
+	{
+		for (int v = 0; v < spr.h_; v++)
+		{
+			u16 *psharedline = &psharedmask_v[(v * sharedmask_wordwidth)];
+
+			int w = 0;
+			while (w < sharedmask_wordwidth)
+			{
+				// fetch next word
+				int word_pos = w++;
+				u16 word = psharedline[word_pos];
+
+				print_dataword(word);
+				printf(":");
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+
+	// generate mask sequence for each preshift
+	for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+	{
+		// first component within a preshift
+		preshiftlist_t::iterator cit = pmit->begin();
+		{
+			preshift_t &shift = *cit;
+
+			generate_emx2_mask_sequence(spr, shift, stacked_spans, psharedmask_v, sharedmask_wordwidth);
+		}
+	}
+
+	delete[] shared_shift.data_;
+	shared_shift.data_ = psharedmask_v;
+
+	// for simulator
+	generate_emx2_mask_sequence(spr, shared_shift, stacked_spans, psharedmask_v, sharedmask_wordwidth);
+
+
+	std::vector<u16> shared_mask_words_gen;
+	generate_emx2_metaprogram(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*shared_mask=*/true, shared_mask_words_gen);
+
+
+
+
+	// assign shared metaprogram to all preshifts
+
+	{
+		for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+		{
+			// first component within a preshift
+			preshiftlist_t::iterator cit = pmit->begin();
+			{
+				preshift_t &shift = *cit;
+
+				shift.p68kbin = shared_shift.p68kbin;
+				shift.size68kbin = shared_shift.size68kbin;
+			}
+		}
+	}
+
+	//generate_emx2_map_span_sources(spr, stacked_spans, );
+}
 
 bool generate_emx2_sequence()
 {
@@ -2413,7 +3097,8 @@ bool generate_emx2_sequence()
 	{
 		if ((DEBUG_FRAME >= 0) && (f != DEBUG_FRAME))
 			continue;
-		generate_emx2_frame(*it, f);
+		generate_emx2_frame_optimized(*it, f);
+		//generate_emx2_frame_flexible(*it, f);
 	}
 
 	return true;

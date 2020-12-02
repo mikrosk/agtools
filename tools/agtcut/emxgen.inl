@@ -252,6 +252,8 @@ enum OpKind
 	OpKind_StoreI32,
 	OpKind_StoreR16,
 	OpKind_StoreR32,
+	OpKind_StoreMPI16,
+	OpKind_StoreMPI32,
 	//
 	OpKind_DSTAddaR16,
 	OpKind_DSTSubaR16,
@@ -292,6 +294,8 @@ static const char* const as_str[] =
 	"OpKind_StoreI32",
 	"OpKind_StoreR16",
 	"OpKind_StoreR32",
+	"OpKind_StoreMPI16",
+	"OpKind_StoreMPI32",
 	//
 	"OpKind_DSTAddaR16",
 	"OpKind_DSTSubaR16",
@@ -392,6 +396,14 @@ public:
 
 		if (1 || !PREFER_TRANSFORMS)
 		{
+			// a0: BLiT_YC
+			// a1: scrline
+			// a2: BLiT_EM1
+			// a3: BLiT_DST
+			// a4: BLiT_EM3 (?)
+			// a5: BLiT_CTRL
+			// a6: BLiT_EM2 (?)
+
 			if ((srcww >= 3) && USE_DSTSKIP_REG_FIXED_PRELOAD)
 			{
 				// force dstlinewid into d0.w to optimize dst skips
@@ -449,56 +461,69 @@ public:
 		// em3 not used unless 2-3 words wide
 		EM3_reg = 999;
 
-		// em2,em3 addr depend on sprite width - free up registers if possible
-		if (srcww >= 3)
-		{
-			EM2_reg = r;
-			registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true,		0xffff8a2a));	// em2
-		}
-		else 
-		if (1)
-		{
-			long_t data = dstlinewid;
 
-			if (USE_DSTSKIP_REG_FIXED_PRELOAD_INCIDENCE)
-			{
-				int i = 0;
-				for (auto rmit = ranked_metrics.begin(); rmit != ranked_metrics.end(); rmit++, i++)
-				{
-					if (metrics_words_allocated == i)
-					{
-						if (rmit->second->second.incidence > 2)
-						{
-							//std::cout << "preload high incidence word " << i << ":0x" << std::hex << rmit->second->first << " incidence:" << std::dec << rmit->second->second.incidence << std::endl;
-							data = (long_t)(word_t)rmit->second->first;
-							metrics_words_allocated++;
-						}
-						break;
-					}
-				}
-/*
-				for (auto it = metrics.begin(); it != metrics.end(); it++, i++)
-				{
-					if (metrics_words_allocated == i)
-					{
-						if (it->second.incidence > 2)
-						{
-							std::cout << "preload high incidence word " << i << ":0x" << std::hex << it->first << " incidence:" << std::dec << it->second.incidence << std::endl;
-							data = (long_t)(word_t)(it->first);
-							metrics_words_allocated++;
-						}
-						break;
-					}
-				}
-*/
-			}
-
-			registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true,		(ulong_t)data));
+		if (shared_mask_)
+		{
+			// not enough registers to allocate a6 for EM2 while also fetching masks from RAM
+			// in shared-mask mode, we allocate it as the mask source buffer
+			SM_reg = r;
+			registers.push_back(dataregister("a6", r++, RegClass_Address));	// em2
+			registers[SM_reg].variable = true;
 		}
 		else
 		{
-			// leave a6 free
-			registers.push_back(dataregister("a6", r++, RegClass_Address));
+
+			// em2,em3 addr depend on sprite width - free up registers if possible
+			if (srcww >= 3)
+			{
+				EM2_reg = r;
+				registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true, 0xffff8a2a));	// em2
+			}
+			else
+				if (1)
+				{
+					long_t data = dstlinewid;
+
+					if (USE_DSTSKIP_REG_FIXED_PRELOAD_INCIDENCE)
+					{
+						int i = 0;
+						for (auto rmit = ranked_metrics.begin(); rmit != ranked_metrics.end(); rmit++, i++)
+						{
+							if (metrics_words_allocated == i)
+							{
+								if (rmit->second->second.incidence > 2)
+								{
+									//std::cout << "preload high incidence word " << i << ":0x" << std::hex << rmit->second->first << " incidence:" << std::dec << rmit->second->second.incidence << std::endl;
+									data = (long_t)(word_t)rmit->second->first;
+									metrics_words_allocated++;
+								}
+								break;
+							}
+						}
+						/*
+										for (auto it = metrics.begin(); it != metrics.end(); it++, i++)
+										{
+											if (metrics_words_allocated == i)
+											{
+												if (it->second.incidence > 2)
+												{
+													std::cout << "preload high incidence word " << i << ":0x" << std::hex << it->first << " incidence:" << std::dec << it->second.incidence << std::endl;
+													data = (long_t)(word_t)(it->first);
+													metrics_words_allocated++;
+												}
+												break;
+											}
+										}
+						*/
+					}
+
+					registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true, (ulong_t)data));
+				}
+				else
+				{
+					// leave a6 free
+					registers.push_back(dataregister("a6", r++, RegClass_Address));
+				}
 		}
 
 		if (srcww > 1)
@@ -551,7 +576,7 @@ public:
 //		registers.push_back(dataregister("sr", r++, true, true, 0x00002300));
 	}
 
-	Context(int _srcww, int _srch, int _srccolww, int _dstww, int _guardxs)
+	Context(int _srcww, int _srch, int _srccolww, int _dstww, int _guardxs, bool _shared_mask)
 		: srcww(_srcww), 
 		  srch(_srch),
 		  srccolww(_srccolww),
@@ -566,7 +591,8 @@ public:
 		  SCRLINE_reg(0),
 		  PLANES_reg(0),
 		  BHOG_reg(0),
-		  guardwords((_guardxs + (16-1)) >> 4)
+		  guardwords((_guardxs + (16-1)) >> 4),
+		  shared_mask_(_shared_mask)
 	{
 		if (_dstww < 3)
 			dstww = 3;
@@ -647,7 +673,10 @@ public:
 		blitter.xcount_adj = 0;
 		reset_registers();
 		metrics_sim = metrics;
+		shared_mask_word_pos = 0;
 	}
+
+	int cycle_sum();
 
 	void dump_tags();
 	void register_rename(std::list<Operation*>::iterator curr, int _rold, int _rnew);
@@ -906,6 +935,9 @@ public:
 	metricmap metrics;
 	metricmap metrics_sim;
 
+	std::vector<u16> shared_mask_words;
+	int shared_mask_word_pos;
+
 	std::vector<dataregister> registers;
 
 	std::list<Operation*> operations;
@@ -924,6 +956,8 @@ public:
 
 	std::vector<std::string> BLiTEM_names;
 
+	bool shared_mask_;
+
 	int SCRLINE_reg;
 	int PLANES_reg;
 	int BHOG_reg;
@@ -933,6 +967,7 @@ public:
 	int EM1_reg;
 	int EM2_reg;
 	int EM3_reg;
+	int SM_reg;
 	std::string DSTADDR_regname;
 	std::string BLiTCTRL_go_srcname;
 	std::string BLiTYC_planes_srcname;
@@ -2537,7 +2572,7 @@ void Context::tail_pass()
 		// encountered blit operation
 		if (pop->kind == OpKind_BLITGo)
 		{
-			BLiT_Go *pactual = reinterpret_cast<BLiT_Go*>(pop);
+			BLiT_GoSkew *pactual = reinterpret_cast<BLiT_GoSkew*>(pop);
 
 			std::list<Operation*>::iterator best_tailop = curr;
 
@@ -2603,7 +2638,7 @@ void run_sim
 	ubyte_t *livelines, 
 	int _frame, 
 	int pi, preshift_t &shift, 
-	std::vector<int> &best_invpattern, 
+	std::vector<int> &linemap_src_2_opt,
 	bool _generate
 )
 {
@@ -2638,8 +2673,8 @@ void run_sim
 		if (!g_allargs.quickcut)
 			if (g_allargs.verbose)
 				printf("debug simulation... %dx%d words (%dx%d buffer)\n", 
-					context.srch, context.srcww, 
-					context.srch, context.dstww
+					context.srcww, context.srch,
+					context.dstww, context.srch
 				);
 
 		int errors = 0;
@@ -2650,39 +2685,45 @@ void run_sim
 			//for (int h = 0; h < shift.wordwidth_; h++)
 			//	m |= shift.data_[(v * shift.wordwidth_) + h];
 
-			ubyte_t m = livelines[v];
+			//ubyte_t m = livelines[v];
 
 			//for (int h = 0; h < shift.wordwidth_; h++)
 			for (int h = 0; h < shift.wordwidth_; h++)
 			{
 				uword_t data = context.memory[(v * context.dstww) + h];
 				uword_t expected = shift.data_[(v * shift.wordwidth_) + h];
+				bool error = false;
 
-				if (m &&
+				if (/*m &&*/
 					(data != expected) &&
 					// tolerate unwritten words for empty source
 					!((data == 0xaaaa) && (expected == 0))
 					)
 				{
 					errors++;
+					error = true;
 				}
 
 				if (!g_allargs.quickcut)
 					if (g_allargs.verbose)
 					{
-						if (m)
+						//if (m)
 						{
-							print_dataword(expected); printf(":"); print_dataword(data); printf("  ");
+							print_dataword(expected); printf(":"); print_dataword(data); 
+							if (error)
+								printf("< ");
+							else
+								printf("  ");
 						}
-						else
+						/*else
 						{
 							print_dataword(expected); printf(":----------------  ");
-						}
+						}*/
 					}
 			}
 			if (!g_allargs.quickcut)
 				if (g_allargs.verbose)
-					printf(" order=%d\n", best_invpattern[v]);
+					printf(" optsrc=%d\n", linemap_src_2_opt[v]);
 		}
 
 		if (errors > 0)
@@ -2718,5 +2759,18 @@ static int word_re(uword_t w)
 		re++;
 	}
 	return re;
+}
+
+int Context::cycle_sum()
+{
+	int cycles = 0;
+
+	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end(); it++)
+	{
+		Operation *poper = *it;
+		cycles += poper->cost;
+	}
+
+	return cycles;
 }
 

@@ -42,7 +42,9 @@ public:
 
 	virtual void onExecute() = 0;
 	virtual void onEmit() { };
-	virtual std::string comment() { return std::string();  };
+
+	virtual std::string comment_pre() { return std::string();  };
+	virtual std::string comment_post() { return std::string(); };
 
 	void execute()
 	{
@@ -70,24 +72,24 @@ public:
 
 	void emit()
 	{
+		std::string c_pre = comment_pre();
+		if (c_pre.length() > 1)
+			ctx.genout << "; " << c_pre << std::endl;
+
 		ctx.buf[0] = 0;
-
-		std::string cm = comment();
-		if (cm.length() > 1)
-		{
-			ctx.genout << "; " << cm << std::endl;
-		}
-
 		onEmit();
 		if (g_allargs.verbose)
 			printf("%s", ctx.buf);
 		ctx.genout << ctx.buf;
+
+		std::string c_post = comment_post();
+		if (c_post.length() > 1)
+			ctx.genout << "; " << c_post << std::endl;
 	}
 
 	std::string describe()
 	{
 		ctx.buf[0] = 0;
-
 		onEmit();
 		return std::string(ctx.buf);
 	}
@@ -207,8 +209,6 @@ public:
 		ctx.blitter.em[em + 0] = dataH;// ctx.registers[iLHS].L;
 		ctx.blitter.em[em + 1] = dataL;// ctx.registers[iLHS].L;
 		ctx.cycles += cost;
-//		ctx.sim_track_datarefs(dataH);
-//		ctx.sim_track_datarefs(dataL);
 		ctx.sim_track_datarefs(dataH, dataL);
 	}
 
@@ -287,12 +287,110 @@ public:
 		ctx.blitter.em[em + 0] = ctx.registers[sreg].H;
 		ctx.blitter.em[em + 1] = ctx.registers[sreg].L;
 		ctx.cycles += cost;
-//		ctx.sim_track_datarefs(ctx.registers[sreg].H);
-//		ctx.sim_track_datarefs(ctx.registers[sreg].L);
 		ctx.sim_track_datarefs(ctx.registers[sreg].H, ctx.registers[sreg].L);
 	}
 
 	int em;
+};
+
+// --------------------------------------------------------------------
+
+class EM_MoveMPI16 : public Operation
+{
+public:
+
+	EM_MoveMPI16(Context &_ctx, int _em, int _reg, int _offset, int _areg)
+		: Operation(_ctx, OpKind_StoreMPI16, OpSize_16, OpSource_Memory, OpSource_Memory, OpWrite_Replace, 8, 0, 1),
+		  em(_em),offset(_offset)
+	{
+		assert(_reg < 256);
+		sreg = _reg;
+		assert(_areg < 256);
+		areg = _areg;
+	}
+
+	virtual void onEmit()
+	{
+		if (offset)
+		{
+			sprintf(ctx.buf, " move.w (%s)+,%d%s\t\t;%d [EM:%d]\n",
+				ctx.registers[sreg].name.c_str(),
+				offset,
+				ctx.BLiTEM_names[em].c_str(),
+				cost,
+				em + 1
+			);
+		}
+		else
+		{
+			sprintf(ctx.buf, " move.w (%s)+,%s\t\t;%d [EM:%d]\n",
+				ctx.registers[sreg].name.c_str(),
+				ctx.BLiTEM_names[em].c_str(),
+				cost,
+				em + 1
+			);
+		}
+	}
+
+	virtual void onExecute()
+	{
+		if (ctx.shared_mask_word_pos < ctx.shared_mask_words.size())
+			ctx.blitter.em[em] = ctx.shared_mask_words[ctx.shared_mask_word_pos++];
+		ctx.cycles += cost;
+	}
+
+	int em;
+	int offset;
+};
+
+class EM_MoveMPI32 : public Operation
+{
+public:
+
+	EM_MoveMPI32(Context &_ctx, int _em, int _reg, int _offset, int _areg)
+		: Operation(_ctx, OpKind_StoreMPI32, OpSize_32, OpSource_Memory, OpSource_Memory, OpWrite_Replace, 12, 0, 1),
+		  em(_em), offset(_offset)
+	{
+		assert(_reg < 256);
+		sreg = _reg;
+		assert(_areg < 256);
+		areg = _areg;
+	}
+
+	virtual void onEmit()
+	{
+		if (offset)
+		{
+			sprintf(ctx.buf, " move.l (%s)+,%d%s\t\t;%d [EM:%d:%d]\n",
+				ctx.registers[sreg].name.c_str(),
+				offset,
+				ctx.BLiTEM_names[em].c_str(),
+				cost,
+				em + 1, em + 2
+			);
+		}
+		else
+		{
+			sprintf(ctx.buf, " move.l (%s)+,%s\t\t;%d [EM:%d:%d]\n",
+				ctx.registers[sreg].name.c_str(),
+				ctx.BLiTEM_names[em].c_str(),
+				cost,
+				em + 1, em + 2
+			);
+		}
+	}
+
+	virtual void onExecute()
+	{
+		if (ctx.shared_mask_word_pos < ctx.shared_mask_words.size())
+			ctx.blitter.em[em + 0] = ctx.shared_mask_words[ctx.shared_mask_word_pos++];
+		if (ctx.shared_mask_word_pos < ctx.shared_mask_words.size())
+			ctx.blitter.em[em + 1] = ctx.shared_mask_words[ctx.shared_mask_word_pos++];
+		ctx.cycles += cost;
+	}
+
+	int em;
+	int offset;
 };
 
 // --------------------------------------------------------------------
@@ -390,6 +488,8 @@ public:
 		ctx.registers[dreg].L = data;// ctx.registers[iLHS].L;
 		ctx.registers[dreg].allocatedL = true;
 		ctx.cycles += cost;
+
+		ctx.sim_track_datarefs(data);
 	}
 
 	uword_t data;
@@ -1967,7 +2067,7 @@ class BLiT_Init : public Operation
 public:
 
 	BLiT_Init(Context &_ctx)
-		: Operation(_ctx, OpKind_BLITInit, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 0, 0, -1)
+		: Operation(_ctx, OpKind_BLITInit, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 16*3, 0, -1)
 	{
 	}
 
@@ -1993,12 +2093,14 @@ class BLiT_XCMod : public Operation
 public:
 
 	BLiT_XCMod(Context &_ctx, int _changew)
-		: Operation(_ctx, OpKind_BLITXCMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
+		: Operation(_ctx, OpKind_BLITXCMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 20, 0, -1),
 		  changew_(_changew)
 	{
+		if (abs(changew_) <= 8)
+			cost = 16;
 	}
 
-	virtual std::string comment()
+	virtual std::string comment_pre()
 	{
 		return "BLiT_XCMod";
 	}
@@ -2007,22 +2109,46 @@ public:
 	{
 		if (changew_ > 0)
 		{
-			sprintf(ctx.buf, " add.w #%d,%s\t;%d (XC:+%d)\n",
-				changew_,
-				ctx.BLiTXC_name.c_str(), 
-				cost, 
-				changew_
-			);
+			if (changew_ <= 8)
+			{
+				sprintf(ctx.buf, " addq.w #%d,%s\t;%d (XC:+%d)\n",
+					changew_,
+					ctx.BLiTXC_name.c_str(),
+					cost,
+					changew_
+				);
+			}
+			else
+			{
+				sprintf(ctx.buf, " add.w #%d,%s\t;%d (XC:+%d)\n",
+					changew_,
+					ctx.BLiTXC_name.c_str(),
+					cost,
+					changew_
+				);
+			}
 		}
 		else
 		if (changew_ < 0)
 		{
-			sprintf(ctx.buf, " sub.w #%d,%s\t;%d (XC:-%d)\n", 
-				-changew_,
-				ctx.BLiTXC_name.c_str(),
-				cost, 
-				-changew_
-			);
+			if (changew_ >= -8)
+			{
+				sprintf(ctx.buf, " subq.w #%d,%s\t;%d (XC:-%d)\n",
+					-changew_,
+					ctx.BLiTXC_name.c_str(),
+					cost,
+					-changew_
+				);
+			}
+			else
+			{
+				sprintf(ctx.buf, " sub.w #%d,%s\t;%d (XC:-%d)\n",
+					-changew_,
+					ctx.BLiTXC_name.c_str(),
+					cost,
+					-changew_
+				);
+			}
 		}
 	}
 
@@ -2039,31 +2165,59 @@ class BLiT_DYIMod : public Operation
 public:
 
 	BLiT_DYIMod(Context &_ctx, int _changew)
-		: Operation(_ctx, OpKind_BLITDYIMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
+		: Operation(_ctx, OpKind_BLITDYIMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 20, 0, -1),
 		changew_(_changew)
 	{
+		if (abs(changew_) <= 1)
+			cost = 16;
 	}
+
+	std::string comment_pre() { return "BLiT_DYIMod"; }
 
 	virtual void onEmit()
 	{
 		if (changew_ > 0)
 		{
-			sprintf(ctx.buf, " add.w #%d,%s\t;%d (DYI:+%d)\n", 
-				changew_ * 8, 
-				ctx.BLiTDYI_name.c_str(), 
-				cost, 
-				changew_
-			);
+			if (changew_ <= 1)
+			{
+				sprintf(ctx.buf, " addq.w #%d,%s\t;%d (DYI:+%d)\n",
+					changew_ * 8,
+					ctx.BLiTDYI_name.c_str(),
+					cost,
+					changew_
+				);
+			}
+			else
+			{
+				sprintf(ctx.buf, " add.w #%d,%s\t;%d (DYI:+%d)\n",
+					changew_ * 8,
+					ctx.BLiTDYI_name.c_str(),
+					cost,
+					changew_
+				);
+			}
 		}
 		else
 		if (changew_ < 0)
 		{
-			sprintf(ctx.buf, " sub.w #%d,%s\t;%d (DYI:-%d)\n", 
-				-changew_ * 8, 
-				ctx.BLiTDYI_name.c_str(), 
-				cost, 
-				-changew_
-			);
+			if (changew_ >= -1)
+			{
+				sprintf(ctx.buf, " subq.w #%d,%s\t;%d (DYI:-%d)\n",
+					-changew_ * 8,
+					ctx.BLiTDYI_name.c_str(),
+					cost,
+					-changew_
+				);
+			}
+			else
+			{
+				sprintf(ctx.buf, " sub.w #%d,%s\t;%d (DYI:-%d)\n",
+					-changew_ * 8,
+					ctx.BLiTDYI_name.c_str(),
+					cost,
+					-changew_
+				);
+			}
 		}
 	}
 
@@ -2079,31 +2233,59 @@ class BLiT_SYIMod : public Operation
 public:
 
 	BLiT_SYIMod(Context &_ctx, int _changew)
-		: Operation(_ctx, OpKind_BLITSYIMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
+		: Operation(_ctx, OpKind_BLITSYIMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 20, 0, -1),
 		changew_(_changew)
 	{
+		if (abs(changew_) <= 4)
+			cost = 16;
 	}
+
+	std::string comment_pre() { return "BLiT_SYIMod"; }
 
 	virtual void onEmit()
 	{
 		if (changew_ > 0)
 		{
-			sprintf(ctx.buf,     " add.w #%d,%s\t;%d (SYI:+%d)\n",
-				changew_*2, 
-				ctx.BLiTSYI_name.c_str(), 
-				cost, 
-				changew_
-			);
+			if (changew_ <= 4)
+			{
+				sprintf(ctx.buf, " addq.w #%d,%s\t;%d (SYI:+%d)\n",
+					changew_ * 2,
+					ctx.BLiTSYI_name.c_str(),
+					cost,
+					changew_
+				);
+			}
+			else
+			{
+				sprintf(ctx.buf, " add.w #%d,%s\t;%d (SYI:+%d)\n",
+					changew_ * 2,
+					ctx.BLiTSYI_name.c_str(),
+					cost,
+					changew_
+				);
+			}
 		}
 		else
 		if (changew_ < 0)
 		{
-			sprintf(ctx.buf,     " sub.w #%d,%s\t;%d (SYI:-%d)\n", 
-				-changew_*2, 
-				ctx.BLiTSYI_name.c_str(), 
-				cost,
-				-changew_
-			);
+			if (changew_ >= -4)
+			{
+				sprintf(ctx.buf, " subq.w #%d,%s\t;%d (SYI:-%d)\n",
+					-changew_ * 2,
+					ctx.BLiTSYI_name.c_str(),
+					cost,
+					-changew_
+				);
+			}
+			else
+			{
+				sprintf(ctx.buf, " sub.w #%d,%s\t;%d (SYI:-%d)\n",
+					-changew_ * 2,
+					ctx.BLiTSYI_name.c_str(),
+					cost,
+					-changew_
+				);
+			}
 		}
 	}
 
@@ -2125,6 +2307,8 @@ public:
 	{
 		dreg = _ctx.BHOG_reg;
 	}
+
+	std::string comment_pre() { return "BLiT_Skew"; }
 
 	virtual void onEmit()
 	{
@@ -2216,7 +2400,7 @@ class BLiT_SetDSTADDR : public Operation
 public:
 
 	BLiT_SetDSTADDR(Context &_ctx, int _sreg)
-		: Operation(_ctx, OpKind_BLITSetup, OpSize_32, OpSource_Register, OpSource_Memory, OpWrite_None, 8, 0, -1)
+		: Operation(_ctx, OpKind_BLITSetup, OpSize_32, OpSource_Register, OpSource_Memory, OpWrite_None, 12, 0, -1)
 	{
 		sreg = _sreg;
 	}
@@ -2252,9 +2436,9 @@ public:
 		sreg = _sreg;
 	}
 
-	virtual std::string comment()
+	virtual std::string comment_post()
 	{
-		return "Blit:";
+		return "</BLiT>";
 	}
 
 	virtual void onEmit()
@@ -2319,9 +2503,9 @@ public:
 		sreg = _sreg;
 	}
 
-	virtual std::string comment()
+	virtual std::string comment_post()
 	{
-		return "Blit:";
+		return "</BLiT>";
 	}
 
 	virtual void onEmit()
@@ -2378,13 +2562,16 @@ class SRC_Skip : public Operation
 public:
 
 	SRC_Skip(Context &_ctx, int _worddelta, int _linedelta)
-		: Operation(_ctx, OpKind_SRCSkip, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 2, -1),
+		: Operation(_ctx, OpKind_SRCSkip, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 32, 0, -1),
 		  worddelta(_worddelta),
 		  linedelta(_linedelta)
 	{
+		int offset = delta(ctx.srccolww);
+		if (offset <= 8)
+			cost = 24;
 	}
 
-	virtual std::string comment()
+	virtual std::string comment_pre()
 	{
 		return "SRC_Skip";
 	}
@@ -2399,33 +2586,67 @@ public:
 		int offset = delta(ctx.srccolww);
 		if (offset < 0)
 		{
-			sprintf
-			(
-				ctx.buf,
-				" sub.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
-				-offset,
-				ctx.BLiTSRC_name.c_str(),
-				cost,
-				worddelta, linedelta
-			);
+			if (offset >= 8)
+			{
+				sprintf
+				(
+					ctx.buf,
+					" subq.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
+					-offset,
+					ctx.BLiTSRC_name.c_str(),
+					cost,
+					worddelta, linedelta
+				);
+			}
+			else
+			{
+				sprintf
+				(
+					ctx.buf,
+					" sub.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
+					-offset,
+					ctx.BLiTSRC_name.c_str(),
+					cost,
+					worddelta, linedelta
+				);
+			}
 		}
 		else
 		{
-			sprintf
-			(
-				ctx.buf,
-				" add.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
-				offset,
-				ctx.BLiTSRC_name.c_str(),
-				cost,
-				worddelta, linedelta
-			);
+			if (offset <= 8)
+			{
+				sprintf
+				(
+					ctx.buf,
+					" addq.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
+					offset,
+					ctx.BLiTSRC_name.c_str(),
+					cost,
+					worddelta, linedelta
+				);
+			}
+			else
+			{
+				sprintf
+				(
+					ctx.buf,
+					" add.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
+					offset,
+					ctx.BLiTSRC_name.c_str(),
+					cost,
+					worddelta, linedelta
+				);
+			}
 		}
 	}
 
 	virtual void onExecute()
 	{
-	}
+/*		int dl = delta(ctx.srccolww);
+		uword_t dH = u32(dl) >> 16;
+		uword_t dL = u32(dl) & 0xFFFF;
+		ctx.sim_track_datarefs(dH, dL);
+*/	}
 
 	int worddelta;
 	int linedelta;
@@ -2489,7 +2710,7 @@ class DST_AddaIL : public Operation
 public:
 
 	DST_AddaIL(Context &_ctx, int _dreg, int _worddelta, int _linedelta)
-		: Operation(_ctx, OpKind_DSTAddaIL, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 8, 4, 2),
+		: Operation(_ctx, OpKind_DSTAddaIL, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 16, 0, 3),
 		  worddelta(_worddelta),
 		  linedelta(_linedelta)
 	{
@@ -2497,7 +2718,7 @@ public:
 		dreg = _dreg;
 	}
 
-	virtual std::string comment()
+	virtual std::string comment_pre()
 	{
 		return "DST_AddaIL";
 	}
@@ -2525,7 +2746,11 @@ public:
 	virtual void onExecute()
 	{
 		ctx.memaddr += sim_delta();
-		//ctx.sim_track_datarefs(uword_t(delta(ctx.dstlinewid)));
+
+		int dl = delta(ctx.dstlinewid);
+		uword_t dH = u32(dl) >> 16;
+		uword_t dL = u32(dl) & 0xFFFF;
+		ctx.sim_track_datarefs(dH,dL);
 	}
 
 	int worddelta;
@@ -2624,6 +2849,7 @@ public:
 
 	virtual void onEmit()
 	{
+//		sprintf(ctx.buf, " tst.w $1.w;\nrts;\n");
 		sprintf(ctx.buf, " rts\n");
 	}
 
