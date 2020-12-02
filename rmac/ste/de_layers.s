@@ -226,6 +226,76 @@ enable_clipping	set	1				; enable full xy clipping
 
 
 *=======================================================*
+*	dedicated iterator for [drawtype]=EMXSPRUR
+*-------------------------------------------------------*
+.STE_EntityDrawLayers_EMXSPRUR_next:
+*-------------------------------------------------------*	
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityDrawLayers_evaluate
+
+*-------------------------------------------------------*
+.STE_EntityDrawLayers_EMXSPRUR_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1			; we already fetched this in preamble
+	move.w		ent_fry(a0),d2
+
+	; compensate for loopback buffer
+
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; access sprite frame
+
+	move.w		ent_frame(a0),d0
+
+	; decrement 'hitflash' counter on this object
+
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
+		
+	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+	move.l		.sp_framebuf(sp),a1
+
+	; include raw drawing function here (configure it first)
+
+enable_restore	set	0				; enable sprite-restore
+enable_clipping	set	1				; enable full xy clipping
+
+	include		"rmac/ste/b_emxc_nr_spr.s"	; body for compound EMX sprite routine
+
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityDrawLayers_EMXSPRUR_done:
+*-------------------------------------------------------*
+	move.l		ent_layer_(a0),d1
+	move.l		d1,a0
+	bne		.STE_EntityDrawLayers_EMXSPRUR_next
+	bra		.STE_EntityDrawLayers_endlayer
+
+*-------------------------------------------------------*
+*	[drawtype] has suddenly changed to EMXSPR
+*-------------------------------------------------------*
+.STE_EntityDrawLayers_EMXSPRUR_setup:
+*-------------------------------------------------------*
+	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
+	bra		.STE_EntityDrawLayers_EMXSPRUR_go
+
+
+*=======================================================*
 *	dedicated iterator for [drawtype]=EMSPRQ
 *-------------------------------------------------------*
 .STE_EntityDrawLayers_EMSPRQ_next:
@@ -592,6 +662,7 @@ preserve_usp		set	0
 	bra.w		.STE_EntityDrawLayers_EMSPRQ_setup
 	bra.w		.STE_EntityDrawLayers_EMXSPR_setup
 	bra.w		.STE_EntityDrawLayers_EMXSPRQ_setup
+	bra.w		.STE_EntityDrawLayers_EMXSPRUR_setup
 	bra.w		.STE_EntityDrawLayers_SLAB_setup
 	bra.w		.STE_EntityDrawLayers_CUSTOM_setup
 	bra.w		.STE_EntityDrawLayers_RFILL_setup

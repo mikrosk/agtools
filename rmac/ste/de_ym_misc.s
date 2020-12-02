@@ -689,30 +689,7 @@ _BLiT_EntityOccludeVisibleYM_68k:
 
 	move.w		#-1,.sp_drawtype(sp)
 	
-	bra		.STE_EntityOccludeVisibleYM_EMXSPRQ_done
-
-
-*=======================================================*
-*	dedicated iterator for [drawtype]=EMXSPRQ
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_EMXSPRQ_next:
-*-------------------------------------------------------*
-	move.w		ent_drawtype(a0),d0
-	cmp.w		.sp_drawtype(sp),d0
-	bne		.STE_EntityOccludeVisibleYM_evaluate
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_EMXSPRQ_setup:
-.STE_EntityOccludeVisibleYM_EMXSPRQ_go:
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_EMXSPRQ_done:
-*-------------------------------------------------------*
-	move.l		ent_pnext_y(a0),a0		; next visible entity
-	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax_(sp),d2
-	blt		.STE_EntityOccludeVisibleYM_EMXSPRQ_next
-	bra		.STE_EntityOccludeVisibleYM_complete
-*-------------------------------------------------------*
-
+	bra		.STE_EntityOccludeVisibleYM_NONE_done
 
 
 *=======================================================*
@@ -803,28 +780,6 @@ _BLiT_EntityOccludeVisibleYM_68k:
 
 
 *=======================================================*
-*	dedicated iterator for [drawtype]=EMSPRQ
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_EMSPRQ_next:
-*-------------------------------------------------------*
-	move.w		ent_drawtype(a0),d0
-	cmp.w		.sp_drawtype(sp),d0
-	bne		.STE_EntityOccludeVisibleYM_evaluate
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_EMSPRQ_setup:
-.STE_EntityOccludeVisibleYM_EMSPRQ_go:
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_EMSPRQ_done:
-*-------------------------------------------------------*
-	move.l		ent_pnext_y(a0),a0		; next visible entity
-	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax_(sp),d2
-	blt		.STE_EntityOccludeVisibleYM_EMSPRQ_next
-	bra		.STE_EntityOccludeVisibleYM_complete
-*-------------------------------------------------------*
-
-
-*=======================================================*
 *	dedicated iterator for [drawtype]=EMSPR
 *-------------------------------------------------------*
 .STE_EntityOccludeVisibleYM_EMSPR_next:
@@ -909,76 +864,6 @@ _BLiT_EntityOccludeVisibleYM_68k:
 	bra		.STE_EntityOccludeVisibleYM_complete
 *-------------------------------------------------------*
 
-
-
-*=======================================================*
-*	dedicated iterator for [drawtype]=SPRITE
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_SPRITE_next:
-*-------------------------------------------------------*
-	move.w		ent_drawtype(a0),d0
-	cmp.w		.sp_drawtype(sp),d0
-	bne		.STE_EntityOccludeVisibleYM_evaluate	
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_SPRITE_setup:
-.STE_EntityOccludeVisibleYM_SPRITE_go:
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_SPRITE_done:
-*-------------------------------------------------------*
-	move.l		ent_pnext_y(a0),a0		; next visible entity
-	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax_(sp),d2
-	blt		.STE_EntityOccludeVisibleYM_SPRITE_next
-	bra		.STE_EntityOccludeVisibleYM_complete
-*-------------------------------------------------------*
-
-
-
-*=======================================================*
-*	dedicated iterator for [drawtype]=SLAB
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_SLAB_next:
-*-------------------------------------------------------*
-	move.w		ent_drawtype(a0),d0
-	cmp.w		.sp_drawtype(sp),d0
-	bne		.STE_EntityOccludeVisibleYM_evaluate
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_SLAB_setup:
-.STE_EntityOccludeVisibleYM_SLAB_go:
-*-------------------------------------------------------*
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_SLAB_done:
-*-------------------------------------------------------*
-	move.l		ent_pnext_y(a0),a0		; next visible entity
-	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax_(sp),d2
-	blt		.STE_EntityOccludeVisibleYM_SLAB_next
-	bra		.STE_EntityOccludeVisibleYM_complete
-*-------------------------------------------------------*
-
-
-
-*=======================================================*
-*	dedicated iterator for [drawtype]=CUSTOM
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_CUSTOM_next:
-*-------------------------------------------------------*
-	move.w		ent_drawtype(a0),d0
-	cmp.w		.sp_drawtype(sp),d0
-	bne		.STE_EntityOccludeVisibleYM_evaluate
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_CUSTOM_setup:
-.STE_EntityOccludeVisibleYM_CUSTOM_go:
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_CUSTOM_done:
-*-------------------------------------------------------*
-	move.l		ent_pnext_y(a0),a0		; next visible entity
-	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax_(sp),d2
-	blt		.STE_EntityOccludeVisibleYM_CUSTOM_next
-	bra		.STE_EntityOccludeVisibleYM_complete
-*-------------------------------------------------------*
-	
 *=======================================================*
 *	[drawtype] has changed - perform path switch
 *-------------------------------------------------------*
@@ -988,38 +873,16 @@ _BLiT_EntityOccludeVisibleYM_68k:
 	add.w		d0,d0
 	add.w		d0,d0
 	jmp		.types(pc,d0.w)
-.types:	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup
-	bra.w		.STE_EntityOccludeVisibleYM_SPRITE_setup
+.types:	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; none
+	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; IMSPR/SPRITE
 	bra.w		.STE_EntityOccludeVisibleYM_EMSPR_setup
-	bra.w		.STE_EntityOccludeVisibleYM_EMSPRQ_setup
+	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; EMSPRQ
 	bra.w		.STE_EntityOccludeVisibleYM_EMXSPR_setup
-	bra.w		.STE_EntityOccludeVisibleYM_EMXSPRQ_setup
-	bra.w		.STE_EntityOccludeVisibleYM_SLAB_setup
-	bra.w		.STE_EntityOccludeVisibleYM_CUSTOM_setup
-	bra.w		.STE_EntityOccludeVisibleYM_RFILL_setup
-
-
-*=======================================================*
-*	dedicated iterator for [drawtype]=RFILL
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_RFILL_next:
-*-------------------------------------------------------*
-	move.w		ent_drawtype(a0),d0
-	cmp.w		.sp_drawtype(sp),d0
-	bne		.STE_EntityOccludeVisibleYM_evaluate
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_RFILL_setup:
-.STE_EntityOccludeVisibleYM_RFILL_go:
-*-------------------------------------------------------*
-.STE_EntityOccludeVisibleYM_RFILL_done:
-*-------------------------------------------------------*
-	move.l		ent_pnext_y(a0),a0		; next visible entity
-	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax_(sp),d2
-	blt		.STE_EntityOccludeVisibleYM_RFILL_next
-	bra		.STE_EntityOccludeVisibleYM_complete
-*-------------------------------------------------------*
-
+	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; EMXSPRQ
+	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; EMXSPRUR
+	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; SLAB
+	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; CUSTOM
+	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; RFILL
 
 *=======================================================*
 *	dedicated iterator for [drawtype]=NONE

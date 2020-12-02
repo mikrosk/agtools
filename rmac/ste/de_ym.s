@@ -231,6 +231,76 @@ enable_clipping	set	1				; enable full xy clipping
 	bra		.STE_EntityDrawVisibleYM_EMXSPR_go
 
 
+*=======================================================*
+*	dedicated iterator for [drawtype]=EMXSPRUR
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMXSPRUR_next:
+*-------------------------------------------------------*
+
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityDrawVisibleYM_evaluate
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMXSPRUR_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1
+;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
+
+	; compensate for loopback buffer
+
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; access sprite frame
+
+	move.w		ent_frame(a0),d0
+
+	; decrement 'hitflash' counter on this object
+
+	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	neg.b		d7
+	subx.b		d7,d7				; $0000 / $FFFF
+	add.b		d7,ent_draw_hitflash+1(a0)
+
+	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+	move.l		.sp_framebuf(sp),a1
+
+	; include raw drawing function here (configure it first)
+
+enable_restore	set	0				; enable sprite-restore
+enable_clipping	set	1				; enable full xy clipping
+
+	include		"rmac/ste/b_emxc_nr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMXSPRUR_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityDrawVisibleYM_EMXSPRUR_next
+	bra		.STE_EntityDrawVisibleYM_complete
+*-------------------------------------------------------*
+*	[drawtype] has suddenly changed to EMXSPRUR
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMXSPRUR_setup:
+*-------------------------------------------------------*
+	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
+	bra		.STE_EntityDrawVisibleYM_EMXSPRUR_go
+
 
 *=======================================================*
 *	dedicated iterator for [drawtype]=EMSPRQ
@@ -600,6 +670,7 @@ preserve_usp		set	0
 	bra.w		.STE_EntityDrawVisibleYM_EMSPRQ_setup
 	bra.w		.STE_EntityDrawVisibleYM_EMXSPR_setup
 	bra.w		.STE_EntityDrawVisibleYM_EMXSPRQ_setup
+	bra.w		.STE_EntityDrawVisibleYM_EMXSPRUR_setup
 	bra.w		.STE_EntityDrawVisibleYM_SLAB_setup
 	bra.w		.STE_EntityDrawVisibleYM_CUSTOM_setup
 	bra.w		.STE_EntityDrawVisibleYM_RFILL_setup

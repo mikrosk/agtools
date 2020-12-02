@@ -649,8 +649,6 @@
 .BLiT_EMXCSpr_NoClip_4BPL_go:
 *-------------------------------------------------------*
 
-;	move.b		#15,BLiTLOP.w
-
 	; skew
 	moveq		#16-1,d6
 	and.w		d1,d6
@@ -664,32 +662,10 @@
 ;	access colouropt data
 	move.w		.sp_cfield4(sp),d6
 	move.l		spf_emx_colouropt-8(a0,d6.w),a2
-;	move.l		spf_emx_colouropt-8(a0),a2
 
-	move.l		a2,.emxc_srccol
 	move.l		a2,BLiTSRC.w
 	
-.first_emx:
-
-	move.l		a6,d6
-	move.w		(a6),d7		;.sp_maskwidth(sp)
-	
-	lea		spf_psmo_nextcmp(a6),a6
-
-;	lea		5*2(a6),a6
-	
-;	move.w		(a6)+,d7	; skew
-;	move.w		(a6)+,d7	; syi
-;	move.w		(a6)+,d7	; dyi
-;	move.w		(a6)+,d7	; wordoffset
-	
-	; link to next component, if present
-	move.l		(a6)+,d7
-	beq		.emxc_only_psmask
-	add.l		d6,d7
-.emxc_only_psmask:
-	move.l		d7,.emxc_next_psmask
-	
+	lea		spf_psmo_nextcmp+4(a6),a6
 
 	; find destination word width of whole sprite, all composites
 	; to produce a single sprite restore rectangle
@@ -709,7 +685,6 @@
 	sub.w		d6,a4
 	lsr.w		#(4-1),d6		; >>4 *2
 	add.w		d6,d6
-
 
 	; dst pixelword xoffset
 	moveq		#-16,d0
@@ -754,76 +729,9 @@
 	move.l		a5,usp	
 
 	.endif
-
-	move.l		a1,.emxc_frame_buffer
-
-.resume_emx2:
 	
 	jsr		(a6)
 		
-	move.l		.emxc_next_psmask,d0	
-	beq.s		.emxc_stopped
-	move.l		d0,a6
-	
-;	move.l		.emxc_frame_header,a0
-;	move.l		spf_emx_colouropt(a0),a2
-	move.l		.emxc_srccol,a2
-
-	move.l		a6,d6
-	move.w		(a6)+,d7	;.sp_maskwidth(sp)
-
-;	addq		#6,a6
-;	move.w		(a6)+,d7	; skew
-;	move.w		(a6)+,d7	; syi
-;	move.w		(a6)+,d7	; dyi
-
-	move.w		(a6)+,d0	; wordoffset
-
-	lea		spf_psmo_nextcmp-4(a6),a6
-		
-	; link to next component, if present
-	
-	move.l		(a6)+,d7
-	beq		.emxc_last_psmask
-	add.l		d6,d7
-.emxc_last_psmask:
-	move.l		d7,.emxc_next_psmask
-	
-	; src colourplane wordoffset
-
-	add.w		d0,d0
-	add.w		d0,a2
-	subq		#2,a2
-	move.l		a2,BLiTSRC.w
-
-	; dst colourplane wordoffset
-
-	move.l		.emxc_frame_buffer,a1
-	lsl.w		#3-1,d0
-	add.w		d0,a1
-	
-	; next component
-
-	altraster	#$021
-
-	bra.s		.resume_emx2
-	
-;.emxc_pos:
-;	ds.l		2
-.emxc_frame_buffer:
-	ds.l		1
-;.emxc_frame_header:
-.emxc_srccol:
-	ds.l		1
-.emxc_next_psmask:
-	ds.l		1
-;.emxc_maskoff:	
-;	ds.l		1	
-
-		
-	
-.emxc_stopped:
-
 *-------------------------------------------------------*
 .BLiT_EMXCSpr_4BPL_end:
 *-------------------------------------------------------*
