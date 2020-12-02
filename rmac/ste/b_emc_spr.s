@@ -185,7 +185,7 @@
 	; relative to world
 	move.w		clip_y1(a2),d2
 	; ASSUMPTION: sprite is not big enough to cross top+bottom
-	bra.s		.BLiT_EMCSpr_safebot
+;	bra.s		.BLiT_EMCSpr_safebot
 
 *-------------------------------------------------------*
 .BLiT_EMCSpr_safetop:
