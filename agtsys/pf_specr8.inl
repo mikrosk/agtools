@@ -37,7 +37,9 @@ inline void PR8_fill_specrow_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, s
 "
 #endif
 "												\
-			move.l	%[dstaddr],%%a4;			\
+rwsmc%=:	bra		rewrite%=;					\
+												\
+resume%=:	move.l	%[dstaddr],%%a4;			\
 			move.l	%[virtual_pagebytes],%%d6;	\
 												\
 			move.w	%[pi2],%%d3;				\
@@ -70,30 +72,54 @@ inline void PR8_fill_specrow_direct(s16 _mi, s16 _mj, s16 pi, s16 pj, s16 pi2, s
 .tbl%=:		dc.b	1;							\
 			dc.b	7;							\
 												\
+rewrite%=:										\
+			move.w	#0x4e71,rwsmc%=+0;			\
+			move.w	#0x4e71,rwsmc%=+2;			\
+			lea		rwbeg%=(pc),%%a0;			\
+			lea		rwend%=(pc),%%a2;			\
+rw_next%=:	move.w	(%%a0)+,%%d1;				\
+			cmp.w	#0x01CB,%%d1;				\
+			bne.s	rw_no_0%=;					\
+rw_do%=:	move.w	(%%a0),%%d1;				\
+			move.w	%%d1,%%d2;					\
+			lsr.w	#1,%%d2;					\
+			mulu.w	%[c_dlw],%%d2;				\
+			and.w	#1,%%d1;					\
+			add.w	%%d2,%%d1;					\
+			move.w	%%d1,(%%a0)+;				\
+			bra.s	rw_done%=;					\
+rw_no_0%=:	cmp.w	#0x01C9,%%d1;				\
+			beq.s	rw_do%=;					\
+rw_done%=:	cmp.l	%%a2,%%a0;					\
+			blo.s	rw_next%=;					\
+			bra		resume%=;					\
+												\
+rwbeg%=:										\
 xl%=:		move.l	4*7(%%a5),%%d0;				\
-			movep.l	%%d0,184*7(%%a3);			\
-			movep.l	%%d0,184*7(%%a1);			\
+			movep.l	%%d0,14+0(%%a3);			\
+			movep.l	%%d0,14+0(%%a1);			\
 			move.l	4*6(%%a5),%%d0;				\
-			movep.l	%%d0,184*6(%%a3);			\
-			movep.l	%%d0,184*6(%%a1);			\
+			movep.l	%%d0,12+0(%%a3);			\
+			movep.l	%%d0,12+0(%%a1);			\
 			move.l	4*5(%%a5),%%d0;				\
-			movep.l	%%d0,184*5(%%a3);			\
-			movep.l	%%d0,184*5(%%a1);			\
+			movep.l	%%d0,10+0(%%a3);			\
+			movep.l	%%d0,10+0(%%a1);			\
 			move.l	4*4(%%a5),%%d0;				\
-			movep.l	%%d0,184*4(%%a3);			\
-			movep.l	%%d0,184*4(%%a1);			\
+			movep.l	%%d0,8+0(%%a3);				\
+			movep.l	%%d0,8+0(%%a1);				\
 			move.l	4*3(%%a5),%%d0;				\
-			movep.l	%%d0,184*3(%%a3);			\
-			movep.l	%%d0,184*3(%%a1);			\
+			movep.l	%%d0,6+0(%%a3);				\
+			movep.l	%%d0,6+0(%%a1);				\
 			move.l	4*2(%%a5),%%d0;				\
-			movep.l	%%d0,184*2(%%a3);			\
-			movep.l	%%d0,184*2(%%a1);			\
+			movep.l	%%d0,4+0(%%a3);				\
+			movep.l	%%d0,4+0(%%a1);				\
 			move.l	4*1(%%a5),%%d0;				\
-			movep.l	%%d0,184*1(%%a3);			\
-			movep.l	%%d0,184*1(%%a1);			\
+			movep.l	%%d0,2+0(%%a3);				\
+			movep.l	%%d0,2+0(%%a1);				\
 			move.l	4*0(%%a5),%%d0;				\
-			movep.l	%%d0,184*0(%%a3);			\
-			movep.l	%%d0,184*0(%%a1);			\
+			movep.l	%%d0,0+0(%%a3);				\
+			movep.l	%%d0,0+0(%%a1);				\
+rwend%=:										\
 jt1%=:											\
 												\
 sxl%=:		move.l	%%d5,%%a5;					\
