@@ -1354,6 +1354,18 @@ void EntityDefAsset_Slab(EntityType _etype, sls_pair *_passet)
 	entity_dictionary[_etype].oy = pslb->srcheight>>1;
 }
 
+void EntityDefAsset_SpriteProxy(EntityType _etype, sps_pair *_passet)
+{
+	spritesheet::sps_header *pspr = _passet->psps_draw_;
+	entity_dictionary[_etype].passet = _passet;
+	entity_dictionary[_etype].sx = pspr->srcwidth;
+	entity_dictionary[_etype].sy = pspr->srcheight;
+	// todo: origin should also be stored/retrieved via spritesheet
+	entity_dictionary[_etype].ox = pspr->srcwidth>>1;
+	entity_dictionary[_etype].oy = pspr->srcheight>>1;
+}
+
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 #if defined(AGT_CONFIG_SAFETY_CHECKS)

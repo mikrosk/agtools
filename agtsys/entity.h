@@ -313,6 +313,7 @@ void EntityDefAsset_Hidden(EntityType _etype, spritesheet *_passet);
 
 // attach slab 'pair' (draw+restore shapes) to entity
 void EntityDefAsset_Slab(EntityType _etype, sls_pair *_passet);
+void EntityDefAsset_SpriteProxy(EntityType _etype, sps_pair *_passet);
 
 
 // ---------------------------------------------------------------------------------------------------------------------

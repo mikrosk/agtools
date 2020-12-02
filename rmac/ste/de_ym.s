@@ -276,14 +276,44 @@ enable_clipping	set	1				; enable full xy clipping
 	move.l		ent_passet(a0),a0
 	move.l		.sp_framebuf(sp),a1
 
+	move.l		lpair_first(a0),a0
+	
 	; include raw drawing function here (configure it first)
 
 enable_restore	set	0				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"rmac/ste/b_emxc_nr.s"		; body for EMX optimized blitter sprites (0<width<=32)
+	include		"rmac/ste/b_emxc_nr_spr.s"	; body for EMX optimized blitter sprites (0<width<=32)
+
+	; restore step - only if restore asset is present
 
 	move.l		.sp_savea0(sp),a0
+
+	move.l		ent_passet(a0),a1
+	move.l		lpair_second(a1),d3
+	beq		.STE_EntityDrawVisibleYM_EMXSPRUR_no_restore
+	
+	move.w		ent_frx(a0),d1
+	sub.w		.sp_snapx(sp),d1
+	move.w		ent_fry(a0),d2
+	sub.w		.sp_snapy(sp),d2
+	move.w		ent_frame(a0),d0
+
+	move.l		.sp_framebuf(sp),a1
+
+	; include raw restore function here (configure it first)
+
+enable_slabrestore	set	1
+preserve_usp		set	0
+
+	move.l		d3,a0
+
+	include		"rmac/ste/b_emxres.s"
+
+.STE_EntityDrawVisibleYM_EMXSPRUR_no_restore:
+
+	move.l		.sp_savea0(sp),a0
+
 
 *-------------------------------------------------------*
 .STE_EntityDrawVisibleYM_EMXSPRUR_done:

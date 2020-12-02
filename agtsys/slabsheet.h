@@ -250,4 +250,26 @@ public:
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+class sps_pair
+{
+public:
+
+	spritesheet::sps_header *psps_draw_;
+	slabsheet::sls_header *psls_restore_;
+
+	sps_pair()
+		: psps_draw_(0),
+		  psls_restore_(0)
+	{
+	}
+
+	void assign(spritesheet::sps_header *_draw, slabsheet::sls_header *_restore)
+	{
+		psps_draw_ = _draw;
+		psls_restore_ = _restore;
+	}
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 #endif // slabsheet_h_
