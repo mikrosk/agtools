@@ -87,28 +87,6 @@ yl%=:											\
 smc_w%=:	move.w	%%d7,%%d3;					\
 smc_b%=:	bra.w	sevn%=;						\
 												\
-rewrite%=:										\
-			move.w	#0x4e71,rwsmc%=+0;			\
-			move.w	#0x4e71,rwsmc%=+2;			\
-			lea		rwbeg%=(pc),%%a0;			\
-			lea		rwend%=(pc),%%a2;			\
-rw_next%=:	move.	(%%a0)+,%%d1;				\
-			cmp.w	#0x01CB,%%d1;				\
-			bne.s	rw_no_0%=;					\
-rw_do%=:	move.w	(%%a0),%%d1;				\
-			move.w	%%d1,%%d2;					\
-			lsr.w	#1,%%d2;					\
-			mulu.w	%[c_dlw],%%d2;				\
-			and.w	#1,%%d1;					\
-			add.w	%%d2,%%d1;					\
-			move.w	%%d1,(%%a0)+;				\
-			bra.s	rw_done%=;					\
-rw_no_0%=:	cmp.w	#0x01C9,%%d1;				\
-			beq.s	rw_do%=;					\
-rw_done%=:	cmp.l	%%a2,%%a0;					\
-			blo.s	rw_next%=;					\
-			bra		resume%=;					\
-												\
 levn%=:		move.l	%%d5,%%a5;					\
 			add.l	(%%a0)+,%%a5;				\
 												\
@@ -187,6 +165,30 @@ nexty%=:										\
 syl%=:		dbra	%%d4,yl%=; 					\
 												\
 			move.l	%%usp,%%a1;					\
+												\
+			bra.s	rw_skip%=;					\
+rewrite%=:										\
+			move.w	#0x4e71,rwsmc%=+0;			\
+			move.w	#0x4e71,rwsmc%=+2;			\
+			lea		rwbeg%=(%%pc),%%a0;			\
+			lea		rwend%=(%%pc),%%a2;			\
+rw_next%=:	move.	(%%a0)+,%%d1;				\
+			cmp.w	#0x01CB,%%d1;				\
+			bne.s	rw_no_0%=;					\
+rw_do%=:	move.w	(%%a0),%%d1;				\
+			move.w	%%d1,%%d2;					\
+			lsr.w	#1,%%d2;					\
+			mulu.w	%[c_dlw],%%d2;				\
+			and.w	#1,%%d1;					\
+			add.w	%%d2,%%d1;					\
+			move.w	%%d1,(%%a0)+;				\
+			bra.s	rw_done%=;					\
+rw_no_0%=:	cmp.w	#0x01C9,%%d1;				\
+			beq.s	rw_do%=;					\
+rw_done%=:	cmp.l	%%a2,%%a0;					\
+			blo.s	rw_next%=;					\
+			bra		resume%=;					\
+rw_skip%=:										\
 												\
 "
 #ifdef TIMING_RASTERS

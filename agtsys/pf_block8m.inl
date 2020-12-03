@@ -209,12 +209,12 @@ syl%=:		dbra	%%d4,yl%=; 					\
 			move.l	%%usp,%%a1;					\
 smc_t%=:	lea		0x123456,%%a6;				\
 												\
-			bra		skip_rewrite%=;				\
+			bra.s	rw_skip%=;					\
 rewrite%=:										\
 			move.w	#0x4e71,rwsmc%=+0;			\
 			move.w	#0x4e71,rwsmc%=+2;			\
-			lea		rwbeg%=(pc),%%a0;			\
-			lea		rwend%=(pc),%%a2;			\
+			lea		rwbeg%=(%%pc),%%a0;			\
+			lea		rwend%=(%%pc),%%a2;			\
 rw_next%=:	move.	(%%a0)+,%%d1;				\
 			cmp.w	#0x01CB,%%d1;				\
 			bne.s	rw_no_0%=;					\
@@ -231,7 +231,7 @@ rw_no_0%=:	cmp.w	#0x01C9,%%d1;				\
 rw_done%=:	cmp.l	%%a2,%%a0;					\
 			blo.s	rw_next%=;					\
 			bra		resume%=;					\
-skip_rewrite%=:									\
+rw_skip%=:										\
 "
 #ifdef TIMING_RASTERS
 "												\

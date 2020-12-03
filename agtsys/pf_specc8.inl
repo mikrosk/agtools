@@ -77,8 +77,8 @@ resume%=:	move.l	%[dstaddr],%%a4;			\
 rewrite%=:										\
 			move.w	#0x4e71,rwsmc%=+0;			\
 			move.w	#0x4e71,rwsmc%=+2;			\
-			lea		rwbeg%=(pc),%%a0;			\
-			lea		rwend%=(pc),%%a2;			\
+			lea		rwbeg%=(%%pc),%%a0;			\
+			lea		rwend%=(%%pc),%%a2;			\
 rw_next%=:	move.w	(%%a0)+,%%d1;				\
 			cmp.w	#0x01CB,%%d1;				\
 			bne.s	rw_no_0%=;					\
