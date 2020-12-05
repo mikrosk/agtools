@@ -990,12 +990,12 @@ public:
 		tileoverlaydata_ = tilesoverlay_->get();
 	}
 
-	inline void select(shifter_common& _shift, s16 _viewbind)
+	inline void select(shifter_common& _shift, s16 _viewbind, s16 _yoff)
 	{
 		u32 addr = (u32)display_;
 
 		s16 mx = xpos_;
-		s16 my = ypos_;
+		s16 my = ypos_ + _yoff;
 
 		if (c_hloop_)
 			mx = tmod16(mx, wrap_width_);
@@ -2810,11 +2810,13 @@ void hybrid_fill()
 		// 00000000
 		// XXXXXXXX
 
+#if 0
 		// amortize any single-pixel remainder to minimize double-column updates
 		if (lyf == c_tilesize_-1)
 			lyf = c_tilesize_;
 		if (yf == c_tilesize_-1)
 			yf = c_tilesize_;
+#endif
 
 		if (yf == lyf)
 		{
@@ -2949,11 +2951,13 @@ void hybrid_fill()
 		// 00000000
 		// 00000000
 
+#if 0
 		// amortize any single-pixel remainder to minimize double-column updates
 		if (lyf == 1)
 			lyf = 0;
 		if (yf == 1)
 			yf = 0;
+#endif
 
 		if (yf == lyf)
 		{
@@ -3126,11 +3130,13 @@ void hybrid_fill()
 		// 00000000X
 		// 00000000X
 
+#if 0
 		// amortize any single-pixel remainder to minimize double-column updates
 		if (lxf == c_tilesize_-1)
 			lxf = c_tilesize_;
 		if (xf == c_tilesize_-1)
 			xf = c_tilesize_;
+#endif
 
 		if (xf == lxf)
 		{
@@ -3280,11 +3286,13 @@ void hybrid_fill()
 		// X00000000
 		// X00000000
 
+#if 0
 		// amortize any single-pixel remainder to minimize double-column updates
 		if (lxf == 1)
 			lxf = 0;
 		if (xf == 1)
 			xf = 0;
+#endif
 
 		if (xf == lxf)
 		{

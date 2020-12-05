@@ -120,6 +120,7 @@ public:
 	//s16 dualfield_mask_;
 	buffer *pactive_;
 	s16 viewbind_;
+	s16 viewbind_yoff_;
 	//s16 xpos_;
 	//s16 ypos_;
 
@@ -134,7 +135,7 @@ public:
 		  buffer_index_(0), //field_index_(0),
 		  //xpos_(0), ypos_(0),
 		  pactive_(0),
-		  viewbind_(0)//,
+		  viewbind_(0), viewbind_yoff_(0)
 		  //dualfield_mask_(_dualfield_mask)
 	{
 
@@ -381,7 +382,7 @@ public:
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 
-		EXECUTE_BUFFER_FIELDS({b.fields[f_].select(shift_,viewbind_);});
+		EXECUTE_BUFFER_FIELDS({b.fields[f_].select(shift_,viewbind_,viewbind_yoff_);});
 
 //		b.fields[0].select(shift_,_viewbind);
 //		if (c_dualfield_ && dualfield_mask_)
@@ -1136,9 +1137,10 @@ public:
 	//	}
 	//}
 
-	agt_inline void bind_displayport(s16 _port)
+	agt_inline void bind_displayport(s16 _port, s16 _yoff = 0)
 	{
 		viewbind_ = _port;
+		viewbind_yoff_ = _yoff;
 	}
 
 	agt_inline void set_viewport_offset(s16 _vpxo, s16 _vpyo)
