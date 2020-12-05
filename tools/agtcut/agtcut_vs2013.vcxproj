@@ -104,6 +104,10 @@
     <ClInclude Include="68kxforms.inl" />
     <ClInclude Include="emxgen.inl" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="emximpl_v1.inl" />
+    <None Include="emximpl_v2.inl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
