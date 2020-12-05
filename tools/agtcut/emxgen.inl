@@ -260,13 +260,14 @@ enum OpKind
 	OpKind_DSTLea,
 	OpKind_DSTAddaIL,
 	//
+	OpKind_SetSkew,
+	//
 	OpKind_SYSPageRestore,
 	//
 	OpKind_BLITInit,
 	OpKind_BLITXCMod,
 	OpKind_BLITSYIMod,
 	OpKind_BLITDYIMod,
-	OpKind_BLITSkew,
 	OpKind_BLITSetup,
 	OpKind_BLITGo,
 	OpKind_SRCSkip,
@@ -302,13 +303,14 @@ static const char* const as_str[] =
 	"OpKind_DSTLea",
 	"OpKind_DSTAddaIL",
 	//
+	"OpKind_SetSkew",
+	//
 	"OpKind_SYSPageRestore",
 	//
 	"OpKind_BLITInit",
 	"OpKind_BLITXCMod",
 	"OpKind_BLITSYIMod",
 	"OpKind_BLITDYIMod",
-	"OpKind_BLITSkew",
 	"OpKind_BLITSetup",
 	"OpKind_BLITGo",
 	"OpKind_SRCSkip",
@@ -2574,25 +2576,37 @@ void Context::tail_pass()
 		{
 			BLiT_GoSkew *pactual = reinterpret_cast<BLiT_GoSkew*>(pop);
 
+			// self
 			std::list<Operation*>::iterator best_tailop = curr;
+			int best_tailval = 0;
 
+			// scan from next op onwards
 			std::list<Operation*>::iterator itscan = curr; itscan++;
 
-			int best_tailval =  (*itscan)->tail;
-
+			//int best_tailval = (*itscan)->tail;
 			for (; itscan != operations.end(); itscan++)
 			{
-				OpKind kind = (*itscan)->kind;
+				Operation *ptryop = *itscan;
 
-				int trywords = (*itscan)->words;
+				OpKind kind = ptryop->kind;
+
+				int trywords = ptryop->words;
 
 				// special ops with nontrivial size/implementation, we don't reorder across these
 				// note: covers most of the specific tests below, but we check them anyway
-				if (trywords <= 0)
+//				if (trywords <= 0)
+//					break;
+
+				// don't reorder blit across modification of d1 (BLiT_GoSkew source register)
+				if (ptryop->dreg == BHOG_reg)
 					break;
 
 				// observe routine end
 				if (kind == OpKind_Terminate)
+					break;
+
+				// don't reorder past skew reg changes (in d1) since this is our source for BLITGo
+				if (kind == OpKind_SetSkew)
 					break;
 
 				// can't reorder blit beyond HW register stores
@@ -2604,10 +2618,31 @@ void Context::tail_pass()
 					break;
 				if (kind == OpKind_StoreR32)
 					break;
-				if (kind == OpKind_BLITSetup)
+				if (kind == OpKind_StoreMPI16)
+					break;
+				if (kind == OpKind_StoreMPI32)
 					break;
 
-				int trytail = (*itscan)->tail;
+				if (kind == OpKind_BLITInit)
+					break;
+				if (kind == OpKind_BLITXCMod)
+					break;
+				if (kind == OpKind_BLITSYIMod)
+					break;
+				if (kind == OpKind_BLITDYIMod)
+					break;
+				if (kind == OpKind_BLITSetup)
+					break;
+				if (kind == OpKind_BLITGo)
+					break;
+				if (kind == OpKind_SRCSkip)
+					break;
+				if (kind == OpKind_SYSPageRestore)
+					break;
+
+				//printf("kind: %s\n", as_str[kind]);
+
+				int trytail = ptryop->tail;
 
 				if (
 					((trywords == 1) && (trytail > best_tailval)) 
@@ -2622,7 +2657,9 @@ void Context::tail_pass()
 			if (best_tailop != curr)
 			{
 				if (g_allargs.verbose)
-					printf("relocating blit to hide tail=%d cycles\n", best_tailval);
+				{
+					printf("relocating blit to hide tail=%d cycles [op:%s]\n", best_tailval, (*best_tailop)->describe());
+				}
 				operations.erase(curr);
 				operations.insert(best_tailop, pop);
 			}

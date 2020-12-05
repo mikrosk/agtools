@@ -6133,7 +6133,7 @@ void add_sprite_frame
 
 #include "emxgen.inl"
 
-#include "emximpl_v1.inl"
+//#include "emximpl_v1.inl"
 #include "emximpl_v2.inl"
 
 // --------------------------------------------------------------------

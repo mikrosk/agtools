@@ -1923,7 +1923,7 @@ void generate_emx2_metaprogram
 
 						if (build_metaprogram)
 						{
-							//context.operations.push_back(new BLiT_Skew(context, span_skew));
+							//context.operations.push_back(new DR_SetSkew16(context, span_skew));
 							context.operations.push_back(new DR_LoadI16(context, context.BHOG_reg, data));
 							context.operations.back()->execute();
 						}
