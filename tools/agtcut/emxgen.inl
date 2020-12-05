@@ -2577,11 +2577,17 @@ void Context::tail_pass()
 			BLiT_GoSkew *pactual = reinterpret_cast<BLiT_GoSkew*>(pop);
 
 			// self
-			std::list<Operation*>::iterator best_tailop = curr;
-			int best_tailval = 0;
+			//std::list<Operation*>::iterator best_tailop = curr;
 
 			// scan from next op onwards
-			std::list<Operation*>::iterator itscan = curr; itscan++;
+			std::list<Operation*>::iterator itscan = curr; 
+			if (itscan != operations.end())
+				itscan++;
+
+			// first op can be a barrier, but should not cause a change if chosen
+			std::list<Operation*>::iterator first = itscan;
+			std::list<Operation*>::iterator best_tailop = first;
+			int best_tailval = (*best_tailop)->tail;
 
 			//int best_tailval = (*itscan)->tail;
 			for (; itscan != operations.end(); itscan++)
@@ -2653,8 +2659,9 @@ void Context::tail_pass()
 				}
 			}
 
-			// if we found a better position, move the blit
-			if (best_tailop != curr)
+			// if we found a good position and it is not the first position, move the blit
+			if ((best_tailop != curr) && 
+				(best_tailop != first))
 			{
 				if (g_allargs.verbose)
 				{
