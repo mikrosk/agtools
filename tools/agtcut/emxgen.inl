@@ -678,7 +678,7 @@ public:
 		shared_mask_word_pos = 0;
 	}
 
-	int cycle_sum();
+	int cycle_sum(int &r_program_size);
 
 	void dump_tags();
 	void register_rename(std::list<Operation*>::iterator curr, int _rold, int _rnew);
@@ -2805,14 +2805,31 @@ static int word_re(uword_t w)
 	return re;
 }
 
-int Context::cycle_sum()
+int Context::cycle_sum(int &r_program_size)
 {
 	int cycles = 0;
+	int last_tail = 0;
+
+	r_program_size = 0;
 
 	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end(); it++)
 	{
 		Operation *poper = *it;
+
+		// sum cycles
 		cycles += poper->cost;
+
+		// sum words
+		r_program_size += poper->words;
+
+		// only interested in tails overlapping blitter starts
+		int blitter_tail = (poper->kind == OpKind_BLITGo) ? last_tail : 0;
+
+		// only interested in tail time for 1-word ops
+		last_tail = (poper->words == 1) ? poper->tail : 0;
+
+		// account for tails
+		cycles -= blitter_tail;
 	}
 
 	return cycles;

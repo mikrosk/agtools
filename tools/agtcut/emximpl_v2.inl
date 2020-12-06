@@ -2488,8 +2488,10 @@ void generate_emx2_metaprogram
 		}
 	}
 
-	int metaprogram_cost_built = context.cycle_sum();
-	printf("metaprogram cycles [built] = %d\n", metaprogram_cost_built);
+	int program_size = 0;
+
+	int metaprogram_cost_built = context.cycle_sum(program_size);
+	printf("metaprogram [built] cycles:%d, words:%d\n", metaprogram_cost_built, program_size);
 
 #if (SIM_ALL_STAGES)
 	run_sim(context, component_livelines, _frame, pi, shift, linemap_src_2_opt, /*generate=*/false);
@@ -2532,8 +2534,8 @@ void generate_emx2_metaprogram
 		}
 	}
 
-	int metaprogram_cost_transforms = context.cycle_sum();
-	printf("metaprogram cycles [xforms] = %d\n", metaprogram_cost_transforms);
+	int metaprogram_cost_transforms = context.cycle_sum(program_size);
+	printf("metaprogram [xforms] cycles:%d, words:%d\n", metaprogram_cost_transforms, program_size);
 
 #if 0
 // not working yet - should probably be performed as fallback case for a failed transform of LEA
@@ -2556,15 +2558,15 @@ void generate_emx2_metaprogram
 #endif
 	}
 
-	int metaprogram_cost_reduced = context.cycle_sum();
-	printf("metaprogram cycles [reduced] = %d\n", metaprogram_cost_reduced);
+	int metaprogram_cost_reduced = context.cycle_sum(program_size);
+	printf("metaprogram [reduced] cycles:%d, words:%d\n", metaprogram_cost_reduced, program_size);
 
 	// optimize instruction tail / blitter overlaps
 	if (!g_allargs.quickcut)
 		context.tail_pass();
 
-	int metaprogram_cost_tails = context.cycle_sum();
-	printf("metaprogram cycles [tails] = %d\n", metaprogram_cost_reduced);
+	int metaprogram_cost_tails = context.cycle_sum(program_size);
+	printf("metaprogram [tails] cycles:%d, words:%d\n", metaprogram_cost_tails, program_size);
 
 #endif
 
