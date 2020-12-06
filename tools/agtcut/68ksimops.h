@@ -2842,7 +2842,7 @@ public:
 		  linedelta(_linedelta)
 	{
 		int offset = delta(ctx.srccolww);
-		if (offset <= 8)
+		if (abs(offset) <= 8)
 		{
 			cost = 24;
 			words = 2;

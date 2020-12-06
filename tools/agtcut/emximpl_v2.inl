@@ -1940,89 +1940,8 @@ void generate_emx2_metaprogram
 
 
 
-
-
-
-
-				// SYINC = difference between source wordwidth & preshift wordwidth, + 2
-				// note: compensate for NFSR/FISR!
-				s16 span_skew_syinc_adj =
-					(span_NFSR ? 1 : 0) -
-					(span_FISR ? 1 : 0);
-
-				s16 span_skew_syoff_adj =
-					0 -
-					(span_FISR ? 1 : 0);
-
-				int span_ww_change = pspan->ww - current_ww;
-
-				if (span_ww_change)
-				{
-					if (build_metaprogram)
-					{
-						context.operations.push_back(new BLiT_XCMod(context, span_ww_change));
-						context.operations.back()->execute();
-						context.operations.push_back(new BLiT_DYIMod(context, -span_ww_change));
-						context.operations.back()->execute();
-					}
-
-					span_syi_change -= span_ww_change;
-
-					current_ww += span_ww_change;
-				}
-
-				// emit SYI changes
-				{
-					// incorporate SKEW FISR/NFSR SYI changes
-					s16 span_skew_syinc_change = span_skew_syinc_adj - current_skew_syinc_adj;
-					current_skew_syinc_adj = span_skew_syinc_adj;
-					span_syi_change += span_skew_syinc_change;
-
-					if (span_syi_change)
-					{
-						if (build_metaprogram)
-						{
-							context.operations.push_back(new BLiT_SYIMod(context, span_syi_change));
-							context.operations.back()->execute();
-						}
-					}
-				}
-
-
 				// determine true [offset,width] for this line only
-				{
-					{
-						// source hop +/-
-						int src_linejump = span_source_sline - current_sline;
-						current_sline = span_source_sline;
-
-						int src_wordjump = pspan->ws - current_sline_wordoffset;
-						current_sline_wordoffset = pspan->ws;
-
-						// incorporate FISR adjust
-						src_wordjump += span_skew_syoff_adj - current_skew_syoff_adj;
-						current_skew_syoff_adj = span_skew_syoff_adj;
-
-						if (src_linejump || src_wordjump)
-						{
-							if (build_metaprogram)
-							{
-								int addressjump = (src_linejump * (context.srccolww * 8)) + (src_wordjump * 2);
-
-								//int reg_src = -1;
-								//ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
-								//if (ds == DataSource_RegisterL)
-
-								context.operations.push_back(new SRC_Skip(context, src_wordjump, src_linejump));
-								context.operations.back()->execute();
-							}
-
-							if (analyse_constants)
-							{
-							}
-							//src_lines_skipped += src_linejump;
-						}
-					}
+				//{
 
 					// destination hop +/-
 					int dst_linejump = span_dline - current_dline;
@@ -2440,6 +2359,85 @@ void generate_emx2_metaprogram
 						}
 					}
 
+
+					// SYINC = difference between source wordwidth & preshift wordwidth, + 2
+					// note: compensate for NFSR/FISR!
+					s16 span_skew_syinc_adj =
+						(span_NFSR ? 1 : 0) -
+						(span_FISR ? 1 : 0);
+
+					s16 span_skew_syoff_adj =
+						0 -
+						(span_FISR ? 1 : 0);
+
+					int span_ww_change = pspan->ww - current_ww;
+
+					if (span_ww_change)
+					{
+						if (build_metaprogram)
+						{
+							context.operations.push_back(new BLiT_XCMod(context, span_ww_change));
+							context.operations.back()->execute();
+							context.operations.push_back(new BLiT_DYIMod(context, -span_ww_change));
+							context.operations.back()->execute();
+						}
+
+						span_syi_change -= span_ww_change;
+
+						current_ww += span_ww_change;
+					}
+
+					// emit SYI changes
+					{
+						// incorporate SKEW FISR/NFSR SYI changes
+						s16 span_skew_syinc_change = span_skew_syinc_adj - current_skew_syinc_adj;
+						current_skew_syinc_adj = span_skew_syinc_adj;
+						span_syi_change += span_skew_syinc_change;
+
+						if (span_syi_change)
+						{
+							if (build_metaprogram)
+							{
+								context.operations.push_back(new BLiT_SYIMod(context, span_syi_change));
+								context.operations.back()->execute();
+							}
+						}
+					}
+
+					{
+						// source hop +/-
+						int src_linejump = span_source_sline - current_sline;
+						current_sline = span_source_sline;
+
+						int src_wordjump = pspan->ws - current_sline_wordoffset;
+						current_sline_wordoffset = pspan->ws;
+
+						// incorporate FISR adjust
+						src_wordjump += span_skew_syoff_adj - current_skew_syoff_adj;
+						current_skew_syoff_adj = span_skew_syoff_adj;
+
+						if (src_linejump || src_wordjump)
+						{
+							if (build_metaprogram)
+							{
+								int addressjump = (src_linejump * (context.srccolww * 8)) + (src_wordjump * 2);
+
+								//int reg_src = -1;
+								//ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
+								//if (ds == DataSource_RegisterL)
+
+								context.operations.push_back(new SRC_Skip(context, src_wordjump, src_linejump));
+								context.operations.back()->execute();
+							}
+
+							if (analyse_constants)
+							{
+							}
+							//src_lines_skipped += src_linejump;
+						}
+					}
+
+
 					if (build_metaprogram)
 					{
 						// update blitter dest/ycount
@@ -2458,7 +2456,7 @@ void generate_emx2_metaprogram
 
 					// next linejump+blit will be relative to this one (and not an empty one)
 					//span_dline = dsty;
-				}
+				//}
 				//else
 				//{
 				//	src_lines_skipped++;
@@ -2933,7 +2931,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 
 				{
 					u16 em_last[3] = { 0,0,0 };
-					u16 em_gens[3] = { 1,1,1 };
+					u16 em_mark[3] = { 0,0,0 };
 
 					for (auto pspan : stacked_spans)
 					{
@@ -2962,45 +2960,99 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 
 						// signal state changes via EM index generations
 	
-						psharedline[o1] |= em_gens[0] << 8;
-
-						if (em1 != em_last[0])
+						if ((0 == em_mark[0]++) || (em1 != em_last[0]))
 						{
 							// EM1 changed
-							em_gens[0]++;
 							em_last[0] = em1;
+							psharedline[o1] |= 0x8000;
 						}
 
 						if (pspan->ww >= 2)
 						{
-							psharedline[o3] |= em_gens[2] << 8;
-
-							if (em3 != em_last[2])
+							if ((0 == em_mark[2]++) || (em3 != em_last[2]))
 							{
 								// EM3 changed
-								em_gens[2]++;
 								em_last[2] = em3;
+								psharedline[o3] |= 0x8000;
 							}
 						}
 
 						if (pspan->ww >= 3)
 						{
-							// this can be a run, so mark all affected words
-							for (int p = o2; p < o3; p++)
-								psharedline[p] |= em_gens[1] << 8;
-
-							if (em2 != em_last[1])
+							if ((0 == em_mark[1]++) || (em2 != em_last[1]))
 							{
 								// EM2 changed
-								em_gens[1]++;
 								em_last[1] = em2;
+								// this can be a run, so mark all affected words
+								for (int p = o2; p < o3; p++)
+									psharedline[p] |= 0x8000;
 							}
 						}
 					}
 				}
 			}
 		}
+
+		// reassign vertical changes as em generations
+		{
+			u16 em_gens[3] = { 0,0,0 };
+
+			for (auto pspan : stacked_spans)
+			{
+				int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+
+				//u16 *psourceline = &shift.data_[(orig_y * shift.wordwidth_)];
+				u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
+
+				// load real EM values for this span, for this preshift (for those within h-window)
+				u16 em1 = 0;
+				u16 em2 = 0;
+				u16 em3 = 0;
+
+				int o1 = pspan->ws;
+				int o2 = pspan->ws + 1;
+				int o3 = (pspan->ws + pspan->ww) - 1;
+
+				em1 = psharedline[o1];
+				em2 = psharedline[o2];							
+				em3 = psharedline[o3];
+
+				// signal state changes via EM index generations
+	
+				if (em1 & 0x8000)
+				{
+					// EM1 changed
+					em_gens[0]++;
+					psharedline[o1] |= em_gens[0] << 6;
+				}
+
+				if (pspan->ww >= 2)
+				{
+					if (em3 & 0x8000)
+					{
+						// EM3 changed
+						em_gens[2]++;
+						psharedline[o3] |= em_gens[2] << 6;
+					}
+				}
+
+				if (pspan->ww >= 3)
+				{
+					if (em2 & 0x8000)
+					{
+						// EM2 changed
+						em_gens[1]++;
+						for (int p = o2; p < o3; p++)
+							psharedline[p] |= em_gens[1] << 6;
+					}
+				}
+			}
+		}
+
+
 	}
+
+
 
 	// load new pseudo-masks back into spans for metaprogram gen / simulation
 	{
@@ -3011,11 +3063,15 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 
 			u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
 
-			pspan->em[0] = psharedline[pspan->ws];
+			int o1 = pspan->ws;
+			int o2 = pspan->ws + 1;
+			int o3 = (pspan->ws + pspan->ww) - 1;
+
+			pspan->em[0] = psharedline[o1];
 			if (pspan->ww >= 2)
-				pspan->em[2] = psharedline[(pspan->ws + pspan->ww) - 1];
+				pspan->em[2] = psharedline[o3];
 			if (pspan->ww >= 3)
-				pspan->em[1] = psharedline[pspan->ws + 1];
+				pspan->em[1] = psharedline[o2];
 		}
 	}
 
