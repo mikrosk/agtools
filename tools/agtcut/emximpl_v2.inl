@@ -632,7 +632,7 @@ void generate_emx2_common_lineorder
 	bool _optimize
 )
 {
-	static const int c_max_line_spans = 320 / 48;
+	static const int c_max_line_spans = 16;// 320 / 48;
 
 	// default line order
 
@@ -657,11 +657,15 @@ void generate_emx2_common_lineorder
 
 		int shiftcount = spr.psmask_frames_emx_.size();
 
-		// make copy of data in terms of 3*y EM words
-		uword_t *buffer = new uword_t[3 * spr.h_ * shiftcount * c_max_line_spans];
-		memset(buffer, 0, sizeof(uword_t) * 3 * spr.h_ * shiftcount * c_max_line_spans);
+		int pagesize = (3 * spr.h_);
 
-		int max_ci = 0;
+		// make copy of data in terms of 3*y EM words
+		uword_t *buffer = new uword_t[pagesize * shiftcount * c_max_line_spans];
+		memset(buffer, 0, sizeof(uword_t) * pagesize * shiftcount * c_max_line_spans);
+
+		std::map<int, int> cimap;
+
+		int max_ci = -1;
 		{
 			int si = 0;
 			std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin();
@@ -674,20 +678,43 @@ void generate_emx2_common_lineorder
 				{
 					preshift_t &shift = *cit;
 
-					static const int pagesize = (3 * spr.h_);
-
 					for (int v = 0; v < spr.h_; v++)
 					{
 						span_hseq_t &spanlist = shift.sa.span_vpattern_[v];
 
 						int ci = -1;
-						for (auto e : spanlist)
+						for (auto & span : spanlist)
 						{
+							printf("span: ws=%d\n", span.ws);
+							
+							auto look = cimap.find(span.ws);
+							if (look != cimap.end())
+							{
+								ci = look->second;
+
+								//printf("reused x=%d, ci=%d\n", span.ws, ci);
+							}
+							else
+							{
+								ci = ++max_ci;
+
+								printf("allocated x=%d, ci=%d\n", span.ws, ci);
+
+								cimap[span.ws] = ci;
+
+								if (max_ci >= c_max_line_spans)
+								{
+									printf("error - too many span offsets (%d)\n", max_ci);
+									exit(1);
+								}
+							}
+							
+/*
 							ci++;
 							if (ci > max_ci)
 								max_ci = ci;
-
-							constrained_wordspan & span = e;
+*/
+							//constrained_wordspan & span = e;
 
 							int page = ((ci * shiftcount) + si) * pagesize;
 							uword_t *sbuffer = &buffer[page];
@@ -717,6 +744,12 @@ void generate_emx2_common_lineorder
 					}
 				}
 			}
+		}
+
+		if (max_ci < 0)
+		{
+			printf("error: bad max_ci\n");
+			exit(1);
 		}
 
 
@@ -759,6 +792,34 @@ void generate_emx2_common_lineorder
 
 		int empty_line_count = spr.h_ - live_line_count;
 
+
+
+		if (g_allargs.verbose)
+		{
+			// output the initial pattern
+			
+			int pagesize = (3 * spr.h_);
+
+			printf("\nordered:\n");
+			for (int v = 0; v < spr.h_; v++)
+			{
+				int dsty = v;
+				printf("s:%02d ", dsty);
+				for (int ci = 0; ci <= max_ci; ci++)
+				{
+					int page = ((ci * shiftcount) + 0) * pagesize;
+					uword_t *sbuffer = &buffer[page];
+
+					print_dataword(sbuffer[(dsty * 3) + 0]);
+					print_dataword(sbuffer[(dsty * 3) + 1]);
+					print_dataword(sbuffer[(dsty * 3) + 2]);
+					printf("+");
+				}
+				if (livelines[dsty])
+					printf(" L");
+				printf("\n");
+			}
+		}
 
 		// initial sort of mask edges
 		if (USE_INITIAL_EDGE_SORT)
@@ -850,8 +911,320 @@ void generate_emx2_common_lineorder
 		}
 
 
+		if (g_allargs.verbose)
+		{
+			int pagesize = (3 * spr.h_);
+			printf("\ninitial-reordered:\n");
+			for (int v = 0; v < live_line_count; v++)
+			{
+				int dsty = linemap_opt_2_src[v];
+				printf("s:%02d ", dsty);
+				for (int ci = 0; ci <= max_ci; ci++)
+				{
+					int page = ((ci * shiftcount) + 0) * pagesize;
+					uword_t *sbuffer = &buffer[page];
+
+					print_dataword(sbuffer[(dsty * 3) + 0]);
+					print_dataword(sbuffer[(dsty * 3) + 1]);
+					print_dataword(sbuffer[(dsty * 3) + 2]);
+					printf("+");
+				}
+				if (livelines[dsty])
+					printf(" L");
+				printf("\n");
+			}
+		}
 
 		// can anneal-optimize ordering here
+
+
+	if (g_allargs.emxoptlevel > 0)
+	{
+		// optimize the line order for NON EMPTY LINES to minimize changes to EM registers
+		// the empty lines are already at the end of the sequence so optimization works on a shorter sequence (up to live_line_count)	
+		{
+			// optimize line pattern by reordering
+			std::vector<int> best_pattern(linemap_opt_2_src);
+		
+			if (!g_allargs.quickcut)
+			{
+				mersenne_twister twist;
+
+#if (USE_NOISY_REORDERING)
+				unsigned long noise_factor = (1 << (32-7));
+#endif
+				double initial_dbest_cost = -1;
+				int initial_best_loadcost = -1;
+
+				// begin with default line pattern (top-to-bottom)
+				double dbest_cost = double(1e20);
+				int best_loadcost = 1<<20;
+				ulong_t last_improvement = 0;
+
+				std::vector<int> trial_pattern(best_pattern);
+
+				ulong_t darwin_limit = 1 << g_allargs.emxoptlevel;
+				for (ulong_t trial = 0, depth = 0; depth < darwin_limit; trial++, depth++)
+				{
+					for (int r = best_pattern.size() - 1; r >= 0; r--)
+						trial_pattern[r] = best_pattern[r];
+
+					// select mutation rate
+					//				int mutrate = ((twist.genS32() >> 4) % 4) + 1;
+
+					// we want to measure improvement from initial sort, so trial 0
+					// skips mutation
+					if (trial > 0)
+					{
+
+						int mutrate = 1 + ((twist.genS32() >> 4) % 8);
+						mutrate = 1 + ((mutrate * mutrate) >> 3);
+
+						int choice1 = 0;
+						int choice2 = 0;
+
+						for (int mut = 0; mut < mutrate; mut++)
+						{
+							do
+							{
+								// select pair to exchange
+								choice1 = (twist.genU32() >> 4) % live_line_count;
+								choice2 = (twist.genU32() >> 4) % live_line_count;
+
+								// don't reorder against self
+							} while ((choice1 == choice2) ||
+								// don't place an empty line as the first 
+								// line to render, otherwise individual components won't skip initial colour data
+								((choice2 == 0) && (0 == livelines[trial_pattern[choice1]])) ||
+								((choice1 == 0) && (0 == livelines[trial_pattern[choice2]])));
+
+							// reorder
+							//						int tmp = trial_pattern[choice1];
+							//						trial_pattern[choice1] = trial_pattern[choice2];
+							//						trial_pattern[choice2] = tmp;
+
+							// bias sorting in one direction
+							if (choice1 > choice2)
+							{
+								choice1 ^= choice2;
+								choice2 ^= choice1;
+								choice1 ^= choice2;
+							}
+
+							//if (choice1 < choice2)
+							{
+								// A		A
+								// B <c1	D \
+															// C		B | o
+								// D <c2	C / o+1  tmp
+								// E		E
+
+								// push choice2 int choice1, moving all downwards
+								int tmp = trial_pattern[choice2];
+								for (int o = choice2 - 1; o >= choice1; o--)
+									trial_pattern[o + 1] = trial_pattern[o];
+								trial_pattern[choice1] = tmp;
+							}
+							/*	
+							else
+							{
+							// A		A
+							// B <c2	C \ o-1
+							// C		D | o
+							// D <c1	B /      tmp
+							// E		E
+
+							// push choice2 into choice1, moving all upwards
+							int tmp = trial_pattern[choice2];
+							for (int o = choice2 + 1; o <= choice1; o++)
+							trial_pattern[o - 1] = trial_pattern[o];
+							trial_pattern[choice1] = tmp;
+
+							// swap
+							//							int tmp = trial_pattern[choice1];
+							//							trial_pattern[choice1] = trial_pattern[choice2];
+							//							trial_pattern[choice2] = tmp;
+							}
+							*/
+						} // for mutrate
+
+					} // trial > 0
+
+					// estimate efficiency of new pattern in terms of deltas per line
+					{
+						//int totalcost = 0;
+						double dtotalcost = 0;
+						int loadcost = 0;
+
+						int shiftcount = spr.psmask_frames_emx_.size();
+						for (int si = 0; si < shiftcount; si++)
+						{
+							for (int ci = 0; ci <= max_ci; ci++)
+							{
+								int pagesize = (3 * spr.h_);
+								int page = ((ci * shiftcount) + si) * pagesize;
+								uword_t *sbuffer = &buffer[page];
+
+								//						uword_t *sbuffer = &buffer[3 * spr.h_ * si * ci];
+								//						uword_t *sbuffer = buffer;
+
+								for (int v = 0; v < (spr.h_ - 1); v++)
+								{
+									int v0 = trial_pattern[v + 0];
+									int v1 = trial_pattern[v + 1];
+									int yp = v0 * 3;
+									int yn = v1 * 3;
+									int lc1 = (sbuffer[yp + 0] != sbuffer[yn + 0]) ? 1 : 0;
+									int lc2 = (sbuffer[yp + 1] != sbuffer[yn + 1]) ? 1 : 0;
+									int lc3 = (sbuffer[yp + 2] != sbuffer[yn + 2]) ? 1 : 0;
+
+									int error = (lc1 + lc2 + lc3);
+									loadcost += error;
+									dtotalcost += error * 256.0;
+
+									// incur a slight penalty for split longs
+									if (lc1 == 1 && lc3 == 1 && lc2 == 0)
+										dtotalcost += 1.0;
+
+									// attempt to keep lines roughly in top-bottom order by including small cost for 'pointless' reordering
+									// this provides more opportunity to use a fixed increment between lines (save space with register add vs lea)
+									// notes: 
+									// - some chance this could prevent a difficult-to-reach optimization via small incremental mutations
+									// - perhaps a bit more likely to result in extra LEA at start, to reach first block of contiguous lines 
+
+									{
+										// cost is same for forward or reverse ordering - delta value will be the same even if instruction isn't
+										int dycost = (v1 - v0);
+										if (dycost < 0)
+										{
+											dycost = -dycost;
+											//dycost++;
+										}
+										dycost--;	// no cost for adjacents
+
+										double dypenalty = log(1.0 + dycost);
+										if (v1 < v0)
+											dypenalty *= 1.1;
+
+//										if (dycost > 8)
+//											dycost = 8;
+//										totalcost += dycost;
+
+										dtotalcost += dypenalty;
+									}
+								}
+							}
+						}
+
+						// include benign changes (cost delta == 0) to assist Darwin...
+						if ((dtotalcost <= dbest_cost)
+#if (USE_NOISY_REORDERING)
+							||
+							// include random acceptance early in trials, with cutoff
+							(/*(depth < (darwin_limit>>1))*/(trial < 10000) && (twist.genU32() < noise_factor))
+#endif
+						)
+						{
+							// reset the search depth on any 'real' improvement
+							if (dtotalcost < dbest_cost)
+							{
+								last_improvement = trial;
+								depth = 0;
+	#if (USE_NOISY_REORDERING)
+								//noise_factor >>= 1;
+	#endif
+							}
+
+							dbest_cost = dtotalcost;
+							best_loadcost = loadcost;
+							//						best_pattern = trial_pattern;
+							for (int r = best_pattern.size() - 1; r >= 0; r--)
+								best_pattern[r] = trial_pattern[r];
+
+						}
+
+						if (initial_dbest_cost < 0)
+						{
+							initial_dbest_cost = dbest_cost;
+							initial_best_loadcost = best_loadcost;
+						}
+					}
+
+#if (USE_NOISY_REORDERING)
+					// decay noise factor - allows scoring to gradually dominate over randomness with each iteration
+					noise_factor = (unsigned long)(((unsigned long long)noise_factor * 0xfff00000) >> 32);
+					//std::cout << "noise factor:" << std::hex << noise_factor << std::endl;
+#endif
+				}
+
+				//if (g_allargs.verbose)
+				{
+					if (dbest_cost < initial_dbest_cost)
+					{
+						double improvement_pct = 100.0 * (dbest_cost / initial_dbest_cost);
+
+						printf("reduction = %.2f%% in %d trials @ loadcost=%d (totalcost=%f)\n",
+							improvement_pct,
+							last_improvement,
+							best_loadcost,
+							dbest_cost
+							);
+						std::cout << std::flush;
+					}
+					else
+					{
+						printf("no improvement in %d trials @ loadcost=%d (totalcost=%f)\n",
+							last_improvement,
+							best_loadcost,
+							dbest_cost
+							);
+						std::cout << std::flush;
+					}
+				}
+			}
+
+
+			if (g_allargs.verbose)
+			{
+				printf("\nanneal-reordered:\n");
+				for (int v = 0; v < live_line_count; v++)
+				{
+					int dsty = best_pattern[v];
+					printf("s:%02d ", dsty);
+					for (int ci = 0; ci <= max_ci; ci++)
+					{
+						int pagesize = (3 * spr.h_);
+						int page = ((ci * shiftcount) + 0) * pagesize;
+						uword_t *sbuffer = &buffer[page];
+
+						print_dataword(sbuffer[(dsty * 3) + 0]);
+						print_dataword(sbuffer[(dsty * 3) + 1]);
+						print_dataword(sbuffer[(dsty * 3) + 2]);
+						printf("+");
+					}
+					if (livelines[dsty])
+						printf(" L");
+					printf("\n");
+				}
+			}
+
+			linemap_opt_2_src = best_pattern;
+		}
+
+		//delete[] buffer; buffer = 0;
+		//delete[] livelines; livelines = 0;
+		//delete[] emptylines; emptylines = 0;
+	}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -970,7 +1343,7 @@ void generate_emx2_common_lineorder
 				printf("s:%02d ", dsty);
 				for (int ci = 0; ci <= max_ci; ci++)
 				{
-					static const int pagesize = (3 * spr.h_);
+					int pagesize = (3 * spr.h_);
 					int page = ((ci * shiftcount) + 0) * pagesize;
 					uword_t *sbuffer = &buffer[page];
 
@@ -984,14 +1357,14 @@ void generate_emx2_common_lineorder
 				printf("\n");
 			}
 
-			printf("\nreordered:\n");
+			printf("\nfinal-reordered:\n");
 			for (int v = 0; v < spr.h_; v++)
 			{
 				int dsty = linemap_opt_2_src[v];
 				printf("s:%02d ", dsty);
 				for (int ci = 0; ci <= max_ci; ci++)
 				{
-					static const int pagesize = (3 * spr.h_);
+					int pagesize = (3 * spr.h_);
 					int page = ((ci * shiftcount) + 0) * pagesize;
 					uword_t *sbuffer = &buffer[page];
 

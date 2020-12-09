@@ -2676,7 +2676,10 @@ void Context::tail_pass()
 			{
 				if (g_allargs.verbose)
 				{
-					printf("relocating blit to hide tail=%d cycles [op:%s]\n", best_tailval, (*best_tailop)->describe());
+					printf("relocating blit to hide tail=%d cycles [op:%s]\n", 
+						best_tailval, 
+						(*best_tailop)->describe().c_str()
+					);
 				}
 				operations.erase(curr);
 				operations.insert(best_tailop, pop);
