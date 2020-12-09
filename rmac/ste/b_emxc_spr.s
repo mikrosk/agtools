@@ -730,6 +730,13 @@
 
 	.endif
 	
+	move.l		#$00ff8a38,a0
+	move.l		#$00ff8a28,a2
+	move.l		#$ffff8a32,a3
+	move.l		#$00ff8a2c,a4
+	move.l		#$ffff8a3c,a5
+	move.l		#$ff000004,d2	
+	
 	jsr		(a6)
 		
 *-------------------------------------------------------*

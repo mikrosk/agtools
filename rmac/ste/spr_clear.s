@@ -715,6 +715,7 @@ _AGT_BLiT_PlayfieldRestore:
 ;.yg1:	dbra		d7,.yc1
 
 	move.b		#$80,(a2)
+	nop
 .go1:	bset.b		d5,(a2)
 	.if		(use_blitter_nops)
 	nop
@@ -759,6 +760,7 @@ _AGT_BLiT_PlayfieldRestore:
 ;.yg:	dbra		d7,.yc
 
 	move.b		#$80,(a2)
+	nop
 .go2:	bset.b		d5,(a2)
 	.if		(use_blitter_nops)
 	nop

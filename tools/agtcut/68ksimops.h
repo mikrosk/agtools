@@ -36,7 +36,8 @@ public:
 		  stagL(-1),
 		  dtagH(-1),
 		  dtagL(-1),
-		  atag(-1)
+		  atag(-1),
+		  hidden(false)
 	{
 	}
 
@@ -49,6 +50,12 @@ public:
 	void execute()
 	{
 		onExecute();
+
+		if (!hidden)
+		{
+			ctx.cycles += cost;
+			ctx.words += words;
+		}
 
 		// mark parts of registers which become stable for reading/modifying/combining as a result of a replace-write
 		if (opdst == OpSource_Register)
@@ -76,11 +83,14 @@ public:
 		if (c_pre.length() > 1)
 			ctx.genout << "; " << c_pre << std::endl;
 
-		ctx.buf[0] = 0;
-		onEmit();
-		if (g_allargs.verbose)
-			printf("%s", ctx.buf);
-		ctx.genout << ctx.buf;
+		if (!hidden)
+		{
+			ctx.buf[0] = 0;
+			onEmit();
+			if (g_allargs.verbose)
+				printf("%s", ctx.buf);
+			ctx.genout << ctx.buf;
+		}
 
 		std::string c_post = comment_post();
 		if (c_post.length() > 1)
@@ -119,6 +129,8 @@ public:
 	int cost;
 	int tail;
 	int words;
+
+	bool hidden;
 };
 
 // --------------------------------------------------------------------
@@ -136,6 +148,10 @@ public:
 	{
 	}
 
+	std::string comment_pre() {
+		return "---";
+	}
+
 	virtual void onEmit()
 	{
 		sprintf(ctx.buf, " nop\t;%d\n",
@@ -145,7 +161,6 @@ public:
 
 	virtual void onExecute()
 	{
-		ctx.cycles += cost;
 	}
 };
 
@@ -179,7 +194,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.blitter.em[em] = data;// ctx.registers[iLHS].L;
-		ctx.cycles += cost;
 		ctx.sim_track_datarefs(data);
 	}
 
@@ -220,7 +234,6 @@ public:
 	{
 		ctx.blitter.em[em + 0] = dataH;// ctx.registers[iLHS].L;
 		ctx.blitter.em[em + 1] = dataL;// ctx.registers[iLHS].L;
-		ctx.cycles += cost;
 		ctx.sim_track_datarefs(dataH, dataL);
 	}
 
@@ -260,7 +273,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.blitter.em[em] = ctx.registers[sreg].L;
-		ctx.cycles += cost;
 		ctx.sim_track_datarefs(ctx.registers[sreg].L);
 	}
 
@@ -301,7 +313,6 @@ public:
 	{
 		ctx.blitter.em[em + 0] = ctx.registers[sreg].H;
 		ctx.blitter.em[em + 1] = ctx.registers[sreg].L;
-		ctx.cycles += cost;
 		ctx.sim_track_datarefs(ctx.registers[sreg].H, ctx.registers[sreg].L);
 	}
 
@@ -355,7 +366,6 @@ public:
 	{
 		if (ctx.shared_mask_word_pos < ctx.shared_mask_words.size())
 			ctx.blitter.em[em] = ctx.shared_mask_words[ctx.shared_mask_word_pos++];
-		ctx.cycles += cost;
 	}
 
 	int em;
@@ -410,7 +420,6 @@ public:
 			ctx.blitter.em[em + 0] = ctx.shared_mask_words[ctx.shared_mask_word_pos++];
 		if (ctx.shared_mask_word_pos < ctx.shared_mask_words.size())
 			ctx.blitter.em[em + 1] = ctx.shared_mask_words[ctx.shared_mask_word_pos++];
-		ctx.cycles += cost;
 	}
 
 	int em;
@@ -450,7 +459,6 @@ public:
 		ctx.registers[dreg].L = data;
 		ctx.registers[dreg].allocatedH = true;
 		ctx.registers[dreg].allocatedL = true;
-		ctx.cycles += cost;
 	}
 
 	uword_t data;
@@ -487,7 +495,6 @@ public:
 		ctx.registers[dreg].L = dataL;
 		ctx.registers[dreg].allocatedH = true;
 		ctx.registers[dreg].allocatedL = true;
-		ctx.cycles += cost;
 	}
 
 	uword_t dataH;
@@ -524,7 +531,6 @@ public:
 	{
 		ctx.registers[dreg].L = data;// ctx.registers[iLHS].L;
 		ctx.registers[dreg].allocatedL = true;
-		ctx.cycles += cost;
 
 		ctx.sim_track_datarefs(data);
 	}
@@ -558,7 +564,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L &= 0xFF00;
-		ctx.cycles += cost;
 	}
 };
 
@@ -588,7 +593,6 @@ public:
 	{
 		ctx.registers[dreg].L = 0;
 		ctx.registers[dreg].allocatedL = true;
-		ctx.cycles += cost;
 	}
 };
 
@@ -622,7 +626,6 @@ public:
 		ctx.registers[dreg].L = ulong_t(imm) & 0xFFFF;
 		ctx.registers[dreg].allocatedH = true;
 		ctx.registers[dreg].allocatedL = true;
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -655,7 +658,6 @@ public:
 	{
 		ctx.registers[dreg].H = ~ctx.registers[dreg].H;
 		ctx.registers[dreg].L = ~ctx.registers[dreg].L;
-		ctx.cycles += cost;
 	}
 };
 
@@ -685,7 +687,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = ~ctx.registers[dreg].L;
-		ctx.cycles += cost;
 	}
 };
 
@@ -715,7 +716,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = ctx.registers[dreg].L ^ 0x00FF;
-		ctx.cycles += cost;
 	}
 };
 
@@ -748,7 +748,6 @@ public:
 		v = -v;
 		ctx.registers[dreg].H = uword_t(ulong_t(v >> 16) & 0x0000FFFF);
 		ctx.registers[dreg].L = uword_t(ulong_t(v) & 0x0000FFFF);
-		ctx.cycles += cost;
 	}
 };
 
@@ -778,7 +777,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = uword_t(-(word_t(ctx.registers[dreg].L)));
-		ctx.cycles += cost;
 	}
 };
 
@@ -810,7 +808,6 @@ public:
 		byte_t v = byte_t(ctx.registers[dreg].L & 0x00FF);
 		v = -v;
 		ctx.registers[dreg].L = (ctx.registers[dreg].L & 0xFF00) | ubyte_t(v);
-		ctx.cycles += cost;
 	}
 };
 
@@ -858,7 +855,6 @@ public:
 
 		ctx.registers[dreg].H = uword_t(ulong_t(v) >> 16);
 		ctx.registers[dreg].L = uword_t(ulong_t(v) & 0xFFFF);;
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -904,7 +900,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = uword_t(word_t(ctx.registers[dreg].L) + word_t(imm));
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -951,7 +946,6 @@ public:
 	{
 		ctx.registers[dreg].L = (ctx.registers[dreg].L & 0xFF00) | 
 								(uword_t(ubyte_t(byte_t(ctx.registers[dreg].L & 0x00FF) + byte_t(imm))) & 0x00FF);
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -1000,8 +994,6 @@ public:
 			ctx.registers[dreg].L = ctx.registers[dreg].L << (-imm);
 		else
 			ctx.registers[dreg].L = ctx.registers[dreg].L >> imm;
-
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -1057,8 +1049,6 @@ public:
 
 		ctx.registers[dreg].H = data32 >> 16;
 		ctx.registers[dreg].L = data32 & 0xFFFF;
-
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -1107,8 +1097,6 @@ public:
 			ctx.registers[dreg].L = uword_t(word_t(ctx.registers[dreg].L) << (-imm));
 		else
 			ctx.registers[dreg].L = uword_t(word_t(ctx.registers[dreg].L) >> imm);
-
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -1164,8 +1152,6 @@ public:
 
 		ctx.registers[dreg].H = long_t(data32) >> 16;
 		ctx.registers[dreg].L = long_t(data32) & 0xFFFF;
-
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -1214,8 +1200,6 @@ public:
 			ctx.registers[dreg].L = lofl16(ctx.registers[dreg].L, (-imm));
 		else
 			ctx.registers[dreg].L = rofl16(ctx.registers[dreg].L, imm);
-
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -1271,8 +1255,6 @@ public:
 
 		ctx.registers[dreg].H = data32 >> 16;
 		ctx.registers[dreg].L = data32 & 0xFFFF;
-
-		ctx.cycles += cost;
 	}
 
 	int imm;
@@ -1312,8 +1294,6 @@ public:
 		uword_t v = (d & 0xFF00) | ubyte_t(s & 0xFF);
 
 		ctx.registers[dreg].L = v;
-
-		ctx.cycles += cost;
 	}
 };
 
@@ -1345,8 +1325,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = ctx.registers[sreg].L;
-
-		ctx.cycles += cost;
 	}
 };
 
@@ -1380,8 +1358,6 @@ public:
 	{
 		ctx.registers[dreg].H = ctx.registers[sreg].H;
 		ctx.registers[dreg].L = ctx.registers[sreg].L;
-
-		ctx.cycles += cost;
 	}
 };
 
@@ -1418,7 +1394,6 @@ public:
 
 		ctx.registers[dreg].H = ulong_t(v) >> 16;
 		ctx.registers[dreg].L = ulong_t(v) & 0xFFFF;
-		ctx.cycles += cost;
 	}
 };
 
@@ -1450,7 +1425,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = uword_t(word_t(ctx.registers[dreg].L) + word_t(ctx.registers[sreg].L));
-		ctx.cycles += cost;
 	}
 };
 
@@ -1487,8 +1461,6 @@ public:
 		uword_t v = (d & 0xFF00) | ubyte_t(byte_t(d & 0xFF) + byte_t(s & 0xFF));
 
 		ctx.registers[dreg].L = v;
-
-		ctx.cycles += cost;
 	}
 };
 
@@ -1525,7 +1497,6 @@ public:
 
 		ctx.registers[dreg].H = ulong_t(v) >> 16;
 		ctx.registers[dreg].L = ulong_t(v) & 0xFFFF;
-		ctx.cycles += cost;
 	}
 };
 
@@ -1557,7 +1528,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = uword_t(word_t(ctx.registers[dreg].L) - word_t(ctx.registers[sreg].L));
-		ctx.cycles += cost;
 	}
 };
 
@@ -1594,8 +1564,6 @@ public:
 		uword_t v = (d & 0xFF00) | ubyte_t(byte_t(d & 0xFF) - byte_t(s & 0xFF));
 
 		ctx.registers[dreg].L = v;
-
-		ctx.cycles += cost;
 	}
 };
 
@@ -1632,7 +1600,6 @@ public:
 
 		ctx.registers[dreg].H = ulong_t(v) >> 16;
 		ctx.registers[dreg].L = ulong_t(v) & 0xFFFF;
-		ctx.cycles += cost;
 	}
 };
 
@@ -1664,7 +1631,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = ctx.registers[dreg].L & ctx.registers[sreg].L;
-		ctx.cycles += cost;
 	}
 };
 
@@ -1701,8 +1667,6 @@ public:
 		uword_t v = (d & 0xFF00) | ((d & s) & 0xFF);
 
 		ctx.registers[dreg].L = v;
-
-		ctx.cycles += cost;
 	}
 };
 
@@ -1739,7 +1703,6 @@ public:
 
 		ctx.registers[dreg].H = ulong_t(v) >> 16;
 		ctx.registers[dreg].L = ulong_t(v) & 0xFFFF;
-		ctx.cycles += cost;
 	}
 };
 
@@ -1771,7 +1734,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = ctx.registers[dreg].L | ctx.registers[sreg].L;
-		ctx.cycles += cost;
 	}
 };
 
@@ -1808,8 +1770,6 @@ public:
 		uword_t v = (d & 0xFF00) | ((d | s) & 0xFF);
 
 		ctx.registers[dreg].L = v;
-
-		ctx.cycles += cost;
 	}
 };
 
@@ -1846,7 +1806,6 @@ public:
 
 		ctx.registers[dreg].H = ulong_t(v) >> 16;
 		ctx.registers[dreg].L = ulong_t(v) & 0xFFFF;
-		ctx.cycles += cost;
 	}
 };
 
@@ -1878,7 +1837,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = ctx.registers[dreg].L ^ ctx.registers[sreg].L;
-		ctx.cycles += cost;
 	}
 };
 
@@ -1915,8 +1873,6 @@ public:
 		uword_t v = (d & 0xFF00) | ((d ^ s) & 0xFF);
 
 		ctx.registers[dreg].L = v;
-
-		ctx.cycles += cost;
 	}
 };
 
@@ -1961,8 +1917,6 @@ public:
 			ctx.registers[dreg].L = ctx.registers[dreg].L | 0x00FF;
 		else
 			ctx.registers[dreg].L = ctx.registers[dreg].L & 0xFF00;
-
-		ctx.cycles += cost;
 	}
 
 	bool cond;
@@ -1994,7 +1948,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = ctx.registers[dreg].L | 0x0080;
-		ctx.cycles += cost;
 	}
 };
 
@@ -2024,7 +1977,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = uword_t(word_t(byte_t(ctx.registers[dreg].L)));
-		ctx.cycles += cost;
 	}
 };
 
@@ -2057,7 +2009,6 @@ public:
 
 		ctx.registers[dreg].H = ulong_t(v) >> 16;
 		ctx.registers[dreg].L = ulong_t(v) & 0xFFFF;
-		ctx.cycles += cost;
 	}
 };
 class DR_SwapR32 : public Operation
@@ -2090,7 +2041,6 @@ public:
 		uword_t tmp = ctx.registers[dreg].L;
 		ctx.registers[dreg].L = ctx.registers[dreg].H;
 		ctx.registers[dreg].H = tmp;
-		ctx.cycles += cost;
 
 		// special handling of stale state
 		bool sH = ctx.registers[dreg].stableH;
@@ -2130,7 +2080,6 @@ public:
 		ulong_t bit = 1UL << shift;
 		ctx.registers[dreg].H ^= ((bit & 0xFFFF0000) >> 16);
 		ctx.registers[dreg].L ^= ((bit & 0x0000FFFF) >> 0);
-		ctx.cycles += cost;
 	}
 };
 
@@ -2164,7 +2113,6 @@ public:
 		ulong_t result = ctx.registers[dreg].L * ctx.registers[sreg].L;
 		ctx.registers[dreg].H = result >> 16;
 		ctx.registers[dreg].L = result & 0xFFFF;
-		ctx.cycles += cost;
 	}
 };
 
@@ -2198,7 +2146,6 @@ public:
 		long_t result = word_t(ctx.registers[dreg].L) * word_t(ctx.registers[sreg].L);
 		ctx.registers[dreg].H = uword_t(ulong_t(result) >> 16);
 		ctx.registers[dreg].L = uword_t(ulong_t(result) & 0x0000FFFF);
-		ctx.cycles += cost;
 	}
 };
 
@@ -2229,7 +2176,6 @@ public:
 		ctx.registers[dreg].L = dataL;
 		ctx.registers[dreg].allocatedH = true;
 		ctx.registers[dreg].allocatedL = true;
-		ctx.cycles += cost;
 	}
 
 	uword_t dataH;
@@ -2581,8 +2527,6 @@ public:
 	virtual void onExecute()
 	{
 		ctx.registers[dreg].L = data_;
-
-		ctx.cycles += cost;
 	}
 
 	u16 data_;
@@ -2864,7 +2808,7 @@ public:
 		int offset = delta(ctx.srccolww);
 		if (offset < 0)
 		{
-			if (offset >= 8)
+			if (offset >= -8)
 			{
 				sprintf
 				(

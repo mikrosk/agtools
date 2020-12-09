@@ -1027,6 +1027,13 @@ enable_x_clipping	set	0
 ;	move.l d5,(a5)+	; record link
 ;	move.l a5,usp	; save ctx
 	
+	move.l		#$00ff8a38,a0
+	move.l		#$00ff8a28,a2
+	move.l		#$ffff8a32,a3
+	move.l		#$00ff8a2c,a4
+	move.l		#$ffff8a3c,a5
+	move.l		#$ff000004,d2	
+		
 ;	not.w		$ffff8240.w
 	jsr		(a6)
 ;	not.w		$ffff8240.w

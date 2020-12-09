@@ -5263,6 +5263,10 @@ public:
 		  sws(0),
 		  span_src_wos(0)
 	{
+		reload[0] = false;
+		reload[1] = false;
+		reload[2] = false;
+
 		switch (_ww)
 		{
 		case 0:
@@ -5330,6 +5334,7 @@ public:
 	int line_active_wordwidth;	// source line active width
 	int line_orig;	// original line index
 	u16 em[3];		// endmasks
+	bool reload[3];
 	int buscycle_count;	// bus cycles required
 
 	int sww;
@@ -5346,6 +5351,52 @@ class span_analysis
 public:
 
 	std::vector<span_hseq_t> span_vpattern_;
+};
+
+class blitstate_t
+{
+public:
+
+	blitstate_t()
+		: SYI(0), DYI(0), SKEW(0), XC(0),
+		  EM1(0), EM2(0), EM3(0)
+	{
+	}
+
+	u8 SYI;
+	u8 DYI;
+	u8 SKEW; // d1
+	u8 XC;
+	u16 EM1;
+	u16 EM2;
+	u16 EM3;
+};
+
+class scanstate_t
+{
+public:
+
+	scanstate_t()
+		: allocated(false),
+		  emdata_offset(0),
+		  srccol_offset(0),
+		  mprog_offset(0),
+		  lines_remaining(0),
+		  dst_line_offset(0),
+		  dst_word_offset(0)
+	{
+	}
+
+	bool allocated;
+
+	u16 emdata_offset;
+	u16 srccol_offset;
+	u16 mprog_offset;
+	u16 lines_remaining;
+	u8 dst_line_offset;
+	u8 dst_word_offset;
+
+	blitstate_t blitstate;
 };
 
 class preshift_t
@@ -5366,6 +5417,8 @@ public:
 	span_analysis sa;
 
 	std::vector<u16> shared_mask_words;
+	std::vector<scanstate_t> scan_states;
+	std::map<int, bool> occupied_lines;
 
 	preshift_t
 	(
@@ -6828,6 +6881,8 @@ bool emit_sprite_sequence(bool _storepixels)
 							int component = 0;
 							for (std::list<int>::iterator cmplnkit = pit->begin(); cmplnkit != pit->end(); cmplnkit++, component++)
 							{
+								//printf("psi:%d cmp:%d\n", preshift_index, component);
+
 								int patch_offset = *cmplnkit;
 								auto linkfrom = psmaskopt_component_index.find(std::pair<int,int>(preshift_index, component));
 								assert(linkfrom != psmaskopt_component_index.end());

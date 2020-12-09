@@ -38,10 +38,11 @@ public:
 		const char* _name, 
 		int _index, 
 		RegClass _regclass, 
-		bool _alloc = false, 
-		bool _constant = false, 
-		bool _locked = false,
-		ulong_t _init = 0
+		bool _alloc, 
+		bool _constant, 
+		bool _locked,
+		bool _external,
+		ulong_t _init
 	)
 		: name(_name),
 		  index(_index),
@@ -50,6 +51,7 @@ public:
 		  allocatedL(_alloc),
 		  constant(_constant),
 		  locked(_locked),
+		  external(_external),
 		  variable(false),
 		  H(_init >> 16),
 		  L(_init & 0xFFFF),
@@ -97,6 +99,7 @@ public:
 	bool allocatedL;
 	bool constant;
 	bool locked;
+	bool external;
 	bool variable;
 	bool stableH;
 	bool stableL;
@@ -392,7 +395,7 @@ public:
 				name[1] = char((v / 10) + '0');
 				name[2] = char((v % 10) + '0');
 
-				registers.push_back(dataregister(name, r++, RegClass_Data));
+				registers.push_back(dataregister(name, r++, RegClass_Data, false, false, false, false, 0));
 			}
 		}
 
@@ -409,19 +412,19 @@ public:
 			if ((srcww >= 3) && USE_DSTSKIP_REG_FIXED_PRELOAD)
 			{
 				// force dstlinewid into d0.w to optimize dst skips
-				registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true, 0xC0000000 | dstlinewid));
+				registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true, false, 0xC0000000 | dstlinewid));
 			}
 			else
 			{
 				// release d0 for general transforms
-				registers.push_back(dataregister("d0", r++, RegClass_Data));
+				registers.push_back(dataregister("d0", r++, RegClass_Data, false, false, false, false, 0));
 			}
 
-			registers.push_back(dataregister("d3", r++, RegClass_Data));
-			registers.push_back(dataregister("d4", r++, RegClass_Data));
-			registers.push_back(dataregister("d5", r++, RegClass_Data));
-			registers.push_back(dataregister("d6", r++, RegClass_Data));
-			registers.push_back(dataregister("d7", r++, RegClass_Data));
+			registers.push_back(dataregister("d3", r++, RegClass_Data, false, false, false, false, 0));
+			registers.push_back(dataregister("d4", r++, RegClass_Data, false, false, false, false, 0));
+			registers.push_back(dataregister("d5", r++, RegClass_Data, false, false, false, false, 0));
+			registers.push_back(dataregister("d6", r++, RegClass_Data, false, false, false, false, 0));
+			registers.push_back(dataregister("d7", r++, RegClass_Data, false, false, false, false, 0));
 
 /*			for (int p = 0; (p < registers.size()) && (p < preloads.size()); p++)
 			{
@@ -444,20 +447,20 @@ public:
 		// todo: different ideal register pattern & usage for 1/2/3-wide cases
 
 		SCRLINE_reg = r;
-		registers.push_back(dataregister("a1", r++, RegClass_Address));
+		registers.push_back(dataregister("a1", r++, RegClass_Address, false, false, false, false, 0));
 		registers[SCRLINE_reg].variable = true;
 
 		DSTADDR_reg = r;
-		registers.push_back(dataregister("a3", r++, RegClass_Address,	setconstants, setconstants, true,		0xffff8a32));
+		registers.push_back(dataregister("a3", r++, RegClass_Address,	true/*setconstants*/, true/*setconstants*/, true, true,	0xffff8a32));
 		YC_reg = r;
-		registers.push_back(dataregister("a0", r++, RegClass_Address,	setconstants, setconstants, true,		0x00ff8a38));
+		registers.push_back(dataregister("a0", r++, RegClass_Address,	true/*setconstants*/, true/*setconstants*/, true, true,	0x00ff8a38));
 		CTRL_reg = r;
-		registers.push_back(dataregister("a5", r++, RegClass_Address,	setconstants, setconstants, true,		0xffff8a3c));
+		registers.push_back(dataregister("a5", r++, RegClass_Address,	true/*setconstants*/, true/*setconstants*/, true, true,	0xffff8a3c));
 
 		// em1 addr always needed
 		EM1_reg = r;
-		registers.push_back(dataregister("a2", r++, RegClass_Address,	setconstants, setconstants, true,		0x00ff8a28));	// em1
-		
+		registers.push_back(dataregister("a2", r++, RegClass_Address,	true/*setconstants*/, true/*setconstants*/, true, true,	0x00ff8a28));	// em1
+	
 		// em2 not used unless 3 words wide
 		EM2_reg = 999;
 		// em3 not used unless 2-3 words wide
@@ -469,7 +472,7 @@ public:
 			// not enough registers to allocate a6 for EM2 while also fetching masks from RAM
 			// in shared-mask mode, we allocate it as the mask source buffer
 			SM_reg = r;
-			registers.push_back(dataregister("a6", r++, RegClass_Address));	// em2
+			registers.push_back(dataregister("a6", r++, RegClass_Address, false, false, false, false, 0));	// em2
 			registers[SM_reg].variable = true;
 		}
 		else
@@ -479,7 +482,7 @@ public:
 			if (srcww >= 3)
 			{
 				EM2_reg = r;
-				registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true, 0xffff8a2a));	// em2
+				registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true, false, 0xffff8a2a));	// em2
 			}
 			else
 				if (1)
@@ -519,19 +522,19 @@ public:
 						*/
 					}
 
-					registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true, (ulong_t)data));
+					registers.push_back(dataregister("a6", r++, RegClass_Address, setconstants, setconstants, true, false, (ulong_t)data));
 				}
 				else
 				{
 					// leave a6 free
-					registers.push_back(dataregister("a6", r++, RegClass_Address));
+					registers.push_back(dataregister("a6", r++, RegClass_Address, false, false, false, false, 0));
 				}
 		}
 
 		if (srcww > 1)
 		{
 			EM3_reg = r;
-			registers.push_back(dataregister("a4", r++, RegClass_Address, setconstants, setconstants, true,		0x00ff8a2c));	// em3
+			registers.push_back(dataregister("a4", r++, RegClass_Address, true/*setconstants*/, true/*setconstants*/, true,	true,	0x00ff8a2c));	// em3
 		}
 		else
 		{
@@ -562,18 +565,18 @@ public:
 			}
 
 			if (alloc)
-				registers.push_back(dataregister("a4", r++, RegClass_Address, setconstants, setconstants, true, data));	// em3
+				registers.push_back(dataregister("a4", r++, RegClass_Address, setconstants, setconstants, true, false, data));	// em3
 			else
-				registers.push_back(dataregister("a4", r++, RegClass_Address));
+				registers.push_back(dataregister("a4", r++, RegClass_Address, false, false, false, false, 0));
 		}
 
 
 		BHOG_reg = r;
 //		registers.push_back(dataregister("d1", r++, RegClass_Data,		setconstants, setconstants, true,		0x00ffffc0));
-		registers.push_back(dataregister("d1", r++, RegClass_Data,		setconstants, setconstants, true,		0x00ffc000));
+		registers.push_back(dataregister("d1", r++, RegClass_Data,		setconstants, setconstants, true, false,	0x00ffc000));
 
 		PLANES_reg = r;
-		registers.push_back(dataregister("d2", r++, RegClass_Data,		setconstants, setconstants, true,		0xFF000004));
+		registers.push_back(dataregister("d2", r++, RegClass_Data,		true/*setconstants*/, true/*setconstants*/, true, true,		0xFF000004));
 
 //		registers.push_back(dataregister("sr", r++, true, true, 0x00002300));
 	}
@@ -671,6 +674,7 @@ public:
 		memaddr = 0;
 		dstaddr = 0;
 		cycles = 0;
+		words = 0;
 		blitter.xcount = srcww;
 		blitter.xcount_adj = 0;
 		reset_registers();
@@ -986,6 +990,7 @@ public:
 
 //	wordpair_t registers[16];
 	int cycles;
+	int words;
 
 	bool setconstants;
 
@@ -1892,27 +1897,30 @@ bool Context::transform_pass()
 		std::list<Operation*>::iterator curr = it++;
 		Operation *pop = *curr;
 
-		if (pop->kind == OpKind_LoadI16)
+		if (!pop->hidden)
 		{
-			DR_LoadI16 *pactual = reinterpret_cast<DR_LoadI16*>(pop);
-			int rold = pactual->dreg;
+			if (pop->kind == OpKind_LoadI16)
+			{
+				DR_LoadI16 *pactual = reinterpret_cast<DR_LoadI16*>(pop);
+				int rold = pactual->dreg;
 
-			if (try_transforms(curr, OpSize_16, rold, 0, pactual->data))
-				return true;
-		}
-		else
-		if (pop->kind == OpKind_LoadI32)
-		{
-			DR_LoadI32 *pactual = reinterpret_cast<DR_LoadI32*>(pop);
-			int rold = pactual->dreg;
+				if (try_transforms(curr, OpSize_16, rold, 0, pactual->data))
+					return true;
+			}
+			else
+				if (pop->kind == OpKind_LoadI32)
+				{
+					DR_LoadI32 *pactual = reinterpret_cast<DR_LoadI32*>(pop);
+					int rold = pactual->dreg;
 
-			//if ((pactual->dataH == 0) && (pactual->dataL == 0xe0))
-			//{
-			//	int a = 0;
-			//}
+					//if ((pactual->dataH == 0) && (pactual->dataL == 0xe0))
+					//{
+					//	int a = 0;
+					//}
 
-			if (try_transforms(curr, OpSize_32, rold, pactual->dataH, pactual->dataL))
-				return true;
+					if (try_transforms(curr, OpSize_32, rold, pactual->dataH, pactual->dataL))
+						return true;
+				}
 		}
 
 		// catch up with execution from last insert point
@@ -1944,6 +1952,9 @@ bool Context::cleanup_pass()
 	{
 		std::list<Operation*>::iterator curr = it++;
 		Operation *pop = *curr;
+
+		if (pop->hidden)
+			goto terminate;
 
 		if (pop->kind == OpKind_DSTLea)
 		{

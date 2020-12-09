@@ -57,6 +57,9 @@
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
+	
+	;and.w		#-16,d1
+	;add.w		#10,d1
 		
 *-------------------------------------------------------*
 *	guardband test for optimized fastpath
@@ -571,6 +574,13 @@
 	add.w		d2,d2
 	add.w		d2,d2
 	add.l		(a3,d2.w),a1
+	
+	move.l		#$00ff8a38,a0
+	move.l		#$00ff8a28,a2
+	move.l		#$ffff8a32,a3
+	move.l		#$00ff8a2c,a4
+	move.l		#$ffff8a3c,a5
+	move.l		#$ff000004,d2
 	
 	jsr		(a6)
 		

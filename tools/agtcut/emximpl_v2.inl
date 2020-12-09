@@ -11,7 +11,7 @@ void generate_emx2_preshift_analysis
 (
 	const spriteframe_t &spr, int _frame, 
 	preshift_t &_shift, int _psi, 
-	bool _horizontal_ordering
+	bool _single_span_scans
 )
 {
 	//int full_src_wordwidth = ((spr.w_ + 15) & -16) >> 4;
@@ -194,6 +194,17 @@ void generate_emx2_preshift_analysis
 
 					last_word = 0;
 				}
+			}
+		}
+
+		if (_single_span_scans)
+		{
+			// strip out all but first span per scanline
+			for (int v = 0; v < spr.h_; v++)
+			{
+				auto &span_hseq = sa.span_vpattern_[v];
+				if (!span_hseq.empty())
+					span_hseq.resize(1);
 			}
 		}
 	}
@@ -1505,12 +1516,36 @@ void generate_emx2_order_spans
 
 			// span index has priority so spans rendered vertically for edge coherence, never horizontally
 			// otherwise, frame common lineorder prevails
-			uint32_t ordering_key =
-				(uint32_t(horizontal_index) << (32 - 5)) |
-				(uint32_t(span.ws) << (32 - 15)) |
-				(uint32_t(span.ww) << (32 - 10)) |
-				(uint32_t(span.line_opt) << 0)
-				;
+			uint32_t ordering_key;
+			
+			if (_horizontal_ordering)
+			{
+				// left->right spans within top-bottom ordered scanlines
+				ordering_key =
+					(uint32_t(span.line_opt) << 5) |
+					(uint32_t(horizontal_index))
+					;
+			}
+			else
+			{
+				// reordered scan lines, within left->right ordered components,
+				// sub-grouped by width,offset
+				ordering_key =
+//					(uint32_t(horizontal_index) << (32 - 5)) |	// 343
+//					(uint32_t(span.ww) << (32 - 10)) |
+//					(uint32_t(span.ws) << (32 - 15)) |
+//					(uint32_t(span.line_opt) << 0)
+//					(uint32_t(span.ws) << (32 - 5)) |
+//					(uint32_t(horizontal_index) << (32 - 10)) |	// 336
+//					(uint32_t(span.ww) << (32 - 15)) |
+//					(uint32_t(span.line_opt) << 0)
+					(uint32_t(span.ws) << (32 - 5)) |
+					(uint32_t(span.ww) << (32 - 10)) |
+					(uint32_t(span.cxs)&1 << (32 - 15)) |
+					(uint32_t(span.cxe)&1 << (32 - 16)) |
+					(uint32_t(span.line_opt) << 0)
+					;
+			}
 
 			ordered_spans[ordering_key].push_back(&span);
 
@@ -1770,6 +1805,8 @@ void generate_emx2_metaprogram
 	// analyse src skips
 
 	// 
+	bool inject_data_ops = !_shared_mask;
+
 	for (int mode = 0; mode < 2; mode++)
 	{
 		bool analyse_constants = (mode == 0);
@@ -1777,6 +1814,12 @@ void generate_emx2_metaprogram
 
 		//__debugbreak();
 		context.reset_sim(true);
+
+		if (build_metaprogram)
+		{
+			shift.scan_states.clear();
+			shift.scan_states.resize(spr.h_);
+		}
 
 		// reset dirty EM registers for this blit width
 		//em_dirty[0] = true;
@@ -1826,6 +1869,9 @@ void generate_emx2_metaprogram
 		int current_sline = 0;
 		int current_sline_wordoffset = 0;
 		int current_ww = context.blitter.xcount;
+		int current_ws = 0;
+		int current_src = 0;
+		//int current_mprog_words = 0;
 
 		int reg_index = 0;
 		int reg_index2 = 0;
@@ -1846,8 +1892,11 @@ void generate_emx2_metaprogram
 				context.operations.push_back(new BLiT_Defs(context));
 				context.operations.back()->execute();
 
-				context.operations.push_back(new BLiT_Init(context));
-				context.operations.back()->execute();
+				if (!_shared_mask)
+				{
+					context.operations.push_back(new BLiT_Init(context));
+					context.operations.back()->execute();
+				}
 
 				// load fixed registers
 				{
@@ -1856,8 +1905,11 @@ void generate_emx2_metaprogram
 						if (it->constant)
 						{
 							// use standard immediate load - let the optimizer reduce it if possible
-							context.operations.push_back(new DR_LoadI32(context, it->index, it->H, it->L));
+							auto op = new DR_LoadI32(context, it->index, it->H, it->L);
+							// we don't emit these as part of codegen, but assume they are prepared by the caller
+							op->hidden = _shared_mask || it->external;
 
+							context.operations.push_back(op);
 							it->constant = false;
 
 							it->allocatedH = true;
@@ -1882,6 +1934,8 @@ void generate_emx2_metaprogram
 			//				{
 			//					int dsty = linemap_opt_2_src[y];
 
+			int last_y = -1;
+
 			for (auto pspan : stacked_spans)
 			{
 				//__debugbreak();
@@ -1896,6 +1950,36 @@ void generate_emx2_metaprogram
 				uword_t *srcdata = &buffer[dsty * 3];
 				ubyte_t *linechanges = &changes[dsty * 3];
 
+
+				bool newline = (span_dline != last_y);
+				last_y = span_dline;
+
+				// record EM state at the beginning of each new scanline
+				if (build_metaprogram)
+				{
+					if (newline)
+					{
+						auto & state = shift.scan_states[span_dline];
+
+						state.allocated = true;
+
+						//state.dst_line_offset = current_dline;
+						state.dst_word_offset = current_dline_wordoffset;
+						state.srccol_offset = current_src;
+						//state.emdata_offset
+						state.mprog_offset = context.words;// current_mprog_words;
+
+						auto & blitstate = state.blitstate;
+
+						blitstate.SKEW = (u8)current_skew;
+						blitstate.XC = current_ww;
+						blitstate.SYI = current_syinc;
+						blitstate.DYI = current_dyinc;
+
+						//context.operations.push_back(new NoOp(context));
+						//context.operations.back()->execute();
+					}
+				}
 
 				// FISR is set when span begins with colour data from previous a word 
 				bool span_FISR = pspan->cxs;
@@ -1962,7 +2046,7 @@ void generate_emx2_metaprogram
 									int reg_src = -1;
 									DataSource ds;
 
-									ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
+									ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, inject_data_ops);
 									if (ds == DataSource_RegisterL)
 									{
 										// for +ve steps, look for +ve equivalent register and apply ADD operation
@@ -1973,7 +2057,7 @@ void generate_emx2_metaprogram
 									{
 										// for -ve steps, look for +ve equivalent register and apply SUB operation
 										// only allocates register if value does not pre-exist 
-										ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, true);
+										ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, inject_data_ops);
 										if (ds == DataSource_RegisterL)
 										{
 											context.operations.push_back(new DST_SubaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
@@ -2042,6 +2126,9 @@ void generate_emx2_metaprogram
 								shared_mask_words.push_back(srcdata[0]);
 								shared_mask_words.push_back(srcdata[1]);
 								shared_mask_words.push_back(srcdata[2]);
+								pspan->reload[0] = true;
+								pspan->reload[1] = true;
+								pspan->reload[2] = true;
 
 								context.operations.push_back(new EM_MoveMPI32(context, 0, context.SM_reg, 0, context.EM1_reg));
 								context.operations.back()->execute();
@@ -2112,7 +2199,7 @@ void generate_emx2_metaprogram
 
 								if ((sumA < sumB) || (chosen == 0))
 								{
-									DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
+									DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, inject_data_ops);
 									if (ds12 == DataSource_RegisterHL)
 									{
 										context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
@@ -2140,7 +2227,7 @@ void generate_emx2_metaprogram
 												context.operations.back()->execute();
 											}
 
-									DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, true);
+									DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, inject_data_ops);
 									if (ds3 == DataSource_RegisterL)
 									{
 										context.operations.push_back(new EM_MoveR16(context, 2, reg_index3, context.EM3_reg));
@@ -2155,7 +2242,7 @@ void generate_emx2_metaprogram
 								else
 									if ((sumA > sumB) || (chosen == 1))
 									{
-										DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
+										DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, inject_data_ops);
 										if (ds23 == DataSource_RegisterHL)
 										{
 											context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
@@ -2180,7 +2267,7 @@ void generate_emx2_metaprogram
 												else
 													context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
 
-										DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, true);
+										DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, inject_data_ops);
 										if (ds1 == DataSource_RegisterL)
 										{
 											context.operations.push_back(new EM_MoveR16(context, 0, reg_index3, context.EM1_reg));
@@ -2208,6 +2295,8 @@ void generate_emx2_metaprogram
 							{
 								shared_mask_words.push_back(srcdata[0]);
 								shared_mask_words.push_back(srcdata[1]);
+								pspan->reload[0] = true;
+								pspan->reload[1] = true;
 
 								context.operations.push_back(new EM_MoveMPI32(context, 0, context.SM_reg, 0, context.EM1_reg));
 								context.operations.back()->execute();
@@ -2216,7 +2305,7 @@ void generate_emx2_metaprogram
 							{
 
 								//						context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1]));
-								DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true);
+								DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, inject_data_ops);
 								if (ds == DataSource_RegisterHL)
 								{
 									context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
@@ -2263,6 +2352,8 @@ void generate_emx2_metaprogram
 							{
 								shared_mask_words.push_back(srcdata[1]);
 								shared_mask_words.push_back(srcdata[2]);
+								pspan->reload[1] = true;
+								pspan->reload[2] = true;
 
 								context.operations.push_back(new EM_MoveMPI32(context, 1, context.SM_reg, 2, context.EM1_reg));
 								context.operations.back()->execute();
@@ -2278,7 +2369,7 @@ void generate_emx2_metaprogram
 
 		//						em_dirty[1] = em_dirty[2] = false;
 
-								DataSource ds = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true);
+								DataSource ds = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, inject_data_ops);
 								if (ds == DataSource_RegisterHL)
 								{
 									context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
@@ -2323,6 +2414,7 @@ void generate_emx2_metaprogram
 									if (_shared_mask)
 									{
 										shared_mask_words.push_back(srcdata[x]);
+										pspan->reload[x] = true;
 
 										if (x == 1)
 										{
@@ -2339,7 +2431,7 @@ void generate_emx2_metaprogram
 									}
 									else
 									{
-										if (context.sim_resolve_data16(srcdata[x], reg_index, true) == DataSource_RegisterL)
+										if (context.sim_resolve_data16(srcdata[x], reg_index, inject_data_ops) == DataSource_RegisterL)
 										{
 											context.operations.push_back(new EM_MoveR16(context, x, reg_index, EM_reg));
 											context.operations.back()->execute();
@@ -2384,6 +2476,7 @@ void generate_emx2_metaprogram
 
 						span_syi_change -= span_ww_change;
 
+						current_dyinc -= span_ww_change*8;
 						current_ww += span_ww_change;
 					}
 
@@ -2401,6 +2494,8 @@ void generate_emx2_metaprogram
 								context.operations.push_back(new BLiT_SYIMod(context, span_syi_change));
 								context.operations.back()->execute();
 							}
+
+							current_syinc += span_syi_change*2;
 						}
 					}
 
@@ -2418,10 +2513,10 @@ void generate_emx2_metaprogram
 
 						if (src_linejump || src_wordjump)
 						{
+							int addressjump = (src_linejump * (context.srccolww * 8)) + (src_wordjump * 2);
+
 							if (build_metaprogram)
 							{
-								int addressjump = (src_linejump * (context.srccolww * 8)) + (src_wordjump * 2);
-
 								//int reg_src = -1;
 								//ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
 								//if (ds == DataSource_RegisterL)
@@ -2433,7 +2528,9 @@ void generate_emx2_metaprogram
 							if (analyse_constants)
 							{
 							}
+
 							//src_lines_skipped += src_linejump;
+							current_src += addressjump;
 						}
 					}
 
@@ -2498,7 +2595,8 @@ void generate_emx2_metaprogram
 #endif
 	// peephole passes
 
-	bool changed = !g_allargs.quickcut;
+	bool changed = !g_allargs.quickcut && !_shared_mask;
+
 	int xform_passes = 0;
 
 //		if (!g_allargs.quickcut)
@@ -2551,6 +2649,7 @@ void generate_emx2_metaprogram
 #endif
 
 	//if (!g_allargs.quickcut)
+	if (!_shared_mask)
 	{
 		context.reduce_pass();
 #if (SIM_ALL_STAGES)
@@ -2563,7 +2662,8 @@ void generate_emx2_metaprogram
 
 	// optimize instruction tail / blitter overlaps
 	if (!g_allargs.quickcut)
-		context.tail_pass();
+		if (!_shared_mask)
+			context.tail_pass();
 
 	int metaprogram_cost_tails = context.cycle_sum(program_size);
 	printf("metaprogram [tails] cycles:%d, words:%d\n", metaprogram_cost_tails, program_size);
@@ -2627,7 +2727,7 @@ void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 			{
 				preshift_t &shift = *cit;
 
-				generate_emx2_preshift_analysis(spr, _frame, shift, psi, /*horizontal_ordering=*/false);
+				generate_emx2_preshift_analysis(spr, _frame, shift, psi, /*single_span_scans=*/false);
 			}
 		}
 	}
@@ -2885,13 +2985,13 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	preshift_t &shared_shift = *pshared_shift;
 
 	// build span representation
-	generate_emx2_preshift_analysis(spr, _frame, shared_shift, /*psi=*/0, /*horizontal_ordering=*/false);
+	generate_emx2_preshift_analysis(spr, _frame, shared_shift, /*psi=*/0, /*single_span_scans=*/true);
 
 	// find common line order
 	generate_emx2_common_lineorder(spr, spr.linemap_opt_2_src, spr.linemap_src_2_opt, /*optimize=*/false);
 
 	std::vector<constrained_wordspan*> stacked_spans;
-	generate_emx2_order_spans(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*horizontal_ordering=*/false);
+	generate_emx2_order_spans(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*horizontal_ordering=*/true);
 
 	size_t spancount = stacked_spans.size();
 
@@ -2924,12 +3024,15 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	// update the common mask to indicate deltas seen within any preshift.
 	// then re-generate the common mask to encode these changes.
 	{
+		psi = 0;
 		for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
 		{
 			// first component within a preshift
 			preshiftlist_t::iterator cit = pmit->begin();
 			{
 				preshift_t &shift = *cit;
+
+				shift.occupied_lines.clear();
 
 				{
 					u16 em_last[3] = { 0,0,0 };
@@ -2938,6 +3041,8 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 					for (auto pspan : stacked_spans)
 					{
 						int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+
+						shift.occupied_lines[orig_y] = true;
 
 						u16 *psourceline = &shift.data_[(orig_y * shift.wordwidth_)];
 						u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
@@ -3100,6 +3205,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	}
 
 	// generate mask sequence for each preshift
+	psi = 0;
 	for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
 	{
 		// first component within a preshift
@@ -3127,6 +3233,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	// assign shared metaprogram to all preshifts
 
 	{
+		psi = 0;
 		for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
 		{
 			// first component within a preshift
@@ -3134,8 +3241,143 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 			{
 				preshift_t &shift = *cit;
 
+				shift.scan_states = shared_shift.scan_states;
+
 				shift.p68kbin = shared_shift.p68kbin;
 				shift.size68kbin = shared_shift.size68kbin;
+
+				// extract mask data
+
+				shift.shared_mask_words.clear();
+
+				if (1)
+				{
+					int last_y = -1;
+					u16 em1 = 0;
+					u16 em2 = 0;
+					u16 em3 = 0;
+
+					for (auto pspan : stacked_spans)
+					{
+						int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+
+						bool newline = (orig_y != last_y);
+						last_y = orig_y;
+
+						// record EM state at the beginning of each new scanline
+						if (newline)
+						{
+							auto & state = shift.scan_states[orig_y];
+							state.emdata_offset = shift.shared_mask_words.size();
+
+							auto & blitstate = state.blitstate;
+							blitstate.EM1 = em1;
+							blitstate.EM2 = em2;
+							blitstate.EM3 = em3;
+						}
+
+						// load real EM values for this span, for this preshift (for those within h-window)
+
+						u16 *psourceline = &shift.data_[(orig_y * shift.wordwidth_)];
+
+						int o1 = pspan->ws;
+						int o2 = pspan->ws + 1;
+						int o3 = (pspan->ws + pspan->ww) - 1;
+
+						if (pspan->reload[0])
+						{
+							if (o1 < shift.wordwidth_)
+								em1 = psourceline[o1];
+							shift.shared_mask_words.push_back(em1);
+						}
+
+						if (pspan->reload[1])
+						{
+							if (o2 < shift.wordwidth_)
+								em2 = psourceline[o2];
+							shift.shared_mask_words.push_back(em2);
+						}
+
+						if (pspan->reload[2])
+						{
+							if (o3 < shift.wordwidth_)
+								em3 = psourceline[o3];
+							shift.shared_mask_words.push_back(em3);
+						}
+					}
+				}
+
+				// reverse pass, deal with empty lines
+				{
+					int lines_remaining = 0;
+					int accumulated_offset = 0;
+					for (int y = shift.scan_states.size() - 1; y >= 0; y--)
+					{
+						auto &ss = shift.scan_states[y];
+						if (shift.occupied_lines.find(y) != shift.occupied_lines.end())
+						{
+							lines_remaining++;
+							accumulated_offset = 0;
+						}
+						else
+						{
+							accumulated_offset++;
+						}
+
+						ss.lines_remaining = lines_remaining;
+						ss.dst_line_offset = accumulated_offset;
+					}
+				}
+
+				// dump the scan states
+				if  (1)
+				{
+					u16* mprog = (u16*)(shift.p68kbin+32);
+
+					printf("\npreshift %d...\n", psi);
+					int i = 0;
+					for (auto & ss : shift.scan_states)
+					{
+						auto & bs = ss.blitstate;
+
+						printf("scanstate[%03d]:  dlo:%03d dwo:%02d lr:%03d emo:%04x mpo:%04x sco:%04x",
+							i,
+							(int)ss.dst_line_offset,
+							(int)ss.dst_word_offset,
+							(int)ss.lines_remaining,
+							(int)ss.emdata_offset,
+							(int)ss.mprog_offset,
+							(int)ss.srccol_offset
+							);
+
+						printf(" EM1:");
+						print_dataword(bs.EM1);
+						printf(" EM2:");
+						print_dataword(bs.EM2);
+						printf(" EM3:");
+						print_dataword(bs.EM3);
+
+						printf(" SYI:%03d DYI:%03d XC:%02d SK:%02x",
+							(int)bs.SYI, 
+							(int)bs.DYI, 
+							(int)bs.XC, 
+							(int)bs.SKEW
+						);
+
+						printf("\n");
+
+						// verify
+						if ((i > 0) && ss.allocated && (mprog[ss.mprog_offset - 1] != 0x813a))
+						{
+							printf("error: blit index verify failed: %04x\n",
+								(int)mprog[ss.mprog_offset - 1]
+								);
+							exit(1);
+						}
+
+						i++;
+					}
+				}
 			}
 		}
 	}
