@@ -11,6 +11,7 @@
 #define PREFER_TRANSFORMS (1) // hacks for testing
 #define USE_MOVEQ_INITS (0) // hacks for testing
 #define USE_EMX2
+//#define USE_EMS2 // WIP, not working
 
 #if defined(_MSC_VER)
 #define _CRT_SECURE_NO_WARNINGS
@@ -51,7 +52,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.470b";
+static const char* const g_version_string = "v0.471";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0203;
@@ -5509,16 +5510,27 @@ public:
 	uword_t *colr0_;
 	uword_t *colr1_;
 
+	// specific to EMS2
+	ubyte_t *ems2_p68kbin_;
+	size_t ems2_size68kbin_;
+
+	std::vector<int> active_starts;
+	std::vector<int> active_widths;
+
 	preshiftlist_t pscolr_frames_;
-	std::vector<preshiftlist_t> psmask_frames_emx_;
-	std::vector<preshiftlist_t> psmask_frames_ems_;
 
 	std::vector<om_descriptor> occlusion_maps_;
 
-	std::vector<int> linemap_opt_2_src;
-	std::vector<int> linemap_src_2_opt;
-	std::vector<int> active_starts;
-	std::vector<int> active_widths;
+	struct generated_data_t
+	{
+		std::vector<preshiftlist_t> psmask_frames_;
+		std::vector<int> linemap_opt_2_src;
+		std::vector<int> linemap_src_2_opt;
+	};
+
+	generated_data_t emx_;
+	generated_data_t ems_;
+
 
 	spriteframe_t(int _w, int _h, int _xo, int _yo, uword_t *_mask, uword_t *_colr0, uword_t *_colr1)
 		: w_(_w),
@@ -5527,7 +5539,9 @@ public:
 		  yo_(_yo),
 		  mask_(_mask),
 		  colr0_(_colr0),
-		  colr1_(_colr1)
+		  colr1_(_colr1),
+		  ems2_p68kbin_(nullptr),
+		  ems2_size68kbin_(0)
 	{
 	}
 
@@ -5711,12 +5725,13 @@ public:
 					}
 				}
 
+				// todo: components created based on iterative extraction!
 				if (_ems)
 				{
-					if (preshift_index >= psmask_frames_ems_.size())
-						psmask_frames_ems_.resize(preshift_index + 1);
+					if (preshift_index >= ems_.psmask_frames_.size())
+						ems_.psmask_frames_.resize(preshift_index + 1);
 
-					psmask_frames_ems_[preshift_index].emplace_back
+					ems_.psmask_frames_[preshift_index].emplace_back
 					(
 						preshift_t
 						(
@@ -5726,12 +5741,12 @@ public:
 						)
 					);
 				}
-				else
+				else				
 				{
-					if (preshift_index >= psmask_frames_emx_.size())
-						psmask_frames_emx_.resize(preshift_index + 1);
+					if (preshift_index >= emx_.psmask_frames_.size())
+						emx_.psmask_frames_.resize(preshift_index + 1);
 
-					psmask_frames_emx_[preshift_index].emplace_back
+					emx_.psmask_frames_[preshift_index].emplace_back
 					(
 						preshift_t
 						(
@@ -6354,15 +6369,17 @@ bool emit_sprite_sequence(bool _storepixels)
 					// spf_em_
 					// spf_emx_
 
-					// preshifting is present so we need additional indirection for preshifted sub-frames
+					// dual-field colour, two pointers
 					std::vector<std::pair<int,int>> pscolr_index;
 					std::vector<std::pair<int,int>> pscolropt_index;
 
+					// preshifting is present so we need additional indirection for preshifted sub-frames
 					std::map<std::pair<int,int>, int> psmask_component_index;
 					std::map<std::pair<int,int>, int> psmaskopt_component_index;
 
 					std::vector<std::list<int>> psmask_component_nextlinks;
 					std::vector<std::list<int>> psmaskopt_component_nextlinks;
+
 /*
 					// write N word offsets for occlusion x-preshifts
 					int occlusion_preshift_index_fpos = tracked_filesize;
@@ -6412,18 +6429,7 @@ bool emit_sprite_sequence(bool _storepixels)
 					}
 
 					//---------------------------------------------------------------------------------------
-
-#if defined(USE_EMS2)
-					// emit EMS2 shared codegen
-					if (it->ems2_size68kbin)
-					{
-						ems2_shared_codegen_pos = tracked_filesize;
-
-						size_t sz = it->ems2_size68kbin;
-					}
-#endif
-
-					//---------------------------------------------------------------------------------------
+					// occlusion maps
 
 					if (!it->occlusion_maps_.empty())
 					{
@@ -6477,7 +6483,25 @@ bool emit_sprite_sequence(bool _storepixels)
 						}
 					}
 
+					//---------------------------------------------------------------------------------------
+					// EMS2 shared codegen
+
+#if defined(USE_EMS2)
+					// spf_psm2_
+					int ems2_sharedmask_codegen_pos = 0;
+					if (it->size68kbin_)
+					{
+						ems2_sharedmask_codegen_pos = tracked_filesize;
+
+						fwrite((it->p68kbin_ + 32), 1, (it->size68kbin_ - 32), hout);
+						tracked_filesize += (it->size68kbin_ - 32);
+
+						//ems2_sharedmask_codegen_index.push_back(ems2_sharedmask_codegen_pos);
+					}
+#endif
+					//---------------------------------------------------------------------------------------
 					// plain colour 
+
 					if ((g_allargs.cutmode == Cutmode_EMSPR) || 
 						// if EMX, still embed EMS when any kind of clipping is needed (default)
 						// todo: for compound EMX, can assume [noclipx]
@@ -6495,7 +6519,7 @@ bool emit_sprite_sequence(bool _storepixels)
 							else
 								pscolor1_pos = tracked_filesize;
 
-						// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
+						// write word-width (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
 						wv = endianswap16(wordwidth);
 						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
@@ -6546,12 +6570,12 @@ bool emit_sprite_sequence(bool _storepixels)
 						//					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 						// write colour words for N lines, lines(planes(words))) order
-						for (int y = 0; y < it->linemap_opt_2_src.size(); y++)
+						for (int y = 0; y < it->emx_.linemap_opt_2_src.size(); y++)
 						{
 							// reorder colour data if necessary
 							int realy = y;
 							//if (g_allargs.cutmode == Cutmode_EMXSPR)
-							realy = it->linemap_opt_2_src[y];
+							realy = it->emx_.linemap_opt_2_src[y];
 
 							for (int p = 0; p < g_allargs.planes; p++)
 							{
@@ -6591,14 +6615,17 @@ bool emit_sprite_sequence(bool _storepixels)
 						//std::cout << "output mask..." << std::endl << std::flush;
 
 						// track mask preshifts
-						psmask_component_nextlinks.resize(it->psmask_frames_ems_.size());
+						psmask_component_nextlinks.resize(it->ems_.psmask_frames_.size());
 						int preshift_index = 0;
-						for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_ems_.begin(); itpm != it->psmask_frames_ems_.end(); itpm++, preshift_index++)
+						for (std::vector<preshiftlist_t>::iterator itpm = it->ems_.psmask_frames_.begin(); itpm != it->ems_.psmask_frames_.end(); itpm++, preshift_index++)
 						{
 							int component = 0;
 							for (preshiftlist_t::iterator itc = itpm->begin(); itc != itpm->end(); itc++, component++)
 							{
 								psmask_component_index[std::pair<int, int>(preshift_index, component)] = tracked_filesize;
+								int psmask_component_fpos = tracked_filesize;
+								// spf_psm_
+								// spf_psm2_
 
 								// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
 								wv = endianswap16(itc->wordwidth_);
@@ -6643,10 +6670,97 @@ bool emit_sprite_sequence(bool _storepixels)
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 								}
 
+#if defined(USE_EMS2)
+								// spf_psm2_
+								// spf_psm2_emdata
+								int psmask_component_emdata_offset = tracked_filesize;
+								wv = 0;
+								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								
+								// spf_psm2_code
+								//int psmask_component_codegen_offset = tracked_filesize;
+								// code already emitted, position known
+								lv = ems2_sharedmask_codegen_pos - psmask_component_fpos;
+								fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+#endif
+
 								//psmask_component_nextlinks[ems_component].push_back(tracked_filesize);
 								psmask_component_nextlinks[preshift_index].push_back(tracked_filesize);
 								lv = 0;
 								fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+
+								// psf_psm2_ end 
+								// ---------------------------------------------------------------------------------------
+
+#if defined(USE_EMS2)
+								// ---------------------------------------------------------------------------------------
+								// clip table (follows spf_psm2_)
+
+								for (const auto & ss : itc->scan_states)
+								{
+									const blitstate_t & bs = ss.blitstate;
+/*
+	u16 emdata_offset;
+	u16 srccol_offset;
+	u16 mprog_offset;
+	u16 lines_remaining;
+	u8 dst_line_offset;
+	u8 dst_word_offset;
+	u8 SYI;
+	u8 DYI;
+	u8 SKEW; // d1
+	u8 XC;
+	u16 EM1;
+	u16 EM2;
+	u16 EM3;
+*/
+									wv = endianswap16(ss.emdata_offset);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									wv = endianswap16(ss.srccol_offset);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									wv = endianswap16(ss.mprog_offset);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									wv = endianswap16(ss.lines_remaining);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									fwrite(&ss.dst_line_offset, 1, 1, hout); tracked_filesize += 1;
+									fwrite(&ss.dst_word_offset, 1, 1, hout); tracked_filesize += 1;
+									//
+									fwrite(&bs.SYI, 1, 1, hout); tracked_filesize += 1;
+									fwrite(&bs.DYI, 1, 1, hout); tracked_filesize += 1;
+									fwrite(&bs.SKEW, 1, 1, hout); tracked_filesize += 1;
+									fwrite(&bs.XC, 1, 1, hout); tracked_filesize += 1;
+									wv = endianswap16(bs.EM1);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									wv = endianswap16(bs.EM2);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									wv = endianswap16(bs.EM3);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								}
+
+
+								// ---------------------------------------------------------------------------------------
+								// EM data
+								int psmask_component_emdata_pos = tracked_filesize;
+								for (auto & w : itc->shared_mask_words)
+								{
+									wv = endianswap16(w);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+								}
+
+								// immediately patch offset to EM data
+								{
+									size_t save = ftell(hout);
+									fseek(hout, psmask_component_emdata_offset + 4, 0);
+									{
+										// offset to EM data from this component
+										wv = psmask_component_emdata_pos - psmask_component_fpos;
+										wv = endianswap32(wv);
+										fwrite(&wv, 1, wv, hout);
+									}
+									fseek(hout, save, 0);
+								}
+
+#else
 
 								//if (g_allargs.cutmode == Cutmode_EMXSPR)
 								//{
@@ -6691,6 +6805,8 @@ bool emit_sprite_sequence(bool _storepixels)
 										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 									}
 								}
+#endif
+
 							}
 						}
 					}
@@ -6700,13 +6816,15 @@ bool emit_sprite_sequence(bool _storepixels)
 					{
 						//std::cout << "output maskopt..." << std::endl << std::flush;
 
-						psmaskopt_component_nextlinks.resize(it->psmask_frames_emx_.size());
+						psmaskopt_component_nextlinks.resize(it->emx_.psmask_frames_.size());
 						int preshift_index = 0;
-						for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_emx_.begin(); itpm != it->psmask_frames_emx_.end(); itpm++, preshift_index++)
+						for (std::vector<preshiftlist_t>::iterator itpm = it->emx_.psmask_frames_.begin(); itpm != it->emx_.psmask_frames_.end(); itpm++, preshift_index++)
 						{
 							int component = 0;
 							for (preshiftlist_t::iterator itc = itpm->begin(); itc != itpm->end(); itc++, component++)
 							{
+								// spf_psmo_
+
 								//psmaskopt_component_index[emx_component].push_back(tracked_filesize);
 								psmaskopt_component_index[std::pair<int,int>(preshift_index,component)] = tracked_filesize;
 

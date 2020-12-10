@@ -393,7 +393,7 @@ void generate_emx2_preshift_analysis
 #endif
 }
 
-void generate_emx2_active_linewidths(spriteframe_t &spr)
+void generate_emx2_active_linewidths(spriteframe_t &spr, spriteframe_t::generated_data_t &gen)
 {
 	spr.active_starts.clear();
 	spr.active_starts.resize(spr.h_, 0);
@@ -402,7 +402,7 @@ void generate_emx2_active_linewidths(spriteframe_t &spr)
 
 	// process only preshift[0] to establish source colour active widths
 	{
-		std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin();
+		std::vector<preshiftlist_t>::iterator pmit = gen.psmask_frames_.begin();
 
 		// compute active mask widths
 		{
@@ -655,7 +655,7 @@ void generate_emx2_common_lineorder
 		if (g_allargs.verbose)
 			std::cout << "optimizing common line order across all preshifts..." << std::endl << std::flush;
 
-		int shiftcount = spr.psmask_frames_emx_.size();
+		int shiftcount = spr.emx_.psmask_frames_.size();
 
 		int pagesize = (3 * spr.h_);
 
@@ -668,8 +668,8 @@ void generate_emx2_common_lineorder
 		int max_ci = -1;
 		{
 			int si = 0;
-			std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin();
-			for (; pmit != spr.psmask_frames_emx_.end(); pmit++, si++)
+			std::vector<preshiftlist_t>::iterator pmit = spr.emx_.psmask_frames_.begin();
+			for (; pmit != spr.emx_.psmask_frames_.end(); pmit++, si++)
 			{
 				// components within a preshift
 				//int ci = 0;
@@ -685,7 +685,7 @@ void generate_emx2_common_lineorder
 						int ci = -1;
 						for (auto & span : spanlist)
 						{
-							printf("span: ws=%d\n", span.ws);
+							//printf("span: ws=%d\n", span.ws);
 							
 							auto look = cimap.find(span.ws);
 							if (look != cimap.end())
@@ -1057,7 +1057,7 @@ void generate_emx2_common_lineorder
 						int loadcost = 0;
 						int pagesize = (3 * spr.h_);
 
-						int shiftcount = spr.psmask_frames_emx_.size();
+						int shiftcount = spr.emx_.psmask_frames_.size();
 						for (int si = 0; si < shiftcount; si++)
 						{
 							for (int ci = 0; ci <= max_ci; ci++)
@@ -1874,7 +1874,7 @@ void generate_emx2_order_spans
 	spriteframe_t &spr, int _frame, 
 	preshift_t &shift, int pi, 
 	std::vector<constrained_wordspan*> &_stacked_spans, 
-	bool _horizontal_ordering
+	bool _ems2
 )
 {
 	// stack all spans for state change optimization
@@ -1884,13 +1884,16 @@ void generate_emx2_order_spans
 		int horizontal_index = 0;
 		for (auto &span : spanlist)
 		{
-			span.line_opt = spr.linemap_src_2_opt[span.line_orig];
+			if (_ems2)
+				span.line_opt = spr.ems_.linemap_src_2_opt[span.line_orig];
+			else
+				span.line_opt = spr.emx_.linemap_src_2_opt[span.line_orig];
 
 			// span index has priority so spans rendered vertically for edge coherence, never horizontally
 			// otherwise, frame common lineorder prevails
 			uint32_t ordering_key;
 			
-			if (_horizontal_ordering)
+			if (_ems2)
 			{
 				// left->right spans within top-bottom ordered scanlines
 				ordering_key =
@@ -3047,8 +3050,15 @@ void generate_emx2_metaprogram
 		std::cout << "preshift " << pi << " codegen optimization transforms: " << xform_passes << std::endl;
 		
 	//
-	run_sim(context, component_livelines, _frame, pi, shift, spr.linemap_src_2_opt, /*generate=*/true);
 
+	std::vector<int> *linemap;
+	if (_shared_mask)
+		linemap = &spr.ems_.linemap_src_2_opt;
+	else
+		linemap = &spr.emx_.linemap_src_2_opt;
+
+
+	run_sim(context, component_livelines, _frame, pi, shift, *linemap/*spr.linemap_src_2_opt*/, /*generate=*/true);
 
 
 	ubyte_t *p68kbin = 0;
@@ -3084,15 +3094,12 @@ void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 	if (g_allargs.verbose)
 		std::cout << "frame [" << _frame << "]" << std::endl << std::flush;
 
-	// find min source colour spans
-	generate_emx2_active_linewidths(spr);
-
 	// analyse all preshifts within this frame
 	{
-		std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin();
+		std::vector<preshiftlist_t>::iterator pmit = spr.emx_.psmask_frames_.begin();
 
 		int psi = 0;
-		for (; pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+		for (; pmit != spr.emx_.psmask_frames_.end(); pmit++, psi++)
 		{
 			// first component within a preshift
 			preshiftlist_t::iterator cit = pmit->begin();
@@ -3105,10 +3112,10 @@ void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 	}
 
 	// find common line order
-	generate_emx2_common_lineorder(spr, spr.linemap_opt_2_src, spr.linemap_src_2_opt, /*optimize=*/true);
+	generate_emx2_common_lineorder(spr, spr.emx_.linemap_opt_2_src, spr.emx_.linemap_src_2_opt, /*optimize=*/true);
 
 	int pi = 0;
-	for (std::vector<preshiftlist_t>::iterator pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, pi++)
+	for (std::vector<preshiftlist_t>::iterator pmit = spr.emx_.psmask_frames_.begin(); pmit != spr.emx_.psmask_frames_.end(); pmit++, pi++)
 	{
 		//for (preshiftlist_t::iterator pit = pmit->begin(); pit != pmit->end(); pit++)
 		preshiftlist_t::iterator pit = pmit->begin();
@@ -3119,7 +3126,7 @@ void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 				continue;
 
 			std::vector<constrained_wordspan*> stacked_spans;
-			generate_emx2_order_spans(spr, _frame, shift, pi, stacked_spans, /*horizontal_ordering=*/false);
+			generate_emx2_order_spans(spr, _frame, shift, pi, stacked_spans, /*ems2=*/false);
 
 			std::vector<u16> shared_mask_words;
 			generate_emx2_metaprogram(spr, _frame, shift, pi, stacked_spans, /*shared_mask=*/false, shared_mask_words);
@@ -3146,7 +3153,7 @@ void generate_emx2_mask_sequence
 
 	for (auto pspan : stacked_spans)
 	{
-		int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+		int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
 		u16 *psourceline = &shift.data_[(orig_y * shift.wordwidth_)];
 		u16 *psharedline = &psharedmask[(orig_y * sharedmask_wordwidth)];
@@ -3202,20 +3209,16 @@ void generate_emx2_mask_sequence
 	printf("mask seq len: %d\n", shift.shared_mask_words.size());
 }
 
-void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
+void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 {
 	if (g_allargs.verbose)
 		std::cout << "frame [" << _frame << "]" << std::endl << std::flush;
-
-	// find min source colour spans
-	generate_emx2_active_linewidths(spr);
-
 
 	// analyse all preshifts within this frame
 	int sharedmask_wordwidth = 0;
 
 	// find widest mask pattern actually used
-	for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++)
+	for (auto pmit = spr.ems_.psmask_frames_.begin(); pmit != spr.ems_.psmask_frames_.end(); pmit++)
 	{
 		preshiftlist_t::iterator cit = pmit->begin();
 		if (cit->wordwidth_ > sharedmask_wordwidth)
@@ -3232,7 +3235,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	memset(psharedmask_v, 0, sizeof(uword_t) * totalmaskwords);
 
 	int psi = 0;
-	for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+	for (auto pmit = spr.ems_.psmask_frames_.begin(); pmit != spr.ems_.psmask_frames_.end(); pmit++, psi++)
 	{
 		// first component within a preshift
 		preshiftlist_t::iterator cit = pmit->begin();
@@ -3339,7 +3342,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 		printf("\n");
 	}
 
-	preshift_t &ref = *(spr.psmask_frames_emx_.begin()->begin());
+	preshift_t &ref = *(spr.ems_.psmask_frames_.begin()->begin());
 
 	// create new, common shift accommodating all preshifts
 	preshift_t *pshared_shift = new
@@ -3360,10 +3363,10 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	generate_emx2_preshift_analysis(spr, _frame, shared_shift, /*psi=*/0, /*single_span_scans=*/true);
 
 	// find common line order
-	generate_emx2_common_lineorder(spr, spr.linemap_opt_2_src, spr.linemap_src_2_opt, /*optimize=*/false);
+	generate_emx2_common_lineorder(spr, spr.ems_.linemap_opt_2_src, spr.ems_.linemap_src_2_opt, /*optimize=*/false);
 
 	std::vector<constrained_wordspan*> stacked_spans;
-	generate_emx2_order_spans(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*horizontal_ordering=*/true);
+	generate_emx2_order_spans(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*ems2=*/true);
 
 	size_t spancount = stacked_spans.size();
 
@@ -3371,7 +3374,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	{
 		for (auto pspan : stacked_spans)
 		{
-			int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+			int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
 			u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
 
@@ -3397,7 +3400,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	// then re-generate the common mask to encode these changes.
 	{
 		psi = 0;
-		for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+		for (auto pmit = spr.ems_.psmask_frames_.begin(); pmit != spr.ems_.psmask_frames_.end(); pmit++, psi++)
 		{
 			// first component within a preshift
 			preshiftlist_t::iterator cit = pmit->begin();
@@ -3412,7 +3415,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 
 					for (auto pspan : stacked_spans)
 					{
-						int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+						int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
 						shift.occupied_lines[orig_y] = true;
 
@@ -3478,7 +3481,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 
 			for (auto pspan : stacked_spans)
 			{
-				int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+				int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
 				//u16 *psourceline = &shift.data_[(orig_y * shift.wordwidth_)];
 				u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
@@ -3538,7 +3541,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 		for (auto pspan : stacked_spans)
 		{
 			//int v = pspan->draw_order;
-			int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+			int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
 			u16 *psharedline = &psharedmask_v[(orig_y * sharedmask_wordwidth)];
 
@@ -3578,7 +3581,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 
 	// generate mask sequence for each preshift
 	psi = 0;
-	for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+	for (auto pmit = spr.ems_.psmask_frames_.begin(); pmit != spr.ems_.psmask_frames_.end(); pmit++, psi++)
 	{
 		// first component within a preshift
 		preshiftlist_t::iterator cit = pmit->begin();
@@ -3606,7 +3609,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 
 	{
 		psi = 0;
-		for (auto pmit = spr.psmask_frames_emx_.begin(); pmit != spr.psmask_frames_emx_.end(); pmit++, psi++)
+		for (auto pmit = spr.ems_.psmask_frames_.begin(); pmit != spr.ems_.psmask_frames_.end(); pmit++, psi++)
 		{
 			// first component within a preshift
 			preshiftlist_t::iterator cit = pmit->begin();
@@ -3631,7 +3634,7 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 
 					for (auto pspan : stacked_spans)
 					{
-						int orig_y = spr.linemap_opt_2_src[pspan->line_opt];
+						int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
 						bool newline = (orig_y != last_y);
 						last_y = orig_y;
@@ -3757,6 +3760,28 @@ void generate_emx2_frame_flexible(spriteframe_t &spr, int _frame)
 	//generate_emx2_map_span_sources(spr, stacked_spans, );
 }
 
+bool generate_ems2_sequence()
+{
+	std::cout << "code-generating EMS frames: " << std::endl;
+
+	// individual sprites follow
+	spritelist_t::iterator it = g_spriteframes.begin();
+
+	int f = 0;
+	for (; it != g_spriteframes.end(); it++, f++)
+	{
+		if ((DEBUG_FRAME >= 0) && (f != DEBUG_FRAME))
+			continue;
+
+		// find min source colour spans
+		generate_emx2_active_linewidths(*it, it->ems_);
+
+		generate_ems2_frame_flexible(*it, f);
+	}
+
+	return true;
+}
+
 bool generate_emx2_sequence()
 {
 	std::cout << "code-generating EMX frames: " << std::endl;
@@ -3769,8 +3794,17 @@ bool generate_emx2_sequence()
 	{
 		if ((DEBUG_FRAME >= 0) && (f != DEBUG_FRAME))
 			continue;
+
+		// find min source colour spans
+		generate_emx2_active_linewidths(*it, it->emx_);
+
 		generate_emx2_frame_optimized(*it, f);
-		//generate_emx2_frame_flexible(*it, f);
+
+#if defined(USE_EMS2)
+		// if EMS or clip-ready EMX, generate EMS material
+		if (!g_allargs.noclipy)
+			generate_ems2_frame_flexible(*it, f);
+#endif
 	}
 
 	return true;

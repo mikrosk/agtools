@@ -57,12 +57,10 @@ spf_xo:			ds.w	1
 spf_yo:			ds.w	1
 spf_omap:		ds.w	1
 spf_data:		ds.l	0
+
 *-------------------------------------------------------*
-			.abs	spf_data
-;spf_em_psocclusion:	ds.w	16
-spf_em_colour:		ds.l	2
-spf_em_psmask:		ds.l	16
 			.abs
+*-------------------------------------------------------*
 spf_psm_wordwidth:	ds.w	1
 spf_psm_bskew:		ds.w	1
 spf_psm_bsyi:		ds.w	1
@@ -71,20 +69,71 @@ spf_psm_wordoffset:	ds.w	1
 spf_psm_nextcmp:	ds.l	1
 spf_psm_data:
 
+
 *-------------------------------------------------------*
-			.abs	spf_data
-;spf_emx_psocclusion:	ds.w	16
-spf_emx_colour:		ds.l	2
-spf_emx_colouropt:	ds.l	2
-spf_emx_psmask:		ds.l	16
-spf_emx_psmaskopt:	ds.l	16
 			.abs
+*-------------------------------------------------------*
+spct_emdata_off:	ds.w	1
+spct_srccol_off:	ds.w	1
+spct_mprog_off:		ds.w	1
+spct_lrem:		ds.w	1
+spct_dline_off:		ds.b	1
+spct_dword_off:		ds.b	1
+spct_b_syi:		ds.b	1
+spct_b_dyi:		ds.b	1
+spct_b_skew:		ds.b	1
+spct_b_xc:		ds.b	1
+spct_b_em1:		ds.w	1
+spct_b_em2:		ds.w	1
+spct_b_em3:		ds.w	1
+spct_size:
+
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+spf_psm2_wordwidth:	ds.w	1
+spf_psm2_bskew:		ds.w	1
+spf_psm2_bsyi:		ds.w	1
+spf_psm2_bdyi:		ds.w	1
+spf_psm2_wordoffset:	ds.w	1
+spf_psm2_emdata:	ds.w	1		; offset to (unique) EM data
+spf_psm2_code:		ds.l	1		; offset to (shared) codegen
+spf_psm2_nextcmp:	ds.l	1		; next component
+spf_psm2_clip:					; clipping table follows
+; shared codegen emitted standalone, like colour data
+; EM data emitted after clipping table
+
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
 spf_psmo_wordwidth:	ds.w	1
 spf_psmo_wordoffset:	ds.w	1
 spf_psmo_dstyskip:	ds.w	1
 spf_psmo_dstwords:	ds.w	1
 spf_psmo_nextcmp:	ds.l	1
 spf_psmo_codegen:
+
+*-------------------------------------------------------*
+			.abs	spf_data
+*-------------------------------------------------------*
+spf_em_colour:		ds.l	2
+spf_em_psmask:		ds.l	16			
+;...occlusion maps [index]
+;...occlusion maps [data]
+;...ems2 shared codegen
+;...colour data
+
+*-------------------------------------------------------*
+			.abs	spf_data
+*-------------------------------------------------------*
+spf_emx_colour:		ds.l	2		; col0/1 (line-ordered)
+spf_emx_colouropt:	ds.l	2		; col0/1 (optimized, line-reordered)
+spf_emx_psmask:		ds.l	16		; preshifts[16] (shared code, unique EM data)
+spf_emx_psmaskopt:	ds.l	16		; preshifts[16] (optimized, unique code)
+;...occlusion maps [index]
+;...occlusion maps [data]
+;...ems2 shared codegen
+;...colour data
 
 *-------------------------------------------------------*
 *	slabsheet .sls main header
