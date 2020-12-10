@@ -1055,20 +1055,19 @@ void generate_emx2_common_lineorder
 						//int totalcost = 0;
 						double dtotalcost = 0;
 						int loadcost = 0;
+						int pagesize = (3 * spr.h_);
 
 						int shiftcount = spr.psmask_frames_emx_.size();
 						for (int si = 0; si < shiftcount; si++)
 						{
 							for (int ci = 0; ci <= max_ci; ci++)
 							{
-								int pagesize = (3 * spr.h_);
 								int page = ((ci * shiftcount) + si) * pagesize;
 								uword_t *sbuffer = &buffer[page];
 
 								//						uword_t *sbuffer = &buffer[3 * spr.h_ * si * ci];
 								//						uword_t *sbuffer = buffer;
-
-								for (int v = 0; v < (spr.h_ - 1); v++)
+								for (int v = 0; v < (live_line_count - 1); v++)
 								{
 									int v0 = trial_pattern[v + 0];
 									int v1 = trial_pattern[v + 1];
@@ -1358,7 +1357,7 @@ void generate_emx2_common_lineorder
 			}
 
 			printf("\nfinal-reordered:\n");
-			for (int v = 0; v < spr.h_; v++)
+			for (int v = 0; v < linemap_opt_2_src.size(); v++)
 			{
 				int dsty = linemap_opt_2_src[v];
 				printf("s:%02d ", dsty);

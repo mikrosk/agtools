@@ -6351,6 +6351,9 @@ bool emit_sprite_sequence(bool _storepixels)
 				// if preshifting is specified, additional indirection table used for preshifted sub-frames
 				if (g_allargs.masklayout == Masklayout_PRESHIFT)
 				{
+					// spf_em_
+					// spf_emx_
+
 					// preshifting is present so we need additional indirection for preshifted sub-frames
 					std::vector<std::pair<int,int>> pscolr_index;
 					std::vector<std::pair<int,int>> pscolropt_index;
@@ -6407,6 +6410,18 @@ bool emit_sprite_sequence(bool _storepixels)
 							fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 						}
 					}
+
+					//---------------------------------------------------------------------------------------
+
+#if defined(USE_EMS2)
+					// emit EMS2 shared codegen
+					if (it->ems2_size68kbin)
+					{
+						ems2_shared_codegen_pos = tracked_filesize;
+
+						size_t sz = it->ems2_size68kbin;
+					}
+#endif
 
 					//---------------------------------------------------------------------------------------
 
@@ -6531,7 +6546,7 @@ bool emit_sprite_sequence(bool _storepixels)
 						//					fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 						// write colour words for N lines, lines(planes(words))) order
-						for (int y = 0; y < it->h_; y++)
+						for (int y = 0; y < it->linemap_opt_2_src.size(); y++)
 						{
 							// reorder colour data if necessary
 							int realy = y;
