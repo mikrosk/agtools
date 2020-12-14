@@ -42,11 +42,12 @@ enum EntityDraw
 	EntityDraw_NONE,		// invisible/no-draw
 	EntityDraw_IMSPR,		// standard [I]nterleaved, [M]asked sprite (software or blitter)
 	EntityDraw_SPRITE = EntityDraw_IMSPR, // another name for IMSPR
-	EntityDraw_EMSPR,		// blitter [E]nd[M]ask sprite, any width, only guardband x-clipping
-	EntityDraw_EMSPRQ,		// blitter [E]nd[M]ask sprite up to 32pixels wide, only guardband x-clipping
+	EntityDraw_EMSPR,		// blitter [E]nd[M]ask sprite, any width, y-clipping, only guardband x-clipping
+	EntityDraw_EMSPRQ,		// blitter [E]nd[M]ask sprite up to 32pixels wide, y-clipping, only guardband x-clipping
 	EntityDraw_EMXSPR,		// blitter [E]nd[M]ask (extreme optimization) sprite, any size, only guardband x-clipping
 	EntityDraw_EMXSPRQ,		// blitter [E]nd[M]ask (extreme optimization) sprite up to 32pixels wide + fast-path clipping, only guardband x-clipping
 	EntityDraw_EMXSPRUR,	// blitter [E]nd[M]ask (extreme optimization) sprite, any size, user-defined restore shape, only guardband x-clipping
+	EntityDraw_EMHSPR,		// blitter [E]nd[M]ask (high optimization) sprite, any size, y-clipping, only guardband x-clipping
 	EntityDraw_SLAB,		// blitter 'slab' shape for large irregular outlines, low memory overhead, user-defined restore shape, only guardband x-clipping
 	EntityDraw_CUSTOM,		// user-defined draw function
 	EntityDraw_RFILL		// rectangle fill

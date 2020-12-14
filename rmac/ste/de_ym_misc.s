@@ -880,6 +880,7 @@ _BLiT_EntityOccludeVisibleYM_68k:
 	bra.w		.STE_EntityOccludeVisibleYM_EMXSPR_setup
 	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; EMXSPRQ
 	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; EMXSPRUR
+	bra.w		.STE_EntityOccludeVisibleYM_EMSPR_setup	; EMHSPR
 	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; SLAB
 	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; CUSTOM
 	bra.w		.STE_EntityOccludeVisibleYM_NONE_setup	; RFILL

@@ -766,8 +766,9 @@ enum Cutmode
 {
 	Cutmode_TILES,
 	Cutmode_SPRITES,			// standard sprites (software w/o mask, or blitter w/ mask)
-	Cutmode_EMSPR,				// <= 32 wide EM blitter sprites (preshifted masks)
-	Cutmode_EMXSPR,				// <= 32 wide EM eXtreme blitter sprites (preshifted codegen)
+	Cutmode_EMSPR,				// EM blitter sprites (preshifted maskdata)
+	Cutmode_EMXSPR,				// EM eXtreme blitter sprites (preshifted codegen, immediate sparse maskdata)
+	Cutmode_EMHSPR,				// EM hybrid blitter sprites (preshift-shared codegen, preshifted sparse maskdata)
 	Cutmode_SLABS,
 	Cutmode_SLABRESTORE,
 };
@@ -1133,6 +1134,14 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 				if (s_arg.find("emxspr") != std::string::npos)
 				{
 					_args.cutmode = Cutmode_EMXSPR;
+					_args.masklayout = Masklayout_PRESHIFT;
+					_args.masklayout_lock = true;
+					_args.genmask = true;
+				}
+				else
+				if (s_arg.find("emhspr") != std::string::npos)
+				{
+					_args.cutmode = Cutmode_EMHSPR;
 					_args.masklayout = Masklayout_PRESHIFT;
 					_args.masklayout_lock = true;
 					_args.genmask = true;
@@ -1821,6 +1830,17 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 	//if (g_allargs.quickcut)
 	//	g_allargs.verbose = false;
 
+	if (
+		(_args.cutmode == Cutmode_EMXSPR) ||
+		(_args.cutmode == Cutmode_EMHSPR)
+	)
+	{
+		if (_args.emc)
+			std::cout << "note: EMX/EMH support arbitrary-width sprites without -emc" << std::endl;
+		else
+			_args.emc = true;
+	}
+
 	if (_args.cutmode == Cutmode_SLABRESTORE)
 	{
 		_args.compound_slabs = false;
@@ -1837,18 +1857,28 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		}
 	}
 
-	if (g_allargs.cutmode == Cutmode_EMSPR || g_allargs.cutmode == Cutmode_EMXSPR)
+	if (g_allargs.cutmode == Cutmode_EMSPR)
 	{
 		if (g_allargs.emc)
 		{
-			// no x clipping supported in compound sprites
+			// no x clipping supported in compound EMS
+			// does remain possible for <=32-wide EMS
 			g_allargs.noclipx = true;
 		}
+	}
+	else
+	if (g_allargs.cutmode == Cutmode_EMXSPR ||
+		g_allargs.cutmode == Cutmode_EMHSPR)
+	{
+		// no x-clipping supported at all in EMX/EMH
+		g_allargs.noclipx = true;
 	}
 
 	if (g_allargs.dualfield_alpha)
 	{
-		if (g_allargs.cutmode == Cutmode_EMSPR || g_allargs.cutmode == Cutmode_EMXSPR)
+		if (g_allargs.cutmode == Cutmode_EMSPR || 
+			g_allargs.cutmode == Cutmode_EMXSPR ||
+			g_allargs.cutmode == Cutmode_EMHSPR)
 		{
 			if ((g_allargs.ccfields == 1) &&
 				(g_allargs.alphargb_specified))
@@ -5438,7 +5468,7 @@ public:
 		  wordoffset_(_wordoffset),
 		  wordsremaining_(_wordsremaining),
 		  data_(_data),
-		  p68kbin(0),
+		  p68kbin(nullptr),
 		  size68kbin(0)
 	{
 		planewords_ = _height * _wordwidth;
@@ -5658,7 +5688,7 @@ public:
 		}
 	}
 
-	void generate_mask_preshifts(int _range, int _step, int _max_dst_wordwidth, bool _ems)
+	void generate_mask_preshifts(spriteframe_t::generated_data_t &_gen, int _range, int _step, int _max_dst_wordwidth)
 	{
 		int src_wordwidth = ((w_ + 15) & -16) >> 4;
 
@@ -5726,36 +5756,18 @@ public:
 				}
 
 				// todo: components created based on iterative extraction!
-				if (_ems)
-				{
-					if (preshift_index >= ems_.psmask_frames_.size())
-						ems_.psmask_frames_.resize(preshift_index + 1);
+				if (preshift_index >= _gen.psmask_frames_.size())
+					_gen.psmask_frames_.resize(preshift_index + 1);
 
-					ems_.psmask_frames_[preshift_index].emplace_back
+				_gen.psmask_frames_[preshift_index].emplace_back
+				(
+					preshift_t
 					(
-						preshift_t
-						(
-							s, 1, h_,
-							dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
-							preshift
-						)
-					);
-				}
-				else				
-				{
-					if (preshift_index >= emx_.psmask_frames_.size())
-						emx_.psmask_frames_.resize(preshift_index + 1);
-
-					emx_.psmask_frames_[preshift_index].emplace_back
-					(
-						preshift_t
-						(
-							s, 1, h_,
-							dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
-							preshift
-						)
-					);
-				}
+						s, 1, h_,
+						dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
+						preshift
+					)
+				);
 
 				if (g_allargs.verbose)
 					std::cout << " mask preshift index " << preshift_index << " step " << s << " component " << component << " @ wordwidth " << dst_wordwidth << std::endl;
@@ -6019,8 +6031,9 @@ void add_sprite_frame
 	// if preshift step applied, all anim frames should agree on x-snap
 	if (
 		(g_allargs.cutmode == Cutmode_EMSPR) ||
-		(g_allargs.cutmode == Cutmode_EMXSPR)
-		)
+		(g_allargs.cutmode == Cutmode_EMXSPR) ||
+		(g_allargs.cutmode == Cutmode_EMHSPR)
+	)
 	{
 		if (g_allargs.preshift_step > 1)
 		{
@@ -6034,10 +6047,8 @@ void add_sprite_frame
 	g_sprite_framebpwidth = (g_sprite_framewidth + (16-1)) & -16;
 
 	// guard against active sprite source widths > 32 pixels for EMS/EMX formats
-	if (
-		(g_allargs.cutmode == Cutmode_EMSPR) ||
-		(g_allargs.cutmode == Cutmode_EMXSPR)
-	)
+
+	if (g_allargs.cutmode == Cutmode_EMSPR)
 	{
 		if (1 && (g_sprite_framebpwidth >> 4) > 2)
 		{
@@ -6170,7 +6181,7 @@ void add_sprite_frame
 	// optionally generate preshifts for mask or colour data
 
 	// limit the max destination width of preshifted masks to 3 words for EMS/EMX
-	int max_dst_wordwidth = 0;
+/*	int max_dst_wordwidth = 0;
 	if (
 		(g_allargs.cutmode == Cutmode_EMSPR)
 //#if !defined(USE_EMX2)
@@ -6181,19 +6192,41 @@ void add_sprite_frame
 	{
 		max_dst_wordwidth = 3;
 	}
+*/
+	auto & spr = g_spriteframes.back();
 
 	if (g_allargs.genmask && (g_allargs.masklayout == Masklayout_PRESHIFT))
 	{
 		if (g_allargs.verbose)
 			std::cout << "preshifting mask..." << std::endl;
 
-		g_spriteframes.back().generate_mask_preshifts(16, g_allargs.preshift_step, max_dst_wordwidth, /*ems=*/true);
-		if (g_allargs.cutmode == Cutmode_EMXSPR)
-			g_spriteframes.back().generate_mask_preshifts(16, g_allargs.preshift_step, 0, /*ems=*/false);
+		switch (g_allargs.cutmode)
+		{
+		case Cutmode_EMSPR:
+			{
+				// generate component count based on max wordwidth per component
+				spr.generate_mask_preshifts(spr.ems_, 16, g_allargs.preshift_step, /*max_dst_wordwidth=*/3);
+			}
+			break;
+		case Cutmode_EMXSPR:
+			{
+				// embedded EMS, for y-clipping. multiple components.
+				spr.generate_mask_preshifts(spr.ems_, 16, g_allargs.preshift_step, /*max_dst_wordwidth=*/3);
+				// generate single component
+				spr.generate_mask_preshifts(spr.emx_, 16, g_allargs.preshift_step, 0);
+			}
+			break;
+		case Cutmode_EMHSPR:
+			{
+				// generate single component for now
+				spr.generate_mask_preshifts(spr.ems_, 16, g_allargs.preshift_step, 0);
+			}
+			break;
+		};
 	}
 		
 	if (g_allargs.emc && g_allargs.ocm)
-		g_spriteframes.back().generate_occlusion_maps();
+		spr.generate_occlusion_maps();
 
 }
 
@@ -6227,6 +6260,9 @@ bool emit_sprite_sequence(bool _storepixels)
 	else
 	if (g_allargs.cutmode == Cutmode_EMXSPR)
 		replace_extension(fname, "emx");
+	else
+	if (g_allargs.cutmode == Cutmode_EMHSPR)
+		replace_extension(fname, "emh");
 
 
 	FILE *hout = fopen(fname.c_str(), "wb");
@@ -6273,7 +6309,7 @@ bool emit_sprite_sequence(bool _storepixels)
 		if (g_allargs.cutmode == Cutmode_EMXSPR)
 			wv |= 3 << 1;
 		else
-		if (g_allargs.cutmode == Cutmode_EMSPR)
+		if ((g_allargs.cutmode == Cutmode_EMSPR) || (g_allargs.cutmode == Cutmode_EMHSPR))
 			wv |= 2 << 1;
 		else
 		if (g_allargs.masklayout == Masklayout_PLANAR)
@@ -6370,25 +6406,25 @@ bool emit_sprite_sequence(bool _storepixels)
 					// spf_emx_
 
 					// dual-field colour, two pointers
-					std::vector<std::pair<int,int>> pscolr_index;
-					std::vector<std::pair<int,int>> pscolropt_index;
+					std::vector<std::pair<int, int>> pscolr_index;
+					std::vector<std::pair<int, int>> pscolropt_index;
 
 					// preshifting is present so we need additional indirection for preshifted sub-frames
-					std::map<std::pair<int,int>, int> psmask_component_index;
-					std::map<std::pair<int,int>, int> psmaskopt_component_index;
+					std::map<std::pair<int, int>, int> psmask_component_index;
+					std::map<std::pair<int, int>, int> psmaskopt_component_index;
 
 					std::vector<std::list<int>> psmask_component_nextlinks;
 					std::vector<std::list<int>> psmaskopt_component_nextlinks;
 
-/*
-					// write N word offsets for occlusion x-preshifts
-					int occlusion_preshift_index_fpos = tracked_filesize;
-					for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
-					{
-						wv = 0;
-						fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-					}
-*/
+					/*
+										// write N word offsets for occlusion x-preshifts
+										int occlusion_preshift_index_fpos = tracked_filesize;
+										for (std::vector<preshiftlist_t>::iterator itpm = it->psmask_frames_.begin(); itpm != it->psmask_frames_.end(); itpm++)
+										{
+										wv = 0;
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+										}
+										*/
 					// write offsets for plain colourdata (no preshifts yet)
 					int colr_preshift_index_fpos = tracked_filesize;
 					lv = 0;
@@ -6486,23 +6522,30 @@ bool emit_sprite_sequence(bool _storepixels)
 					//---------------------------------------------------------------------------------------
 					// EMS2 shared codegen
 
-#if defined(USE_EMS2)
-					// spf_psm2_
-					int ems2_sharedmask_codegen_pos = 0;
-					if (it->size68kbin_)
+//#if defined(USE_EMS2)
+					int ems2_sharedmask_codegen_fpos = 0;
+					if (g_allargs.cutmode == Cutmode_EMHSPR)
 					{
-						ems2_sharedmask_codegen_pos = tracked_filesize;
+						// spf_psm2_
+						if (it->ems2_size68kbin_)
+						{
+							ems2_sharedmask_codegen_fpos = tracked_filesize;
 
-						fwrite((it->p68kbin_ + 32), 1, (it->size68kbin_ - 32), hout);
-						tracked_filesize += (it->size68kbin_ - 32);
-
-						//ems2_sharedmask_codegen_index.push_back(ems2_sharedmask_codegen_pos);
+							fwrite((it->ems2_p68kbin_ + 32), 1, (it->ems2_size68kbin_ - 32), hout);
+							tracked_filesize += (it->ems2_size68kbin_ - 32);
+						}
+						else
+						{
+							printf("error: no m68k code generated for EMS2\n");
+							exit(1);
+						}
 					}
-#endif
+//#endif
 					//---------------------------------------------------------------------------------------
 					// plain colour 
 
 					if ((g_allargs.cutmode == Cutmode_EMSPR) || 
+						(g_allargs.cutmode == Cutmode_EMHSPR) || 
 						// if EMX, still embed EMS when any kind of clipping is needed (default)
 						// todo: for compound EMX, can assume [noclipx]
 						!(g_allargs.noclipx && g_allargs.noclipy))
@@ -6608,6 +6651,7 @@ bool emit_sprite_sequence(bool _storepixels)
 
 					// plain mask preshifts 
 					if ((g_allargs.cutmode == Cutmode_EMSPR) ||
+						(g_allargs.cutmode == Cutmode_EMHSPR) ||
 						// if EMX, still embed EMS when any kind of clipping is needed (default)
 						// todo: for compound EMX, can ignore [noclipx]
 						!(g_allargs.noclipx && g_allargs.noclipy))
@@ -6631,10 +6675,32 @@ bool emit_sprite_sequence(bool _storepixels)
 								wv = endianswap16(itc->wordwidth_);
 								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
-								// blitter-specific fields (for EMS or y-clipped EMX)
+								if (g_allargs.cutmode == Cutmode_EMHSPR)
+								{
+//#if defined(USE_EMS2)
+									const auto & ss = *(itc->scan_states.begin());
+									const blitstate_t & bs = ss.blitstate;
+
+									// BLiTSKEW
+									wv = endianswap16(u16(bs.SKEW));
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									// BLiTSYI
+									wv = endianswap16(s16(bs.SYI));
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									// BLiTDYI
+									wv = endianswap16(s16((s8)bs.DYI));
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									// BLiTXC
+									wv = endianswap16(s16(bs.XC));
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+//#else
+								}
+								else
 								if ((g_allargs.cutmode == Cutmode_EMSPR) ||
 									(g_allargs.cutmode == Cutmode_EMXSPR))
 								{
+									// blitter-specific fields (for EMS or y-clipped EMX)
+
 									bool NFSR =
 										(itc->wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
 										(itc->wordsremaining_ == 0) &&
@@ -6670,19 +6736,25 @@ bool emit_sprite_sequence(bool _storepixels)
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 								}
 
-#if defined(USE_EMS2)
-								// spf_psm2_
-								// spf_psm2_emdata
 								int psmask_component_emdata_offset = tracked_filesize;
-								wv = 0;
-								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-								
-								// spf_psm2_code
-								//int psmask_component_codegen_offset = tracked_filesize;
-								// code already emitted, position known
-								lv = ems2_sharedmask_codegen_pos - psmask_component_fpos;
-								fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
-#endif
+								if (g_allargs.cutmode == Cutmode_EMHSPR)
+								{
+//#if defined(USE_EMS2)
+									// spf_psm2_
+									// spf_psm2_emdata
+									// offset.w to emdata pool for this preshift
+									wv = 0;
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+									// spf_psm2_code
+									// offset.l to shared m68k mprog
+									//int psmask_component_codegen_offset = tracked_filesize;
+									// code already emitted, position known
+									lv = int(ems2_sharedmask_codegen_fpos - psmask_component_fpos);
+									lv = endianswap32(lv);
+									fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
+//#endif
+								}
 
 								//psmask_component_nextlinks[ems_component].push_back(tracked_filesize);
 								psmask_component_nextlinks[preshift_index].push_back(tracked_filesize);
@@ -6692,120 +6764,130 @@ bool emit_sprite_sequence(bool _storepixels)
 								// psf_psm2_ end 
 								// ---------------------------------------------------------------------------------------
 
-#if defined(USE_EMS2)
-								// ---------------------------------------------------------------------------------------
-								// clip table (follows spf_psm2_)
-
-								for (const auto & ss : itc->scan_states)
+								if (g_allargs.cutmode == Cutmode_EMHSPR)
 								{
-									const blitstate_t & bs = ss.blitstate;
-/*
-	u16 emdata_offset;
-	u16 srccol_offset;
-	u16 mprog_offset;
-	u16 lines_remaining;
-	u8 dst_line_offset;
-	u8 dst_word_offset;
-	u8 SYI;
-	u8 DYI;
-	u8 SKEW; // d1
-	u8 XC;
-	u16 EM1;
-	u16 EM2;
-	u16 EM3;
-*/
-									wv = endianswap16(ss.emdata_offset);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-									wv = endianswap16(ss.srccol_offset);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-									wv = endianswap16(ss.mprog_offset);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-									wv = endianswap16(ss.lines_remaining);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-									fwrite(&ss.dst_line_offset, 1, 1, hout); tracked_filesize += 1;
-									fwrite(&ss.dst_word_offset, 1, 1, hout); tracked_filesize += 1;
-									//
-									fwrite(&bs.SYI, 1, 1, hout); tracked_filesize += 1;
-									fwrite(&bs.DYI, 1, 1, hout); tracked_filesize += 1;
-									fwrite(&bs.SKEW, 1, 1, hout); tracked_filesize += 1;
-									fwrite(&bs.XC, 1, 1, hout); tracked_filesize += 1;
-									wv = endianswap16(bs.EM1);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-									wv = endianswap16(bs.EM2);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-									wv = endianswap16(bs.EM3);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-								}
 
+									//#if defined(USE_EMS2)
+									// ---------------------------------------------------------------------------------------
+									// clip table (follows spf_psm2_)
 
-								// ---------------------------------------------------------------------------------------
-								// EM data
-								int psmask_component_emdata_pos = tracked_filesize;
-								for (auto & w : itc->shared_mask_words)
-								{
-									wv = endianswap16(w);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-								}
-
-								// immediately patch offset to EM data
-								{
-									size_t save = ftell(hout);
-									fseek(hout, psmask_component_emdata_offset + 4, 0);
+									for (const auto & ss : itc->scan_states)
 									{
-										// offset to EM data from this component
-										wv = psmask_component_emdata_pos - psmask_component_fpos;
-										wv = endianswap32(wv);
-										fwrite(&wv, 1, wv, hout);
-									}
-									fseek(hout, save, 0);
-								}
-
-#else
-
-								//if (g_allargs.cutmode == Cutmode_EMXSPR)
-								//{
-								//	fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
-
-								//	// write 68k binary code for this preshift
-								//	fwrite((itm->p68kbin + 32), 1, (itm->size68kbin - 32), hout);
-								//	tracked_filesize += (itm->size68kbin - 32);
-								//}
-								//else
-								{
-									int wordcounter = 0;
-
-									// write whole mask preshift
-									//std::cout << "mask:" << std::endl;
-									for (int o = 0; o < itc->planewords_; o++)
-									{
-										// write colour words for single mask plane
-										uword_t data = itc->data_[o];
-
-										if (0)
-											if (component > 0)
-											{
-												for (int x = 0; x < 16; x++)
-												{
-													if (data & 0x8000)
-														std::cout << "1";
-													else
-														std::cout << "0";
-													data <<= 1;
-												}
-												std::cout << " ";
-												wordcounter++;
-												if (wordcounter == itc->wordwidth_)
-												{
-													std::cout << std::endl;
-													wordcounter = 0;
-												}
-											}
-
-										wv = endianswap16(itc->data_[o]);
+										const blitstate_t & bs = ss.blitstate;
+										/*
+											u16 emdata_offset;
+											u16 srccol_offset;
+											u16 mprog_offset;
+											u16 lines_remaining;
+											u8 dst_line_offset;
+											u8 dst_word_offset;
+											u8 SYI;
+											u8 DYI;
+											u8 SKEW; // d1
+											u8 XC;
+											u16 EM1;
+											u16 EM2;
+											u16 EM3;
+											*/
+										// cpu
+										wv = endianswap16(ss.emdata_offset);
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+										wv = endianswap16(ss.srccol_offset);
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+										wv = endianswap16(ss.mprog_offset);
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+										wv = endianswap16(ss.lines_remaining);
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+										fwrite(&ss.dst_line_offset, 1, 1, hout); tracked_filesize += 1;
+										fwrite(&ss.dst_word_offset, 1, 1, hout); tracked_filesize += 1;
+										// blitter
+										fwrite(&bs.SYI, 1, 1, hout); tracked_filesize += 1;
+										fwrite(&bs.DYI, 1, 1, hout); tracked_filesize += 1;
+										fwrite(&bs.SKEW, 1, 1, hout); tracked_filesize += 1;
+										fwrite(&bs.XC, 1, 1, hout); tracked_filesize += 1;
+										wv = endianswap16(bs.EM1);
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+										wv = endianswap16(bs.EM2);
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+										wv = endianswap16(bs.EM3);
 										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 									}
+
+
+									// ---------------------------------------------------------------------------------------
+									// EM data
+									int psmask_component_emdata_fpos = tracked_filesize;
+									for (auto & w : itc->shared_mask_words)
+									{
+										print_dataword(w);
+										printf("\n");
+										wv = endianswap16(w);
+										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									}
+
+									// immediately patch offset to EM data
+									{
+										size_t save = ftell(hout);
+										fseek(hout, psmask_component_emdata_offset + 4, 0);
+										{
+											// offset to EM data from this component
+											wv = int(psmask_component_emdata_fpos - psmask_component_fpos);
+											wv = endianswap16(wv);
+											fwrite(&wv, 1, 2, hout);
+										}
+										fseek(hout, save, 0);
+									}
+
+								//#else
 								}
-#endif
+								else
+								{
+
+									//if (g_allargs.cutmode == Cutmode_EMXSPR)
+									//{
+									//	fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
+
+									//	// write 68k binary code for this preshift
+									//	fwrite((itm->p68kbin + 32), 1, (itm->size68kbin - 32), hout);
+									//	tracked_filesize += (itm->size68kbin - 32);
+									//}
+									//else
+									{
+										int wordcounter = 0;
+
+										// write whole mask preshift
+										//std::cout << "mask:" << std::endl;
+										for (int o = 0; o < itc->planewords_; o++)
+										{
+											// write colour words for single mask plane
+											uword_t data = itc->data_[o];
+
+											if (0)
+												if (component > 0)
+												{
+													for (int x = 0; x < 16; x++)
+													{
+														if (data & 0x8000)
+															std::cout << "1";
+														else
+															std::cout << "0";
+														data <<= 1;
+													}
+													std::cout << " ";
+													wordcounter++;
+													if (wordcounter == itc->wordwidth_)
+													{
+														std::cout << std::endl;
+														wordcounter = 0;
+													}
+												}
+
+											wv = endianswap16(itc->data_[o]);
+											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+										}
+									}
+								}
+//#endif
 
 							}
 						}
@@ -6875,6 +6957,7 @@ bool emit_sprite_sequence(bool _storepixels)
 
 					// patch colour preshift index
 					if ((g_allargs.cutmode == Cutmode_EMSPR) ||
+						(g_allargs.cutmode == Cutmode_EMHSPR) ||
 						// if EMX, still embed EMS when any kind of clipping is needed (default)
 						// todo: for compound EMX, can ignore [noclipx]
 						!(g_allargs.noclipx && g_allargs.noclipy))
@@ -6930,6 +7013,7 @@ bool emit_sprite_sequence(bool _storepixels)
 
 					// patch mask preshift index
 					if ((g_allargs.cutmode == Cutmode_EMSPR) ||
+						(g_allargs.cutmode == Cutmode_EMHSPR) ||
 						// if EMX, still embed EMS when any kind of clipping is needed (default)
 						// todo: for compound EMX, can ignore [noclipx]
 						!(g_allargs.noclipx && g_allargs.noclipy))
@@ -9159,7 +9243,8 @@ bool do_sheet()
 
 						if (g_allargs.cutmode == Cutmode_SPRITES ||
 							g_allargs.cutmode == Cutmode_EMSPR ||
-							g_allargs.cutmode == Cutmode_EMXSPR)
+							g_allargs.cutmode == Cutmode_EMXSPR ||
+							g_allargs.cutmode == Cutmode_EMHSPR)
 						{
 							init_sprite_sequence(cutting_source_xs, cutting_source_ys, sourcew, sourceh);
 
@@ -9240,7 +9325,8 @@ bool do_sheet()
 
 						if (g_allargs.cutmode == Cutmode_SPRITES ||
 							g_allargs.cutmode == Cutmode_EMSPR ||
-							g_allargs.cutmode == Cutmode_EMXSPR)
+							g_allargs.cutmode == Cutmode_EMXSPR ||
+							g_allargs.cutmode == Cutmode_EMHSPR)
 						{
 							std::cout << "cutting sprite frame " << total_cuts << " from position [" << cutting_source_x << ", " << cutting_source_y << "]" << std::endl;
 
@@ -9304,14 +9390,32 @@ bool do_sheet()
 #else
 				generate_emx_sequence();
 #endif
-			case Cutmode_SPRITES:
+//#if defined(USE_EMS2)
+//				generate_ems2_sequence();
+//#endif
+				std::cout << "outputting data..." << std::endl;
+				emit_sprite_sequence(!g_allargs.hidden);
+				break;
+
 			case Cutmode_EMSPR:
+				std::cout << "outputting data..." << std::endl;
+				emit_sprite_sequence(!g_allargs.hidden);
+				break;
+
+			case Cutmode_EMHSPR:
+//#if defined(USE_EMS2)
+				generate_ems2_sequence();
+//#endif
+				std::cout << "outputting data..." << std::endl;
+				emit_sprite_sequence(!g_allargs.hidden);
+				break;
+
+			case Cutmode_SPRITES:
 				// non-code-generated sprite formats
 				std::cout << "outputting data..." << std::endl;
-//#if !defined(USE_EMX2)
 				emit_sprite_sequence(!g_allargs.hidden);
-//#endif
 				break;
+
 			//
 			case Cutmode_SLABS:
 				std::cout << "outputting data..." << std::endl;
@@ -9401,6 +9505,7 @@ int main(int argc, char* argv[])
 	if (g_allargs.cutmode == Cutmode_SPRITES ||
 		g_allargs.cutmode == Cutmode_EMSPR ||
 		g_allargs.cutmode == Cutmode_EMXSPR ||
+		g_allargs.cutmode == Cutmode_EMHSPR ||
 		g_allargs.cutmode == Cutmode_SLABS ||
 		g_allargs.cutmode == Cutmode_SLABRESTORE)
 	{

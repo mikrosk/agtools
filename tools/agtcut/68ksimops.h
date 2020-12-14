@@ -2149,6 +2149,39 @@ public:
 	}
 };
 
+class DR_EorI16 : public Operation
+{
+public:
+
+	DR_EorI16(Context &_ctx, int _dreg, uword_t _data)
+		: Operation(_ctx, OpKind_Other, OpSize_16, OpSource_Immediate, OpSource_Register, OpWrite_Combine,
+		    /*cycles=*/8, 
+			/*tail=*/0, 
+			/*words=*/2
+		  ),
+		  data(_data)
+	{
+		sreg = _dreg;
+		dreg = _dreg;
+	}
+
+	virtual void onEmit()
+	{
+		sprintf(ctx.buf, " eor.w #$%04x,%s\t;%d\n",
+			data,
+			ctx.registers[dreg].name.c_str(),
+			cost
+			);
+	}
+
+	virtual void onExecute()
+	{
+		ctx.registers[dreg].L ^= data;
+	}
+
+	uword_t data;
+};
+
 class DR_LoadI32 : public Operation
 {
 public:

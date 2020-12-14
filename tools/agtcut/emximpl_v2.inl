@@ -2180,7 +2180,7 @@ void generate_emx2_metaprogram
 	// analyse src skips
 
 	// 
-	bool inject_data_ops = !_shared_mask;
+	bool allow_interline_cpu_statechanges = !_shared_mask;
 
 	for (int mode = 0; mode < 2; mode++)
 	{
@@ -2208,7 +2208,7 @@ void generate_emx2_metaprogram
 
 		bool FISR = false;// (shift.wordoffset_ > 0);
 
-		u16 current_skew = 0xffff;
+		u16 current_skew = 0;// 0xffff;
 
 		/*			u8 current_skew =
 						//false;// ((shift.wordwidth_ << 4) == ((spr.w_ + 15) & -16));
@@ -2338,7 +2338,7 @@ void generate_emx2_metaprogram
 
 						state.allocated = true;
 
-						//state.dst_line_offset = current_dline;
+						state.dst_line_offset = current_dline;
 						state.dst_word_offset = current_dline_wordoffset;
 						state.srccol_offset = current_src;
 						//state.emdata_offset
@@ -2350,6 +2350,10 @@ void generate_emx2_metaprogram
 						blitstate.XC = current_ww;
 						blitstate.SYI = current_syinc;
 						blitstate.DYI = current_dyinc;
+
+						//blitstate.EM1 = srcdata[0];
+						//blitstate.EM2 = srcdata[1];
+						//blitstate.EM3 = srcdata[2];
 
 						//context.operations.push_back(new NoOp(context));
 						//context.operations.back()->execute();
@@ -2374,16 +2378,21 @@ void generate_emx2_metaprogram
 				// emit SKEW changes
 				{
 					u8 span_skew_change = current_skew ^ span_skew;
-					current_skew = span_skew;
 
 					if (span_skew_change)
 					{
-						u16 data = 0xc000 | (span_skew & 0xCF);
+						u16 data = span_skew_change;//0xc000 | (span_skew & 0xCF);
 
 						if (build_metaprogram)
 						{
 							//context.operations.push_back(new DR_SetSkew16(context, span_skew));
-							context.operations.push_back(new DR_LoadI16(context, context.BHOG_reg, data));
+//							context.operations.push_back(new DR_LoadI16(context, context.BHOG_reg, data));
+								
+							if ((span_skew_change == 0x80) && !(current_skew & 0x80))
+								context.operations.push_back(new DR_TasR8(context, context.BHOG_reg));
+							else
+								context.operations.push_back(new DR_EorI16(context, context.BHOG_reg, data));
+
 							context.operations.back()->execute();
 						}
 
@@ -2395,6 +2404,7 @@ void generate_emx2_metaprogram
 							context.metrics[metrics_dataword].references++;
 						}
 					}
+					current_skew = span_skew;
 				}
 
 
@@ -2410,6 +2420,8 @@ void generate_emx2_metaprogram
 
 					if (dst_linejump || dst_wordjump)
 					{
+						printf("wordjump: %d\n", dst_wordjump);
+
 						// caution: can't use LEA for jumps > +/-32k
 						int addressjump = (dst_linejump * context.dstlinewid) + (dst_wordjump * 8);
 						if (addressjump < 32768 && addressjump >= -32768)
@@ -2421,7 +2433,7 @@ void generate_emx2_metaprogram
 									int reg_src = -1;
 									DataSource ds;
 
-									ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, inject_data_ops);
+									ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true, allow_interline_cpu_statechanges);
 									if (ds == DataSource_RegisterL)
 									{
 										// for +ve steps, look for +ve equivalent register and apply ADD operation
@@ -2432,7 +2444,7 @@ void generate_emx2_metaprogram
 									{
 										// for -ve steps, look for +ve equivalent register and apply SUB operation
 										// only allocates register if value does not pre-exist 
-										ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, inject_data_ops);
+										ds = context.sim_resolve_data16(uword_t(-addressjump), reg_src, true, allow_interline_cpu_statechanges);
 										if (ds == DataSource_RegisterL)
 										{
 											context.operations.push_back(new DST_SubaR16(context, reg_src, context.SCRLINE_reg, dst_wordjump, dst_linejump));
@@ -2516,14 +2528,14 @@ void generate_emx2_metaprogram
 								int sumA = 0, sumB = 0;
 
 								// test-resolve EM1:EM2 and EM2:EM3, looking for the cheapest solution
-								DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, false);
-								DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, false);
+								DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, false, allow_interline_cpu_statechanges);
+								DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, false, allow_interline_cpu_statechanges);
 
 								sumA += DataSource_costs[ds12];
 								sumA += DataSource_costs[ds3];
 
-								DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, false);
-								DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, false);
+								DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, false, allow_interline_cpu_statechanges);
+								DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, false, allow_interline_cpu_statechanges);
 
 								sumB += DataSource_costs[ds23];
 								sumB += DataSource_costs[ds1];
@@ -2574,7 +2586,7 @@ void generate_emx2_metaprogram
 
 								if ((sumA < sumB) || (chosen == 0))
 								{
-									DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, inject_data_ops);
+									DataSource ds12 = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true, allow_interline_cpu_statechanges);
 									if (ds12 == DataSource_RegisterHL)
 									{
 										context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
@@ -2602,7 +2614,7 @@ void generate_emx2_metaprogram
 												context.operations.back()->execute();
 											}
 
-									DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, inject_data_ops);
+									DataSource ds3 = context.sim_resolve_data16(srcdata[2], reg_index3, true, allow_interline_cpu_statechanges);
 									if (ds3 == DataSource_RegisterL)
 									{
 										context.operations.push_back(new EM_MoveR16(context, 2, reg_index3, context.EM3_reg));
@@ -2617,7 +2629,7 @@ void generate_emx2_metaprogram
 								else
 									if ((sumA > sumB) || (chosen == 1))
 									{
-										DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, inject_data_ops);
+										DataSource ds23 = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true, allow_interline_cpu_statechanges);
 										if (ds23 == DataSource_RegisterHL)
 										{
 											context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
@@ -2642,7 +2654,7 @@ void generate_emx2_metaprogram
 												else
 													context.operations.push_back(new EM_MoveI32(context, 1, srcdata[1], srcdata[2], context.EM2_reg));
 
-										DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, inject_data_ops);
+										DataSource ds1 = context.sim_resolve_data16(srcdata[0], reg_index3, true, allow_interline_cpu_statechanges);
 										if (ds1 == DataSource_RegisterL)
 										{
 											context.operations.push_back(new EM_MoveR16(context, 0, reg_index3, context.EM1_reg));
@@ -2680,7 +2692,7 @@ void generate_emx2_metaprogram
 							{
 
 								//						context.operations.push_back(new EM_MoveI32(context, 0, srcdata[0], srcdata[1]));
-								DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, inject_data_ops);
+								DataSource ds = context.sim_resolve_data32(srcdata[0], srcdata[1], reg_index, reg_index2, true, allow_interline_cpu_statechanges);
 								if (ds == DataSource_RegisterHL)
 								{
 									context.operations.push_back(new EM_MoveR32(context, 0, reg_index, context.EM1_reg));
@@ -2744,7 +2756,7 @@ void generate_emx2_metaprogram
 
 		//						em_dirty[1] = em_dirty[2] = false;
 
-								DataSource ds = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, inject_data_ops);
+								DataSource ds = context.sim_resolve_data32(srcdata[1], srcdata[2], reg_index, reg_index2, true, allow_interline_cpu_statechanges);
 								if (ds == DataSource_RegisterHL)
 								{
 									context.operations.push_back(new EM_MoveR32(context, 1, reg_index, context.EM2_reg));
@@ -2806,7 +2818,7 @@ void generate_emx2_metaprogram
 									}
 									else
 									{
-										if (context.sim_resolve_data16(srcdata[x], reg_index, inject_data_ops) == DataSource_RegisterL)
+										if (context.sim_resolve_data16(srcdata[x], reg_index, true, allow_interline_cpu_statechanges) == DataSource_RegisterL)
 										{
 											context.operations.push_back(new EM_MoveR16(context, x, reg_index, EM_reg));
 											context.operations.back()->execute();
@@ -2922,6 +2934,9 @@ void generate_emx2_metaprogram
 						context.operations.push_back(new BLiT_GoSkew(context, context.BHOG_reg, span_orig_sline, span_dline, span_draw_order));
 						context.operations.back()->execute();
 					}
+
+
+					current_src += /*planes=*/4 * (((current_ww - 1) * /*sxinc=*/2) + current_syinc);
 
 					// SYI accounts for this automatically, except for real skips
 					current_sline++;
@@ -3348,7 +3363,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	preshift_t *pshared_shift = new
 	preshift_t 
 	(
-		/*shift=*/0,
+		/*shift=*/0, // also inhibits NFSR
 		/*planes=*/ref.planes_,
 		/*height=*/ref.height_,
 		/*wordwidth=*/sharedmask_wordwidth,
@@ -3602,8 +3617,8 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	std::vector<u16> shared_mask_words_gen;
 	generate_emx2_metaprogram(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*shared_mask=*/true, shared_mask_words_gen);
 
-
-
+	spr.ems2_p68kbin_ = shared_shift.p68kbin;
+	spr.ems2_size68kbin_ = shared_shift.size68kbin;
 
 	// assign shared metaprogram to all preshifts
 
@@ -3618,8 +3633,8 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 				shift.scan_states = shared_shift.scan_states;
 
-				shift.p68kbin = shared_shift.p68kbin;
-				shift.size68kbin = shared_shift.size68kbin;
+				//shift.p68kbin = shared_shift.p68kbin;
+				//shift.size68kbin = shared_shift.size68kbin;
 
 				// extract mask data
 
@@ -3649,6 +3664,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 							blitstate.EM1 = em1;
 							blitstate.EM2 = em2;
 							blitstate.EM3 = em3;
+							blitstate.SKEW |= (shift.shift_ & 15);
 						}
 
 						// load real EM values for this span, for this preshift (for those within h-window)
@@ -3700,14 +3716,15 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 						}
 
 						ss.lines_remaining = lines_remaining;
-						ss.dst_line_offset = accumulated_offset;
+						//ss.dst_line_offset = accumulated_offset;
 					}
 				}
 
 				// dump the scan states
 				if  (1)
 				{
-					u16* mprog = (u16*)(shift.p68kbin+32);
+					//u16* mprog = (u16*)(shift.p68kbin+32);
+					u16* mprog = (u16*)(spr.ems2_p68kbin_+32);
 
 					printf("\npreshift %d...\n", psi);
 					int i = 0;
@@ -3733,8 +3750,8 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 						print_dataword(bs.EM3);
 
 						printf(" SYI:%03d DYI:%03d XC:%02d SK:%02x",
-							(int)bs.SYI, 
-							(int)bs.DYI, 
+							(int)(char)bs.SYI, 
+							(int)(char)bs.DYI, 
 							(int)bs.XC, 
 							(int)bs.SKEW
 						);
@@ -3800,11 +3817,15 @@ bool generate_emx2_sequence()
 
 		generate_emx2_frame_optimized(*it, f);
 
+/*
 #if defined(USE_EMS2)
 		// if EMS or clip-ready EMX, generate EMS material
 		if (!g_allargs.noclipy)
+		{
 			generate_ems2_frame_flexible(*it, f);
+		}
 #endif
+*/
 	}
 
 	return true;

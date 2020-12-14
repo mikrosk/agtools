@@ -409,15 +409,23 @@ public:
 			// a5: BLiT_CTRL
 			// a6: BLiT_EM2 (?)
 
-			if ((srcww >= 3) && USE_DSTSKIP_REG_FIXED_PRELOAD)
+			if (shared_mask_)
 			{
 				// force dstlinewid into d0.w to optimize dst skips
-				registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true, false, 0xC0000000 | dstlinewid));
+				registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true, false, dstlinewid));
 			}
 			else
 			{
-				// release d0 for general transforms
-				registers.push_back(dataregister("d0", r++, RegClass_Data, false, false, false, false, 0));
+				if ((srcww >= 3) && USE_DSTSKIP_REG_FIXED_PRELOAD)
+				{
+					// force dstlinewid into d0.w to optimize dst skips
+					registers.push_back(dataregister("d0", r++, RegClass_Data, setconstants, setconstants, true, false, 0xC0000000 | dstlinewid));
+				}
+				else
+				{
+					// release d0 for general transforms
+					registers.push_back(dataregister("d0", r++, RegClass_Data, false, false, false, false, 0));
+				}
 			}
 
 			registers.push_back(dataregister("d3", r++, RegClass_Data, false, false, false, false, 0));
@@ -687,8 +695,8 @@ public:
 	void dump_tags();
 	void register_rename(std::list<Operation*>::iterator curr, int _rold, int _rnew);
 
-	DataSource sim_resolve_data16(uword_t _data, int &r_reg_index, bool _injectops);
-	DataSource sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_regH_index, int &r_regL_index, bool _injectops);
+	DataSource sim_resolve_data16(uword_t _data, int &r_reg_index, bool _generate_program, bool _allow_statechanges);
+	DataSource sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_regH_index, int &r_regL_index, bool _generate_program, bool _allow_statechanges);
 
 	void sim_track_datarefs(uword_t _data)
 	{
@@ -1033,16 +1041,16 @@ typedef std::map<u64, int> linemap;
 //	}
 //}
 
-DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _injectops)
+DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _generate_program, bool _allow_statechanges)
 {
 	// 1) look for existent value in active registers (allocated or otherwise)
 	for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++)
 	{
 		if (!(it->variable) &&
-			(it->stableL) && 
+			(it->stableL) &&
 			(it->L == _data))
 		{
-			if (_injectops)
+			if (_generate_program)
 			{
 				if (g_allargs.verbose)
 					printf("> referenced value [$%04x] in register [%s]L\n", _data, it->name.c_str());
@@ -1052,113 +1060,117 @@ DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _in
 		}
 	}
 
-	if (1 && PREFER_TRANSFORMS)
+	if (_allow_statechanges)
 	{
-		int i = 0;
-		for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++, i++)
+
+		if (1 && PREFER_TRANSFORMS)
 		{
-			if (!(it->locked) && !(it->variable))
+			int i = 0;
+			for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++, i++)
 			{
-				if (!(it->stableL))
+				if (!(it->locked) && !(it->variable))
 				{
-					if (_injectops)
+					if (!(it->stableL))
 					{
-						if (g_allargs.verbose)
-							printf("> assigned value [$%04x] to register [%s]L\n", _data, it->name.c_str());
-						operations.push_back(new DR_LoadI16(*this, it->index, _data));
+						if (_generate_program)
+						{
+							if (g_allargs.verbose)
+								printf("> assigned value [$%04x] to register [%s]L\n", _data, it->name.c_str());
+							operations.push_back(new DR_LoadI16(*this, it->index, _data));
 
-						it->allocatedL = true;
-						it->L = _data;
+							it->allocatedL = true;
+							it->L = _data;
 
-						operations.back()->execute();
-					}
+							operations.back()->execute();
+						}
 
-					r_reg_index = it->index;
-					return DataSource_RegisterL;
-				}
-			}
-		}
-	}
-
-
-	// 2) assign value to unallocated register if sufficient reuse expected
-	if (metrics_sim[_data].references >= 2)
-	{
-		int best_refcount = 1<<30;
-		int best_reg = -1;
-		int i = 0;
-		for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++, i++)
-		{
-			if (!(it->locked) && !(it->variable))
-			{
-				if (!(it->allocatedL))
-				{
-					if (_injectops)
-					{
-						if (g_allargs.verbose)
-							printf("> assigned value [$%04x] to register [%s]L\n", _data, it->name.c_str());
-						operations.push_back(new DR_LoadI16(*this, it->index, _data));
-
-						it->allocatedL = true;
-						it->L = _data;
-
-						operations.back()->execute();
-					}
-
-					r_reg_index = it->index;
-					return DataSource_RegisterL;
-				}
-				else
-				{
-					// meanwhile, look for the best still-active register to steal
-					const emx_metric_t &m = metrics_sim[it->L];
-					if (m.references < best_refcount)
-					{
-						best_refcount = m.references;
-						best_reg = i;
+						r_reg_index = it->index;
+						return DataSource_RegisterL;
 					}
 				}
 			}
 		}
 
-		// 3) steal allocated register, if estimated saving makes it worthwhile
-		// factor +1 cost for reload
-		if ((best_reg >= 0) && 
-			(metrics_sim[_data].references > (best_refcount+1)))
+
+		// 2) assign value to unallocated register if sufficient reuse expected
+		if (metrics_sim[_data].references >= 2)
 		{
-			dataregister &r = registers[best_reg];
-			if (_injectops)
+			int best_refcount = 1 << 30;
+			int best_reg = -1;
+			int i = 0;
+			for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++, i++)
 			{
-				if (g_allargs.verbose)
-					printf("> replaced value [$%04x] with [$%04x] at register [%s]L\n", r.L, _data, r.name.c_str());
-//				r.L = _data;
-				// allows future choices to acknowledge the reuse incidence looks different from now on
-//				metrics[_data].incidence = metrics[_data].references;
+				if (!(it->locked) && !(it->variable))
+				{
+					if (!(it->allocatedL))
+					{
+						if (_generate_program)
+						{
+							if (g_allargs.verbose)
+								printf("> assigned value [$%04x] to register [%s]L\n", _data, it->name.c_str());
+							operations.push_back(new DR_LoadI16(*this, it->index, _data));
 
-				operations.push_back(new DR_LoadI16(*this, best_reg, _data));
+							it->allocatedL = true;
+							it->L = _data;
 
-				r.L = _data;
+							operations.back()->execute();
+						}
 
-				operations.back()->execute();
+						r_reg_index = it->index;
+						return DataSource_RegisterL;
+					}
+					else
+					{
+						// meanwhile, look for the best still-active register to steal
+						const emx_metric_t &m = metrics_sim[it->L];
+						if (m.references < best_refcount)
+						{
+							best_refcount = m.references;
+							best_reg = i;
+						}
+					}
+				}
 			}
-			r_reg_index = r.index;
 
-			//if (PREFER_TRANSFORMS)
-			//	assert(false);
+			// 3) steal allocated register, if estimated saving makes it worthwhile
+			// factor +1 cost for reload
+			if ((best_reg >= 0) &&
+				(metrics_sim[_data].references > (best_refcount + 1)))
+			{
+				dataregister &r = registers[best_reg];
+				if (_generate_program)
+				{
+					if (g_allargs.verbose)
+						printf("> replaced value [$%04x] with [$%04x] at register [%s]L\n", r.L, _data, r.name.c_str());
+					//				r.L = _data;
+					// allows future choices to acknowledge the reuse incidence looks different from now on
+					//				metrics[_data].incidence = metrics[_data].references;
 
-			return DataSource_RegisterL;			
+					operations.push_back(new DR_LoadI16(*this, best_reg, _data));
+
+					r.L = _data;
+
+					operations.back()->execute();
+				}
+				r_reg_index = r.index;
+
+				//if (PREFER_TRANSFORMS)
+				//	assert(false);
+
+				return DataSource_RegisterL;
+			}
 		}
 	}
 
 	// single-use, or last resort - just load immediate data
-	if (_injectops)
+	if (_generate_program)
 		if (g_allargs.verbose)
 			printf("> resolved value [$%04x] as immediate\n", _data);
 
 	return DataSource_Immediate16;
 }
 
-DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_regH_index, int &r_regL_index, bool _injectops)
+DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_regH_index, int &r_regL_index, bool _generate_program, bool _allow_statechanges)
 {
 	// 1) look for existent value in active registers (allocated or otherwise)
 	for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++)
@@ -1169,7 +1181,7 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 			(it->L == _dataL)
 		)
 		{
-			if (_injectops)
+			if (_generate_program)
 			{
 				if (g_allargs.verbose)
 					printf("> referenced value [$%04x%04x] in register [%s]HL\n", _dataH, _dataL, it->name.c_str());
@@ -1179,102 +1191,105 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 		}
 	}
 
-	if (1 && PREFER_TRANSFORMS)
+	if (_allow_statechanges)
 	{
-		int i = 0;
-		for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++, i++)
+		if (1 && PREFER_TRANSFORMS)
 		{
-			// don't touch constant registers
-			if (!(it->locked) && !(it->variable))
+			int i = 0;
+			for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++, i++)
 			{
-				// don't touch allocated fields
-				if (!(it->stableH) && 
-					!(it->stableL))
+				// don't touch constant registers
+				if (!(it->locked) && !(it->variable))
 				{
-					if (_injectops)
+					// don't touch allocated fields
+					if (!(it->stableH) &&
+						!(it->stableL))
 					{
-						if (g_allargs.verbose)
-							printf("> assigned value [$%04x%04x] to register [%s]HL\n", _dataH, _dataL, it->name.c_str());
+						if (_generate_program)
+						{
+							if (g_allargs.verbose)
+								printf("> assigned value [$%04x%04x] to register [%s]HL\n", _dataH, _dataL, it->name.c_str());
 
-						operations.push_back(new DR_LoadI32(*this, it->index, _dataH, _dataL));
+							operations.push_back(new DR_LoadI32(*this, it->index, _dataH, _dataL));
 
-						it->allocatedH = true;
-						it->allocatedL = true;
-						it->H = _dataH;
-						it->L = _dataL;
+							it->allocatedH = true;
+							it->allocatedL = true;
+							it->H = _dataH;
+							it->L = _dataL;
 
-						operations.back()->execute();
+							operations.back()->execute();
+						}
+
+						r_regH_index = it->index;
+						return DataSource_RegisterHL;
 					}
-
-					r_regH_index = it->index;
-					return DataSource_RegisterHL;
-				}
-			}
-		}
-	}
-
-	// 2) assign value to unallocated register if sufficient reuse expected or if value is cheap to load
-	if (
-		((metrics_sim[_dataH].left_references[_dataL] >= 2) || 
-		(metrics_sim[_dataL].references >= 2)) ||
-		(long_cost(_dataH, _dataL) <= 8)
-		)
-	{
-		int best_refcount = 1<<30;
-		int best_reg = -1;
-		int i = 0;
-		for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++, i++)
-		{
-			// don't touch constant registers
-			if (!(it->locked) && !(it->variable))
-			{
-				// don't touch allocated fields
-				if (!(it->allocatedH) && 
-					!(it->allocatedL))
-				{
-					if (_injectops)
-					{
-						if (g_allargs.verbose)
-							printf("> assigned value [$%04x%04x] to register [%s]HL\n", _dataH, _dataL, it->name.c_str());
-
-						operations.push_back(new DR_LoadI32(*this, it->index, _dataH, _dataL));
-
-						it->allocatedH = true;
-						it->allocatedL = true;
-						it->H = _dataH;
-						it->L = _dataL;
-
-						operations.back()->execute();
-					}
-
-					r_regH_index = it->index;
-					return DataSource_RegisterHL;
-				}
-				else
-				{
-					// meanwhile, look for the best still-active register to steal
-					//emx_metric_t &m = metrics[it->L];
-					//if (m.references < best_refcount)
-					//{
-					//	best_refcount = m.references;
-					//	best_reg = i;
-					//}
 				}
 			}
 		}
 
-		// 3) steal allocated register, if estimated saving makes it worthwhile
-		// factor +1 cost for reload
-		//if (best_reg >= 0 && metrics[_data].references > (best_refcount+1))
-		//{
-		//	dataregister &r = registers[best_reg];
-		//	printf("> replaced value [$%04x] with [$%04x] at register [%s]L\n", r.L, _data, r.name.c_str());
-		//	r.L = _data;
-		//	// allows future choices to acknowledge the reuse incidence looks different from now on
-		//	metrics[_data].incidence = metrics[_data].references;
-		//	r_reg_index = r.index;
-		//	return DataSource_RegisterL;			
-		//}
+		// 2) assign value to unallocated register if sufficient reuse expected or if value is cheap to load
+		if (
+			((metrics_sim[_dataH].left_references[_dataL] >= 2) ||
+			(metrics_sim[_dataL].references >= 2)) ||
+			(long_cost(_dataH, _dataL) <= 8)
+			)
+		{
+			int best_refcount = 1 << 30;
+			int best_reg = -1;
+			int i = 0;
+			for (std::vector<dataregister>::iterator it = registers.begin(); it != registers.end(); it++, i++)
+			{
+				// don't touch constant registers
+				if (!(it->locked) && !(it->variable))
+				{
+					// don't touch allocated fields
+					if (!(it->allocatedH) &&
+						!(it->allocatedL))
+					{
+						if (_generate_program)
+						{
+							if (g_allargs.verbose)
+								printf("> assigned value [$%04x%04x] to register [%s]HL\n", _dataH, _dataL, it->name.c_str());
+
+							operations.push_back(new DR_LoadI32(*this, it->index, _dataH, _dataL));
+
+							it->allocatedH = true;
+							it->allocatedL = true;
+							it->H = _dataH;
+							it->L = _dataL;
+
+							operations.back()->execute();
+						}
+
+						r_regH_index = it->index;
+						return DataSource_RegisterHL;
+					}
+					else
+					{
+						// meanwhile, look for the best still-active register to steal
+						//emx_metric_t &m = metrics[it->L];
+						//if (m.references < best_refcount)
+						//{
+						//	best_refcount = m.references;
+						//	best_reg = i;
+						//}
+					}
+				}
+			}
+
+			// 3) steal allocated register, if estimated saving makes it worthwhile
+			// factor +1 cost for reload
+			//if (best_reg >= 0 && metrics[_data].references > (best_refcount+1))
+			//{
+			//	dataregister &r = registers[best_reg];
+			//	printf("> replaced value [$%04x] with [$%04x] at register [%s]L\n", r.L, _data, r.name.c_str());
+			//	r.L = _data;
+			//	// allows future choices to acknowledge the reuse incidence looks different from now on
+			//	metrics[_data].incidence = metrics[_data].references;
+			//	r_reg_index = r.index;
+			//	return DataSource_RegisterL;			
+			//}
+		}
 	}
 
 	// look for mixed combination (high immediate + low reg) for cases with nontrivial high word
@@ -1288,7 +1303,7 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 				(it->stableL) && 
 				(it->L == _dataL))
 			{
-				if (_injectops)
+				if (_generate_program)
 				{
 					if (g_allargs.verbose)
 						printf("> referenced value [$%04x] in register [%s]L\n", _dataL, it->name.c_str());
@@ -1300,7 +1315,7 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 	}
 
 	// single-use, or last resort - just load immediate data
-	if (_injectops)
+	if (_generate_program)
 		if (g_allargs.verbose)
 			printf("> resolved value [$%04x%04x] as immediate\n", _dataH, _dataL);
 
