@@ -9,8 +9,8 @@ static const int c_max_buscycles_per_blit = 64;
 
 void generate_emx2_preshift_analysis
 (
-	const spriteframe_t &spr, int _frame, 
-	preshift_t &_shift, int _psi, 
+	const spriteframe_t &spr,
+	preshift_t &_shift, int _psi,
 	bool _single_span_scans
 )
 {
@@ -46,20 +46,20 @@ void generate_emx2_preshift_analysis
 			// detect start of new span
 			if ((span_pos < 0) && (word != 0))
 				span_pos = word_pos;
-				
+
+			// check reference to shifted previous data
+			bool FISR =
+				(span_pos > 0) &&
+				(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
+
 			if (word == 0)
 			{
 				// absorb zero masks, but emit pending span
 
 				if (nonzero_words > 0)
 				{
-//					printf("zero-term:\n");
-//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
-
-					// check reference to shifted previous data
-					bool FISR = 
-						(span_pos > 0) && 
-						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
+					//					printf("zero-term:\n");
+					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
 
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
@@ -68,19 +68,19 @@ void generate_emx2_preshift_analysis
 
 					// gap of at least 4*3=12 bus cycles, terminate span here
 					span_hseq.emplace_back
-					(
+						(
 						constrained_wordspan
 						(
-							/*ws=*/span_pos,
-							/*ww=*/accumulated_words,
-							/*cxs=*/FISR,
-							/*cxe=*/NFSR,
-							/*sline=*/v,
-							/*sline_aw=*/spr.active_widths[v],
-							/*pem=*/em,
-							/*bccount=*/accumulated_bcycles
+						/*ws=*/span_pos,
+						/*ww=*/accumulated_words,
+						/*cxs=*/FISR,
+						/*cxe=*/NFSR,
+						/*sline=*/v,
+						/*sline_aw=*/spr.active_widths[v],
+						/*pem=*/em,
+						/*bccount=*/accumulated_bcycles + (FISR ? 1 : 0) - (NFSR ? 1 : 0)
 						)
-					);
+						);
 					em[0] = em[1] = em[2] = 0;
 
 					span_pos = -1;
@@ -98,15 +98,15 @@ void generate_emx2_preshift_analysis
 				if (word != 0xFFFF)
 					word_bcycles++;
 
-				if ((accumulated_bcycles + word_bcycles) > c_max_buscycles_per_blit)
+				if ((accumulated_bcycles + word_bcycles + (FISR ? 1 : 0)) > c_max_buscycles_per_blit)
 				{
-//					printf("bus limit:\n");
-//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
+					//					printf("bus limit:\n");
+					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
 
-					// check reference to shifted previous data
-					bool FISR =
-						(span_pos > 0) &&
-						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
+					//					// check reference to shifted previous data
+					//					bool FISR =
+					//						(span_pos > 0) &&
+					//						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
 
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
@@ -115,19 +115,19 @@ void generate_emx2_preshift_analysis
 
 					// span constraints would be exceeded, emit span & continue
 					span_hseq.emplace_back
-					(
+						(
 						constrained_wordspan
 						(
-							/*ws=*/span_pos,
-							/*ww=*/accumulated_words,
-							/*cxs=*/FISR,
-							/*cxe=*/NFSR,
-							/*sline=*/v,
-							/*sline_aw=*/spr.active_widths[v],
-							/*pem=*/em,
-							/*bccount=*/accumulated_bcycles
+						/*ws=*/span_pos,
+						/*ww=*/accumulated_words,
+						/*cxs=*/FISR,
+						/*cxe=*/NFSR,
+						/*sline=*/v,
+						/*sline_aw=*/spr.active_widths[v],
+						/*pem=*/em,
+						/*bccount=*/accumulated_bcycles + (FISR ? 1 : 0) - (NFSR ? 1 : 0)
 						)
-					);
+						);
 					em[0] = em[1] = em[2] = 0;
 
 					span_pos = -1;
@@ -140,7 +140,7 @@ void generate_emx2_preshift_analysis
 
 				// record changes in mask state, up to 3
 				// force commit of new mask word (EM2) after first (EM1)
-				if ((last_word != word) || (nonzero_words==1))
+				if ((last_word != word) || (nonzero_words == 1))
 				{
 					last_word = word;
 					em[nonzero_words++] = word;
@@ -151,40 +151,40 @@ void generate_emx2_preshift_analysis
 
 				// check constraints
 				if
-				(
+					(
 					// note: can reach end of line with width >2 on a fill, but not allocated EM3 yet!
 					(w == _shift.wordwidth_) ||	// end of line
 					(nonzero_words == 3)		// exhausted EMs
-				)
+					)
 				{
-//					printf("eol:%d\n", (w == _shift.wordwidth_) ? 1 : 0);
-//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
+					//					printf("eol:%d\n", (w == _shift.wordwidth_) ? 1 : 0);
+					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
 
 					// check reference to shifted previous data
-					bool FISR =
-						(span_pos > 0) &&
-						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
+					//					bool FISR =
+					//						(span_pos > 0) &&
+					//						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
 
 					// check reference to current data (not shifted from previous)
-					bool NFSR = 
-						(accumulated_words > 1) && 
+					bool NFSR =
+						(accumulated_words > 1) &&
 						(u16(0x0000FFFFUL >> _shift.shift_) & pline[span_pos + accumulated_words - 1]) == 0;
 
 					// span constraints would be exceeded, emit span & continue
 					span_hseq.emplace_back
-					(
+						(
 						constrained_wordspan
 						(
-							/*ws=*/span_pos,
-							/*ww=*/accumulated_words,
-							/*cxs=*/FISR,
-							/*cxe=*/NFSR,
-							/*sline=*/v,
-							/*sline_aw=*/spr.active_widths[v],
-							/*pem=*/em,
-							/*bccount=*/accumulated_bcycles
+						/*ws=*/span_pos,
+						/*ww=*/accumulated_words,
+						/*cxs=*/FISR,
+						/*cxe=*/NFSR,
+						/*sline=*/v,
+						/*sline_aw=*/spr.active_widths[v],
+						/*pem=*/em,
+						/*bccount=*/accumulated_bcycles + (FISR ? 1 : 0) - (NFSR ? 1 : 0)
 						)
-					);
+						);
 					em[0] = em[1] = em[2] = 0;
 
 					span_pos = -1;
@@ -208,10 +208,226 @@ void generate_emx2_preshift_analysis
 			}
 		}
 	}
+}
 
+void generate_emx2_shared_shift_analysis
+(
+	const spriteframe_t &_spr,
+	preshift_t &_shared_shift,
+	int _max_shift,
+	bool _single_span_scans
+)
+{
+	int full_src_wordwidth = ((_spr.w_ + 15) & -16) >> 4;
+	int src_pixwidth = full_src_wordwidth << 4;
+
+	// extract patterns of spans according to individual span constraints
+
+	auto &sa = _shared_shift.sa;
+	sa.span_vpattern_.resize(_spr.h_);
+
+	for (int v = 0; v < _spr.h_; v++)
+	{
+		auto &span_hseq = sa.span_vpattern_[v];
+
+		int accumulated_bcycles = 0;
+		int accumulated_words = 0;
+		int nonzero_words = 0;
+		int span_pos = -1;
+		u16 last_word = 0;
+
+		u16 em[3] = { 0, 0, 0 };
+
+		int w = 0;
+		while (w < _shared_shift.wordwidth_)
+		{
+			// fetch next word
+			u16 *psharedline = &_shared_shift.data_[(v * _shared_shift.wordwidth_)];
+			u16 *psourceline = &_spr.mask_[(v * full_src_wordwidth)];
+
+			u16 word = psharedline[w];
+
+			int word_pos = w++;
+
+			// detect start of new span
+			bool FISR = false;
+			if ((span_pos < 0) && (word != 0))
+			{
+				span_pos = word_pos;
+
+				// check reference to shifted previous data
+				u32 shiftbuffer = u32(~psourceline[span_pos]) << 16;
+
+				FISR =
+					(span_pos > 0) &&
+					(u16(shiftbuffer >> _max_shift) & 0x0000FFFF);
+			}
+
+			if (word == 0)
+			{
+				// absorb zero masks, but emit pending span
+
+				if (nonzero_words > 0)
+				{
+					//					printf("zero-term:\n");
+					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
+
+					// check reference to current data (not shifted from previous)
+					bool NFSR =
+						(accumulated_words > 1) &&
+						(psourceline[span_pos + accumulated_words - 1] == 0xFFFF);
+
+					// gap of at least 4*3=12 bus cycles, terminate span here
+					span_hseq.emplace_back
+						(
+						constrained_wordspan
+						(
+						/*ws=*/span_pos,
+						/*ww=*/accumulated_words,
+						/*cxs=*/FISR,
+						/*cxe=*/NFSR,
+						/*sline=*/v,
+						/*sline_aw=*/_spr.active_widths[v],
+						/*pem=*/em,
+						/*bccount=*/accumulated_bcycles + (FISR ? 1 : 0) - (NFSR ? 1 : 0)
+						)
+						);
+					em[0] = em[1] = em[2] = 0;
+
+					span_pos = -1;
+					accumulated_words = 0;
+					nonzero_words = 0;
+					accumulated_bcycles = 0;
+
+					last_word = 0;
+				}
+			}
+			else
+			{
+				// count bus cycles
+				int word_bcycles = 2;
+				if (word != 0xFFFF)
+					word_bcycles++;
+
+				if ((accumulated_bcycles + word_bcycles + (FISR ? 1 : 0)) > c_max_buscycles_per_blit)
+				{
+					//					printf("bus limit:\n");
+					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
+
+					//					// check reference to shifted previous data
+					//					bool FISR =
+					//						(span_pos > 0) &&
+					//						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
+
+					// check reference to current data (not shifted from previous)
+					bool NFSR =
+						(accumulated_words > 1) &&
+						(psourceline[span_pos + accumulated_words - 1] == 0xFFFF);
+
+					// span constraints would be exceeded, emit span & continue
+					span_hseq.emplace_back
+						(
+						constrained_wordspan
+						(
+						/*ws=*/span_pos,
+						/*ww=*/accumulated_words,
+						/*cxs=*/FISR,
+						/*cxe=*/NFSR,
+						/*sline=*/v,
+						/*sline_aw=*/_spr.active_widths[v],
+						/*pem=*/em,
+						/*bccount=*/accumulated_bcycles + (FISR ? 1 : 0) - (NFSR ? 1 : 0)
+						)
+						);
+					em[0] = em[1] = em[2] = 0;
+
+					span_pos = -1;
+					accumulated_words = 0;
+					nonzero_words = 0;
+					accumulated_bcycles = 0;
+
+					last_word = 0;
+				}
+
+				// record changes in mask state, up to 3
+				// force commit of new mask word (EM2) after first (EM1)
+				if ((last_word != word) || (nonzero_words == 1))
+				{
+					last_word = word;
+					em[nonzero_words++] = word;
+				}
+
+				accumulated_words++;
+				accumulated_bcycles += word_bcycles;
+
+				// check constraints
+				if
+					(
+					// note: can reach end of line with width >2 on a fill, but not allocated EM3 yet!
+					(w == _shared_shift.wordwidth_) ||	// end of line
+					(nonzero_words == 3)		// exhausted EMs
+					)
+				{
+					//					printf("eol:%d\n", (w == _shift.wordwidth_) ? 1 : 0);
+					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
+
+					// check reference to shifted previous data
+					//					bool FISR =
+					//						(span_pos > 0) &&
+					//						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
+
+					// check reference to current data (not shifted from previous)
+					bool NFSR =
+						(accumulated_words > 1) &&
+						(psourceline[span_pos + accumulated_words - 1] == 0xFFFF);
+
+					// span constraints would be exceeded, emit span & continue
+					span_hseq.emplace_back
+						(
+						constrained_wordspan
+						(
+						/*ws=*/span_pos,
+						/*ww=*/accumulated_words,
+						/*cxs=*/FISR,
+						/*cxe=*/NFSR,
+						/*sline=*/v,
+						/*sline_aw=*/_spr.active_widths[v],
+						/*pem=*/em,
+						/*bccount=*/accumulated_bcycles + (FISR ? 1 : 0) - (NFSR ? 1 : 0)
+						)
+						);
+					em[0] = em[1] = em[2] = 0;
+
+					span_pos = -1;
+					accumulated_words = 0;
+					nonzero_words = 0;
+					accumulated_bcycles = 0;
+
+					last_word = 0;
+				}
+			}
+		}
+
+		if (_single_span_scans)
+		{
+			// strip out all but first span per scanline
+			for (int v = 0; v < _spr.h_; v++)
+			{
+				auto &span_hseq = sa.span_vpattern_[v];
+				if (!span_hseq.empty())
+					span_hseq.resize(1);
+			}
+		}
+	}
+}
+
+void generate_emx2_span_pattern_audit(const spriteframe_t &_spr, const preshift_t &_shift)
+{
 	// preview
 
 	printf("\n");
+
+	auto &sa = _shift.sa;
 
 	// all lines in a pattern
 	int v = 0;
@@ -219,7 +435,7 @@ void generate_emx2_preshift_analysis
 	{
 		int wx = 0;
 
-		printf("AW:%d ", spr.active_widths[v++]);
+		printf("AW:%d ", _spr.active_widths[v++]);
 
 		// all spans in a line
 		for (auto &span : ln)
@@ -289,108 +505,6 @@ void generate_emx2_preshift_analysis
 
 	printf("...\n");
 
-#if 0
-	std::map<uint64_t, std::vector<constrained_wordspan*>> coherent_wordspans;
-
-	v = 0;
-	for (auto &ln : sa.span_vpattern_)
-	{
-		for (auto &span : ln)
-		{
-			uint64_t coherence_criteria;
-			
-			if (_horizontal_ordering)
-			{
-				coherence_criteria =
-					(span.ws << (64-8)) |
-					(span.line_opt << 0)
-					;
-			}
-			else
-			{
-				coherence_criteria =
-					/*				(uint64_t(span.em[1]) << (64-16)) |
-									(uint64_t(span.em[2]) << (64-32)) |
-									(uint64_t(span.em[0]) << (64-48)) |
-									//(span.ww << 8) |
-									(span.ws << 0)
-					*/
-					(span.line_opt << 8) |
-					(span.ws << 0)
-					;
-			}
-
-			coherent_wordspans[coherence_criteria].push_back(&span);
-
-			int e = 0;
-			for (; e < 3; e++)
-			{
-				printf(":");
-
-				u16 maskword = span.em[e];
-
-				if (maskword == 0)
-				{
-					printf("                ");
-				}
-				else
-				{
-					for (int p = 0; p < 16; p++)
-					{
-						if (maskword & 0x8000)
-							printf("1");
-						else
-							printf("0");
-
-						maskword <<= 1;
-					}
-				}
-				printf(":");
-			}
-			printf("\n");
-		}
-	}
-
-	printf("...\n");
-
-	for (auto &ce : coherent_wordspans)
-	{
-		auto &spanvec = ce.second;
-
-		for (constrained_wordspan* pspan : spanvec)
-		{
-			auto &span = *pspan;
-
-			int e = 0;
-			for (; e < 3; e++)
-			{
-				printf(":");
-
-				u16 maskword = span.em[e];
-
-				if (maskword == 0)
-				{
-					printf("                ");
-				}
-				else
-				{
-					for (int p = 0; p < 16; p++)
-					{
-						if (maskword & 0x8000)
-							printf("1");
-						else
-							printf("0");
-
-						maskword <<= 1;
-					}
-				}
-				printf(":");
-			}
-			printf("\n");
-		}
-		printf("\n");
-	}
-#endif
 }
 
 void generate_emx2_active_linewidths(spriteframe_t &spr, spriteframe_t::generated_data_t &gen)
@@ -2228,7 +2342,7 @@ void generate_emx2_metaprogram
 		// note: compensate for NFSR!
 		s16 current_syinc =
 			(((((spr.w_ + 15) >> 4) - shift.wordwidth_) << 1) + 2)
-			+ (current_skew_syinc_adj * 2);
+			- (current_skew_syinc_adj * 2);
 		//				+ (NFSR ? 2 : 0)
 		//				- (FISR ? 2 : 0);
 
@@ -2936,7 +3050,7 @@ void generate_emx2_metaprogram
 					}
 
 
-					current_src += /*planes=*/4 * (((current_ww - 1) * /*sxinc=*/2) + current_syinc);
+					current_src += /*planes=*/4 * ((((current_ww - 1) - current_skew_syinc_adj) * /*sxinc=*/2) + current_syinc);
 
 					// SYI accounts for this automatically, except for real skips
 					current_sline++;
@@ -3121,7 +3235,8 @@ void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 			{
 				preshift_t &shift = *cit;
 
-				generate_emx2_preshift_analysis(spr, _frame, shift, psi, /*single_span_scans=*/false);
+				generate_emx2_preshift_analysis(spr, shift, psi, /*single_span_scans=*/false);
+				generate_emx2_span_pattern_audit(spr, shift);
 			}
 		}
 	}
@@ -3363,7 +3478,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	preshift_t *pshared_shift = new
 	preshift_t 
 	(
-		/*shift=*/0, // also inhibits NFSR
+		/*shift=*/15, // also inhibits NFSR
 		/*planes=*/ref.planes_,
 		/*height=*/ref.height_,
 		/*wordwidth=*/sharedmask_wordwidth,
@@ -3375,7 +3490,12 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	preshift_t &shared_shift = *pshared_shift;
 
 	// build span representation
-	generate_emx2_preshift_analysis(spr, _frame, shared_shift, /*psi=*/0, /*single_span_scans=*/true);
+	//generate_emx2_preshift_analysis(spr, shared_shift, /*psi=*/0, /*single_span_scans=*/true);
+
+	int max_shift = 16 - g_allargs.preshift_step;
+
+	generate_emx2_shared_shift_analysis(spr, shared_shift, /*max_shift=*/max_shift, /*single_span_scans=*/true);
+	generate_emx2_span_pattern_audit(spr, shared_shift);
 
 	// find common line order
 	generate_emx2_common_lineorder(spr, spr.ems_.linemap_opt_2_src, spr.ems_.linemap_src_2_opt, /*optimize=*/false);
@@ -3664,7 +3784,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 							blitstate.EM1 = em1;
 							blitstate.EM2 = em2;
 							blitstate.EM3 = em3;
-							blitstate.SKEW |= (shift.shift_ & 15);
+							blitstate.SKEW = (blitstate.SKEW & 0xC0) | (shift.shift_ & 15);
 						}
 
 						// load real EM values for this span, for this preshift (for those within h-window)
