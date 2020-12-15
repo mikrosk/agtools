@@ -5450,6 +5450,7 @@ public:
 	std::vector<u16> shared_mask_words;
 	std::vector<scanstate_t> scan_states;
 	std::map<int, bool> occupied_lines;
+	std::vector < constrained_wordspan* > stacked_spans;
 
 	preshift_t
 	(
@@ -5485,7 +5486,7 @@ public:
 	}
 };
 
-typedef std::list<preshift_t> preshiftlist_t;
+typedef std::list<std::shared_ptr<preshift_t>> preshiftlist_t;
 
 static void print_dataword(uword_t _data)
 {
@@ -5761,7 +5762,7 @@ public:
 
 				_gen.psmask_frames_[preshift_index].emplace_back
 				(
-					preshift_t
+					std::make_shared<preshift_t>
 					(
 						s, 1, h_,
 						dst_wordwidth, consumed_dst_wordwidth, remaining_dst_wordwidth,
@@ -6666,19 +6667,21 @@ bool emit_sprite_sequence(bool _storepixels)
 							int component = 0;
 							for (preshiftlist_t::iterator itc = itpm->begin(); itc != itpm->end(); itc++, component++)
 							{
+								auto & spshift = *itc;
+
 								psmask_component_index[std::pair<int, int>(preshift_index, component)] = tracked_filesize;
 								int psmask_component_fpos = tracked_filesize;
 								// spf_psm_
 								// spf_psm2_
 
 								// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
-								wv = endianswap16(itc->wordwidth_);
+								wv = endianswap16(spshift->wordwidth_);
 								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 								if (g_allargs.cutmode == Cutmode_EMHSPR)
 								{
 //#if defined(USE_EMS2)
-									const auto & ss = *(itc->scan_states.begin());
+									const auto & ss = *(spshift->scan_states.begin());
 									const blitstate_t & bs = ss.blitstate;
 
 									// BLiTSKEW
@@ -6712,23 +6715,23 @@ bool emit_sprite_sequence(bool _storepixels)
 									// blitter-specific fields (for EMS or y-clipped EMX)
 
 									bool NFSR =
-										(itc->wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
-										(itc->wordsremaining_ == 0) &&
-										(((it->w_ + 15) >> 4) != (itc->wordwidth_ + itc->wordoffset_));
+										(spshift->wordwidth_ > 1) && // NFSR is meaningless for wordwidth==1
+										(spshift->wordsremaining_ == 0) &&
+										(((it->w_ + 15) >> 4) != (spshift->wordwidth_ + spshift->wordoffset_));
 
-									bool FISR = (itc->wordoffset_ > 0);
+									bool FISR = (spshift->wordoffset_ > 0);
 
 									uword_t skew =
-										(itc->shift_ & 15) |
+										(spshift->shift_ & 15) |
 										(NFSR ? 0x40 : 0x00) |
 										(FISR ? 0x80 : 0x00);
 
-									word_t dyinc = (8 + 2) - (itc->wordwidth_ << 3);
+									word_t dyinc = (8 + 2) - (spshift->wordwidth_ << 3);
 
 									// SYINC = difference between source wordwidth & preshift wordwidth, + 2
 									// note: compensate for NFSR!
 									word_t syinc =
-										(((((it->w_ + 15) >> 4) - itc->wordwidth_) << 1) + 2)
+										(((((it->w_ + 15) >> 4) - spshift->wordwidth_) << 1) + 2)
 										+ (NFSR ? 2 : 0)
 										- (FISR ? 2 : 0);
 
@@ -6742,7 +6745,7 @@ bool emit_sprite_sequence(bool _storepixels)
 									wv = endianswap16(dyinc);
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 									// wordoffset
-									wv = endianswap16(itc->wordoffset_);
+									wv = endianswap16(spshift->wordoffset_);
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 								}
 
@@ -6781,7 +6784,7 @@ bool emit_sprite_sequence(bool _storepixels)
 									// ---------------------------------------------------------------------------------------
 									// clip table (follows spf_psm2_)
 
-									for (const auto & ss : itc->scan_states)
+									for (const auto & ss : spshift->scan_states)
 									{
 										const blitstate_t & bs = ss.blitstate;
 										/*
@@ -6827,7 +6830,7 @@ bool emit_sprite_sequence(bool _storepixels)
 									// ---------------------------------------------------------------------------------------
 									// EM data
 									int psmask_component_emdata_fpos = tracked_filesize;
-									for (auto & w : itc->shared_mask_words)
+									for (auto & w : spshift->shared_mask_words)
 									{
 										print_dataword(w);
 										printf("\n");
@@ -6867,10 +6870,10 @@ bool emit_sprite_sequence(bool _storepixels)
 
 										// write whole mask preshift
 										//std::cout << "mask:" << std::endl;
-										for (int o = 0; o < itc->planewords_; o++)
+										for (int o = 0; o < spshift->planewords_; o++)
 										{
 											// write colour words for single mask plane
-											uword_t data = itc->data_[o];
+											uword_t data = spshift->data_[o];
 
 											if (0)
 												if (component > 0)
@@ -6885,14 +6888,14 @@ bool emit_sprite_sequence(bool _storepixels)
 													}
 													std::cout << " ";
 													wordcounter++;
-													if (wordcounter == itc->wordwidth_)
+													if (wordcounter == spshift->wordwidth_)
 													{
 														std::cout << std::endl;
 														wordcounter = 0;
 													}
 												}
 
-											wv = endianswap16(itc->data_[o]);
+											wv = endianswap16(spshift->data_[o]);
 											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 										}
 									}
@@ -6916,25 +6919,26 @@ bool emit_sprite_sequence(bool _storepixels)
 							for (preshiftlist_t::iterator itc = itpm->begin(); itc != itpm->end(); itc++, component++)
 							{
 								// spf_psmo_
+								auto & spshift = *itc;
 
 								//psmaskopt_component_index[emx_component].push_back(tracked_filesize);
 								psmaskopt_component_index[std::pair<int,int>(preshift_index,component)] = tracked_filesize;
 
 								// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
-								wv = endianswap16(itc->wordwidth_);
+								wv = endianswap16(spshift->wordwidth_);
 								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 								// component wordoffset
-								wv = endianswap16(itc->wordoffset_);
+								wv = endianswap16(spshift->wordoffset_);
 								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 								// dest line skip for pagerestore
-								int dstskip = ((20+1)+((g_allargs.emguardx+(16-1))>>4) - itc->wordwidth_) << 3;
+								int dstskip = ((20+1)+((g_allargs.emguardx+(16-1))>>4) - spshift->wordwidth_) << 3;
 								wv = endianswap16(dstskip);
 								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
 								// dest wordsize for pagerestore
-								int dstwords = itc->wordwidth_ << 2;
+								int dstwords = spshift->wordwidth_ << 2;
 								wv = endianswap16(dstwords);
 								fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
@@ -6948,8 +6952,8 @@ bool emit_sprite_sequence(bool _storepixels)
 									//fwrite(fname.c_str(), 1, 32, hout); tracked_filesize += 32;
 
 									// write 68k binary code for this preshift
-									fwrite((itc->p68kbin + 32), 1, (itc->size68kbin - 32), hout);
-									tracked_filesize += (itc->size68kbin - 32);
+									fwrite((spshift->p68kbin + 32), 1, (spshift->size68kbin - 32), hout);
+									tracked_filesize += (spshift->size68kbin - 32);
 								}
 								//else
 								//{

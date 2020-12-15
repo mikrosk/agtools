@@ -521,7 +521,8 @@ void generate_emx2_active_linewidths(spriteframe_t &spr, spriteframe_t::generate
 		// compute active mask widths
 		{
 			preshiftlist_t::iterator cit = pmit->begin();
-			preshift_t &shift = *cit;
+			auto & spshift = *cit;
+			preshift_t &shift = *spshift;
 
 			for (int v = 0; v < spr.h_; v++)
 			{
@@ -790,7 +791,8 @@ void generate_emx2_common_lineorder
 				//				for (preshiftlist_t::iterator cit = pmit->begin(); cit != pmit->end(); cit++, ci++)
 				preshiftlist_t::iterator cit = pmit->begin();
 				{
-					preshift_t &shift = *cit;
+					auto & spshift = *cit;
+					preshift_t &shift = *spshift;
 
 					for (int v = 0; v < spr.h_; v++)
 					{
@@ -2490,7 +2492,6 @@ void generate_emx2_metaprogram
 					(span_NFSR ? 0x40 : 0x00) |
 					(span_FISR ? 0x80 : 0x00);
 
-
 				// emit SKEW changes
 				{
 					u8 span_skew_change = current_skew ^ span_skew;
@@ -3235,7 +3236,8 @@ void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 			// first component within a preshift
 			preshiftlist_t::iterator cit = pmit->begin();
 			{
-				preshift_t &shift = *cit;
+				auto & spshift = *cit;
+				preshift_t &shift = *spshift;
 
 				generate_emx2_preshift_analysis(spr, shift, psi, /*single_span_scans=*/false);
 				generate_emx2_span_pattern_audit(spr, shift);
@@ -3252,7 +3254,8 @@ void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 		//for (preshiftlist_t::iterator pit = pmit->begin(); pit != pmit->end(); pit++)
 		preshiftlist_t::iterator pit = pmit->begin();
 		{
-			preshift_t &shift = *pit;
+			auto & spshift = *pit;
+			preshift_t &shift = *spshift;
 
 			if ((DEBUG_PRESHIFT >= 0) && (pi != DEBUG_PRESHIFT))
 				continue;
@@ -3341,6 +3344,68 @@ void generate_emx2_mask_sequence
 	printf("mask seq len: %d\n", shift.shared_mask_words.size());
 }
 
+void generate_emx2_order_component_spans(spriteframe_t &_spr, preshift_t &_shift, std::list<std::shared_ptr<preshift_t>> &_component_list)
+{
+	bool processing = true;
+	int pass_index = 0;
+
+	while (processing)
+	{
+		processing = false;
+
+		auto spcmp = std::make_shared<preshift_t>(_shift);
+		auto &sa = spcmp->sa;
+
+		// stack all spans for state change optimization
+		std::map<uint32_t, std::vector<constrained_wordspan*>> ordered_spans;
+		for (auto & spanlist : sa.span_vpattern_)
+		{
+			int horizontal_index = 0;
+			for (auto &span : spanlist)
+			{
+				if (horizontal_index == pass_index)
+				{
+					span.line_opt = _spr.ems_.linemap_src_2_opt[span.line_orig];
+
+					// span index has priority so spans rendered vertically for edge coherence, never horizontally
+					// otherwise, frame common lineorder prevails
+					uint32_t ordering_key;
+
+					// left->right spans within top-bottom ordered scanlines
+					ordering_key =
+						(uint32_t(span.line_opt) << 5) |
+						(uint32_t(horizontal_index))
+						;
+
+					ordered_spans[ordering_key].push_back(&span);
+					processing = true;
+					break;
+				}
+
+				horizontal_index++;
+			}
+		}
+
+		if (processing)
+		{
+			int o = 0;
+			for (auto group_it = ordered_spans.begin(); group_it != ordered_spans.end(); group_it++)
+			{
+				for (auto pspan : group_it->second)
+				{
+					pspan->draw_order = o++;
+					spcmp->stacked_spans.push_back(pspan);
+				}
+			}
+
+			_component_list.push_back(spcmp);
+		}
+
+		pass_index++;
+	}
+}
+
+
 void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 {
 	if (g_allargs.verbose)
@@ -3353,8 +3418,10 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	for (auto pmit = spr.ems_.psmask_frames_.begin(); pmit != spr.ems_.psmask_frames_.end(); pmit++)
 	{
 		preshiftlist_t::iterator cit = pmit->begin();
-		if (cit->wordwidth_ > sharedmask_wordwidth)
-			sharedmask_wordwidth = cit->wordwidth_;
+		auto & spshift = *cit;
+
+		if (spshift->wordwidth_ > sharedmask_wordwidth)
+			sharedmask_wordwidth = spshift->wordwidth_;
 	}
 
 	// allocate new shared mask for each axis
@@ -3372,7 +3439,8 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 		// first component within a preshift
 		preshiftlist_t::iterator cit = pmit->begin();
 		{
-			preshift_t &shift = *cit;
+			auto & spshift = *cit;
+			preshift_t &shift = *spshift;
 
 			// find all mask words which change relative to their predecessor, build a shared mask for encoding
 
@@ -3474,14 +3542,15 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 		printf("\n");
 	}
 
-	preshift_t &ref = *(spr.ems_.psmask_frames_.begin()->begin());
+	auto & spshiftref = *(spr.ems_.psmask_frames_.begin()->begin());
+	preshift_t &ref = *spshiftref;
 
 	int max_shift = 16 - g_allargs.preshift_step;
 
 	// create new, common shift accommodating all preshifts
 	preshift_t *pshared_shift = new
-	preshift_t 
-	(
+		preshift_t
+		(
 		/*shift=*/max_shift, // =0 inhibits NFSR
 		/*planes=*/ref.planes_,
 		/*height=*/ref.height_,
@@ -3489,27 +3558,85 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 		/*wordoffset=*/ref.wordoffset_,
 		/*wordsremaining=*/ref.wordsremaining_,
 		/*data=*/psharedmask_h
-	);
+		);
 
 	preshift_t &shared_shift = *pshared_shift;
 
 	// build span representation
 	//generate_emx2_preshift_analysis(spr, shared_shift, /*psi=*/0, /*single_span_scans=*/true);
 
+	// generate all spans in one pass
+#if defined(EMH_MULTICOMPONENT)
+	generate_emx2_shared_shift_analysis(spr, shared_shift, /*max_shift=*/max_shift, /*single_span_scans=*/false);
+#else
 	generate_emx2_shared_shift_analysis(spr, shared_shift, /*max_shift=*/max_shift, /*single_span_scans=*/true);
+#endif
 	generate_emx2_span_pattern_audit(spr, shared_shift);
 
 	// find common line order
 	generate_emx2_common_lineorder(spr, spr.ems_.linemap_opt_2_src, spr.ems_.linemap_src_2_opt, /*optimize=*/false);
 
-	std::vector<constrained_wordspan*> stacked_spans;
-	generate_emx2_order_spans(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*ems2=*/true);
+	// order spans within each component
+	//std::vector<constrained_wordspan*> stacked_spans;
+	std::vector<constrained_wordspan*> &all_stacked_spans = shared_shift.stacked_spans;
+	generate_emx2_order_spans(spr, _frame, shared_shift, /*pi=*/0, all_stacked_spans, /*ems2=*/true);
 
-	size_t spancount = stacked_spans.size();
+	int num_components_required = 1;
+	{
+		auto &sa = shared_shift.sa;
+		for (auto & spanlist : sa.span_vpattern_)
+		{
+			if (spanlist.size() > num_components_required)
+				num_components_required = spanlist.size();
+		}
+	}
+
+	printf("EMH requires %d components\n", num_components_required);
+
+//#if defined(EMH_MULTICOMPONENT)
+	// duplicate each preshift index into a component sequence
+	psi = 0;
+	for (auto pmit = spr.ems_.psmask_frames_.begin(); pmit != spr.ems_.psmask_frames_.end(); pmit++, psi++)
+	{
+		preshiftlist_t::iterator cit = pmit->begin();
+		auto & spshift = *cit;
+
+		int num_components = 1;
+		while (num_components++ < num_components_required)
+		{
+			printf("duplicating preshift %d component %d...\n", psi, num_components);
+			pmit->emplace_back
+			(
+				std::make_shared<preshift_t>(*spshift)
+			);
+		}
+	}
+//#endif
+
+//	std::cout << std::flush;
+//	exit(1);
+
+	// split spans into minimum number of horizontal components with <=1 span per line
+/*	std::list<std::shared_ptr<preshift_t>> shared_shift_components;
+	generate_emx2_order_component_spans(spr, shared_shift, shared_shift_components);
+
+	if (shared_shift_components.empty())
+	{
+		printf("error: extracted no EMH components!\n");
+		exit(1);
+	}
+
+*/
+/*
+	std::shared_ptr<preshift_t> spcmp = shared_shift_components.front();
+	std::vector<constrained_wordspan*> stacked_spans = spcmp->stacked_spans;
+*/
+
+	size_t spancount = all_stacked_spans.size();
 
 	// assign EM index to source mask words according to their position in each span
 	{
-		for (auto pspan : stacked_spans)
+		for (auto pspan : all_stacked_spans)
 		{
 			int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
@@ -3542,7 +3669,8 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 			// first component within a preshift
 			preshiftlist_t::iterator cit = pmit->begin();
 			{
-				preshift_t &shift = *cit;
+				auto & spshift = *cit;
+				preshift_t &shift = *spshift;
 
 				shift.occupied_lines.clear();
 
@@ -3550,7 +3678,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 					u16 em_last[3] = { 0,0,0 };
 					u16 em_mark[3] = { 0,0,0 };
 
-					for (auto pspan : stacked_spans)
+					for (auto pspan : all_stacked_spans)
 					{
 						int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
@@ -3616,7 +3744,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 		{
 			u16 em_gens[3] = { 0,0,0 };
 
-			for (auto pspan : stacked_spans)
+			for (auto pspan : all_stacked_spans)
 			{
 				int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
@@ -3675,7 +3803,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 	// load new pseudo-masks back into spans for metaprogram gen / simulation
 	{
-		for (auto pspan : stacked_spans)
+		for (auto pspan : all_stacked_spans)
 		{
 			//int v = pspan->draw_order;
 			int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
@@ -3723,9 +3851,10 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 		// first component within a preshift
 		preshiftlist_t::iterator cit = pmit->begin();
 		{
-			preshift_t &shift = *cit;
+			auto & spshift = *cit;
+			preshift_t &shift = *spshift;
 
-			generate_emx2_mask_sequence(spr, shift, stacked_spans, psharedmask_v, sharedmask_wordwidth);
+			generate_emx2_mask_sequence(spr, shift, all_stacked_spans, psharedmask_v, sharedmask_wordwidth);
 		}
 	}
 
@@ -3733,11 +3862,11 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	shared_shift.data_ = psharedmask_v;
 
 	// for simulator
-	generate_emx2_mask_sequence(spr, shared_shift, stacked_spans, psharedmask_v, sharedmask_wordwidth);
+	generate_emx2_mask_sequence(spr, shared_shift, all_stacked_spans, psharedmask_v, sharedmask_wordwidth);
 
 
 	std::vector<u16> shared_mask_words_gen;
-	generate_emx2_metaprogram(spr, _frame, shared_shift, /*pi=*/0, stacked_spans, /*shared_mask=*/true, shared_mask_words_gen);
+	generate_emx2_metaprogram(spr, _frame, shared_shift, /*pi=*/0, all_stacked_spans, /*shared_mask=*/true, shared_mask_words_gen);
 
 	spr.ems2_p68kbin_ = shared_shift.p68kbin;
 	spr.ems2_size68kbin_ = shared_shift.size68kbin;
@@ -3751,7 +3880,8 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 			// first component within a preshift
 			preshiftlist_t::iterator cit = pmit->begin();
 			{
-				preshift_t &shift = *cit;
+				auto & spshift = *cit;
+				preshift_t &shift = *spshift;
 
 				shift.scan_states = shared_shift.scan_states;
 
@@ -3769,7 +3899,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 					u16 em2 = 0;
 					u16 em3 = 0;
 
-					for (auto pspan : stacked_spans)
+					for (auto pspan : all_stacked_spans)
 					{
 						int orig_y = spr.ems_.linemap_opt_2_src[pspan->line_opt];
 
