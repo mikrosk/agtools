@@ -6682,16 +6682,26 @@ bool emit_sprite_sequence(bool _storepixels)
 									const blitstate_t & bs = ss.blitstate;
 
 									// BLiTSKEW
-									wv = endianswap16(u16(bs.SKEW));
+									wv = u16(bs.SKEW);
+									printf("\nBLiTSKEW:%04x\n", (int)wv);
+									wv = endianswap16(wv);
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
 									// BLiTSYI
-									wv = endianswap16(s16(bs.SYI));
+									wv = u16(bs.SYI);
+									printf("BLiTSYI:%04x\n", (int)wv);
+									wv = endianswap16(wv);
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
 									// BLiTDYI
-									wv = endianswap16(s16((s8)bs.DYI));
+									wv = u16(s16((s8)bs.DYI));
+									printf("BLiTDYI:%04x\n", (u32)wv);
+									wv = endianswap16(wv);
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 									// BLiTXC
-									wv = endianswap16(s16(bs.XC));
+									wv = u16(bs.XC);
+									printf("BLiTXC:%04x\n", (int)wv);
+									wv = endianswap16(wv);
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 //#else
 								}

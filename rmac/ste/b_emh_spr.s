@@ -24,6 +24,8 @@
 	pushraster	#$062
 
 	; todo: opt
+	
+	;bra		*
 
 	move.b		#3,BLiTLOP.w
 	tst.w		d7
@@ -118,10 +120,13 @@
 ;	wordwidth of source mask
 	move.w		(a6)+,d5			; spf_psm2_wordwidth
 	move.w		d5,.sp_maskwidth(sp)
-	move.w		d5,BLiTXC.w
+;	move.w		d5,BLiTXC.w
+	
+	
 	move.w		(a6)+,d0
 ;	move.b		d0,BLiTSKEW.w			; spf_psm2_bskew
 	move.b		d0,.emh_skew_smc+3
+	
 	move.w		(a6)+,BLiTSYI.w			; spf_psm2_bsyi
 	move.w		(a6)+,BLiTDYI.w			; spf_psm2_bdyi	
 	move.w		(a6)+,BLiTXC.w			; spf_psm2_bxc
@@ -163,7 +168,7 @@
 
 
 	move.l		a0,.emh_cmp_cplanes
-	clr.w		.emh_cmp_masklineoff
+;	clr.w		.emh_cmp_masklineoff
 	
 ;.next_component:
 
@@ -176,8 +181,9 @@
 *-------------------------------------------------------*
 	lea		2.w,a3
 
-	clr.w		.emh_cmp_dyadj
 	clr.w		.emh_cmp_dxadj
+	clr.w		.emh_cmp_dyadj
+
 
 	.if		(enable_clipping)
 
@@ -469,7 +475,7 @@
 	
 	move.l		#$00ffc000,d1
 .emh_skew_smc:
-	or.b		#$12,d1
+	move.b		#$55,d1
 	
 ;	move.l		#$00ffc000,d1
 ;	move.b		BLiTSKEW.w,d1
@@ -564,8 +570,8 @@
 	ds.l		1	
 .emh_cmp_h:
 	ds.w		1
-.emh_cmp_masklineoff:
-	ds.w		1
+;.emh_cmp_masklineoff:
+;	ds.w		1
 .emh_cmp_cplanes:
 	ds.l		1
 .emh_next_psmask:

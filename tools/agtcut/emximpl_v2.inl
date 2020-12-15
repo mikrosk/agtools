@@ -2322,7 +2322,9 @@ void generate_emx2_metaprogram
 
 		bool FISR = false;// (shift.wordoffset_ > 0);
 
-		u16 current_skew = 0;// 0xffff;
+		// EMH: suppress shift field, loaded by harness (init=shift)
+		// EMX: encode shift field, loaded by first generated scan (init=0)
+		u16 current_skew = _shared_mask ? (shift.shift_ & 15) : 0;
 
 		/*			u8 current_skew =
 						//false;// ((shift.wordwidth_ << 4) == ((spr.w_ + 15) & -16));
@@ -3474,11 +3476,13 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 	preshift_t &ref = *(spr.ems_.psmask_frames_.begin()->begin());
 
+	int max_shift = 16 - g_allargs.preshift_step;
+
 	// create new, common shift accommodating all preshifts
 	preshift_t *pshared_shift = new
 	preshift_t 
 	(
-		/*shift=*/15, // also inhibits NFSR
+		/*shift=*/max_shift, // =0 inhibits NFSR
 		/*planes=*/ref.planes_,
 		/*height=*/ref.height_,
 		/*wordwidth=*/sharedmask_wordwidth,
@@ -3491,8 +3495,6 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 	// build span representation
 	//generate_emx2_preshift_analysis(spr, shared_shift, /*psi=*/0, /*single_span_scans=*/true);
-
-	int max_shift = 16 - g_allargs.preshift_step;
 
 	generate_emx2_shared_shift_analysis(spr, shared_shift, /*max_shift=*/max_shift, /*single_span_scans=*/true);
 	generate_emx2_span_pattern_audit(spr, shared_shift);
