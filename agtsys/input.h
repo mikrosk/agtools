@@ -128,6 +128,54 @@ enum ScanCode
 	ScanCode_KP_ENTER = 0x72,
 };
 
+// JoyPad bit pattern:
+// 1 4 7 * 3 6 9 # 2 5 8 0 o p c b a r l d u
+
+enum
+{
+	JoyPad_N1		= (1<<20),
+	JoyPad_N4		= (1<<19),
+	JoyPad_N7		= (1<<18),
+	JoyPad_STAR		= (1<<17),
+//
+	JoyPad_N3		= (1<<16),
+	JoyPad_N6		= (1<<15),
+	JoyPad_N9		= (1<<14),
+	JoyPad_HASH		= (1<<13),
+//
+	JoyPad_N2		= (1<<12),
+	JoyPad_N5		= (1<<11),
+	JoyPad_N8		= (1<<10),
+	JoyPad_N0		= (1<<9),
+	
+	JoyPad_O		= (1<<8),
+	JoyPad_P		= (1<<7),
+	
+	JoyPad_C		= (1<<6),
+	JoyPad_B		= (1<<5),
+	JoyPad_A		= (1<<4),
+	
+	JoyPad_R		= (1<<3),
+	JoyPad_L		= (1<<2),
+	JoyPad_D		= (1<<1),
+	JoyPad_U		= (1<<0),
+};
+
+// joypad buttons only
+#define JoyPad_JOYMASK ( \
+		JoyPad_A|JoyPad_B|JoyPad_C | \
+		JoyPad_L|JoyPad_R|JoyPad_U|JoyPad_D \
+		)
+
+// joypad keypad/letters only
+#define JoyPad_KEYMASK ( \
+		JoyPad_P|JoyPad_O | \
+		JoyPad_N0|JoyPad_N1|JoyPad_N2|JoyPad_N3|JoyPad_N4|JoyPad_N5|JoyPad_N6|JoyPad_N7|JoyPad_N9 | \
+		JoyPad_HASH|JoyPad_STAR \
+		)
+
+extern "C" void AGT_SampleJoyPads();
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 // table for translating scancodes into ASCII and special key enums
@@ -168,6 +216,10 @@ extern "C" u8 joy1_eventring[256];
 extern "C" volatile s16 joy1_eventhead;
 // read position of eventring (read by game input services)
 extern "C" s16 joy1_eventtail;
+
+// joypads
+extern "C" volatile u32 joypad0;
+extern "C" volatile u32 joypad1;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // here is some example code to read & flush all pending events from rings

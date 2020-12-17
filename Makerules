@@ -8,9 +8,25 @@
 
 ASMROOT = $(USE_ASSEMBLER)
 
-ifeq ($(USE_BROWNELF),7)
+ifeq ($(USE_BROWNELF),10.2.0)
+TOOLCHAIN_NAME = m68k-atariextrabrowner-elf
+TOOLCHAIN_VER = 10.2.0
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
+VASM_CFG = -Felf
+RMAC_CFG = -fe
+EXT = elf
+else
+ifeq ($(USE_BROWNELF),7.1.0)
 TOOLCHAIN_NAME = m68k-ataribrowner-elf
 TOOLCHAIN_VER = 7.1.0
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
+VASM_CFG = -Felf
+RMAC_CFG = -fe
+EXT = elf
+else
+ifeq ($(USE_BROWNELF),6.2.0)
+TOOLCHAIN_NAME = m68k-ataribrown-elf
+TOOLCHAIN_VER = 6.2.0
 TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
 VASM_CFG = -Felf
 RMAC_CFG = -fe
@@ -31,6 +47,8 @@ TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
 VASM_CFG = -Faout
 RMAC_CFG = -fa
 EXT = tos
+endif
+endif
 endif
 endif
 
@@ -144,6 +162,7 @@ AGLIB_STE_O =	\
 		$(AGTROOT)/$(ASMROOT)/ste/dispv6.o \
 		$(AGTROOT)/$(ASMROOT)/ste/pflib.o \
 		$(AGTROOT)/$(ASMROOT)/ste/display.o \
+		$(AGTROOT)/$(ASMROOT)/ste/joypad.o \
 		$(AGTROOT)/$(ASMROOT)/ste/spritelib.o \
 		$(AGTROOT)/$(ASMROOT)/ste/drawent.o \
 		
