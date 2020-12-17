@@ -331,31 +331,37 @@ public:
 			/*tail=*/0, 
 			/*words=*/1
 		  ),
-		  em(_em),offset(_offset)
+		  em(_em),
+		  offset(_offset)
 	{
 		assert(_reg < 256);
 		sreg = _reg;
 		assert(_areg < 256);
 		areg = _areg;
+
+		if (offset)
+			words++;
 	}
 
 	virtual void onEmit()
 	{
 		if (offset)
 		{
-			sprintf(ctx.buf, " move.w (%s)+,%d%s\t\t;%d [EM:%d]\n",
+			sprintf(ctx.buf, " move.w (%s)+,%d(%s)\t\t;%d [EM:%d]\n",
 				ctx.registers[sreg].name.c_str(),
 				offset,
-				ctx.BLiTEM_names[em].c_str(),
+				ctx.registers[areg].name.c_str(),
+				//ctx.BLiTEM_names[em].c_str(),
 				cost,
 				em + 1
 			);
 		}
 		else
 		{
-			sprintf(ctx.buf, " move.w (%s)+,%s\t\t;%d [EM:%d]\n",
+			sprintf(ctx.buf, " move.w (%s)+,(%s)\t\t;%d [EM:%d]\n",
 				ctx.registers[sreg].name.c_str(),
-				ctx.BLiTEM_names[em].c_str(),
+				ctx.registers[areg].name.c_str(),
+				//ctx.BLiTEM_names[em].c_str(),
 				cost,
 				em + 1
 			);
@@ -389,25 +395,30 @@ public:
 		sreg = _reg;
 		assert(_areg < 256);
 		areg = _areg;
+
+		if (offset)
+			words++;
 	}
 
 	virtual void onEmit()
 	{
 		if (offset)
 		{
-			sprintf(ctx.buf, " move.l (%s)+,%d%s\t\t;%d [EM:%d:%d]\n",
+			sprintf(ctx.buf, " move.l (%s)+,%d(%s)\t\t;%d [EM:%d:%d]\n",
 				ctx.registers[sreg].name.c_str(),
 				offset,
-				ctx.BLiTEM_names[em].c_str(),
+				ctx.registers[areg].name.c_str(),
+				//ctx.BLiTEM_names[em].c_str(),
 				cost,
 				em + 1, em + 2
 			);
 		}
 		else
 		{
-			sprintf(ctx.buf, " move.l (%s)+,%s\t\t;%d [EM:%d:%d]\n",
+			sprintf(ctx.buf, " move.l (%s)+,(%s)\t\t;%d [EM:%d:%d]\n",
 				ctx.registers[sreg].name.c_str(),
-				ctx.BLiTEM_names[em].c_str(),
+				ctx.registers[areg].name.c_str(),
+				//ctx.BLiTEM_names[em].c_str(),
 				cost,
 				em + 1, em + 2
 			);
@@ -2824,6 +2835,12 @@ public:
 			cost = 24;
 			words = 2;
 		}
+		else
+		if ((ctx.SKIPTEMP_reg >= 0) && (abs(offset) < 128))
+		{
+			cost = 24;
+			words = 3;
+		}
 	}
 
 	virtual std::string comment_pre()
@@ -2854,6 +2871,21 @@ public:
 				);
 			}
 			else
+			if ((ctx.SKIPTEMP_reg >= 0) && (offset > -128))
+			{
+				sprintf
+					(
+					ctx.buf,
+					" moveq #%d,%s;\n sub.l %s,%s\t;%d (sxi:%d,syi:%d)\n",
+					-offset,
+					ctx.registers[ctx.SKIPTEMP_reg].name.c_str(),
+					ctx.registers[ctx.SKIPTEMP_reg].name.c_str(),
+					ctx.BLiTSRC_name.c_str(),
+					cost,
+					worddelta, linedelta
+				);
+			}
+			else
 			{
 				sprintf
 				(
@@ -2875,6 +2907,21 @@ public:
 					ctx.buf,
 					" addq.l #%d,%s\t;%d (sxi:%d,syi:%d)\n",
 					offset,
+					ctx.BLiTSRC_name.c_str(),
+					cost,
+					worddelta, linedelta
+				);
+			}
+			else
+			if ((ctx.SKIPTEMP_reg >= 0) && (offset < 128))
+			{
+				sprintf
+					(
+					ctx.buf,
+					" moveq #%d,%s;\n add.l %s,%s\t;%d (sxi:%d,syi:%d)\n",
+					offset,
+					ctx.registers[ctx.SKIPTEMP_reg].name.c_str(),
+					ctx.registers[ctx.SKIPTEMP_reg].name.c_str(),
 					ctx.BLiTSRC_name.c_str(),
 					cost,
 					worddelta, linedelta

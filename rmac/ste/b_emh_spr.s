@@ -59,13 +59,17 @@
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
-
+	
 	; frame fields
 
 	move.w		(a0)+,d3			; w
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
+
+	move.l		a0,.emh_sprframe
+	move.l		a1,.emh_framebuf
+	movem.w		d1-d4,.emh_sprpos
 
 *-------------------------------------------------------*
 *	occlusion mapping	
@@ -113,7 +117,9 @@
 ;spf_psm2_code:		ds.l	1		; offset to (shared) codegen
 ;spf_psm2_nextcmp:	ds.l	1		; next component
 ;spf_psm2_clip:					; clipping table follows
+
 	
+	st		.emh_is_first_cmp
 
 .emh_firstcmp:
 	move.l		a6,d6
@@ -219,11 +225,17 @@
 		
 	neg.w		d2
 	
+;	move.w		d2,d0
+;	mulu.w		#spct_size,d0
+;	move.l		a6,a4
+;	add.l		d0,a4				; spf_psm2_clip+(spct_size*tyc)
+
 	move.w		d2,d0
-	mulu.w		#spct_size,d0
-	
+	add.w		d0,d0
+	move.w		(a6,d0.w),d0			; compressed offset to mprog inits
 	move.l		a6,a4
-	add.l		d0,a4				; spf_psm2_clip+(spct_size*tyc)
+	add.w		d0,a4
+		
 	
 	;bra		*
 ;spct_emdata_off:	ds.w	1
@@ -314,8 +326,13 @@
 	
 	neg.w		d0
 	add.w		.emh_cmp_height,d0
-	mulu.w		#spct_size,d0
-	add.w		d0,a6				; spf_psm2_clip+(spct_size*tyc)
+	
+	add.w		d0,d0
+	move.w		(a6,d0.w),d0
+	add.w		d0,a6	
+	
+;	mulu.w		#spct_size,d0
+;	add.w		d0,a6				; spf_psm2_clip+(spct_size*tyc)
 	
 	move.l		.emh_psm2_mprog2,a4
 	move.w		spct_mprog_off(a6),d0
@@ -352,12 +369,17 @@
 ;	lsr.w		#1,d0
 	asr.w		#1,d0		; guardband allows -ve x!
 
+	tst.b		.emh_is_first_cmp
+	beq		.emh_no_emit_sr1
+
 	.if		(enable_restore)
 	.if		(use_sprite_pagerestore)
 	move.w		d2,(a5)+
 	move.w		d0,(a5)+
 	.endif
 	.endif
+
+.emh_no_emit_sr1:
 
 
 	add.w		d0,a1
@@ -384,6 +406,11 @@
 	lsr.w		#1,d6
 	sub.w		d6,a4
 	lsr.w		#(4-1),d6		; >>4 *2
+
+
+	tst.b		.emh_is_first_cmp
+	beq		.emh_no_emit_sr2
+
 
 	.if		(1)
 	
@@ -445,10 +472,13 @@
 	
 	.endif		;0
 
+.emh_no_emit_sr2:
+
 
 	move.l		a0,.emh_cmp_src
 	move.l		a1,.emh_cmp_dst
 	move.w		d4,.emh_cmp_h
+	
 	move.w		.sp_maskwidth(sp),d6
 
 *-------------------------------------------------------*
@@ -505,13 +535,36 @@
 *-------------------------------------------------------*
 
 	move.l		.emh_next_psmask,d0
+
+; clr.l		d0
+	
 	beq		.emh_4BPL_end_all
 	move.l		d0,a6
 
-.yhyg:
-	not.w		$ffff8240.w
-	not.b		$ffff8240.w
-	bra		.yhyg
+;.yhyg:
+;	not.w		$ffff8240.w
+;	not.b		$ffff8240.w
+;	bra		.yhyg
+
+	move.l		.emh_sprframe,a0
+	move.l		.emh_framebuf,a1
+	movem.w		.emh_sprpos,d1-d4
+	
+;	move.w		_g_linebytes,d0
+;	mulu.w		#64,d0
+;	add.l		d0,a1
+
+	sf		.emh_is_first_cmp
+
+	bra		.emh_firstcmp
+	
+	
+	
+	
+	
+
+
+
 
 	move.l		.emh_cmp_cplanes,a0		; colour planes
 	
@@ -553,9 +606,19 @@
 	move.w		.sp_maskwidth(sp),d6
 
 	altraster	#$021
-		
+			
 	bra		.emh_Clip_4BPL_unclipped_blit
 
+.emh_sprframe:
+	ds.l		1
+.emh_framebuf:
+	ds.l		1
+.emh_sprpos:
+	ds.w		4
+.emh_is_first_cmp:
+	ds.w		1
+
+	
 .emh_cmp_height:
 	ds.w		1
 .emh_scratch:

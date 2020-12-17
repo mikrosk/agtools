@@ -14,6 +14,7 @@ void generate_emx2_preshift_analysis
 	bool _single_span_scans
 )
 {
+	bool allow_NFSR = !g_allargs.no_nfsr;
 	//int full_src_wordwidth = ((spr.w_ + 15) & -16) >> 4;
 	//int src_pixwidth = full_src_wordwidth << 4;
 
@@ -63,6 +64,7 @@ void generate_emx2_preshift_analysis
 
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
+						allow_NFSR &&
 						(accumulated_words > 1) &&
 						(u16(0x0000FFFFUL >> _shift.shift_) & pline[span_pos + accumulated_words - 1]) == 0;
 
@@ -110,6 +112,7 @@ void generate_emx2_preshift_analysis
 
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
+						allow_NFSR &&
 						(accumulated_words > 1) &&
 						(u16(0x0000FFFFUL >> _shift.shift_) & pline[span_pos + accumulated_words - 1]) == 0;
 
@@ -167,6 +170,7 @@ void generate_emx2_preshift_analysis
 
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
+						allow_NFSR &&
 						(accumulated_words > 1) &&
 						(u16(0x0000FFFFUL >> _shift.shift_) & pline[span_pos + accumulated_words - 1]) == 0;
 
@@ -218,6 +222,8 @@ void generate_emx2_shared_shift_analysis
 	bool _single_span_scans
 )
 {
+	bool allow_NFSR = !g_allargs.no_nfsr;
+
 	int full_src_wordwidth = ((_spr.w_ + 15) & -16) >> 4;
 	int src_pixwidth = full_src_wordwidth << 4;
 
@@ -239,6 +245,8 @@ void generate_emx2_shared_shift_analysis
 		u16 em[3] = { 0, 0, 0 };
 
 		int w = 0;
+		bool FISR = false;
+
 		while (w < _shared_shift.wordwidth_)
 		{
 			// fetch next word
@@ -250,17 +258,18 @@ void generate_emx2_shared_shift_analysis
 			int word_pos = w++;
 
 			// detect start of new span
-			bool FISR = false;
 			if ((span_pos < 0) && (word != 0))
 			{
 				span_pos = word_pos;
 
-				// check reference to shifted previous data
-				u32 shiftbuffer = u32(~psourceline[span_pos]) << 16;
+				if (span_pos > 0)
+				{
+					// check reference to shifted previous data
+					u16 mword = ~(psourceline[span_pos - 1]);
+					u32 shiftbuffer = u32(mword) << 16;
 
-				FISR =
-					(span_pos > 0) &&
-					(u16(shiftbuffer >> _max_shift) & 0x0000FFFF);
+					FISR = ((u16(shiftbuffer >> _max_shift) & 0x0000FFFF) != 0);
+				}
 			}
 
 			if (word == 0)
@@ -274,6 +283,7 @@ void generate_emx2_shared_shift_analysis
 
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
+						allow_NFSR &&
 						(accumulated_words > 1) &&
 						(psourceline[span_pos + accumulated_words - 1] == 0xFFFF);
 
@@ -298,6 +308,7 @@ void generate_emx2_shared_shift_analysis
 					accumulated_words = 0;
 					nonzero_words = 0;
 					accumulated_bcycles = 0;
+					FISR = false;
 
 					last_word = 0;
 				}
@@ -321,6 +332,7 @@ void generate_emx2_shared_shift_analysis
 
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
+						allow_NFSR &&
 						(accumulated_words > 1) &&
 						(psourceline[span_pos + accumulated_words - 1] == 0xFFFF);
 
@@ -345,6 +357,7 @@ void generate_emx2_shared_shift_analysis
 					accumulated_words = 0;
 					nonzero_words = 0;
 					accumulated_bcycles = 0;
+					FISR = false;
 
 					last_word = 0;
 				}
@@ -378,6 +391,7 @@ void generate_emx2_shared_shift_analysis
 
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
+						allow_NFSR &&
 						(accumulated_words > 1) &&
 						(psourceline[span_pos + accumulated_words - 1] == 0xFFFF);
 
@@ -402,6 +416,7 @@ void generate_emx2_shared_shift_analysis
 					accumulated_words = 0;
 					nonzero_words = 0;
 					accumulated_bcycles = 0;
+					FISR = false;
 
 					last_word = 0;
 				}
@@ -2068,7 +2083,7 @@ void generate_emx2_metaprogram
 					
 	size_t spancount = stacked_spans.size();
 
-	//if (g_allargs.verbose)
+	if (g_allargs.verbose)
 	{
 		printf("\n\nframe %d spans %d preview:\n", _frame, pi);
 		for (auto pspan : stacked_spans)
@@ -2537,7 +2552,7 @@ void generate_emx2_metaprogram
 
 					if (dst_linejump || dst_wordjump)
 					{
-						printf("wordjump: %d\n", dst_wordjump);
+						//printf("wordjump: %d\n", dst_wordjump);
 
 						// caution: can't use LEA for jumps > +/-32k
 						int addressjump = (dst_linejump * context.dstlinewid) + (dst_wordjump * 8);
@@ -3025,6 +3040,7 @@ void generate_emx2_metaprogram
 								//ds = context.sim_resolve_data16(uword_t(addressjump), reg_src, true);
 								//if (ds == DataSource_RegisterL)
 
+								// todo: source long constant as register (but no other combination)
 								context.operations.push_back(new SRC_Skip(context, src_wordjump, src_linejump));
 								context.operations.back()->execute();
 							}
@@ -3071,6 +3087,8 @@ void generate_emx2_metaprogram
 		if (build_metaprogram)
 		{
 			// emit terminal
+			shift.mprog_final = context.words;
+
 			context.operations.push_back(new Terminate(context));
 			context.operations.back()->execute();
 		}
@@ -3240,7 +3258,8 @@ void generate_emx2_frame_optimized(spriteframe_t &spr, int _frame)
 				preshift_t &shift = *spshift;
 
 				generate_emx2_preshift_analysis(spr, shift, psi, /*single_span_scans=*/false);
-				generate_emx2_span_pattern_audit(spr, shift);
+				if (g_allargs.verbose)
+					generate_emx2_span_pattern_audit(spr, shift);
 			}
 		}
 	}
@@ -3522,8 +3541,9 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	}
 
 	// dump shared mask encoding
-	printf("shared mask encoding pass 1 (horizontal)...\n");
+	if (g_allargs.verbose)
 	{
+		printf("shared mask encoding pass 1 (horizontal)...\n");
 		for (int v = 0; v < spr.h_; v++)
 		{
 			u16 *psharedline = &psharedmask_h[(v * sharedmask_wordwidth)];
@@ -3574,7 +3594,8 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 #else
 	generate_emx2_shared_shift_analysis(spr, shared_analysis_shift, /*max_shift=*/max_shift, /*single_span_scans=*/true);
 #endif
-	generate_emx2_span_pattern_audit(spr, shared_analysis_shift);
+	if (g_allargs.verbose)
+		generate_emx2_span_pattern_audit(spr, shared_analysis_shift);
 
 	// find common line order
 	generate_emx2_common_lineorder(spr, spr.ems_.linemap_opt_2_src, spr.ems_.linemap_src_2_opt, /*optimize=*/false);
@@ -3583,16 +3604,58 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	std::vector<constrained_wordspan*> &all_stacked_spans = shared_analysis_shift.stacked_spans;
 	generate_emx2_order_spans(spr, _frame, shared_analysis_shift, /*pi=*/0, all_stacked_spans, /*ems2=*/true);
 
+	int emh_layout = 0;
+
 	// measure required component count
 	int num_components_required = 1;
+
+	switch (emh_layout)
 	{
-		auto &sa = shared_analysis_shift.sa;
-		for (auto & spanlist : sa.span_vpattern_)
+	case 0:
+		// horizontal-sequential organized
 		{
-			if (spanlist.size() > num_components_required)
-				num_components_required = spanlist.size();
+			auto &sa = shared_analysis_shift.sa;
+			for (auto & spanlist : sa.span_vpattern_)
+			{
+				if (spanlist.size() > num_components_required)
+					num_components_required = spanlist.size();
+			}
 		}
-	}
+		break;
+
+	case 1:
+		// width-organized
+		{
+			auto &sa = shared_analysis_shift.sa;
+
+			std::map<int, int> xmap;
+			std::map<uint32_t, std::vector<constrained_wordspan*>> ordered_spans;
+
+			int component_index = 0;
+
+			for (auto & spanlist : sa.span_vpattern_)
+			{
+				int horizontal_index = 0;
+				for (auto &span : spanlist)
+				{
+					auto look = xmap.find(span.ww);
+					if (look == xmap.end())
+					{
+						horizontal_index = component_index++;
+						xmap[span.ww] = horizontal_index;
+					}
+				}
+			}
+
+			num_components_required = xmap.size();
+		}
+		break;
+
+	case 2:
+		// single component
+		break;
+	};
+
 	printf("EMH requires %d components\n", num_components_required);
 
 	// create per-component codegen proxy
@@ -3641,33 +3704,106 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 	{
 		spproxy->stacked_spans.clear();
 
+		std::map<int, int> xmap;
 		std::map<uint32_t, std::vector<constrained_wordspan*>> ordered_spans;
+		
+		int component_count = 0;
 
-		for (auto & spanlist : spproxy->sa.span_vpattern_)
+		switch (emh_layout)
 		{
-			int horizontal_index = 0;
-			for (auto &span : spanlist)
+		case 0:
+			// horizontal-sequential organized
 			{
-				if (horizontal_index == ci)
+				for (auto & spanlist : spproxy->sa.span_vpattern_)
 				{
-					span.line_opt = spr.ems_.linemap_src_2_opt[span.line_orig];
+					int component_output_index = 0;
+					for (auto &span : spanlist)
+					{
+						if (component_output_index == ci)
+						{
+							span.line_opt = spr.ems_.linemap_src_2_opt[span.line_orig];
 
-					// span index has priority so spans rendered vertically for edge coherence, never horizontally
-					// otherwise, frame common lineorder prevails
-					uint32_t ordering_key;
+							// span index has priority so spans rendered vertically for edge coherence, never horizontally
+							// otherwise, frame common lineorder prevails
+							uint32_t ordering_key;
 
-					// left->right spans within top-bottom ordered scanlines
-					ordering_key =
-						(uint32_t(span.line_opt) << 5) |
-						(uint32_t(horizontal_index))
-						;
+							// left->right spans within top-bottom ordered scanlines
+							ordering_key =
+								(uint32_t(span.line_opt))
+								;
 
-					ordered_spans[ordering_key].push_back(&span);
-					break;
+							ordered_spans[ordering_key].push_back(&span);
+							break;
+						}
+
+						component_output_index++;
+					}
 				}
-
-				horizontal_index++;
 			}
+			break;
+
+		case 1:
+			// width-organized
+			{
+				for (auto & spanlist : spproxy->sa.span_vpattern_)
+				{
+					int component_output_index = 0;
+					for (auto &span : spanlist)
+					{
+						auto look = xmap.find(span.ww);
+						if (look == xmap.end())
+						{
+							component_output_index = component_count++;
+							xmap[span.ww] = component_output_index;
+						}
+						else
+							component_output_index = look->second;
+
+						if (component_output_index == ci)
+						{
+							span.line_opt = spr.ems_.linemap_src_2_opt[span.line_orig];
+
+							// span index has priority so spans rendered vertically for edge coherence, never horizontally
+							// otherwise, frame common lineorder prevails
+							uint32_t ordering_key;
+
+							// left->right spans within top-bottom ordered scanlines
+							ordering_key =
+								(uint32_t(span.line_opt))
+								;
+
+							ordered_spans[ordering_key].push_back(&span);
+						}
+					}
+				}
+			}
+			break;
+
+		case 2:
+			// left-right, top-bottom single component
+			{
+				for (auto & spanlist : spproxy->sa.span_vpattern_)
+				{
+					for (auto &span : spanlist)
+					{
+						span.line_opt = spr.ems_.linemap_src_2_opt[span.line_orig];
+
+						// span index has priority so spans rendered vertically for edge coherence, never horizontally
+						// otherwise, frame common lineorder prevails
+						uint32_t ordering_key;
+
+						// left->right spans within top-bottom ordered scanlines
+						ordering_key =
+							(uint32_t(span.line_opt) << 5) |
+							(uint32_t(span.ws))
+							;
+
+						ordered_spans[ordering_key].push_back(&span);
+					}
+				}
+			}
+			break;
+
 		}
 
 		int o = 0;
@@ -3950,8 +4086,9 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 						pspan->em[1] = psharedline[o2];
 				}
 
-				printf("shared mask encoding pass 2 (vertical)...\n");
+				if (g_allargs.verbose)
 				{
+					printf("shared mask encoding pass 2 (vertical)...\n");
 					for (int v = 0; v < spr.h_; v++)
 					{
 						u16 *psharedline = &proxy.data_[(v * sharedmask_wordwidth)];
@@ -4021,7 +4158,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 */
 
 	// generate mask sequence for each preshift
-	psi = 0;
+/*	psi = 0;
 	for (auto pmit = spr.ems_.psmask_frames_.begin(); pmit != spr.ems_.psmask_frames_.end(); pmit++, psi++)
 	{
 		// strip away all but first component
@@ -4032,7 +4169,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 		std::cout << "trimmed compontents" << std::endl << std::flush;
 	}
-
+	*/
 
 	// first component within a preshift
 	ci = 0;
@@ -4098,12 +4235,12 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 				auto & spproxy = component_proxy_shifts[ci];
 				preshift_t &proxy = *spproxy;
 
-				printf("preshift %d cmp %d with %d spans\n", psi, ci, proxy.stacked_spans.size());
+				printf("preshift %d component %d with %d spans\n", psi, ci, proxy.stacked_spans.size());
 
 				shift.scan_states = proxy.scan_states;
-
-				//shift.p68kbin = shared_shift.p68kbin;
-				//shift.size68kbin = shared_shift.size68kbin;
+				
+				shift.p68kbin = proxy.p68kbin;
+				shift.size68kbin = proxy.size68kbin;
 
 				// extract mask data
 
@@ -4146,6 +4283,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 						if (pspan->reload[0])
 						{
+							em1 = 0;
 							if (o1 < shift.wordwidth_)
 								em1 = psourceline[o1];
 							shift.shared_mask_words.push_back(em1);
@@ -4153,6 +4291,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 						if (pspan->reload[1])
 						{
+							em2 = 0;
 							if (o2 < shift.wordwidth_)
 								em2 = psourceline[o2];
 							shift.shared_mask_words.push_back(em2);
@@ -4160,6 +4299,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 						if (pspan->reload[2])
 						{
+							em3 = 0;
 							if (o3 < shift.wordwidth_)
 								em3 = psourceline[o3];
 							shift.shared_mask_words.push_back(em3);
@@ -4168,14 +4308,37 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 				}
 
 				// reverse pass, deal with empty lines
-				if  (0)
+				if  (1)
 				{
-					int lines_remaining = 0;
-					int accumulated_offset = 0;
+//					int lines_remaining = 0;
+//					int accumulated_offset = 0;
+					int last_active = -1;
 					for (int y = shift.scan_states.size() - 1; y >= 0; y--)
 					{
 						auto &ss = shift.scan_states[y];
-						if (shift.occupied_lines.find(y) != shift.occupied_lines.end())
+
+						if (ss.allocated)
+						{
+							last_active = y;
+						}
+						else
+						{
+							if (last_active < 0)
+							{
+								// load terination state into trailing lines
+								ss.mprog_offset = proxy.mprog_final;
+							}
+							else
+							{
+								// duplicate state
+								const auto &ss_last = shift.scan_states[last_active];
+								ss = ss_last;
+								// but leave unallocated
+								ss.allocated = false;
+							}
+						}
+
+/*						if (shift.occupied_lines.find(y) != shift.occupied_lines.end())
 						{
 							lines_remaining++;
 							accumulated_offset = 0;
@@ -4187,6 +4350,7 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 
 						ss.lines_remaining = lines_remaining;
 						//ss.dst_line_offset = accumulated_offset;
+*/
 					}
 				}
 
@@ -4194,46 +4358,60 @@ void generate_ems2_frame_flexible(spriteframe_t &spr, int _frame)
 				if  (1)
 				{
 					//u16* mprog = (u16*)(shift.p68kbin+32);
-					u16* mprog = (u16*)(spr.ems2_p68kbin_+32);
+					//u16* mprog = (u16*)(spr.ems2_p68kbin_+32);
+					u16* mprog = (u16*)(proxy.p68kbin+32);
 
-					printf("\npreshift %d with %d mask words...\n", psi, shift.shared_mask_words.size());
+					//printf("mprog:%08x\n", (int)mprog);
+
+					printf("\npreshift %d component %d with %d mask words...\n", psi, ci, shift.shared_mask_words.size());
 					int i = 0;
-					for (auto & ss : shift.scan_states)
+					for (const auto & ss : shift.scan_states)
 					{
-						auto & bs = ss.blitstate;
+						const auto & bs = ss.blitstate;
 
-						printf("scanstate[%03d]:  dlo:%03d dwo:%02d lr:%03d emo:%04x mpo:%04x sco:%04x",
-							i,
-							(int)ss.dst_line_offset,
-							(int)ss.dst_word_offset,
-							(int)ss.lines_remaining,
-							(int)ss.emdata_offset,
-							(int)ss.mprog_offset,
-							(int)ss.srccol_offset
-							);
+						if (g_allargs.verbose)
+						{
+							printf("scanstate[%03d]: %c dlo:%03d dwo:%02d lr:%03d emo:%04x mpo:%04x sco:%04x",
+								i,
+								ss.allocated ? 'A' : '-',
+								(int)ss.dst_line_offset,
+								(int)ss.dst_word_offset,
+								(int)ss.lines_remaining,
+								(int)ss.emdata_offset,
+								(int)ss.mprog_offset,
+								(int)ss.srccol_offset
+								);
 
-						printf(" EM1:");
-						print_dataword(bs.EM1);
-						printf(" EM2:");
-						print_dataword(bs.EM2);
-						printf(" EM3:");
-						print_dataword(bs.EM3);
+							printf(" EM1:");
+							print_dataword(bs.EM1);
+							printf(" EM2:");
+							print_dataword(bs.EM2);
+							printf(" EM3:");
+							print_dataword(bs.EM3);
 
-						printf(" SYI:%03d DYI:%03d XC:%02d SK:%02x",
-							(int)(char)bs.SYI, 
-							(int)(char)bs.DYI, 
-							(int)bs.XC, 
-							(int)bs.SKEW
-						);
+							printf(" SYI:%03d DYI:%03d XC:%02d SK:%02x",
+								(int)(char)bs.SYI,
+								(int)(char)bs.DYI,
+								(int)bs.XC,
+								(int)bs.SKEW
+								);
 
-						printf("\n");
+							printf("\n");
+
+							std::cout << std::flush;
+						}
 
 						// verify
-						if ((i > 0) && ss.allocated && (mprog[ss.mprog_offset - 1] != 0x813a))
+						if ((i > 0) && 
+							(ss.mprog_offset > 0) && 
+							ss.allocated && 
+							(mprog[ss.mprog_offset - 1] != 0x813a)
+						)
 						{
-							printf("error: blit index verify failed: %04x\n",
-								(int)mprog[ss.mprog_offset - 1]
-								);
+							printf("error: blit index verify failed: D:$%04x @ O:$%04x\n",
+								(int)mprog[ss.mprog_offset - 1],
+								ss.mprog_offset
+							);
 							exit(1);
 						}
 

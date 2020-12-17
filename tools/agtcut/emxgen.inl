@@ -428,7 +428,17 @@ public:
 				}
 			}
 
-			registers.push_back(dataregister("d3", r++, RegClass_Data, false, false, false, false, 0));
+			if (shared_mask_)
+			{
+				SKIPTEMP_reg = r;
+				registers.push_back(dataregister("d3", r++, RegClass_Data, false, false, false, false, 0));
+				registers[SKIPTEMP_reg].variable = true;
+			}
+			else
+			{
+				registers.push_back(dataregister("d3", r++, RegClass_Data, false, false, false, false, 0));
+			}
+
 			registers.push_back(dataregister("d4", r++, RegClass_Data, false, false, false, false, 0));
 			registers.push_back(dataregister("d5", r++, RegClass_Data, false, false, false, false, 0));
 			registers.push_back(dataregister("d6", r++, RegClass_Data, false, false, false, false, 0));
@@ -652,6 +662,8 @@ public:
 
 		BLiTCTRL_go_srcname = "d1";	//#$c0;
 		BLiTYC_planes_srcname = "d2";	//#4;
+
+		SKIPTEMP_reg = -1;
 
 		// free: d0,d3,d4,d5,d6,d7
 
@@ -972,6 +984,7 @@ public:
 
 	bool shared_mask_;
 
+	int SKIPTEMP_reg;
 	int SCRLINE_reg;
 	int PLANES_reg;
 	int BHOG_reg;

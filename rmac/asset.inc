@@ -76,7 +76,7 @@ spf_psm_data:
 spct_emdata_off:	ds.w	1
 spct_srccol_off:	ds.w	1
 spct_mprog_off:		ds.w	1
-spct_lrem:		ds.w	1
+;spct_lrem:		ds.w	1
 spct_dline_off:		ds.b	1
 spct_dword_off:		ds.b	1
 spct_b_syi:		ds.b	1
