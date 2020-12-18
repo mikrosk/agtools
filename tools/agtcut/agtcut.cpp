@@ -152,6 +152,9 @@ typedef struct spritemapping_s
 
 typedef std::map<int, spritemapping_t> spritemap_t;
 
+static const u8 c_tile_mask_keycol = 128;
+static const u8 c_default_keycol = 255;
+
 // --------------------------------------------------------------------
 //	some ...globals (?!)
 // --------------------------------------------------------------------
@@ -853,7 +856,7 @@ public:
 		  noclipy(false),
 		  dualfield(false),
 		  no_nfsr(false),
-		  keycol(255),
+		  keycol(c_default_keycol),
 		  autocutkeycol(256),
 		  hitkeycol(256),
 		  cut_xpos(0),
@@ -3059,7 +3062,7 @@ static void remap_dictionary_tiles(tile8dictionary_t &_in, tileplanardictionary_
 		{
 			ubyte_t c = ptile8[x];
 			if (g_allargs.keycol == c)
-				c = 128;
+				c = c_tile_mask_keycol;
 			ptile8[x] = c;
 		}
 
@@ -7855,6 +7858,15 @@ void add_slab_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 	g_slabframes.push_back(slabframe_head);
 }
 
+static inline ubyte_t advance_block_encoding(ubyte_t cc, ubyte_t k)
+{
+	cc = (cc + 1) & 255;
+	if (cc == k)
+		cc = (cc + 1) & 255;
+	cc |= 0x80; // avoid input colour range (which we can expect to be very limited, for SLR input shapes)
+	return cc;
+}
+
 void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int _y)
 {
 	// preprocess slab to produce fewer, less precise spanblock regions for accelerated clearing
@@ -8047,13 +8059,30 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 		// 4) merge single-span blocks with neighbour blocks
 		//    most of the overhead is coming from these alone
 		bool changed = true;
+		int srep = 0;
+		ubyte_t k = g_allargs.keycol;
+//		ubyte_t cc = k | 0x80;
+		ubyte_t cc = k;
+
 		//	for (int p = 0; p < 3; p++)
 		while (changed)
 		{
+			changed = false;
+
 			// 4a) recolour/encode by spanblock fragmentation
 			{
-				ubyte_t k = g_allargs.keycol;
-				ubyte_t cc = (k + 1) & 255;
+				cc = advance_block_encoding(cc, k);
+
+				//ubyte_t k = g_allargs.keycol;
+				//ubyte_t cc = (k + 1) & 255;
+				/*cc = (cc + 1) & 255;
+				if (cc == k)
+					cc = (cc + 1) & 255;
+				cc |= 0x80;
+				*/
+
+				if (g_allargs.verbose)
+					printf("spanblock recolour/encode pass %d / cc = %02x:%02x...\n", srep++, (u32)k, (u32)cc);
 
 				int lastleft = -1;
 				int lastright = -1;
@@ -8088,9 +8117,7 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 					if (pxl > pxr)
 					{
 						//printf("warning: degenerate/empty span!\n");
-						//exit(-1);
-						pxl = 0;
-						pxr = 0;
+						pxr = pxl = 0;
 					}
 					else
 					{
@@ -8105,6 +8132,8 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 						// clamp
 						if (right > g_spritesource_w)
 							right = g_spritesource_w;
+
+						//printf("ok: good span - %d->%d\n", left, right);
 					}
 
 					// record fragment left/right coords
@@ -8117,16 +8146,28 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 									//					exit(-1);
 									}
 									*/
+
 					if ((left != lastleft) ||
 						(right != lastright))
 					{
-						// change colour
-						cc = (cc + 1) & 255;
 
-						// but dodge key colour
+						// change colour
+						auto oldcc = cc;
+						cc = advance_block_encoding(cc, k);
+
+						if (g_allargs.verbose)
+							printf("new spanblock %d->%d (y:%d->%d), re-encode %02x->%02x\n", 
+								left, right, 
+								last_block, py, 
+								(u32)oldcc, (u32)cc
+							);
+
+						/*
+						cc = (cc + 1) & 255;
 						if (cc == k)
 							cc = (cc + 1) & 255;
-
+						cc |= 0x80;
+						*/
 
 						lastleft = left;
 						lastright = right;
@@ -8134,22 +8175,24 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 						for (int s = last_block; s < py; s++)
 						{
 							blocksize[s] = spancount;
-							//printf("spancount[%d]: %d\n", s, spancount);
+							if (g_allargs.verbose)
+								printf("spancount[%d]: %d\n", s, spancount);
 						}
-
 
 						spancount = 1;
 						last_block = py;
 					}
 					else
 					{
+						// accumulate unchanging spans
 						spancount++;
 					}
 
 					// replace colour for quantised region
 					if (right > left)
 					{
-						//printf("recolour x:%d y:%d ww:%d w:%d cc:%d\n", pxl, py, (right - left), (pxr - pxl), cc);
+						if (g_allargs.verbose)
+							printf("recolour x:%d y:%d ww:%d pw:%d cc:%02x\n", left, py, (right - left), (pxr - pxl), (u32)cc);
 						int wpx = left;
 						for (; wpx < right; wpx++)
 						{
@@ -8160,10 +8203,10 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 				}
 			}
 
-			ubyte_t k = g_allargs.keycol;
-			ubyte_t cc = (k + 1) & 255;
+			//ubyte_t k = g_allargs.keycol;
+			//ubyte_t cc = (k + 1) & 255;
 
-			changed = false;
+			cc = advance_block_encoding(cc, k);
 
 			for (int py = 0; py < g_sprite_height; py++)
 			{
@@ -8223,14 +8266,24 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 					// this is a single-span or 2-span block
 
 					// check possibility of merging with upper neighbour
+					// pym1		--XXXXXXXXX- 
+					// py		----XXXXXXX-
+					// pyp1     ------------
 					bool mu =
 						(py != pym1) &&
+						(fragments[py].first != fragments[py].second) &&
+						(fragments[pym1].first != fragments[pym1].second) &&
 						(fragments[py].first >= fragments[pym1].first) &&
 						(fragments[py].second <= fragments[pym1].second);
 
 					// check possibility of merging with lower neighbour
+					// pym1		------------
+					// py		----XXXXXXX-
+					// pyp1     --XXXXXXXXX-
 					bool ml =
 						(py != pyp1) &&
+						(fragments[py].first != fragments[py].second) &&
+						(fragments[pyp1].first != fragments[pyp1].second) &&
 						(fragments[py].first >= fragments[pyp1].first) &&
 						(fragments[py].second <= fragments[pyp1].second);
 
@@ -8245,31 +8298,45 @@ void add_slabrestore_frame(ubyte_t* _psource8, ubyte_t* _pframemask, int _x, int
 					// find merge error with lower neighbour
 					if (erru < errl)
 					{
+						// lower neighbour preferred
 						if (erru < 0x7fffffff)
 						{
+							if (g_allargs.verbose)
+								printf("merge scan up: (%d->%d)->(%d->%d)\n",
+									fragments[py].first, fragments[py].second,
+									fragments[pym1].first, fragments[pym1].second
+								);
+
 							ubyte_t col = _psource8[((py + _y) * g_spritesource_w) + (fragments[py].first + _x)];
 
 							int px = fragments[pym1].first;
 							for (; px < fragments[pym1].second; px++)
 							{
 								_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = col;
+								changed = true;
 							}
-							changed = true;
 							break;
 						}
 					}
 					else
 					{
+						// upper neighbour preferred
 						if (errl < 0x7fffffff)
 						{
+							if (g_allargs.verbose)
+								printf("merge scan down: (%d->%d)->(%d->%d)\n",
+									fragments[py].first, fragments[py].second,
+									fragments[pyp1].first, fragments[pyp1].second
+								);
+
 							ubyte_t col = _psource8[((py + _y) * g_spritesource_w) + (fragments[py].first + _x)];
 
 							int px = fragments[pyp1].first;
 							for (; px < fragments[pyp1].second; px++)
 							{
 								_psource8[((py + _y) * g_spritesource_w) + (px + _x)] = col;
+								changed = true;
 							}
-							changed = true;
 							break;
 						}
 					}
