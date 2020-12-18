@@ -191,7 +191,7 @@ extern "C" volatile s16 key_eventhead;
 extern "C" s16 key_eventtail;
 
 // mousebutton state
-extern "C" s16 buttons;
+extern "C" volatile s16 buttons;
 // ringbuffer of mousebutton events
 extern "C" u8 msclick_eventring[256];
 // write position of eventring (written by IKBD interupt)
@@ -200,7 +200,7 @@ extern "C" volatile s16 msclick_eventhead;
 extern "C" s16 msclick_eventtail;
 
 // joystick 0 state
-extern "C" u8 joy0;
+extern "C" volatile u8 joy0;
 // ringbuffer of joy events
 extern "C" u8 joy0_eventring[256];
 // write position of eventring (written by IKBD interupt)
@@ -209,7 +209,7 @@ extern "C" volatile s16 joy0_eventhead;
 extern "C" s16 joy0_eventtail;
 
 // joystick 1 state
-extern "C" u8 joy1;
+extern "C" volatile u8 joy1;
 // ringbuffer of joy events
 extern "C" u8 joy1_eventring[256];
 // write position of eventring (written by IKBD interupt)
