@@ -383,6 +383,28 @@ static agt_inline void EntityScheduleLink(entbaseptr_t _pent, entbaseptr_t _ppar
 	s_entity_link_count = c;
 }
 
+// set tracking interest (entity to track while it remains alive)
+static agt_inline void EntitySetTrackingInterest(entbaseptr_t _pent, entbaseptr_t _ptrack)
+{
+	_pent->ptrack = (entity_t*)_ptrack;
+	if (_ptrack)
+		_pent->rev_track = _ptrack->rev_self;
+}
+
+// get tracking interest, or null
+static agt_inline entity_t * EntityGetTrackingInterest(entbaseptr_t _pent)
+{
+	entity_t * ptrack = nullptr;
+
+	if ((ptrack = _pent->ptrack))
+	{
+		if (reinterpret_cast<entbaseptr_t>(ptrack)->rev_self != _pent->rev_track)
+			_pent->ptrack = ptrack = nullptr;
+	}
+
+	return ptrack;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // maintain 2D coherence in SPATIAL chain
 
