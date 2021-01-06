@@ -2903,77 +2903,77 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// summary: 
 	//	- enters from right 
 	//	- wanders along ground
-	{ &walker_fntick,&nmegeneric_fncol,0,0,		{0},{0},{-1},{0},0,0,0,0,		2,0,			200,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &walker_fntick,&nmegeneric_fncol,0,0,		{0},{0},{-1},{0},0,0,0,0,		2,0,			200,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:spinny
 	// summary: 
 	//	- enters from right in wave formation
 	//	- zig-zags in predictable pattern
-	{ &nmespinny_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmespinny_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:fly
 	//	summary:
 	//	- 360' zrotation
 	//	- seeks player, tries to avoid player's primary weapon
 	//	- leaves trail of diamonds, which damage on contact
-	{ &nmefly_fntick,&nmegeneric_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			20,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmefly_fntick,&nmegeneric_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			20,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:fly2
 	//	summary: 
 	//	- 360' zrotation
 	//	- advances from right, tries to ram player
 	//	- shoots pellets
-	{ &nmefly2_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmefly2_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:amoeba
 	//	summary: 
 	//	- wobbles roughly towards player, very tough, rushes player when damaged
 	//	- has custom death/explode animation
 	//	- can convert to rock obstacle
-	{ &nmeamoeba_fntick,&nmeamoeba_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			50,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmeamoeba_fntick,&nmeamoeba_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			50,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:quad
 	//	summary: 
 	//	- materializes in groups around player
 	//	- once materialized, will try to ram player but can't steer once set in motion
 	//	- can't harm player while materializing, but can be shot
-	{ &nmequad_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &nmequad_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 
 	// nme:square
 	//	summary: 
 	//	- appear in vertical waves from spawnpoint at top/bottom of map
 	//	- proximity mine, explodes if player gets too near
 	//	- very tough. nudged when shot.
-	{ &nmesquare_fntick,&nmesquare_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			80,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &nmesquare_fntick,&nmesquare_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			80,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 
 	// nme:mine
 	//	summary: 
 	//	- diamond-shaped obstacle left behind by other enemies
 	//	- causes damage on contact
-	{ &nmemine_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			0,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmemine_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			0,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:tie
 	//	summary: 
 	//	- drifts in from right in waves, in a straight line
 	//	- shoots horizontal laser beams
-	{ &nmetie_fntick,&nmegeneric_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			100,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmetie_fntick,&nmegeneric_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			100,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:jelly
 	//	summary: 
 	//	- gets in the way, absorbing bullets
 	//	- doesn't harm player on contact
-	{ &nmejelly_fntick,&nmejelly_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			350,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &nmejelly_fntick,&nmejelly_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		2,0,			350,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 
 	// nme:drone
 	//	summary: 
 	//	- drifts in from right in waves, in a straight line
 	//	- leaves behind diamonds
-	{ &nmedrone_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			200,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmedrone_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			200,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 
 	// nme:cylon
 	//	summary: 
 	//	- drifts in from right in waves, in a wobbly formation
-	{ &nmecylon_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
+	{ &nmecylon_fntick,&nmegeneric_fncol,0,0,	{0},{0},{0},{0},0,0,0,0,		2,0,			10,10,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_PLAYER | EntityFlag_BULLET },
 };
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -27,17 +27,17 @@ enable_x_clipping	set	0
 
 	; todo: opt
 
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
-	beq.s		.emx_nohitflash
-	bpl.s		.emx_hitflash
-.emx_blinky:
-	lsr.w		#1,d7
-	bcs		.BLiT_EMXSpr_4BPL_end	
-	bra.s		.emx_nohitflash
-.emx_hitflash:
-	move.b		#15,BLiTLOP.w	
-.emx_nohitflash:
+;	move.b		#3,BLiTLOP.w
+;	tst.w		d7
+;	beq.s		.emx_nohitflash
+;	bpl.s		.emx_hitflash
+;.emx_blinky:
+;	lsr.w		#1,d7
+;	bcs		.BLiT_EMXSpr_4BPL_end	
+;	bra.s		.emx_nohitflash
+;.emx_hitflash:
+;	move.b		#15,BLiTLOP.w	
+;.emx_nohitflash:
 	
 	
 

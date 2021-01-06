@@ -1793,7 +1793,7 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 	// boss eye
 	//	- attached to boss, takes damage, kills boss when health hits zero
 	{ &bosseye_fntick,bosseye_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		1,0,			100,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
-	{ &bosspulp_fntick,bosspulp_fncol,0,0,		{0},{0},{0},{0},30,0,0,0,		1,0,			100,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
+	{ &bosspulp_fntick,bosspulp_fncol,0,0,		{0},{0},{0},{0},30,0,0,0,		1,0,			100,0,0,0,			EntityDraw_EMXSPR,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },
 	// boss shielding
 	//	- hitbox attached to boss either side of eye channel, absorbs bullets, except in channel area
 	{ &bossshield_fntick,0,0,0,					{0},{0},{0},{0},110,28,0,0,		1,0,			0,0,0,0,			EntityDraw_NONE,0,		EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },

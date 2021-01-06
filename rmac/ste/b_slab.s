@@ -31,17 +31,17 @@
 	; 'hitflash' for strobing shape to single colour on damage etc.
 	; todo: opt
 	
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
-	beq.s		.slb_nohitflash
-	bpl.s		.slb_hitflash
-.slb_blinky:
-	lsr.w		#1,d7
-	bcs		.slb_end	
-	bra.s		.slb_nohitflash
-.slb_hitflash:
-	move.b		#15,BLiTLOP.w	
-.slb_nohitflash:
+;	move.b		#3,BLiTLOP.w
+;	tst.w		d7
+;	beq.s		.slb_nohitflash
+;	bpl.s		.slb_hitflash
+;.slb_blinky:
+;	lsr.w		#1,d7
+;	bcs		.slb_end	
+;	bra.s		.slb_nohitflash
+;.slb_hitflash:
+;	move.b		#15,BLiTLOP.w	
+;.slb_nohitflash:
 	
 	; access sprite frame table
 	

@@ -27,17 +27,17 @@
 	
 	;bra		*
 
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
-	beq.s		.emh_nohitflash
-	bpl.s		.emh_hitflash
-.emh_blinky:
-	lsr.w		#1,d7
-	bcs		.emh_4BPL_end_all	
-	bra.s		.emh_nohitflash
-.emh_hitflash:
-	move.b		#15,BLiTLOP.w	
-.emh_nohitflash:
+;	move.b		#3,BLiTLOP.w
+;	tst.w		d7
+;	beq.s		.emh_nohitflash
+;	bpl.s		.emh_hitflash
+;.emh_blinky:
+;	lsr.w		#1,d7
+;	bcs		.emh_4BPL_end_all	
+;	bra.s		.emh_nohitflash
+;.emh_hitflash:
+;	move.b		#15,BLiTLOP.w	
+;.emh_nohitflash:
 
 
 ;	move.w		#2,BLiTSYI.w

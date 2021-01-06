@@ -29,17 +29,17 @@
 
 	; todo: opt
 	
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
-	beq.s		.emxc_nohitflash
-	bpl.s		.emxc_hitflash
-.emxc_blinky:
-	lsr.w		#1,d7
-	bcs		.BLiT_EMXCSpr_4BPL_end	
-	bra.s		.emxc_nohitflash
-.emxc_hitflash:
-	move.b		#15,BLiTLOP.w	
-.emxc_nohitflash:
+;	move.b		#3,BLiTLOP.w
+;	tst.w		d7
+;	beq.s		.emxc_nohitflash
+;	bpl.s		.emxc_hitflash
+;.emxc_blinky:
+;	lsr.w		#1,d7
+;	bcs		.BLiT_EMXCSpr_4BPL_end	
+;	bra.s		.emxc_nohitflash
+;.emxc_hitflash:
+;	move.b		#15,BLiTLOP.w	
+;.emxc_nohitflash:
 	
 
 ;	move.w		#2,BLiTSYI.w

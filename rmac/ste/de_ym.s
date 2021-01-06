@@ -118,10 +118,10 @@ _BLiT_EntityDrawVisibleYM_68k:
 
 	; decrement 'hitflash' counter on this object
 
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
+	;move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	;neg.b		d7
+	;subx.b		d7,d7				; $0000 / $FFFF
+	;add.b		d7,ent_draw_hitflash+1(a0)
 
 	; asset/framebuffer
 
@@ -190,10 +190,23 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 
+	; todo: opt
 	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
 	neg.b		d7
 	subx.b		d7,d7				; $0000 / $FFFF
 	add.b		d7,ent_draw_hitflash+1(a0)
+	;
+	move.b		#3,BLiTLOP.w
+	tst.w		d7
+	beq.s		.STE_EntityDrawVisibleYM_EMHSPR_nhf
+	bpl.s		.STE_EntityDrawVisibleYM_EMHSPR_yhf
+.STE_EntityDrawVisibleYM_EMHSPR_blink:
+	lsr.w		#1,d7
+	bcs		.STE_EntityDrawVisibleYM_EMHSPR_done	
+	bra.s		.STE_EntityDrawVisibleYM_EMHSPR_nhf
+.STE_EntityDrawVisibleYM_EMHSPR_yhf:
+	move.b		#15,BLiTLOP.w	
+.STE_EntityDrawVisibleYM_EMHSPR_nhf:
 
 	; asset/framebuffer
 
@@ -261,10 +274,23 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 
+	; todo: opt
 	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
 	neg.b		d7
 	subx.b		d7,d7				; $0000 / $FFFF
 	add.b		d7,ent_draw_hitflash+1(a0)
+	;
+	move.b		#3,BLiTLOP.w
+	tst.w		d7
+	beq.s		.STE_EntityDrawVisibleYM_EMXSPR_nhf
+	bpl.s		.STE_EntityDrawVisibleYM_EMXSPR_yhf
+.STE_EntityDrawVisibleYM_EMXSPR_blink:
+	lsr.w		#1,d7
+	bcs		.STE_EntityDrawVisibleYM_EMXSPR_done	
+	bra.s		.STE_EntityDrawVisibleYM_EMXSPR_nhf
+.STE_EntityDrawVisibleYM_EMXSPR_yhf:
+	move.b		#15,BLiTLOP.w	
+.STE_EntityDrawVisibleYM_EMXSPR_nhf:
 
 	; asset/framebuffer
 
@@ -332,10 +358,23 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 
+	; todo: opt
 	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
 	neg.b		d7
 	subx.b		d7,d7				; $0000 / $FFFF
 	add.b		d7,ent_draw_hitflash+1(a0)
+	;
+	move.b		#3,BLiTLOP.w
+	tst.w		d7
+	beq.s		.STE_EntityDrawVisibleYM_EMXSPRUR_nhf
+	bpl.s		.STE_EntityDrawVisibleYM_EMXSPRUR_yhf
+.STE_EntityDrawVisibleYM_EMXSPRUR_blink:
+	lsr.w		#1,d7
+	bcs		.STE_EntityDrawVisibleYM_EMXSPRUR_done	
+	bra.s		.STE_EntityDrawVisibleYM_EMXSPRUR_nhf
+.STE_EntityDrawVisibleYM_EMXSPRUR_yhf:
+	move.b		#15,BLiTLOP.w	
+.STE_EntityDrawVisibleYM_EMXSPRUR_nhf:
 
 	; asset/framebuffer
 
@@ -433,10 +472,10 @@ preserve_usp		set	0
 
 	; decrement 'hitflash' counter on this object
 
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
+	;move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	;neg.b		d7
+	;subx.b		d7,d7				; $0000 / $FFFF
+	;add.b		d7,ent_draw_hitflash+1(a0)
 
 	; asset/framebuffer
 
@@ -505,10 +544,23 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 
+	; todo: opt
 	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
 	neg.b		d7
 	subx.b		d7,d7				; $0000 / $FFFF
 	add.b		d7,ent_draw_hitflash+1(a0)
+	;
+	move.b		#3,BLiTLOP.w
+	tst.w		d7
+	beq.s		.STE_EntityDrawVisibleYM_EMSPR_nhf
+	bpl.s		.STE_EntityDrawVisibleYM_EMSPR_yhf
+.STE_EntityDrawVisibleYM_EMSPR_blink:
+	lsr.w		#1,d7
+	bcs		.STE_EntityDrawVisibleYM_EMSPR_done	
+	bra.s		.STE_EntityDrawVisibleYM_EMSPR_nhf
+.STE_EntityDrawVisibleYM_EMSPR_yhf:
+	move.b		#15,BLiTLOP.w	
+.STE_EntityDrawVisibleYM_EMSPR_nhf:
 
 	; asset/framebuffer
 
@@ -577,10 +629,23 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 	
+	; todo: opt
 	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
 	neg.b		d7
 	subx.b		d7,d7				; $0000 / $FFFF
 	add.b		d7,ent_draw_hitflash+1(a0)
+	;
+	move.b		#3,BLiTLOP.w
+	tst.w		d7
+	beq.s		.STE_EntityDrawVisibleYM_SPRITE_nhf
+	bpl.s		.STE_EntityDrawVisibleYM_SPRITE_yhf
+.STE_EntityDrawVisibleYM_SPRITE_blink:
+	lsr.w		#1,d7
+	bcs		.STE_EntityDrawVisibleYM_SPRITE_done	
+	bra.s		.STE_EntityDrawVisibleYM_SPRITE_nhf
+.STE_EntityDrawVisibleYM_SPRITE_yhf:
+	move.b		#15,BLiTLOP.w	
+.STE_EntityDrawVisibleYM_SPRITE_nhf:
 	
 	; asset/framebuffer
 
@@ -647,10 +712,23 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; decrement 'hitflash' counter on this object
 	
+	; todo: opt
 	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
 	neg.b		d7
 	subx.b		d7,d7				; $0000 / $FFFF
 	add.b		d7,ent_draw_hitflash+1(a0)
+	;
+	move.b		#3,BLiTLOP.w
+	tst.w		d7
+	beq.s		.STE_EntityDrawVisibleYM_SLAB_nhf
+	bpl.s		.STE_EntityDrawVisibleYM_SLAB_yhf
+.STE_EntityDrawVisibleYM_SLAB_blink:
+	lsr.w		#1,d7
+	bcs		.STE_EntityDrawVisibleYM_SLAB_done	
+	bra.s		.STE_EntityDrawVisibleYM_SLAB_nhf
+.STE_EntityDrawVisibleYM_SLAB_yhf:
+	move.b		#15,BLiTLOP.w	
+.STE_EntityDrawVisibleYM_SLAB_nhf:
 	
 	; asset/framebuffer
 
@@ -811,10 +889,10 @@ preserve_usp		set	0
 	
 	; decrement 'hitflash' counter on this object
 	
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
+	;move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	;neg.b		d7
+	;subx.b		d7,d7				; $0000 / $FFFF
+	;add.b		d7,ent_draw_hitflash+1(a0)
 	
 	; asset/framebuffer
 
