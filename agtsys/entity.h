@@ -40,6 +40,7 @@ enum EntityType : int;
 enum EntityDraw
 {
 	EntityDraw_NONE,		// invisible/no-draw
+	//
 	EntityDraw_IMSPR,		// standard [I]nterleaved, [M]asked sprite (software or blitter)
 	EntityDraw_SPRITE = EntityDraw_IMSPR, // another name for IMSPR
 	EntityDraw_EMSPR,		// blitter [E]nd[M]ask sprite, any width, y-clipping, only guardband x-clipping
@@ -51,6 +52,14 @@ enum EntityDraw
 	EntityDraw_SLAB,		// blitter 'slab' shape for large irregular outlines, low memory overhead, user-defined restore shape, only guardband x-clipping
 	EntityDraw_CUSTOM,		// user-defined draw function
 	EntityDraw_RFILL		// rectangle fill
+};
+
+enum EntityDrawFlag
+{
+	EntityDrawFlag_NONE,
+	//
+	EntityDrawFlag_NORESTORE	= 1<<14,	// don't schedule background restore for this draw event
+	EntityDrawFlag_BLINK		= 1<<15,	// blink sprite on/off every 2 frames (while draw_hitflash lower 8 bits != 0)
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

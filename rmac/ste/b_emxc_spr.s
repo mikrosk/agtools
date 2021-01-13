@@ -74,6 +74,11 @@
 	add.w		(a0)+,d2			; +yo
 
 *-------------------------------------------------------*
+*	EntityDrawFlag_NORESTORE
+*-------------------------------------------------------*
+	btst		#14,d7
+	bne.s		.emxc_shortcut_bgrestore
+*-------------------------------------------------------*
 *	occlusion mapping	
 *-------------------------------------------------------*
 	move.w		(a0),d0
@@ -89,6 +94,8 @@
 	lea		(a0,d0.w),a0		
 	jsr		_OCM_occlusion_add_T				
 	move.l		(sp)+,a0
+*-------------------------------------------------------*	
+.emxc_shortcut_bgrestore:
 *-------------------------------------------------------*	
 	.if		(enable_restore)
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
