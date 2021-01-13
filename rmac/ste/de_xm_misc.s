@@ -123,10 +123,10 @@ _BLiT_EntityDebugVisibleXM_68k:
 	
 	; decrement 'hitflash' counter on this object
 	
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
+;	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+;	neg.b		d7
+;	subx.b		d7,d7				; $0000 / $FFFF
+;	add.b		d7,ent_draw_hitflash+1(a0)
 	
 	; asset/framebuffer
 
@@ -725,10 +725,10 @@ _BLiT_EntityOccludeVisibleXM_68k:
 
 	; decrement 'hitflash' counter on this object
 
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
+;	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+;	neg.b		d7
+;	subx.b		d7,d7				; $0000 / $FFFF
+;	add.b		d7,ent_draw_hitflash+1(a0)
 
 	; asset/framebuffer
 
@@ -812,10 +812,10 @@ _BLiT_EntityOccludeVisibleXM_68k:
 
 	; decrement 'hitflash' counter on this object
 
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
+;	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+;	neg.b		d7
+;	subx.b		d7,d7				; $0000 / $FFFF
+;	add.b		d7,ent_draw_hitflash+1(a0)
 
 	; asset/framebuffer
 

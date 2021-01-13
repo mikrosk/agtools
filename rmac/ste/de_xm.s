@@ -189,25 +189,27 @@ enable_clipping	set	1				; enable full xy clipping
 
 	move.w		ent_frame(a0),d0
 
-	; decrement 'hitflash' counter on this object
-
-	; todo: opt
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	; handle hitflash & blinky fx
+	
+	moveq		#3,d3
+	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
 	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
-	;
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
 	beq.s		.STE_EntityDrawVisibleXM_EMXSPR_nhf
+; flash or blink
+	move.b		d7,d4
+	subx.b		d4,d4				; $zz00 / $zzFF
+	add.b		d4,ent_draw_hitflash+1(a0)
+	tst.w		d7
 	bpl.s		.STE_EntityDrawVisibleXM_EMXSPR_yhf
-.STE_EntityDrawVisibleXM_EMXSPR_blink:
-	lsr.w		#1,d7
-	bcs		.STE_EntityDrawVisibleXM_EMXSPR_done	
-	bra.s		.STE_EntityDrawVisibleXM_EMXSPR_nhf
+; blink
+	btst		#1,d7
+	beq.s		.STE_EntityDrawVisibleXM_EMXSPR_nhf
+	bra		.STE_EntityDrawVisibleXM_EMXSPR_done		
 .STE_EntityDrawVisibleXM_EMXSPR_yhf:
-	move.b		#15,BLiTLOP.w	
+; flash
+	moveq		#15,d3	
 .STE_EntityDrawVisibleXM_EMXSPR_nhf:
+	move.b		d3,BLiTLOP.w
 
 	; asset/framebuffer
 
@@ -274,25 +276,27 @@ enable_clipping	set	1				; enable full xy clipping
 
 	move.w		ent_frame(a0),d0
 
-	; decrement 'hitflash' counter on this object
-
-	; todo: opt
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	; handle hitflash & blinky fx
+	
+	moveq		#3,d3
+	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
 	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
-	;
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
 	beq.s		.STE_EntityDrawVisibleXM_EMHSPR_nhf
+; flash or blink
+	move.b		d7,d4
+	subx.b		d4,d4				; $zz00 / $zzFF
+	add.b		d4,ent_draw_hitflash+1(a0)
+	tst.w		d7
 	bpl.s		.STE_EntityDrawVisibleXM_EMHSPR_yhf
-.STE_EntityDrawVisibleXM_EMHSPR_blink:
-	lsr.w		#1,d7
-	bcs		.STE_EntityDrawVisibleXM_EMHSPR_done	
-	bra.s		.STE_EntityDrawVisibleXM_EMHSPR_nhf
+; blink
+	btst		#1,d7
+	beq.s		.STE_EntityDrawVisibleXM_EMHSPR_nhf
+	bra		.STE_EntityDrawVisibleXM_EMHSPR_done		
 .STE_EntityDrawVisibleXM_EMHSPR_yhf:
-	move.b		#15,BLiTLOP.w	
+; flash
+	moveq		#15,d3	
 .STE_EntityDrawVisibleXM_EMHSPR_nhf:
+	move.b		d3,BLiTLOP.w
 
 	; asset/framebuffer
 
@@ -358,25 +362,27 @@ enable_clipping	set	1				; enable full xy clipping
 
 	move.w		ent_frame(a0),d0
 
-	; decrement 'hitflash' counter on this object
-
-	; todo: opt
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	; handle hitflash & blinky fx
+	
+	moveq		#3,d3
+	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
 	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
-	;
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
 	beq.s		.STE_EntityDrawVisibleXM_EMXSPRUR_nhf
+; flash or blink
+	move.b		d7,d4
+	subx.b		d4,d4				; $zz00 / $zzFF
+	add.b		d4,ent_draw_hitflash+1(a0)
+	tst.w		d7
 	bpl.s		.STE_EntityDrawVisibleXM_EMXSPRUR_yhf
-.STE_EntityDrawVisibleXM_EMXSPRUR_blink:
-	lsr.w		#1,d7
-	bcs		.STE_EntityDrawVisibleXM_EMXSPRUR_done	
-	bra.s		.STE_EntityDrawVisibleXM_EMXSPRUR_nhf
+; blink
+	btst		#1,d7
+	beq.s		.STE_EntityDrawVisibleXM_EMXSPRUR_nhf
+	bra		.STE_EntityDrawVisibleXM_EMXSPRUR_done		
 .STE_EntityDrawVisibleXM_EMXSPRUR_yhf:
-	move.b		#15,BLiTLOP.w	
+; flash
+	moveq		#15,d3	
 .STE_EntityDrawVisibleXM_EMXSPRUR_nhf:
+	move.b		d3,BLiTLOP.w
 
 	; asset/framebuffer
 
@@ -545,25 +551,27 @@ enable_clipping	set	1				; enable full xy clipping
 
 	move.w		ent_frame(a0),d0
 
-	; decrement 'hitflash' counter on this object
-
-	; todo: opt
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	; handle hitflash & blinky fx
+	
+	moveq		#3,d3
+	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
 	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
-	;
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
 	beq.s		.STE_EntityDrawVisibleXM_EMSPR_nhf
+; flash or blink
+	move.b		d7,d4
+	subx.b		d4,d4				; $zz00 / $zzFF
+	add.b		d4,ent_draw_hitflash+1(a0)
+	tst.w		d7
 	bpl.s		.STE_EntityDrawVisibleXM_EMSPR_yhf
-.STE_EntityDrawVisibleXM_EMSPR_blink:
-	lsr.w		#1,d7
-	bcs		.STE_EntityDrawVisibleXM_EMSPR_done	
-	bra.s		.STE_EntityDrawVisibleXM_EMSPR_nhf
+; blink
+	btst		#1,d7
+	beq.s		.STE_EntityDrawVisibleXM_EMSPR_nhf
+	bra		.STE_EntityDrawVisibleXM_EMSPR_done		
 .STE_EntityDrawVisibleXM_EMSPR_yhf:
-	move.b		#15,BLiTLOP.w	
+; flash
+	moveq		#15,d3	
 .STE_EntityDrawVisibleXM_EMSPR_nhf:
+	move.b		d3,BLiTLOP.w
 
 	; asset/framebuffer
 
@@ -630,25 +638,27 @@ enable_clipping	set	1				; enable full xy clipping
 	
 	move.w		ent_frame(a0),d0
 
-	; decrement 'hitflash' counter on this object
+	; handle hitflash & blinky fx
 	
-	; todo: opt
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	;moveq		#3,d3
+	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
 	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
-	;
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
 	beq.s		.STE_EntityDrawVisibleXM_SPRITE_nhf
+; flash or blink
+	move.b		d7,d4
+	subx.b		d4,d4				; $zz00 / $zzFF
+	add.b		d4,ent_draw_hitflash+1(a0)
+	tst.w		d7
 	bpl.s		.STE_EntityDrawVisibleXM_SPRITE_yhf
-.STE_EntityDrawVisibleXM_SPRITE_blink:
-	lsr.w		#1,d7
-	bcs		.STE_EntityDrawVisibleXM_SPRITE_done	
-	bra.s		.STE_EntityDrawVisibleXM_SPRITE_nhf
+; blink
+	btst		#1,d7
+	beq.s		.STE_EntityDrawVisibleXM_SPRITE_nhf
+	bra		.STE_EntityDrawVisibleXM_SPRITE_done		
 .STE_EntityDrawVisibleXM_SPRITE_yhf:
-	move.b		#15,BLiTLOP.w	
+; flash
+	;moveq		#15,d3	
 .STE_EntityDrawVisibleXM_SPRITE_nhf:
+	;move.b		d3,BLiTLOP.w
 	
 	; asset/framebuffer
 
@@ -713,25 +723,27 @@ enable_clipping	set	1				; enable full xy clipping
 	
 	move.w		ent_frame(a0),d0
 
-	; decrement 'hitflash' counter on this object
+	; handle hitflash & blinky fx
 	
-	; todo: opt
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+	moveq		#3,d3
+	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
 	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
-	;
-	move.b		#3,BLiTLOP.w
-	tst.w		d7
 	beq.s		.STE_EntityDrawVisibleXM_SLAB_nhf
+; flash or blink
+	move.b		d7,d4
+	subx.b		d4,d4				; $zz00 / $zzFF
+	add.b		d4,ent_draw_hitflash+1(a0)
+	tst.w		d7
 	bpl.s		.STE_EntityDrawVisibleXM_SLAB_yhf
-.STE_EntityDrawVisibleXM_SLAB_blink:
-	lsr.w		#1,d7
-	bcs		.STE_EntityDrawVisibleXM_SLAB_done	
-	bra.s		.STE_EntityDrawVisibleXM_SLAB_nhf
+; blink
+	btst		#1,d7
+	beq.s		.STE_EntityDrawVisibleXM_SLAB_nhf
+	bra		.STE_EntityDrawVisibleXM_SLAB_done		
 .STE_EntityDrawVisibleXM_SLAB_yhf:
-	move.b		#15,BLiTLOP.w	
+; flash
+	moveq		#15,d3	
 .STE_EntityDrawVisibleXM_SLAB_nhf:
+	move.b		d3,BLiTLOP.w
 	
 	; asset/framebuffer
 

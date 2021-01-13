@@ -431,10 +431,29 @@ _FNEntityDraw_EMXSlabRestore:
 
 	; decrement 'hitflash' counter on this object
 
-	move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
+
+	; handle hitflash & blinky fx
+	
+	moveq		#3,d3
+	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
 	neg.b		d7
-	subx.b		d7,d7				; $0000 / $FFFF
-	add.b		d7,ent_draw_hitflash+1(a0)
+	beq.s		.nhf
+; flash or blink
+	move.b		d7,d4
+	subx.b		d4,d4				; $zz00 / $zzFF
+	add.b		d4,ent_draw_hitflash+1(a0)
+	tst.w		d7
+	bpl.s		.yhf
+; blink
+	btst		#1,d7
+	beq.s		.nhf
+	bra		.done		
+.yhf:
+; flash
+	moveq		#15,d3	
+.nhf:
+	move.b		d3,BLiTLOP.w
+	
 
 	; asset/framebuffer
 
@@ -486,6 +505,7 @@ preserve_usp		set	0
 
 	.endif
 
+.done:
 *-------------------------------------------------------*
 .tailcall:
 *-------------------------------------------------------*
