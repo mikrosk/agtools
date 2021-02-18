@@ -23,6 +23,7 @@ public:
 
 	struct cct_header
 	{
+		u32 crc;			// crc for whole file
 		u16 palette[16];
 		u8 flags;
 		u8 bitplanes;
@@ -116,6 +117,87 @@ public:
 	// load the tileset
 	void load_cct(const char* const _filename)
 	{
+		bool success = false;
+
+		// dump existing asset, if any persists
+		purge();
+
+		u8* passet = nullptr;
+		s16 attempts = 3;
+
+		// attempt up to 3 loads before giving up
+		while (attempts > 0)
+		{
+			// load, or load-and-unpack asset file to memory buffer
+			u32 datasize = 0;
+			passet = unwrap_p2e_asset(_filename, true, false, &datasize);
+
+			if (passet)
+			{
+				// something has been loaded, but we want to check the CRC to be sure it is good
+
+				// reported datasize is raw/allocated file size, including any size prefix etc.
+				u32 crc_words = (datasize-4)>>1;
+				u32 crc = gen_crc((u16*)(passet+4), crc_words);
+
+//				// test...
+//				if (attempts == 3)
+//					crc ^= 99;
+
+				// check the CRC
+				cct_header *tmp_data = (cct_header*)passet;	
+				if (crc == tmp_data->crc)
+				{
+					// good enough
+					attempts = 0;
+				}
+				else
+				{
+					pprintf("warning - bad file CRC!\n");
+					pprintf("CRC=%08x[a]:%08x[e] w=%d\n", crc, tmp_data->crc, crc_words);
+
+					// dump this attempt
+					efree(passet);
+					passet = nullptr;
+
+					// try again
+					attempts--;
+
+					if (attempts == 0)
+						pprintf("error - gave up trying to load asset\n");
+				}
+			}
+			else
+			{
+				// nothing was loaded - assume missing file, don't try again
+				attempts = 0;
+			}
+		}
+
+		if (passet)
+		{
+			// note: packed assets don't support FASTPAGE_TILES mode (<= 512 tiles) without further reallocation
+			tiles_alloc_ = passet;
+			tiles_ = (u16*)(passet + sizeof(cct_header));
+
+			// interpret file header
+			cct_header &header = *(cct_header*)tiles_alloc_;			
+			s16 tilewords = interpret_header(header);
+
+			// calculate words for complete tileset
+			numtiles_ = header.tilecount;
+			s32 tilesetwords = tilewords * numtiles_;
+	
+			printf("created tileset: %d tiles @ %dx%d in %dp\n", 
+				(int)numtiles_, (int)tilesize_, (int)tilesize_, (int)header.bitplanes);
+		}
+		else
+		{
+			eprintf("error: opening packed tileset: [%s]\n", _filename);
+		}
+
+#if 0
+
 		purge();
 
 		// attempt to load packed version of asset
@@ -180,6 +262,8 @@ public:
 		{
 			eprintf("error: opening packed tileset: [%s]\n", _filename);
 		}
+#endif
+
 	}
 };
 

@@ -52,10 +52,10 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.472";
+static const char* const g_version_string = "v0.473";
 
 // SPS file format version
-static const int SPS_VERSION = 0x0204;
+static const int SPS_VERSION = 0x0205;
 
 static const int SLS_VERSION = 0x1201;
 
@@ -747,6 +747,54 @@ static bool exec(const std::string &cmd, std::string &r_result)
 	r_result = result;
 	
 	return true;
+}
+
+void update_file_crc(FILE* hout, size_t crc_offset)
+{
+	u16 wv;
+	u32 lv;
+
+	// reset file position
+	fseek(hout, crc_offset+4, 0);
+
+	// perform hash
+	// note: 32bit CRC position (and anything before it) will not be included
+	u32 CRC = 0;
+	size_t words = 0;
+	{
+		static const u32 c_FNVPrime = 16777619;
+		static const u32 c_FNVOBase = 2166136261;
+
+		u32 hash = c_FNVOBase;
+
+		size_t read = 0;
+		do
+		{
+			// words were formatted BE
+			read = fread(&wv, 1, 2, hout);
+
+			if (read == 2)
+			{
+				// must be restored to native LE for hashing
+				u16 data = endianswap16(wv);
+
+				hash ^= data;
+				hash *= c_FNVPrime;
+
+				words++;
+			}
+
+		} while (read == 2);
+
+		CRC = hash;
+	}
+
+	printf("CRC=%08x w=%d\n", CRC, words);
+
+	fseek(hout, crc_offset, 0);
+	// convert to BE
+	lv = endianswap32(CRC);
+	fwrite(&lv, 1, 4, hout);
 }
 
 // --------------------------------------------------------------------
@@ -3785,9 +3833,21 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24, int _ccf)
 
 	replace_extension(outfile, "cct");
 
-	FILE* h = fopen(outfile.c_str(), "wb");
+	FILE* h = fopen(outfile.c_str(), "wb+");
 	if (h)
 	{
+		// write filesize
+		//{
+		//	ulong_t datasize = 0;
+		//	fwrite(&datasize, 1, sizeof(datasize), h);
+		//}
+
+		// write CRC
+		{
+			ulong_t CRC = 0;
+			fwrite(&CRC, 1, sizeof(CRC), h);
+		}
+
 		// write palette (16*2)
 		{
 			uword_t palette4bit[16];
@@ -3925,9 +3985,12 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24, int _ccf)
 			}
 		}
 
-		std::cout << "emitted tiles [" << outfile.c_str() << "]" << std::endl;
+		// last, generate CRC
+		update_file_crc(h, /*crc_offset=*/0);
 
 		fclose(h);
+
+		std::cout << "emitted tiles [" << outfile.c_str() << "]" << std::endl;
 	}
 }
 
@@ -6308,7 +6371,7 @@ bool emit_sprite_sequence(bool _storepixels)
 		replace_extension(fname, "emh");
 
 
-	FILE *hout = fopen(fname.c_str(), "wb");
+	FILE *hout = fopen(fname.c_str(), "wb+");
 	if (hout)
 	{
 		word_t wb;
@@ -6321,6 +6384,10 @@ bool emit_sprite_sequence(bool _storepixels)
 		// 4: size of file remaining (patched before closing)
 		lv = 0;
 		fwrite(&lv, 1, 4, hout);
+
+		// 4: file CRC (generated & patched before closing)
+		lv = 0;
+		fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 
 		// 2: version info
 		wv = endianswap16(SPS_VERSION);
@@ -7335,6 +7402,11 @@ bool emit_sprite_sequence(bool _storepixels)
 		fseek(hout, 0, 0);
 		lv = endianswap32(tracked_filesize);
 		fwrite(&lv, 1, 4, hout);
+
+		// last, generate CRC
+		update_file_crc(hout, /*crc_offset=*/4);
+		
+		fclose(hout);
 	}
 
 	std::cout << "emitted sprite sequence [" << fname.c_str() << "]" << std::endl;

@@ -74,7 +74,8 @@ u8* unwrap_p2e_asset
 (
 	const char *const _name,	// filename
 	bool _load_raw,				// load raw version anyway, if not p2e wrapped (otherwise return -1 so caller can attempt load)
-	bool _raw_size_prefix		// raw version has size prefix, avoids need to derive filesize by other means
+	bool _raw_size_prefix,		// raw version has size prefix, avoids need to derive filesize by other means
+	u32 *_psize
 )
 {
 	reg8(a4) = 1;
@@ -123,6 +124,11 @@ u8* unwrap_p2e_asset
 			u8* place = (u8*)ealloc(datasize);
 			if (place)
 			{
+				if (_psize)
+				{
+					*_psize = datasize;
+				}
+
 				// unpack
 				qmemclr(place, datasize);
 				DePack2e_68k(data_ptr, place);
@@ -159,6 +165,11 @@ u8* unwrap_p2e_asset
 					// if raw asset has no size prefix we need to find the size directly
 					fseek(fh, 0, SEEK_END);
 					rawsize = ftell(fh);
+				}
+
+				if (_psize)
+				{
+					*_psize = rawsize;
 				}
 
 				// reset

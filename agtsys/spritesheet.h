@@ -21,7 +21,7 @@ public:
 	// ---------------------------------------------------------------------------------------------------------------------
 	// types
 
-	static const int SPS_VERSION = 0x0204;
+	static const int SPS_VERSION = 0x0205;
 
 	// sprite frame header (one per sprite frame)
 	struct spf_header
@@ -42,6 +42,7 @@ public:
 	struct sps_header
 	{
 		// note: initial [filebytes] field is not part of in-memory header!
+		u32 crc;					// file CRC, excluding size prefix & CRC field itself
 		s16 version;				// file format version info
 		s16 framecount;				// number of frames in spritesheet
 		s16 planes;					// number of bitplanes in sprite
@@ -96,10 +97,60 @@ public:
 	{
 		bool success = false;
 
+		// dump existing asset, if any persists
 		purge();
 
-		// load, or load-and-unpack asset file to memory buffer
-		u8* passet = unwrap_p2e_asset(_filename, true, true);
+		u8* passet = nullptr;
+		s16 attempts = 3;
+
+		// attempt up to 3 loads before giving up
+		while (attempts > 0)
+		{
+			// load, or load-and-unpack asset file to memory buffer
+			u32 datasize = 0;
+			passet = unwrap_p2e_asset(_filename, true, true, &datasize);
+
+			if (passet)
+			{
+				// something has been loaded, but we want to check the CRC to be sure it is good
+
+				// reported datasize is raw/allocated file size, including any size prefix etc.
+				u32 crc_words = (datasize-8)>>1;
+				u32 crc = gen_crc((u16*)(passet+8), crc_words);
+
+//				// test...
+//				if (attempts == 3)
+//					crc ^= 99;
+
+				// check the CRC
+				sps_header *tmp_data = (sps_header*)(passet+4);
+				if (crc == tmp_data->crc)
+				{
+					// good enough
+					attempts = 0;
+				}
+				else
+				{
+					pprintf("warning - bad file CRC!\n");
+					pprintf("CRC=%08x[a]:%08x[e] w=%d\n", crc, tmp_data->crc, crc_words);
+
+					// dump this attempt
+					efree(passet);
+					passet = nullptr;
+
+					// try again
+					attempts--;
+
+					if (attempts == 0)
+						pprintf("error - gave up trying to load asset\n");
+				}
+			}
+			else
+			{
+				// nothing was loaded - assume missing file, don't try again
+				attempts = 0;
+			}
+		}
 
 		if (passet)
 		{
