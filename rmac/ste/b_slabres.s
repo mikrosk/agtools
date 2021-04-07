@@ -14,19 +14,15 @@
 *	entrypoint
 *=======================================================*
 
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
+	; SLR is a special case - it may be used to clear other
+	; assets and there may be only a single clearing frame
+	; defined to account for multiple animation frames.
+	; so we just fix the index to 0 on an overflow.
+	
 	cmp.w		sps_framecount(a0),d0
-	.if		(within_entitydraw)
-	bhs		_AGT_Exception_SLRFrame_68k
-	.else
 	blo.s		.slr_frameok
-.slr_framefault:
-	not.w		$ffff8240.w
-	bra.s		.slr_framefault
+	moveq		#0,d0
 .slr_frameok:
-	.endif
-	.endif
 
 	pushraster	#$367
 
