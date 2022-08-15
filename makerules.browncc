@@ -1,0 +1,61 @@
+# =============================================================================
+#	[m68k-mint-gcc]
+# =============================================================================
+
+# =============================================================================
+#	Generate .TOS file from linked .ELF
+# =============================================================================
+
+# =============================================================================
+#	Rule build a single program (demo!)
+# =============================================================================
+$(OBJ_DIR)/%.elf: $(CRTSEQ_G_OBJ) $(CRTSEQ_S_OBJ) $(AGLIB_OBJ) $(OBJ_DIR)/%.o $(PROJECT_OBJ) $(CRTSEQ_E_OBJ) | Makefile
+	$(LINK) -flto $(LDFLAGS) $(LIBPATHS) \
+	$(CRTSEQ_G_OBJ) $(CRTSEQ_S_OBJ) $(OBJ_DIR)/$*.o $(PROJECT_OBJ) $(AGLIB_OBJ) $(LIBS) $(CRTSEQ_E_OBJ) \
+	-o $(OBJ_DIR)/$*.elf
+# -----------------------------------------------------------------------------
+#	Strip symbols & pack executable
+# -----------------------------------------------------------------------------
+ifeq ($(BUILD_CFG),release)
+# -----------------------------------------------------------------------------
+	$(HOST_TOOL_DIR)/brownout -p 0 -i $(OBJ_DIR)/$*.elf -o $(OBJ_DIR)/$*.tos
+ifeq ($(USE_UPX_PACKER),yes)
+	$(HOST_TOOL_DIR)/upx -9 $(OBJ_DIR)/$*.tos
+#	$(HOST_TOOL_DIR)/upx -9 --brute --ultra-brute $(OBJ_DIR)/$*.tos
+endif
+# -----------------------------------------------------------------------------
+else
+# -----------------------------------------------------------------------------
+	$(TOOLCHAIN_PREFIX)objdump -h $(OBJ_DIR)/$*.elf
+	$(HOST_TOOL_DIR)/brownout -s -x -p 0 -i $(OBJ_DIR)/$*.elf -o $(OBJ_DIR)/$*.tos
+# -----------------------------------------------------------------------------
+endif
+
+
+
+# =============================================================================
+# to use MiNTLib with GCC6 static initialisation (for c++) we need to inject
+# a custom version of crtinit.c which calls __libc_csu_init(). 
+# The compile flags are very specific and the MiNTLib source includes are not
+# installed with the compiler so we have copies.
+# -----------------------------------------------------------------------------
+# note: alternative LIBC packages may require the same type of modification if
+# they don't already call __libc_csu_init()
+# -----------------------------------------------------------------------------
+# todo: ship this as a precompiled object!
+# =============================================================================
+
+$(OBJ_DIR)/agtsys/libcxx/brownmint++.o: $(AGTROOT)/agtsys/libcxx/brownmint++.c
+	@echo "COMPILING SPECIAL $< -> $@"
+	@mkdir -p '$(@D)'
+	$(TOOLCHAIN_PREFIX)gcc -Wall -m68000 -O2 -std=gnu89 -fleading-underscore -nostdinc \
+	-I$(AGTROOT)/agtsys/libcxx \
+	-I/usr/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/include \
+	-I/usr/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/include-fixed \
+	-I/usr/$(TOOLCHAIN_NAME)/include \
+	-DHAVE_CONFIG_H -D_LIBC -D_REENTRANT \
+	-c $< -o $@
+
+
+
+

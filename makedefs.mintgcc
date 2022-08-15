@@ -1,0 +1,81 @@
+# =============================================================================
+#	/opt/cross-mint/ [m68k-atari-mint-]
+# =============================================================================
+
+TOOLCHAIN_NAME = m68k-atari-mint
+TOOLCHAIN_VER = 4.6.4
+TOOLCHAIN_INSTALL = /opt/cross-mint
+RMAC_CFG = -fa
+EXT = tos
+
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
+
+# -----------------------------------------------------------------------------
+
+ifeq ($(BUILD_CFG),debug)
+
+CODEOPTFLAGS = $(TARGETFLAGS) -g -Os -fomit-frame-pointer
+CODEGENFLAGS = $(CODEOPTFLAGS)
+
+else
+
+CODEOPTFLAGS = $(TARGETFLAGS) -Ofast -fomit-frame-pointer -fstrict-aliasing
+CODEGENFLAGS = $(CODEOPTFLAGS) -fcaller-saves
+
+endif
+
+CWARNINGFLAGS = -Wall -Wno-unused-variable -Wno-multichar
+CXXWARNINGFLAGS = -Wall -Wno-reorder -Wno-unused-variable -Wno-multichar
+
+LIBPATHS = \
+	-L$(TOOLCHAIN_INSTALL)/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/ \
+	-L$(TOOLCHAIN_INSTALL)/$(TOOLCHAIN_NAME)/lib/
+		
+# -----------------------------------------------------------------------------
+#	With LINK_MINIMAL, we modify the linker command to use minimal LIBC
+# -----------------------------------------------------------------------------
+ifeq ($(LINK_MINIMAL),yes)
+# -----------------------------------------------------------------------------
+
+COMPILERDEFS += -DUSE_TINY_CRT
+
+# m68k-mint-gcc linking is straightforward
+CRTSEQ_S = \
+	agtsys/libcxx/rmac/zeroboot.s \
+	agtsys/libcxx/zerolibc.cpp \
+	agtsys/libcxx/zerocrtfini.c
+
+CRTSEQ_E =
+
+LDOPTS = -Wl,--gc-sections
+
+LIBS =
+
+# -----------------------------------------------------------------------------
+
+LDFLAGS += -nostdlib -nostartfiles
+#-Wl,-Map,$(OBJ_DIR)/$*.map $(LDOPTS) -nostdlib -nostartfiles $(CODEGENFLAGS)
+
+# -----------------------------------------------------------------------------
+else # LINK_MINIMAL
+# -----------------------------------------------------------------------------
+
+COMPILERDEFS +=
+
+# no extra startup stuff required. we just add the c++ lib if required.
+CRTSEQ_S =
+
+CRTSEQ_E =
+
+LDOPTS = -Wl,--stack,$(STACKSIZE) -Wl,--gc-sections
+
+LIBS =
+
+# -----------------------------------------------------------------------------
+
+LDFLAGS +=
+# -Wl,-Map,$*.map $(LDOPTS) $(CODEGENFLAGS)
+
+# -----------------------------------------------------------------------------
+endif # LINK_MINIMAL
+# -----------------------------------------------------------------------------

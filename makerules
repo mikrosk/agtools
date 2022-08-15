@@ -1,0 +1,150 @@
+# =============================================================================
+#	Common build rules & automation for all projects
+# =============================================================================
+
+ifndef AGTROOT
+$(error AGTROOT is not set)
+endif
+ifndef PROJECT
+$(error PROJECT is not set)
+endif
+ifndef BUILD_DIR
+$(error BUILD_DIR is not set)
+endif
+
+ifndef OBJ_DIR
+$(error OBJ_DIR is not set)
+endif
+ifndef ASSETS
+$(error ASSETS is not set)
+endif
+ifndef IMAGES
+$(error IMAGES is not set)
+endif
+ifndef CACHE
+$(error CACHE is not set)
+endif
+
+# =============================================================================
+
+# limit recognised suffixes
+#
+.SUFFIXES:
+.SUFFIXES: .c .cpp .h .s .gas .ent .prg .tos .bmu .wav
+
+# keep compiled intermediates in build directory by default
+#
+.PRECIOUS: $(OBJ_DIR)/%.o
+
+# =============================================================================
+ifeq ($(USE_COMPILER),browncc)
+# =============================================================================
+# browncc produces ELF images and requires specific rules
+# =============================================================================
+
+include $(AGTROOT)/makerules.browncc
+
+# =============================================================================
+else
+# =============================================================================
+# all other toolchains share the mint/TOS build rules
+# =============================================================================
+
+include $(AGTROOT)/makerules.mintgcc
+
+# =============================================================================
+endif
+# =============================================================================
+
+
+# =============================================================================
+#	Common rules
+# =============================================================================
+
+clean:
+	@mkdir -p '$(OBJ_DIR)'
+	rm -f $(OBJ_DIR)/*.elf $(OBJ_DIR)/*.tos
+	rm -f $(AGLIB_STE_OBJ) $(AGLIB_STF_OBJ)
+	rm -f $(AGLIB_STE) $(AGLIB_STF)
+	find $(OBJ_DIR) -type f -name '*.o' -exec rm {} +
+	rm -rf $(OBJ_DIR)
+
+# -----------------------------------------------------------------------------
+
+$(AGLIB_STE): $(AGLIB_STE_OBJ)
+	@echo "ARCHIVING -> $@"
+	@mkdir -p '$(@D)'
+	$(AR) cr $(AGLIB_STE) $(AGLIB_STE_OBJ)
+
+$(AGLIB_STF): $(AGLIB_STF_OBJ)
+	@echo "ARCHIVING -> $@"
+	@mkdir -p '$(@D)'
+	$(AR) cr $(AGLIB_STF) $(AGLIB_STF_OBJ)
+
+# =============================================================================
+#	Build rules for shared AGT sourcefiles
+# =============================================================================
+
+# rule to compile .c files
+$(OBJ_DIR)/%.o: $(AGTROOT)/%.c
+	@echo "COMPILING $< -> $@"
+	@mkdir -p '$(@D)'
+	$(CC) $(CCINCLUDES) $(CFLAGS) -c -o $@ $<
+
+# rule to compile .cpp files
+$(OBJ_DIR)/%.o: $(AGTROOT)/%.cpp
+	echo "COMPILING $< -> $@"
+	mkdir -p '$(@D)'
+	$(CXX) $(CCINCLUDES) $(CXXFLAGS) -c -o $@ $<
+
+# rules to assemble .gas files -> .o
+$(OBJ_DIR)/%.o: $(AGTROOT)/%.gas
+	@echo "GASSING $< -> $@"
+	@mkdir -p '$(@D)'
+	$(AS) -o $@ $<
+
+# rules to assemble unspecified .s files -> .o
+$(OBJ_DIR)/%.o: $(AGTROOT)/%.s
+	@echo "RMACCING $< -> $@"
+	@mkdir -p '$(@D)'
+	$(RMAC) $(COMPILERDEFS) -o $@ $<
+
+# =============================================================================
+#	Build rules for project-local sourcefiles
+# =============================================================================
+
+# rule to compile .c files
+$(OBJ_DIR)/%.o: %.c
+	@echo "COMPILING C $< -> $@"
+	@mkdir -p '$(@D)'
+	$(CC) $(CCINCLUDES) $(CFLAGS) -c -o $@ $<
+
+# rule to compile .cpp files
+$(OBJ_DIR)/%.o: %.cpp
+	@echo "COMPILING C++ $< -> $@"
+	@mkdir -p '$(@D)'
+	$(CXX) $(CCINCLUDES) $(CXXFLAGS) -c -o $@ $<
+
+# rule to compile .ent files
+$(OBJ_DIR)/%.o: %.ent
+	@echo "COMPILING ENTITIES $< -> $@"
+	@mkdir -p '$(@D)'
+	$(CXX) $(CCINCLUDES) $(CXXFLAGS) -fno-lto -fcall-used-d2 -fcall-used-d3 -fcall-used-d4 -fcall-used-d5 -fcall-used-d6 -fcall-used-d7 -fcall-used-a2 -fcall-used-a3 -fcall-used-a4 -fcall-used-a5 -c -o $@ $<
+
+# =============================================================================
+#	Build rules for project-local sourcefiles
+# =============================================================================
+
+# rule to make .prg from .tos
+%.prg: %.tos
+	@echo "RENAMING $< -> $@"
+	@mkdir -p '$(@D)'
+	cp $< $@
+
+# =============================================================================
+
+
+
+
+
+	

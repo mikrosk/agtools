@@ -1,0 +1,117 @@
+*=======================================================*
+*	[A]tari [G]ame [T]ools / dml 2016
+*=======================================================*
+*	Drawcontext structure
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+	.text
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+*	draw context
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+dctx_framebuffer:	ds.l	1
+dctx_lineidx:		ds.l	1
+dctx_linemod:		ds.l	1
+*-------------------------------------------------------*
+dctx_vpagebytes:	ds.l	1
+dctx_vpageh:		ds.w	1
+;dctx_viewy:		ds.w	1
+dctx_snapadjx:		ds.w	1
+dctx_snapadjy:		ds.w	1
+dctx_vpagex:		ds.w	1
+dctx_vpagey:		ds.w	1
+dctx_guardx:		ds.w	1
+dctx_guardy:		ds.w	1
+*-------------------------------------------------------*
+dctx_prestorestate:	ds.l	1
+dctx_pocm_t:		ds.l	1
+dctx_pocm_o:		ds.l	1
+dctx_ocm_stride:	ds.w	1
+*-------------------------------------------------------*
+dctx_field:		ds.w	1
+;dctx_mfield:		ds.w	1
+*-------------------------------------------------------*
+dctx_clipwindow_x1:	ds.w	1
+dctx_clipwindow_y1:	ds.w	1
+dctx_clipwindow_x2:	ds.w	1
+dctx_clipwindow_y2:	ds.w	1
+dctx_clipwindow_x1p:	ds.w	1
+dctx_clipwindow_x2p:	ds.w	1
+;dctx_clipwindow_y1g:	ds.w	1
+;dctx_clipwindow_y2g:	ds.w	1
+*-------------------------------------------------------*
+dctx_size:		
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+*	bgrestore context
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+rstr_pstack:		ds.l	1
+rstr_ptide:		ds.l	1
+*-------------------------------------------------------*
+
+
+*-------------------------------------------------------*
+*	bgrestore frame
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+bgrframe_dsty:		ds.w	1	; in pixels
+bgrframe_dstxoff:	ds.w	1	; in bytes
+bgrframe_dstaddr:	ds.l	1	; includes dstxoff
+bgrframe_dstskip:	ds.w	1
+bgrframe_ww2:		ds.w	1
+bgrframe_lines:		ds.w	1
+bgrframe_storage:	; pixel storage, if save-restore mode
+bgrframe_backlink:	ds.l	1
+bgrframe_size:		; frame size, if page-restore mode
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+	.text
+*-------------------------------------------------------*
+
+
+*-------------------------------------------------------*
+*	common var stackframe used by drawing routines
+*-------------------------------------------------------*
+.macro	emitframe_draw_vars
+*-------------------------------------------------------*
+*	locals: used by sprite routines
+*-------------------------------------------------------*
+.sp_skew:		ds.w	1			; don't move this one
+.sp_maskwidth:		ds.w	1
+.sp_yoff:		ds.w	1
+.sp_yc:			ds.w	1
+.sp_yrem:		ds.w	1
+.sp_cfield4:		ds.w	1
+.sp_mfield:		ds.w	1
+.sp__:			ds.w	1
+.sp_save_usp:		ds.l	1
+.sp_linetable:		ds.l	1
+.sp_nextcmp:		ds.l	1
+.sp_x:			ds.w	1
+.sp_y:			ds.w	1
+*-------------------------------------------------------*
+*	locals: shadow function arguments
+*-------------------------------------------------------*
+.sp_framebuf:		ds.l	1
+.sp_snapx:		ds.w	1
+.sp_snapy:		ds.w	1
+*-------------------------------------------------------*
+*	locals: used by algorithm
+*-------------------------------------------------------*
+.sp_asset:		ds.l	1
+.sp_pxymax_:		ds.l	1
+.sp_savea0:		ds.l	1
+.sp_layers:		ds.l	1
+.sp_drawtype:		ds.l	1
+*-------------------------------------------------------*
+	.endm
+*-------------------------------------------------------*

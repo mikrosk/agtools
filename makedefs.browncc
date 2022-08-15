@@ -1,0 +1,134 @@
+# =============================================================================
+#	[m68k-ataribrown-elf-]
+# =============================================================================
+
+TOOLCHAIN_INSTALL =
+
+ifeq ($(USE_BROWNCC),10.2.0)
+TOOLCHAIN_NAME = m68k-atariextrabrowner-elf
+TOOLCHAIN_VER = 10.2.0
+else
+ifeq ($(USE_BROWNCC),7.1.0)
+TOOLCHAIN_NAME = m68k-ataribrowner-elf
+TOOLCHAIN_VER = 7.1.0
+else
+ifeq ($(USE_BROWNCC),6.2.0)
+TOOLCHAIN_NAME = m68k-ataribrown-elf
+TOOLCHAIN_VER = 6.2.0
+else
+ifeq ($(USE_BROWNCC),yes)
+TOOLCHAIN_NAME = m68k-ataribrown-elf
+TOOLCHAIN_VER = 6.2.0
+else
+# unsupporteddefault to mint gcc
+echo "unsupported browncc version"
+error
+endif
+endif
+endif
+endif
+
+RMAC_CFG = -fe
+EXT = elf
+
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
+
+# -----------------------------------------------------------------------------
+
+ifeq ($(BUILD_CFG),debug)
+
+CODEOPTFLAGS = $(TARGETFLAGS) -g -Os -fomit-frame-pointer
+CODEGENFLAGS = $(CODEOPTFLAGS) -fleading-underscore
+
+else
+
+CODEOPTFLAGS = $(TARGETFLAGS) -Ofast -fomit-frame-pointer -fstrict-aliasing
+CODEGENFLAGS = $(CODEOPTFLAGS) -fleading-underscore -fcaller-saves -flto -ffunction-sections -fdata-sections
+
+endif
+
+CWARNINGFLAGS = -Wall -Wno-unused-variable -Wno-multichar -Wno-narrowing
+CXXWARNINGFLAGS = -Wall -Wno-reorder -Wno-unused-variable -Wno-multichar -Wno-narrowing
+
+LIBPATHS = \
+	-L/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/m68000 \
+	-L/usr/$(TOOLCHAIN_NAME)/lib/m68000
+
+# -----------------------------------------------------------------------------
+#	With LINK_MINIMAL, we modify the linker command to use minimal LIBC
+# -----------------------------------------------------------------------------
+ifeq ($(LINK_MINIMAL),yes)
+# -----------------------------------------------------------------------------
+
+COMPILERDEFS += -DUSE_TINY_CRT -DAGT_GCC6_ELF
+
+CRTSEQ_S = \
+	agtsys/libcxx/rmac/brownboot.s \
+	agtsys/libcxx/browncrti.gas \
+	agtsys/libcxx/browncrt++.c \
+	agtsys/libcxx/zerolibc.cpp \
+	agtsys/libcxx/zerocrtfini.c
+CRTSEQ_E = \
+	agtsys/libcxx/browncrtn.gas
+
+# GCC6/ELF also needs to generate code with base address = 0 for postprocessing
+LDOPTS = -Wl,--emit-relocs -Wl,-e_start -Ttext=0
+
+LIBS =
+
+# -----------------------------------------------------------------------------
+
+LDFLAGS += -nostdlib -nostartfiles
+#-Wl,-Map,$(OBJ_DIR)/$*.map $(LDOPTS) -nostdlib -nostartfiles $(CODEGENFLAGS)
+
+# -----------------------------------------------------------------------------
+else # LINK_MINIMAL
+# -----------------------------------------------------------------------------
+
+COMPILERDEFS +=
+
+# GCC6/ELF linking for MiNTlib & C++ is complicated by changes to ctor/dtor
+# list representation, code required to implement them and having to specify
+# all of the link pieces manually.
+
+# crt0:
+#  gcc-provided entrypoint/boot code
+#
+# browncrti:
+#  marks beginning of BrownElf .init_array/.fini_array - must be linked early
+# browncrtn:
+#  marks end of BrownElf .init_array/.fini_array - must be linked last
+# brownmint++:
+#  when combining MiNTlib with C++ using BrownElf, crtinit.c must be replaced with one
+#  which performs the necessary ELF-style static initialisation because MiNTlib
+#  doesn't do this and GCC6 doesn't quietly inject static inits before main() as
+#  GCC4 does
+# browncrt++:
+#  implements BrownElf-specific C++ .init_array/.fini_array procedures
+#
+# zerocrtfini:
+#  implements __cxa_atexit/__cxa_finalize needed by C++ static init. missing
+#  from MiNTlib and reused for bare-bones builds on both compilers.
+
+CRTSEQ_G_OBJ = /usr/$(TOOLCHAIN_NAME)/lib/crt0.o
+
+CRTSEQ_S = \
+	agtsys/libcxx/browncrti.gas \
+	agtsys/libcxx/browncrt++.c \
+	agtsys/libcxx/brownmint++.c \
+	agtsys/libcxx/zerocrtfini.cpp
+
+CRTSEQ_E = \
+	agtsys/libcxx/browncrtn.gas
+
+LDOPTS = -Wl,--gc-sections -Wl,--emit-relocs -Wl,-e__start -Ttext=0 -nostdlib -nostartfiles
+LIBS = -lgcc -lc
+
+# -----------------------------------------------------------------------------
+
+LDFLAGS +=
+# -Wl,-Map,$(OBJ_DIR)/$*.map $(LDOPTS) $(CODEGENFLAGS)
+
+# -----------------------------------------------------------------------------
+endif # LINK_MINIMAL
+# -----------------------------------------------------------------------------
