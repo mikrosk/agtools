@@ -350,6 +350,9 @@ int AGT_EntryPoint()
 			printf("press space...\n");
 			return -1;
 		}
+
+		object.load("object.ems");
+
 		printf("press space...\n");
 		Crawcin();
 
@@ -500,7 +503,7 @@ int AGT_EntryPoint()
 		//	note: using EMSPR sprite format to keep memory load sensible with 8x4 rotation x animation frames
 
 		// sprite
-		object.load("object.ems");
+		//object.load("object.ems");
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	tie gfx assets into entity type dictionary, so we don't need to do it every time we spawn an object
@@ -549,7 +552,7 @@ int AGT_EntryPoint()
 			{ NE_Stop,			256 }
 		};
 
-		shift.load_nickel(nickel_commands);
+		shift.load_nickel(nickel_commands, 2);
 
 		printf("init shifter...\n");
 		shift.set_fieldmode(/*dualfield=*/(c_dualfield && !c_singlevbl));

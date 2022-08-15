@@ -6,10 +6,10 @@
 
 # cut sprites
 
-../../bin/agtcut -cm imspr -vis -prv -ccr high -keyrgb 90:c8:e8 -kg -kt 0.01 -gm -s karin5515_ac.png -o karin.ims -p chunky8.ccs -ackeyrgb 00:ff:00
+../../bin/agtcut -cm emspr -emc -vis -prv -ccr high -keyrgb 90:c8:e8 -kg -kt 0.01 -gm -s karin5515_ac.png -o karin.ems -p chunky8.ccs -ackeyrgb 00:ff:00
 
 # cut background map & tiles
 
 ../../bin/agtcut -cm tiles -vis -t 0.0 -ccf 1 -bp 4 -om direct -s tutor6_map.png -crn 224 -p xpal.pi1 -o tutor6.cct
-#../../bin/agtcut -cm tiles -vis -t 0.0 -ccf 2 -bp 4 -om direct -s bg.jpg -crn 224 -p chunky8.ccs -o tutor6.cct
+../../bin/agtcut -cm tiles -vis -t 0.0 -ccf 2 -bp 4 -om direct -s bg.jpg -crn 224 -p chunky8.ccs -o tutor6.cct
 

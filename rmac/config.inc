@@ -48,6 +48,7 @@ BGRSAVE			=	$34		;CPV/030
 BGRAST			=	$64		;L1 AutoVec/TTVME
 DPNickelEventPos	=	$90		;Trap #4
 DPNickelPortPos		=	$94		;Trap #5
+DPNickelPort		=	$98		;Trap #6
 DPFieldIndex		=	$9c		;Trap #7
 VBServiceVec		=	$a0		;Trap #8
 DMAFlag			=	$a4		;Trap #9

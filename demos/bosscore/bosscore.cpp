@@ -989,6 +989,8 @@ void boss_state0_enter_fntick(entity_t *_pself)
 			&self, 
 			c_bosseye_xoff,c_bosseye_yoff
 		);
+
+		self.draw_hitflash |= 0x80ff;
 	}
 
 
@@ -1017,6 +1019,8 @@ void boss_state1_eyeopen_fntick(entity_t *_pself)
 	case 0:
 		{
 			entity_t *pnew;
+
+			self.draw_hitflash = 0;
 
 			pnew = EntitySpawnFrom
 			(

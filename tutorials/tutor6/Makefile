@@ -156,7 +156,7 @@ PROJECT_O = \
 
 # rule to build programs
 
-all: tutor6a
+all: tutor6b
 #tutor6b tutor6c #pending
 
 

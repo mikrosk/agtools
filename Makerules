@@ -354,6 +354,7 @@ endif
 ifeq ($(TEST_EMULATOR),yes)
 	cp $*.tos $(EMULATOR_GEMDOS_DIR)/auto/$*.prg
 endif
+	cp $*.tos /cygdrive/c/HXCMount/para/auto/$*.prg
 
 
 
@@ -388,6 +389,7 @@ endif
 ifeq ($(TEST_EMULATOR),yes)
 	cp $*.tos $(EMULATOR_GEMDOS_DIR)/auto/$*.prg
 endif
+	cp $*.tos /cygdrive/c/HXCMount/para/auto/$*.prg
 
 
 # =============================================================================

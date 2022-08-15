@@ -137,6 +137,7 @@ COMPILERDEFS += \
 # -----------------------------------------------------------------------------
 
 COMPILERDEFS += \
+		-DTIMING_RASTERS -DTIMING_RASTERS_MAIN \
 #		-DAGT_CONFIG_STF_OPT_SIZE \
 #		-DAGT_CONFIG_SAFETY_CHECKS \
 #		-DAGT_CONFIG_DEBUG_CONSOLE \
