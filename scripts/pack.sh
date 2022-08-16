@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 #==============================================================================
 #	Wrap asset using a packer or a simple CRC
 #==============================================================================
@@ -9,7 +11,9 @@
 #	- arj7		best compression, slow decompression
 #==============================================================================
 
-AGTROOT=../..
+# required to orient against scripts/
+SCRIPTS=$( dirname -- "$0"; )
+AGTROOT=${SCRIPTS}/..
 
 # locate AGTBIN for this host
 AGTBIN=${AGTROOT}/bin/`${AGTROOT}/config.sh`
@@ -20,7 +24,23 @@ echo "configured AGT native tools @" ${AGTBIN}
 ASSET=$1
 MODE=$2
 
-echo "wrapping ${ASSET} with ${MODE}"
+#==============================================================================
+
+# only Windows supports all packers just now, so filter here
+# currently supported cross-host modes: 'wrap', 'lz77'
+
+HOST_SYSTEM=`${SCRIPTS}/host.sh`
+
+if [ $HOST_SYSTEM != "win" ]; then
+if [ $MODE != "wrap" ] && [ $MODE != "lz77" ]; then
+echo "warning: host [${HOST_SYSTEM}] does not support packing code [${MODE}], fallback to [wrap]"
+MODE=wrap
+fi
+fi
+
+# do the packing & wrapping operation
+
+echo "wrapping ${ASSET} with [${MODE}]"
 
 case $MODE in
 
@@ -49,7 +69,8 @@ case $MODE in
     ;;
 
   *)
-    @echo "unknown wrapping code: ${MODE}"
+    echo "warning: unknown wrapping code [${MODE}], fallback to [wrap]"
+    ${AGTBIN}/packwrap ${ASSET} ${ASSET} ${ASSET} wrap
     ;;
 
 esac

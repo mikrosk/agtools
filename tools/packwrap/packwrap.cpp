@@ -7,7 +7,11 @@
 //#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-//#include <stdint.h>
+
+#if defined(__linux__)
+#include <stdint.h>		// for uintxx_t
+#include <arpa/inet.h>	// for htonl/ntohl
+#endif
 
 // grrr!!
 #if defined(__MINGW32__)

@@ -2,13 +2,16 @@
 #
 # script to prepare disk images from project
 
-PRODUCT_PATH=$1
+DISK_SOURCE=$1
 IMAGE_PATH=$2
 IMAGE_NAME=$3
 
-echo 'imaging disk ['${IMAGE_NAME}'] from '${PRODUCT_PATH}
+# required to orient against scripts/
+SCRIPTS=$( dirname -- "$0"; )
+
+echo 'imaging disk ['${IMAGE_NAME}'] from '${DISK_SOURCE}
 
 # put your disk image operations here!
 
 #mkdir -p ${IMAGE_PATH}
-ls -l ${PRODUCT_PATH}
+ls -l ${DISK_SOURCE}
