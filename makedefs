@@ -4,24 +4,24 @@
 
 # use ELF-based versions of GCC >= v6.x (this requires the brownout tool)
 # [no], [yes]/[6.2.0], [7.1.0], [10.2.0]
-USE_BROWNCC = no
+USE_BROWNCC=no
 
 # 'default'(or 'vincentcc')/'browncc'/'mikrocc'
-USE_COMPILER = default
+USE_COMPILER=default
 
 # reduces size of binary, custom crt but no MiNTlib under [m68k-atari-mint]
-LINK_MINIMAL = yes
+LINK_MINIMAL=yes
 
 BUILD_DIR = build
 
-STACKSIZE = 16384
+STACKSIZE=16384
 
 # only RMAC supported in this version
-USE_ASSEMBLER = rmac
+USE_ASSEMBLER=rmac
 
 # -----------------------------------------------------------------------------
 
-HATARI_DEBUG_DIR = .
+HATARI_DEBUG_DIR=.
 
 # -----------------------------------------------------------------------------
 
@@ -29,14 +29,14 @@ ifndef AGTROOT
 $(error AGTROOT is not set)
 endif
 
-OBJ_DIR = $(BUILD_DIR)
+OBJ_DIR=$(BUILD_DIR)
 
 # -----------------------------------------------------------------------------
 #	Configure the host build environment
 # -----------------------------------------------------------------------------
 
-HOST_STUB = $(shell $(AGTROOT)/config.sh)
-HOST_TOOL_DIR = ${AGTROOT}/bin/$(HOST_STUB)
+HOST_STUB=$(shell $(AGTROOT)/config.sh)
+HOST_TOOL_DIR=${AGTROOT}/bin/$(HOST_STUB)
 
 
 # -----------------------------------------------------------------------------
