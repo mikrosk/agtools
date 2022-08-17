@@ -18,6 +18,8 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+u32 g_decompression_ticks = 0;
+
 static void decompressor
 (
 	u32 _wrapcode, 
@@ -25,6 +27,8 @@ static void decompressor
 	u32 _unpacked_size, u8 * __restrict _unpacked
 )
 {
+	u32 time = reg32(4BA);
+
 	switch (_wrapcode)
 	{
 	case 'wrap':
@@ -34,19 +38,26 @@ static void decompressor
 	case 'lz77':
 		// unpack with lz77.s
 #if defined(AGT_CONFIG_PACKER_ANY) || defined(AGT_CONFIG_PACKER_LZ77)
-		//qmemclr(_unpacked, _unpacked_size);
 		DeLz77_68k(_packed, _unpacked);
 #else
-		wprintf("warning: define AGT_CONFIG_PACKER_LZ77 (or _ANY) in Makefile for lz77 packer");
+		wprintf("warning: define AGT_CONFIG_PACKER_LZ77 (or _ANY) in Makefile for lz77 mode");
+#endif
+		break;
+	case 'lzs1':
+	case 'lzs2':
+		// unpack with lzsa.s
+#if defined(AGT_CONFIG_PACKER_ANY) || defined(AGT_CONFIG_PACKER_LZSA)
+		DeLzsa_68k(_packed, _unpacked);
+#else
+		wprintf("warning: define AGT_CONFIG_PACKER_LZSA (or _ANY) in Makefile for lzsa/lzs1,lzs2 modes");
 #endif
 		break;
 	case 'pk2e':
 		// unpack with pack2e.s
 #if defined(AGT_CONFIG_PACKER_ANY) || defined(AGT_CONFIG_PACKER_PK2E)
-		qmemclr(_unpacked, _unpacked_size);
 		DePack2e_68k(_packed, _unpacked);
 #else
-		wprintf("warning: define AGT_CONFIG_PACKER_PK2E (or _ANY) in Makefile for pack2e packer");
+		wprintf("warning: define AGT_CONFIG_PACKER_PK2E (or _ANY) in Makefile for pack2e/nrv2e mode");
 #endif
 		break;
 	case 'arj4':
@@ -54,22 +65,23 @@ static void decompressor
 #if defined(AGT_CONFIG_PACKER_ANY) || defined(AGT_CONFIG_PACKER_ARJ4)
 		DeArj4_68k(_packed, _unpacked);
 #else
-		wprintf("warning: define AGT_CONFIG_PACKER_ARJ4 (or _ANY) in Makefile for arjm4 packer");
+		wprintf("warning: define AGT_CONFIG_PACKER_ARJ4 (or _ANY) in Makefile for arj-m4 mode");
 #endif
 		break;
 	case 'arj7':
 		// arjbeta -m7
 #if defined(AGT_CONFIG_PACKER_ANY) || defined(AGT_CONFIG_PACKER_ARJ7)
-		//qmemclr(_unpacked, _unpacked_size);
 		DeArj7_68k(_packed, _unpacked);
 #else
-		wprintf("warning: define AGT_CONFIG_PACKER_ARJ7 (or _ANY) in Makefile for arjm7 packer");
+		wprintf("warning: define AGT_CONFIG_PACKER_ARJ7 (or _ANY) in Makefile for arj-m7 mode");
 #endif
 		break;
 	default:
 		eprintf("error: unknown packing code!");
 		break;
 	}
+
+	g_decompression_ticks += reg32(4BA) - time;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

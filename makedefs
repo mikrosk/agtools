@@ -194,6 +194,7 @@ AGLIB_COMMON_SRC_LIST = \
 	agtsys/m68k/sound.s \
 	\
 	agtsys/m68k/lz77.s \
+	agtsys/m68k/lzsa.s \
 	agtsys/m68k/pack2e.s \
 	agtsys/m68k/arjm4.s \
 	agtsys/m68k/arjm7.s \

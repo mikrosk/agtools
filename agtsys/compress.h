@@ -48,12 +48,16 @@ enum AssetFlags
 //
 // lz77
 extern "C" int DeLz77_68k(u8 *src, u8 *dst);
+// lz77
+extern "C" int DeLzsa_68k(u8 *src, u8 *dst);
 // pack2e/nrv2e
 extern "C" int DePack2e_68k(u8 *src, u8 *dst);
 // arj4
 extern "C" int DeArj4_68k(u8 *src, u8 *dst);
 // arj7
 extern "C" int DeArj7_68k(u8 *src, u8 *dst);
+
+extern u32 g_decompression_ticks;
 
 //----------------------------------------------------------------------------------------------------------------------
 

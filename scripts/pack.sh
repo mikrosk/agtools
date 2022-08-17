@@ -1,14 +1,33 @@
 #!/usr/bin/env bash
 
 #==============================================================================
-#	Wrap asset using a packer or a simple CRC
+#       Wrap asset using a packer or a simple CRC
 #==============================================================================
-#	supported wrapping modes:
-#	- wrap		wrap with CRC, no compression
-#	- lz77		low compression, fast decompression
-#	- pk2e		good compression, fair decompression
-#	- arj4		very good compression, slow decompression
-#	- arj7		best compression, slow decompression
+#       supported wrapping modes:
+#==============================================================================
+#                       win  mac  rpi  linux  info/credit
+#==============================================================================
+#       - wrap          y    y    y    y       wrap with CRC only, no compression
+#       - lz77          y    y    y    y       LZ77 decoder (ray/tscc)
+#       - lzs1          y    y    y    y       LZSA-1 decoder (tAt/avena)
+#       - pk2e          y    n    n    n       NRV2e decoder (Markus Franz Xaver Johannes Oberhumer)
+#       - lzs2(lzsa)    y    y    y    y       LZSA-2 decoder (tAt/avena)
+#       - arj4          y    x    x    x       ARJ -m4 decoder (Mr Ni!/Tos-crew)
+#       - arj7          y    x    x    x       ARJ -m7 decoder (Mr Ni!/Tos-crew)
+#==============================================================================
+# y = supported
+# n = not supported currently
+# x = not likely, any time soon
+#==============================================================================
+#       test(abreed):   ticks(200hz)    tiles   sprite  map 
+#------------------------------------------------------------------------------
+#       wrap            42              100.0%  100.0%  100.0%
+#       lz77            216              75.4%   51.3%   36.5%
+#       arj4            902              62.8%   36.6%   19.8%
+#       lzs1            273              58.8%   36.3%   21.6%  <- favour speed
+#       pk2e            492              56.7%   33.6%   20.2%
+#       lzs2            363              54.4%   31.9%   19.1%  <- best balance
+#       arj7            826              53.6%   31.1%   18.0%  <- favour compression
 #==============================================================================
 
 # required to orient against scripts/
@@ -27,12 +46,39 @@ MODE=$2
 #==============================================================================
 
 # only Windows supports all packers just now, so filter here
-# currently supported cross-host modes: 'wrap', 'lz77'
+# currently supported cross-host modes: 'wrap', 'lz77', 'lzs1', 'lzs2/lzsa'
 
 HOST_SYSTEM=`${SCRIPTS}/host.sh`
 
+# deal with convenience aliases
+#
+if [ $MODE == "none" ]; then
+echo "note: aliased [${MODE}] to [wrap]"
+MODE=wrap
+elif [ $MODE == "lzsa" ]; then
+echo "note: aliased [${MODE}] to [lzs2]"
+MODE=lzs2
+elif [ $MODE == "lzsa1" ]; then
+echo "note: aliased [${MODE}] to [lzs1]"
+MODE=lzs1
+elif [ $MODE == "lzsa2" ]; then
+echo "note: aliased [${MODE}] to [lzs2]"
+MODE=lzs2
+elif [ $MODE == "nrv2e" ]; then
+echo "note: aliased [${MODE}] to [pk2e]"
+MODE=pk2e
+elif [ $MODE == "arjm4" ]; then
+echo "note: aliased [${MODE}] to [arj4]"
+MODE=arj4
+elif [ $MODE == "arjm7" ]; then
+echo "note: aliased [${MODE}] to [arj7]"
+MODE=arj7
+fi
+
+# deal with host support
+#
 if [ $HOST_SYSTEM != "win" ]; then
-if [ $MODE != "wrap" ] && [ $MODE != "lz77" ]; then
+if [ $MODE == "pk2e" ] || [ $MODE == "arj4" ] || [ $MODE == "arj7" ]; then
 echo "warning: host [${HOST_SYSTEM}] does not support packing code [${MODE}], fallback to [wrap]"
 MODE=wrap
 fi
@@ -49,23 +95,37 @@ case $MODE in
     ;;
 
   "lz77")
-    ${AGTBIN}/pack2e ${ASSET} ${ASSET}.lz77
-    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.lz77 ${ASSET} lz77
+    ${AGTBIN}/lz77 p ${ASSET} ${ASSET}.${MODE}
+    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.${MODE} ${ASSET} ${MODE}
     ;;
 
+  "lzs1")
+    ${AGTBIN}/lzsa -f 1 -m 3 ${ASSET} ${ASSET}.${MODE}
+    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.${MODE} ${ASSET} ${MODE}
+    ;;
+
+  "lzs2")
+    ${AGTBIN}/lzsa -f 2 -m 2 ${ASSET} ${ASSET}.${MODE}
+    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.${MODE} ${ASSET} ${MODE}
+    ;;
+    
   "pk2e")
-    ${AGTBIN}/pack2e ${ASSET} ${ASSET}.pk2e
-    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.pk2e ${ASSET} pk2e
+    ${AGTBIN}/pack2e ${ASSET} ${ASSET}.${MODE}
+    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.${MODE} ${ASSET} ${MODE}
     ;;
 
-  "arj4")
-    ${AGTBIN}/pack2e ${ASSET} ${ASSET}.arj4
-    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.arj4 ${ASSET} arj4
+  "arj4")  
+    ${AGTBIN}/arjbeta a -e -m4 ${ASSET}.tmp.arj ${ASSET}
+    ${AGTBIN}/dumparj2 ${ASSET}.tmp.arj ${ASSET} ${ASSET}.${MODE}
+    rm -f ${ASSET}.tmp.arj
+    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.${MODE} ${ASSET} ${MODE}
     ;;
 
   "arj7")
-    ${AGTBIN}/pack2e ${ASSET} ${ASSET}.arj7
-    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.arj7 ${ASSET} arj7
+    ${AGTBIN}/arjbeta a -e -m7 ${ASSET}.tmp.arj ${ASSET}
+    ${AGTBIN}/dumparj2 ${ASSET}.tmp.arj ${ASSET} ${ASSET}.${MODE}
+    rm -f ${ASSET}.tmp.arj
+    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.${MODE} ${ASSET} ${MODE}
     ;;
 
   *)
