@@ -60,8 +60,8 @@ IMAGES := ./images
 # -----------------------------------------------------------------------------
 
 COMPILERDEFS += \
-		-DAGT_CONFIG_PACKER_PK2E \
 		-DAGT_CONFIG_WORLD_YMAJOR \
+		-DAGT_CONFIG_PACKER_ANY \
 #		-DAGT_CONFIG_VISTRIGGER \
 #		-DAGT_CONFIG_DYNAMIC_TICKPRIO \
 #		-DENABLE_AGT_AUDIO \

@@ -61,7 +61,7 @@ IMAGES := ./images
 
 COMPILERDEFS += \
 		-DAGT_CONFIG_WORLD_XMAJOR \
-		-DAGT_CONFIG_PACKER_PK2E \
+		-DAGT_CONFIG_PACKER_ANY \
 		-DENABLE_AGT_AUDIO \
 
 # =============================================================================
