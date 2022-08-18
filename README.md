@@ -34,7 +34,7 @@
 * An emulator will help (Hatari, STEEM, SainT) but nothing beats real hardware!
 * *   [Hatari - Windows nightly builds](http://antarctica.no/~hatari/)
 * *   [STEEM Engine](http://steem.atari.st/)
-* *   STEEM SSE
+* *   STEEM SSE / STEEM Boiler (debugger)
 
 
 ### Reference ###
