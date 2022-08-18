@@ -6,6 +6,7 @@ AGTROOT=../..
 
 # output dir
 OUT=assets
+mkdir -p ${OUT}
 
 # location of source assets
 SRC=source_assets
@@ -41,10 +42,11 @@ MAP="${AGTBIN}/agtcut -cm tiles -om direct ${MAP_DEFAULTS} -p ${COLMAP}"
 # cut map & tiles, dual-field
 ${MAP} -o ${OUT}/shared.cct -s ${SRC}/bg.png -s ${SRC}/bganim.png -ccf 1
 
-# compress assets with pk2e
-${PACK} ${OUT}/bg.ccm  pk2e
-${PACK} ${OUT}/bganim.ccm  pk2e
-${PACK} ${OUT}/shared.cct pk2e
+# compress assets with lz77
+#
+${PACK} ${OUT}/bg.ccm     lz77
+${PACK} ${OUT}/bganim.ccm lz77
+${PACK} ${OUT}/shared.cct lz77
 
 
 #==============================================================================
@@ -77,3 +79,5 @@ SPR="${AGTBIN}/agtcut ${SPR_DEFAULTS} -p ${COLMAP} ${KEYCFG} ${DEBUG} ${DEFAULT_
 
 # this version cuts a dual-field colour sprite, incorporating both low/high colour fields interlaced @ 50hz
 ${SPR} -o ${OUT}/sprite.ems -s ${SRC}/sprite.png -ackeyrgb ff:ff:00		-cm emspr
+
+${PACK} ${OUT}/sprite.ems lz77

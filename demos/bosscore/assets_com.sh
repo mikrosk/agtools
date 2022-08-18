@@ -6,6 +6,7 @@ AGTROOT=../..
 
 # output dir
 OUT=assets
+mkdir -p ${OUT}
 
 # location of source assets
 SRC=source_assets
@@ -42,8 +43,8 @@ MAP="${AGTBIN}/agtcut -cm tiles -om direct ${MAP_DEFAULTS} -p ${COLMAP}"
 ${MAP} -o ${OUT}/bosscore.ccm -s ${SRC}/map3.png
 
 # optionally compress the map & tileset
-${PACK} ${OUT}/bosscore.ccm pk2e
-${PACK} ${OUT}/bosscore.cct pk2e
+${PACK} ${OUT}/bosscore.ccm lz77
+${PACK} ${OUT}/bosscore.cct lz77
 
 #==============================================================================
 #	Sprite cutting config
@@ -92,12 +93,13 @@ ${SPR} -o ${OUT}/beam.emx -s ${SRC}/sprites.png -sxp 361 -syp 162 -sxs 30 -sys 4
 ${SPR} -o ${OUT}/vicviper.emx -s ${SRC}/player.png -sxp 46 -syp 2 -sxs 23 -sys 16 -syi 18 -sc 9		-cm emxspr 
 ${SPR} -o ${OUT}/bullet.emx -s ${SRC}/sprites.png -sxp 172 -syp 28 -sxs 9 -sys 2 -sxi 12 -sc 2		-cm emxspr -nc 
 
-# compress assets with pk2e
-${PACK} ${OUT}/bosscore.sls pk2e
-${PACK} ${OUT}/bosscore.slr pk2e
-${PACK} ${OUT}/bosseye.emx pk2e
-${PACK} ${OUT}/bosspulp.emx pk2e
-${PACK} ${OUT}/balls.emx pk2e
-${PACK} ${OUT}/beam.emx pk2e
-${PACK} ${OUT}/vicviper.emx pk2e
-${PACK} ${OUT}/bullet.emx pk2e
+# compress assets with lz77
+#
+${PACK} ${OUT}/bosscore.sls lz77
+${PACK} ${OUT}/bosscore.slr lz77
+${PACK} ${OUT}/bosseye.emx lz77
+${PACK} ${OUT}/bosspulp.emx lz77
+${PACK} ${OUT}/balls.emx lz77
+${PACK} ${OUT}/beam.emx lz77
+${PACK} ${OUT}/vicviper.emx lz77
+${PACK} ${OUT}/bullet.emx lz77

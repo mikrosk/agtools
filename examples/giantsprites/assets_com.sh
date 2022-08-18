@@ -6,6 +6,7 @@ AGTROOT=../..
 
 # output dir
 OUT=assets
+mkdir -p ${OUT}
 
 # location of source assets
 SRC=source_assets
@@ -41,9 +42,10 @@ MAP="${AGTBIN}/agtcut -cm tiles -om direct ${MAP_DEFAULTS} -p ${COLMAP}"
 # cut map & tiles, dual-field
 ${MAP} -o ${OUT}/bg.cct -s ${SRC}/bg_map.png -ccf 1
 
-# compress assets with pk2e
-${PACK} ${OUT}/bg.ccm  pk2e
-${PACK} ${OUT}/bg.cct  pk2e
+# compress assets with lz77
+#
+${PACK} ${OUT}/bg.ccm  lz77
+${PACK} ${OUT}/bg.cct  lz77
 
 
 #==============================================================================
@@ -92,10 +94,10 @@ ${SPR} -o ${OUT}/b80w.emx -s ${SRC}/bug80w.png		-cm emxspr -emc -ocm 	-sxp 0 -sy
 ${SPR} -o ${OUT}/b144w.emx -s ${SRC}/xenboss.png	-cm emxspr -emc -ocm 	-sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
 
 
-# compress assets with pk2e
+# compress assets with lz77
 #
-${PACK} ${OUT}/b32w.emx  pk2e
-${PACK} ${OUT}/b48w.emx  pk2e
-${PACK} ${OUT}/b64w.emx  pk2e
-${PACK} ${OUT}/b80w.emx  pk2e
-${PACK} ${OUT}/b144w.emx pk2e
+${PACK} ${OUT}/b32w.emx  lz77
+${PACK} ${OUT}/b48w.emx  lz77
+${PACK} ${OUT}/b64w.emx  lz77
+${PACK} ${OUT}/b80w.emx  lz77
+${PACK} ${OUT}/b144w.emx lz77

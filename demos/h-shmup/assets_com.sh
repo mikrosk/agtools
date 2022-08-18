@@ -6,6 +6,7 @@ AGTROOT=../..
 
 # output dir
 OUT=assets
+mkdir -p ${OUT}
 
 # location of source assets
 SRC=source_assets

@@ -6,6 +6,7 @@ AGTROOT=../..
 
 # output dir
 OUT=assets
+mkdir -p ${OUT}
 
 # location of source assets
 SRC=source_assets
@@ -41,10 +42,11 @@ MAP="${AGTBIN}/agtcut -cm tiles -om direct ${MAP_DEFAULTS} -p ${COLMAP}"
 # cut map & tiles, single-field
 ${MAP} -o ${OUT}/demo1.ccm -s ${SRC}/map.png -ccf 2
 
-# compress assets with pk2e
-${PACK} ${OUT}/demo1.ccm pk2e
-${PACK} ${OUT}/demo10.cct pk2e
-${PACK} ${OUT}/demo11.cct pk2e
+# compress assets with lz77
+#
+${PACK} ${OUT}/demo1.ccm lz77
+${PACK} ${OUT}/demo10.cct lz77
+${PACK} ${OUT}/demo11.cct lz77
 
 
 #==============================================================================

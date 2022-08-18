@@ -6,6 +6,7 @@ AGTROOT=../..
 
 # output dir
 OUT=assets
+mkdir -p ${OUT}
 
 # location of source assets
 SRC=source_assets
@@ -42,9 +43,10 @@ MAP="${AGTBIN}/agtcut -cm tiles -om direct ${MAP_DEFAULTS} -p ${COLMAP}"
 ${MAP} -o ${OUT}/abreed.ccm -s ${SRC}/ab1x.png -ttags ${SRC}/solidtiles.csv -ccf 2 
 
 # optionally compress the map & tileset
-${PACK} ${OUT}/abreed.ccm  pk2e
-${PACK} ${OUT}/abreed0.cct pk2e
-${PACK} ${OUT}/abreed1.cct pk2e
+${PACK} ${OUT}/abreed.ccm  lz77
+${PACK} ${OUT}/abreed0.cct lz77
+${PACK} ${OUT}/abreed1.cct lz77
+
 
 #==============================================================================
 #	Sprite cutting config
@@ -82,4 +84,4 @@ ${SPR} -o ${OUT}/monster.ems -s ${SRC}/sprites.png -sxp 0 -syp 256 -sxs 32 -sys 
 
 # optionally compress the sprite
 
-${PACK} ${OUT}/monster.ems pk2e
+${PACK} ${OUT}/monster.ems lz77

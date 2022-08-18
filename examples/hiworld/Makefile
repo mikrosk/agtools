@@ -41,12 +41,6 @@ POST_UPX_PACKER = no
 PRODUCT_DISK1 := ./disk1
 PRODUCT_DISK2 := ./disk2
 
-# directory for runtime assets used by game
-ASSETS := ./assets
-
-# directory for intermediate data, dependency tags etc.
-CACHE := ./cache
-
 # directory for final disk images, if used
 IMAGES := ./images
 

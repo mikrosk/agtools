@@ -6,6 +6,7 @@ AGTROOT=../..
 
 # output dir
 OUT=assets
+mkdir -p ${OUT}
 
 # location of source assets
 SRC=source_assets
@@ -41,10 +42,11 @@ MAP="${AGTBIN}/agtcut -cm tiles -om direct ${MAP_DEFAULTS} -p ${COLMAP}"
 # cut map & tiles, dual-field
 ${MAP} -o ${OUT}/isoscrl.ccm -s ${SRC}/tmap256.png -ccf 2
 
-# compress assets with pk2e
-${PACK} ${OUT}/isoscrl.ccm  pk2e
-${PACK} ${OUT}/isoscrl0.cct pk2e
-${PACK} ${OUT}/isoscrl1.cct pk2e
+# compress assets with lz77
+#
+${PACK} ${OUT}/isoscrl.ccm  lz77
+${PACK} ${OUT}/isoscrl0.cct lz77
+${PACK} ${OUT}/isoscrl1.cct lz77
 
 #==============================================================================
 #	Sprite cutting config
@@ -81,3 +83,5 @@ SPR="${AGTBIN}/agtcut ${SPR_DEFAULTS} -p ${COLMAP} ${KEYCFG} ${DEBUG} ${DEFAULT_
 
 # this version cuts a dual-field colour sprite, incorporating both low/high colour fields interlaced @ 50hz
 ${SPR} -o ${OUT}/villager.emx -s ${SRC}/villager.png -sg ${SRC}/villager.sgd		-cm emxspr -ccf 2 
+
+${PACK} ${OUT}/villager.emx lz77

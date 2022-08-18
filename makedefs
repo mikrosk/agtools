@@ -14,6 +14,12 @@ LINK_MINIMAL=yes
 
 BUILD_DIR = build
 
+# directory for runtime assets used by game
+ASSETS := ./assets
+
+# directory for intermediate data, dependency tags etc.
+CACHE := ./cache
+
 STACKSIZE=16384
 
 # only RMAC supported in this version
