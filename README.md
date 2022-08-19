@@ -50,7 +50,7 @@
 Code can be debugged natively on the Atari with MonST, Bugaboo, Db and other options but there are some very useful debugging capabilities in existing emulators.
 
 * Hatari: has commandline debugger, execution history, profiler, exception filters, message print capture/logging (natfeats/xbios), programmable breakpoints and more.
-* STEEM BoilerRoom: has interactive debugger, execution history, exception filters, message print capture/logging (via register port), flexible breakpoints and more. [a great BoilerRoom guide here](http://beyondbrown.d-bug.me/post/steem-debug-the-boiler-room/#content)
+* [STEEM BoilerRoom/SSE Debug](https://sourceforge.net/projects/steemsse/files/): has interactive debugger, execution history, exception filters, message print capture/logging (via register port), flexible breakpoints and more. [a great BoilerRoom guide here](http://beyondbrown.d-bug.me/post/steem-debug-the-boiler-room/#content)
 
 Both are supported directly by AGT via build-time configuration.
 
