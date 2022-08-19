@@ -49,8 +49,8 @@
 
 Code can be debugged natively on the Atari with MonST, Bugaboo, Db and other options but there are some very useful debugging capabilities in existing emulators.
 
-* Hatari: has commandline debugger, execution history, profiler, exception filters, message print capture/logging (natfeats), programmable breakpoints and more.
-* STEEM Boiler: has interactive debugger, execution history, exception filters, message print capture/logging (natfeats), flexible breakpoints and more.
+* Hatari: has commandline debugger, execution history, profiler, exception filters, message print capture/logging (natfeats/xbios), programmable breakpoints and more.
+* STEEM Boiler: has interactive debugger, execution history, exception filters, message print capture/logging (via register port), flexible breakpoints and more.
 
 Both are supported directly by AGT via build-time configuration.
 
