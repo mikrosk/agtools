@@ -9,24 +9,16 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
-typedef struct wrapheader_s
-{
-	uint32_t prefix;			/* \ full header excluded from file_size */
-	uint32_t wrapcode;			/* / allows wrapped assets to be identified */
-	uint32_t data_size;			/* \ with fallback to raw loading */
-	uint32_t unpacked_size;
-	uint32_t pcrc;
-	uint32_t ucrc;
-
-} wrapheader_t;
-
 enum AssetFlagsIdx
 {
 	afi_load_unwrapped,
 	afi_asset_scratch,
 	afi_size_prefix,
 	afi_size_lendian,
-	afi_size_exclusive
+	afi_size_exclusive,
+	//
+	afi_managed,
+	afi_lazy,
 };
 
 #define ASSETFLAG(_F_) af_##_F_ = (1 << afi_##_F_)
@@ -39,8 +31,81 @@ enum AssetFlags
 	ASSETFLAG(asset_scratch),	// may use scratch for the allocated asset (consumed/discarded immediately by user)
 	ASSETFLAG(size_prefix),		// expect unwrapped assets to have a size prefix word for space allocation
 	ASSETFLAG(size_lendian),	// expect unwrapped assets with size prefix to have little-endian prefix word
-	ASSETFLAG(size_exclusive)	// expect unwrapped assets with size prefix to exclude the prefix word itself from recorded size
+	ASSETFLAG(size_exclusive),	// expect unwrapped assets with size prefix to exclude the prefix word itself from recorded size
+	//
+	ASSETFLAG(managed),			// allocated & materialized via cache
+	ASSETFLAG(lazy),			// materialize on first use (versus immediately)
 };
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+class asset;
+class asset_cachelink;
+
+class asset_cachelink
+{
+public:
+
+	// asset owning this cacheslot
+	asset *pslotowner;
+	asset_cachelink *pnext;
+	asset_cachelink *pprev;
+
+	void init_()
+	{
+		pslotowner = 0;
+		pnext = 0;
+		pprev = 0;
+	}
+};
+
+class asset
+{
+public:
+
+	asset()
+		: flags(af_none),
+		  lastuse(~0),
+		  tags(0),
+		  plivedata(nullptr)
+	{
+		L1_link.init_();
+		L2_link.init_();
+	}
+
+	asset_cachelink L1_link;
+	asset_cachelink L2_link;
+
+	// indicates storage policy, wrapping info etc.
+	AssetFlags flags;
+
+	// last vbl used
+	u32 lastuse;
+
+	// tags associated with this asset
+	u32 tags;
+
+	// live data, or nullptr if unloaded
+	void *plivedata;
+
+	// tag management
+	void add_tags(u32 _tags) { tags |= _tags; }
+	void remove_tags(u32 _tags) { tags &= ~_tags; }
+	void retain_tags(u32 _tags) { tags &= _tags; }
+};
+
+//----------------------------------------------------------------------------------------------------------------------
+
+typedef struct wrapheader_s
+{
+	uint32_t prefix;			/* \ full header excluded from file_size */
+	uint32_t wrapcode;			/* / allows wrapped assets to be identified */
+	uint32_t data_size;			/* \ with fallback to raw loading */
+	uint32_t unpacked_size;
+	uint32_t pcrc;
+	uint32_t ucrc;
+
+} wrapheader_t;
 
 //----------------------------------------------------------------------------------------------------------------------
 

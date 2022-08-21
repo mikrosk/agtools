@@ -52,6 +52,7 @@ DPFieldIndex		=	$9c		;Trap #7
 VBServiceVec		=	$a0		;Trap #8
 DMAFlag			=	$a4		;Trap #9
 g_dbg_curr_entity	=	$a8		;Trap #10
+DPNickelPort		=	$ac		;Trap #11
 
 *-------------------------------------------------------*
 	

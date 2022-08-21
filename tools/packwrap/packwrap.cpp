@@ -7,6 +7,7 @@
 //#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #if defined(__linux__)
 #include <stdint.h>		// for uintxx_t
@@ -88,8 +89,8 @@ static uint32_t gen_crc_lite(uint16_t *_data, uint32_t _words)
 	{
 		uint16_t data16 = ntohs(*_data++);		// BE data representation on target
 
-		// add
-		CRC += (uint32_t)data16;
+		// xor
+		CRC ^= (uint32_t)data16;
 
 		// ror 7
 		CRC = (CRC >> 7) | (CRC << ((sizeof(CRC)<<3)-7));
@@ -133,43 +134,42 @@ static uint32_t gen_crc(uint16_t *_data, uint32_t _words, uint32_t hash = c_FNVO
 
 int main(int argc, char * argv[]) 
 {
-	const char *name_orig;
-	const char *name_packed;
-	const char *name_wrapped;
-	const char *wrapping_code;
-
 	struct stat filestatus;
-
-	uint32_t orig_filesize, be_orig_filesize;
-	uint32_t in_filesize, be_in_filesize;
-
 
 	printf("PackWrap: compressed asset wrapper for AGT : dml/2022\n");
 
 	if (argc < 5)
 	{
-		printf("usage: packwrap <origfile> <packedfile> <wrappedfile> <wrapcode=lz77/nrve/arj4/arj7/none>\n");  
-		return 0;
+		printf("usage: packwrap <origfile> <packedfile> <wrappedfile> <wrapcode>\n");  
+		printf("wrapcodes:\n");
+		printf(" wrap/none:   32bit CRC only\n");
+		printf(" lz77:        LZ77\n");
+		printf(" lzs1:        LZSA-1\n");
+		printf(" lzs2/lzsa:   LZSA-2\n");
+		printf(" pk2e/nrve:   NRV2e\n");
+		printf(" arj4:        ARJ -m4\n");
+		printf(" arj7:        ARJ -m7\n");		
+		return EXIT_SUCCESS;
 	}
 
-	name_orig = argv[1];
-	name_packed = argv[2];
-	name_wrapped = argv[3];
-	wrapping_code = argv[4];
+	const char *name_orig = argv[1];
+	const char *name_packed = argv[2];
+	const char *name_wrapped = argv[3];
+	const char *wrapping_code = argv[4];
 
 	if ((0 == name_orig)||
 		(0 == name_packed)||
 	    (0 == name_wrapped)||
 		(0 == wrapping_code)) 
 	{
-		printf("Bad command inputs\n");  
-		return 0;
+		printf("error: bad command inputs\n");  
+		exit(EXIT_FAILURE);
 	}
 
 	if (strlen(wrapping_code) != 4)
 	{
-		printf("Bad wrapping code, must be 4-char sequence\n");  
-		return 0;
+		printf("error: bad wrapping code, must be 4-char sequence\n");  
+		exit(EXIT_FAILURE);
 	}
 
 	// size of original file
@@ -177,10 +177,10 @@ int main(int argc, char * argv[])
 	stat(name_orig, &filestatus);
 	if (!filestatus.st_size)
 	{
-		printf("Could not stat original file: %s\n", name_orig);  
-		return 0;
+		printf("error: could not stat original file: %s\n", name_orig);  
+		exit(EXIT_FAILURE);
 	}
-	orig_filesize = filestatus.st_size;
+	uint32_t orig_filesize = filestatus.st_size;
 
 	// perform quick CRC on the original data before packing (packer safety check)
 	uint32_t orig_crc = 0;
@@ -201,10 +201,10 @@ int main(int argc, char * argv[])
 	stat(name_packed, &filestatus);
 	if (!filestatus.st_size)
 	{
-		printf("Could not stat packed file: %s\n", name_packed);  
-		return 0;
+		printf("error: could not stat packed file: %s\n", name_packed);  
+		exit(EXIT_FAILURE);
 	}
-	in_filesize = filestatus.st_size;
+	uint32_t in_filesize = filestatus.st_size;
 
 	printf("original size: %d\n", orig_filesize);
 	printf("packed size: %d\n", in_filesize);
@@ -217,16 +217,16 @@ int main(int argc, char * argv[])
 	FILE *infile = fopen(name_packed, "rb");
 	if (infile == NULL)
 	{
-		printf("Failed to open packed file: %s\n", name_packed);  
-		return 0;
+		printf("error: failed to open packed file: %s\n", name_packed);  
+		exit(EXIT_FAILURE);
 	}
 
 	uint8_t *buffer = new uint8_t[in_filesize + sizeof(wrapheader_t)];
 
 	if (!buffer)
 	{
-		printf("Failed to allocate memory\n");  
-		return 0;
+		printf("error: failed to allocate memory\n");  
+		exit(EXIT_FAILURE);
 	}
 
 	uint8_t *bufferpos = buffer;
@@ -259,8 +259,8 @@ int main(int argc, char * argv[])
 	FILE *outfile = fopen(name_wrapped, "wb");
 	if (outfile == NULL)
 	{
-		printf("Failed to write wrapped file: %s\n", name_wrapped);  
-		return 0;
+		printf("error: failed to write wrapped file: %s\n", name_wrapped);  
+		exit(EXIT_FAILURE);
 	}
 
 	// write out wrapped file
@@ -270,5 +270,5 @@ int main(int argc, char * argv[])
 
 	delete[] buffer;
 
-	return 0;
+	return EXIT_SUCCESS;
 }

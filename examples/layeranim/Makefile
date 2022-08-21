@@ -12,6 +12,10 @@ PROJECT := layeranim
 # debug/testing/release
 BUILD_CFG = release
 
+# remote testing config, if required
+POST_REMOTE = ultradev
+REMOTE_PRG = layerani.prg
+
 # make job can specify one AGT 'architecture' to target at a time (mainly STE)
 AGLIB=$(AGLIB_STE)
 AGLIB_OBJ=$(AGLIB_STE_OBJ)
@@ -135,6 +139,7 @@ images: $(CACHE)/disk1.tag #$(CACHE)/disk2.tag
 	$(AGTROOT)/scripts/post_image.sh $(PRODUCT_DISK1) $(IMAGES) disk
 	#$(AGTROOT)/scripts/post_image.sh $(PRODUCT_DISK2) $(IMAGES) disk2
 .PHONY: images
+
 
 # -----------------------------------------------------------------------------
 # define content of disk1

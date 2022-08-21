@@ -16,8 +16,6 @@ enum STEDisplayMode
 	STLow256,
 	STLow272,
 	//
-	STLowSplit136,
-	//
 	Nickel
 };
 
@@ -304,7 +302,7 @@ public:
 	void setcolour(s16 _buffer, s16 _field, s16 _ci, u16 _c, s16 _view = 0);
 	void setpalette(s16 _buffer, s16 _field, u16* _colours, s16 _view = 0);
 
-	void load_nickel(nickel_op_t *_pevents, int _timing_resilience = 1);
+	void load_nickel(nickel_op_t *_pevents, int _timing_resilience = 2);
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -2,6 +2,8 @@
 #
 # script to prepare disk images from project
 
+set -e
+
 DISK_SOURCE=$1
 IMAGE_PATH=$2
 IMAGE_NAME=$3

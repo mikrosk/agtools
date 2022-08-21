@@ -1,6 +1,10 @@
 # =============================================================================
 #	Common build rules & automation for all projects
 # =============================================================================
+ifndef AGTROOT
+$(error AGTROOT is not set)
+endif
+# =============================================================================
 
 # use ELF-based versions of GCC >= v6.x (this requires the brownout tool)
 # [no], [yes]/[6.2.0], [7.1.0], [10.2.0]
@@ -29,11 +33,9 @@ USE_ASSEMBLER=rmac
 
 HATARI_DEBUG_DIR=.
 
-# -----------------------------------------------------------------------------
+REMOTE_DISK = $(AGTROOT)/remote_share
 
-ifndef AGTROOT
-$(error AGTROOT is not set)
-endif
+# -----------------------------------------------------------------------------
 
 OBJ_DIR=$(BUILD_DIR)
 

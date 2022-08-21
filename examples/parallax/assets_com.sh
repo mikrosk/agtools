@@ -1,6 +1,8 @@
 #==============================================================================
 #	Build sprite assets
 #==============================================================================
+set -e
+#==============================================================================
 
 AGTROOT=../..
 
@@ -47,6 +49,13 @@ ${MAP} -o ${OUT}/map.cct  -s ${SRC}/map3.png -ccf 2 -t 0.05
 # foreground map (horizontally pre-stretched, use loose matching tolerance to reduce space)
 ${MAP} -o ${OUT}/mapf.cct -s ${SRC}/mapf.png -ccf 2 -t 0.25
 
+${PACK} ${OUT}/map.ccm  lz77
+${PACK} ${OUT}/map0.cct lz77
+${PACK} ${OUT}/map1.cct lz77
+
+${PACK} ${OUT}/mapf.ccm  lz77
+${PACK} ${OUT}/mapf0.cct lz77
+${PACK} ${OUT}/mapf1.cct lz77
 
 #==============================================================================
 #	Sprite cutting config
@@ -77,3 +86,5 @@ SPR="${AGTBIN}/agtcut ${SPR_DEFAULTS} -p ${COLMAP} ${KEYCFG} ${DEBUG} ${DEFAULT_
 #------------------------------------------------------------------------------
 
 ${SPR} -o ${OUT}/object.ems -s ${SRC}/object.png -ackeyrgb ff:ff:00  -cm emspr -ccf 2
+
+${PACK} ${OUT}/object.ems lz77

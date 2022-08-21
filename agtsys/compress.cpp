@@ -18,6 +18,48 @@
 
 // ---------------------------------------------------------------------------------------------------------------------
 
+class assetcache_L1
+{
+public:
+	assetcache_L1()
+	{
+		s_assetcache_sentinel_begin_.pprev = nullptr;
+		s_assetcache_sentinel_begin_.pnext = &s_assetcache_sentinel_end_;
+		s_assetcache_sentinel_end_.pprev = &s_assetcache_sentinel_begin_;
+		s_assetcache_sentinel_end_.pnext = nullptr;
+	}
+
+	static asset_cachelink s_assetcache_sentinel_begin_;
+	static asset_cachelink s_assetcache_sentinel_end_;
+};
+
+class assetcache_L2
+{
+public:
+	assetcache_L2()
+	{
+		s_assetcache_sentinel_begin_.pprev = nullptr;
+		s_assetcache_sentinel_begin_.pnext = &s_assetcache_sentinel_end_;
+		s_assetcache_sentinel_end_.pprev = &s_assetcache_sentinel_begin_;
+		s_assetcache_sentinel_end_.pnext = nullptr;
+	}
+
+	static asset_cachelink s_assetcache_sentinel_begin_;
+	static asset_cachelink s_assetcache_sentinel_end_;
+};
+
+// L1 cache: disk-to-ram (loading)
+asset_cachelink assetcache_L1::s_assetcache_sentinel_begin_;
+asset_cachelink assetcache_L1::s_assetcache_sentinel_end_;
+assetcache_L1 s_assetcache_L1;
+
+// L2 cache: ram-to-asset (decompression)
+asset_cachelink assetcache_L2::s_assetcache_sentinel_begin_;
+asset_cachelink assetcache_L2::s_assetcache_sentinel_end_;
+assetcache_L2 s_assetcache_L2;
+
+// ---------------------------------------------------------------------------------------------------------------------
+
 u32 g_decompression_ticks = 0;
 
 static void decompressor
@@ -31,6 +73,7 @@ static void decompressor
 
 	switch (_wrapcode)
 	{
+	case 'none':
 	case 'wrap':
 		// direct copy
 		qmemcpy(_unpacked, _packed, _unpacked_size);
@@ -45,6 +88,7 @@ static void decompressor
 		break;
 	case 'lzs1':
 	case 'lzs2':
+	case 'lzsa':
 		// unpack with lzsa.s
 #if defined(AGT_CONFIG_PACKER_ANY) || defined(AGT_CONFIG_PACKER_LZSA)
 		DeLzsa_68k(_packed, _unpacked);
@@ -53,6 +97,7 @@ static void decompressor
 #endif
 		break;
 	case 'pk2e':
+	case 'nrve':
 		// unpack with pack2e.s
 #if defined(AGT_CONFIG_PACKER_ANY) || defined(AGT_CONFIG_PACKER_PK2E)
 		DePack2e_68k(_packed, _unpacked);
@@ -135,6 +180,7 @@ bool place_asset
 
 			reg8(a4) = 0;
 
+#if !defined(AGT_CONFIG_NO_WRAPCRC)
 			u32 packed_crc = gen_crc((u16*)temp_ptr, packed_size>>1);
 
 			if (header.pcrc != packed_crc)
@@ -145,9 +191,11 @@ bool place_asset
 					_psize[0] = 0x80000000; // indicate file was packed
 				return false;
 			}
+#endif
 
 			decompressor(header.wrapcode, packed_size, temp_ptr, unpacked_size, _place);
 
+#if !defined(AGT_CONFIG_NO_UNWRAPCRC)
 			u32 unpacked_crc = gen_crc_lite((u16*)_place, unpacked_size>>1);
 			if (header.ucrc != unpacked_crc)
 			{
@@ -157,7 +205,7 @@ bool place_asset
 					_psize[0] = 0x80000000; // indicate file was packed
 				return nullptr;
 			}
-
+#endif
 			efree(temp_ptr);
 
 			if (_psize)
@@ -340,6 +388,7 @@ u8 * load_asset
 
 			reg8(a4) = 0;
 
+#if !defined(AGT_CONFIG_NO_WRAPCRC)
 			u32 packed_crc = gen_crc((u16*)temp_ptr, packed_size>>1);
 
 			if (header.pcrc != packed_crc)
@@ -350,7 +399,7 @@ u8 * load_asset
 					_psize[0] = 0x80000000; // indicate file was packed
 				return nullptr;
 			}
-
+#endif
 			u8 *unpacked = nullptr;
 			if (_flags & af_asset_scratch)
 				unpacked = (u8*)talloc(unpacked_size);
@@ -361,6 +410,7 @@ u8 * load_asset
 			{
 				decompressor(header.wrapcode, packed_size, temp_ptr, unpacked_size, unpacked);
 
+#if !defined(AGT_CONFIG_NO_UNWRAPCRC)
 				u32 unpacked_crc = gen_crc_lite((u16*)unpacked, unpacked_size>>1);
 				if (header.ucrc != unpacked_crc)
 				{
@@ -374,6 +424,7 @@ u8 * load_asset
 
 					return nullptr;
 				}
+#endif
 			}
 
 			efree(temp_ptr);
@@ -675,8 +726,8 @@ u32 gen_crc_lite(u16 *_data, u32 _words)
 	{
 		u16 data16 = *_data++;
 
-		// add
-		CRC += (u32)data16;
+		// xor
+		CRC ^= (u32)data16;
 
 		// ror 7
 		CRC = ror(CRC, 7);

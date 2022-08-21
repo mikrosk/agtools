@@ -353,8 +353,8 @@ int AGT_EntryPoint()
 
 		object.load("object.ems");
 
-		printf("press space...\n");
-		Crawcin();
+		//printf("press space...\n");
+		//Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
@@ -549,7 +549,7 @@ int AGT_EntryPoint()
 			{ NE_PortSelect,	72+16,  NickelPort1	},
 			{ NE_PortSelect,	96+16,	NickelPort2	},
 			{ NE_PortSelect,	184+16,	NickelPort3	},
-			{ NE_Stop,			256 }
+			{ NE_Stop,			240+16 }
 		};
 
 		shift.load_nickel(nickel_commands, 2);

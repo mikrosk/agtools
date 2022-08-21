@@ -1,6 +1,8 @@
 #==============================================================================
 #	Build sprite assets
 #==============================================================================
+set -e
+#==============================================================================
 
 AGTROOT=../..
 
@@ -50,7 +52,12 @@ ${MAP} -o ${OUT}/mapo.cct -s ${SRC}/trees-2m.png -layer -ccf 2 -t 0.0
 
 # pack the output files
 #
-${PACK} ${OUT}/map.ccm  lz77
-${PACK} ${OUT}/map.cct  lz77
-${PACK} ${OUT}/mapo.ccm lz77
-${PACK} ${OUT}/mapo.cct lz77
+# base layer + dualfield tiles
+${PACK} ${OUT}/map.ccm   lz77
+${PACK} ${OUT}/map0.cct  lz77
+${PACK} ${OUT}/map1.cct  lz77
+#
+# overlay layer + dualfield tiles
+${PACK} ${OUT}/mapo.ccm  lz77
+${PACK} ${OUT}/mapo0.cct lz77
+${PACK} ${OUT}/mapo1.cct lz77

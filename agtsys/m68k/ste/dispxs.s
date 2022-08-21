@@ -515,29 +515,25 @@ displayservice_nickel_port_b:
 
 	movem.l		d0/a0/a1,-(sp)
 
-	move.l		DPNickelPortPos.w,a0
-	move.l		(a0)+,d0
-	bne.s		.go
-	move.l		s_a_displayports,a0
-	bra.s		.fail
-.go:	move.l		a0,DPNickelPortPos.w
-	move.l		d0,a0
-.fail:
+;	move.l		DPNickelPortPos.w,a0
+;	move.l		(a0)+,d0
+;	bne.s		.go
+;	move.l		s_a_displayports,a0
+;	bra.s		.fail
+;.go:	move.l		a0,DPNickelPortPos.w
+;	move.l		d0,a0
+;.fail:	add.w		DPFieldIndex.w,a0
+;	move.l		(a0),a0
 
-;	moveq		#1,d0
-;	and.w		_g_vbl,d0
-;	and.w		_g_fieldmask,d0
-;	lsl.w		#2,d0
-;	move.l		(a0,d0.w),a0
-	
-	add.w		DPFieldIndex.w,a0
-	move.l		(a0),a0
+	move.l		DPNickelPort.w,a0
 
 .smc:	moveq		#99,d0	;displayservice_nickel_ds_tb-(timecritical_pad_tb*2),d0
 	lea		tbdr.w,a1
 .wl:	cmp.b		(a1),d0
 	blo.s		.wl
 
+	; TODO: reorder struct for fast loading
+	
 	move.b		4(a0),$ffff820f.w
 	move.b		3(a0),$ffff8265.w
 	move.b		 (a0),$ffff8205.w
@@ -557,6 +553,20 @@ displayservice_nickel_port_b:
 	move.b		#8,tbcr.w				; TimerB CTRL: start))
 	move.l		(a0)+,$120.w
 	move.l		a0,DPNickelEventPos.w
+*-----------------------------------------------------------------------------*	
+*	fetch next port
+*-----------------------------------------------------------------------------*	
+	move.l		DPNickelPortPos.w,a0
+	move.l		(a0)+,d0
+	bne.s		.go
+	move.l		s_a_displayports,a0
+	bra.s		.fail
+.go:	move.l		a0,DPNickelPortPos.w
+	move.l		d0,a0
+.fail:	add.w		DPFieldIndex.w,a0
+	;move.l		(a0),a0
+	;move.l		a0,DPNickelPort.w
+	move.l		(a0),DPNickelPort.w
 *-----------------------------------------------------------------------------*	
 	
 	movem.l		(sp)+,d0/a0/a1
@@ -588,28 +598,30 @@ displayservice_nickel_stop_b:
 
 	movem.l		d0/a0/a1,-(sp)
 	
-;	move.l		psilence_,a0
 	lea		psilence_+1,a0
 	
-.smc:	moveq		#99,d0	;displayservice_nickel_ds_tb-(timecritical_pad_tb*2),d0
-	lea		tbdr.w,a1
-.wl:	cmp.b		(a1),d0
-	blo.s		.wl
-	
+;.smc:	moveq		#99,d0	;displayservice_nickel_ds_tb-(timecritical_pad_tb*2),d0
+;	lea		tbdr.w,a1
+;.wl:	cmp.b		(a1),d0
+;	blo.s		.wl
+
 	moveq		#0,d0
+	
+	lea		tbdr.w,a1
+.smc:	cmp.b		#99,(a1)
+	bhs.s		.smc
+
 	move.b		d0,$ffff820f.w
 	move.b		d0,$ffff8265.w
-;	movep.l		a0,$ffff8205.w
-	move.b		 (a0),$ffff8205.w
-	move.b		1(a0),$ffff8207.w
+	move.b		(a0)+,$ffff8205.w
+	move.b		(a0)+,$ffff8207.w
 	move.b		d0,$ffff8209.w
 	move.b		d0,$ffff820f.w
 	
-.skip:
 	lea		$ffff8240.w,a0
 	move.w		(a0),d0
 	swap		d0
-	move.w		(a0),d0
+	move.w		(a0)+,d0
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
@@ -617,7 +629,7 @@ displayservice_nickel_stop_b:
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
-	move.l		d0,(a0)+
+	move.w		d0,(a0)
 
 ;	move.l		DPNickelEventPos.w,a0	
 ;	move.l		(a0)+,a1
@@ -645,9 +657,9 @@ displayservice_nickel_stop_b:
 	
 	rte
 	
-;displayservice_nickel_stop_smc	set	.smc+1
-displayservice_nickel_stop_smc:
-	dc.w		0	
+displayservice_nickel_stop_smc	set	.smc+3
+;displayservice_nickel_stop_smc:
+;	dc.w		0	
 
 
 *-----------------------------------------------------------------------------*
@@ -661,20 +673,23 @@ displayservice_nickel_blank_b:
 
 	movem.l		d0/a0/a1,-(sp)
 	
-;	move.l		psilence_,a0
 	lea		psilence_+1,a0
 	
-.smc:	moveq		#99,d0	;displayservice_nickel_ds_tb-(timecritical_pad_tb*2),d0
-	lea		tbdr.w,a1
-.wl:	cmp.b		(a1),d0
-	blo.s		.wl
-	
+;.smc:	moveq		#99,d0	;displayservice_nickel_ds_tb-(timecritical_pad_tb*2),d0
+;	lea		tbdr.w,a1
+;.wl:	cmp.b		(a1),d0
+;	blo.s		.wl
+
 	moveq		#0,d0
+	
+	lea		tbdr.w,a1
+.smc:	cmp.b		#99,(a1)
+	bhs.s		.smc
+		
 	move.b		d0,$ffff820f.w
 	move.b		d0,$ffff8265.w
-;	movep.l		a0,$ffff8205.w
-	move.b		 (a0),$ffff8205.w
-	move.b		1(a0),$ffff8207.w
+	move.b		(a0)+,$ffff8205.w
+	move.b		(a0)+,$ffff8207.w
 	move.b		d0,$ffff8209.w
 	move.b		d0,$ffff820f.w
 	
@@ -682,7 +697,7 @@ displayservice_nickel_blank_b:
 	lea		$ffff8240.w,a0
 	move.w		(a0),d0
 	swap		d0
-	move.w		(a0),d0
+	move.w		(a0)+,d0
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
@@ -690,7 +705,7 @@ displayservice_nickel_blank_b:
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
 	move.l		d0,(a0)+
-	move.l		d0,(a0)+
+	move.w		d0,(a0)
 
 *-----------------------------------------------------------------------------*	
 *	set up next nickel event
@@ -720,7 +735,7 @@ displayservice_nickel_blank_b:
 	
 	rte
 	
-displayservice_nickel_blank_smc	set	.smc+1
+displayservice_nickel_blank_smc	set	.smc+3
 
 *-----------------------------------------------------------------------------*
 displayservice_stexs:	;_first_b:
@@ -743,8 +758,20 @@ displayservice_stexs:	;_first_b:
 *-----------------------------------------------------------------------------*	
 
 	; reset view shiftgroup
-	move.l		#s_a_displayports,DPNickelPortPos.w
+	;move.l		#s_a_displayports,DPNickelPortPos.w
 
+	;move.l		DPNickelPortPos.w,a0
+	lea		s_a_displayports,a0
+	move.l		(a0)+,d0
+	bne.s		.go
+	move.l		s_a_displayports,a0
+	bra.s		.fail
+.go:	move.l		a0,DPNickelPortPos.w
+	move.l		d0,a0
+.fail:	add.w		DPFieldIndex.w,a0
+	move.l		(a0),a0
+	move.l		a0,DPNickelPort.w
+	
 ;	move.b		#displayservice_nickel_dlb_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
 ;	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
@@ -820,7 +847,9 @@ displayservice_nickel_border_b:
 	;not.w		$ffff8240.w
 		
 	move.w		#$2700,sr
-	movem.l		d0/a0,-(sp)
+;	movem.l		d0/a0,-(sp)
+	move.l		d0,-(sp)
+	move.l		a0,-(sp)
 
 ;	insert 'padding' scans to absorb short blitter jobs - 
 
@@ -854,7 +883,9 @@ displayservice_nickel_border_b:
 	dcb.w		4,$4e71				; ...wait...
 	move.b		#2,$ffff820a.w			; 50 Hz
 		
-	movem.l		d0/a0,-(sp)
+;	movem.l		d0/a0,-(sp)
+	move.l		d0,-(sp)
+	move.l		a0,-(sp)
 
 	.endif		; (use_blitter_compatibility)	
 
@@ -873,7 +904,9 @@ displayservice_nickel_border_b:
 	
 	move.l		(sp)+,a1
 	
-	movem.l		(sp)+,d0/a0
+;	movem.l		(sp)+,d0/a0
+	movem.l		(sp)+,a0
+	movem.l		(sp)+,d0
 	
 	clr.b		_g_seek
 	

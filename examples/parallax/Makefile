@@ -12,6 +12,10 @@ PROJECT := parallax
 # debug/testing/release
 BUILD_CFG = release
 
+# remote testing post-build step, if required [ultradev,hxcusb]
+POST_REMOTE = ultradev
+REMOTE_PRG = para.prg
+
 # make job can specify one AGT 'architecture' to target at a time (mainly STE)
 AGLIB=$(AGLIB_STE)
 AGLIB_OBJ=$(AGLIB_STE_OBJ)
@@ -62,6 +66,7 @@ IMAGES := ./images
 COMPILERDEFS += \
 		-DAGT_CONFIG_WORLD_XMAJOR \
 		-DAGT_CONFIG_PACKER_ANY \
+		-DAGT_CONFIG_NO_WRAPCRC -DAGT_CONFIG_NO_UNWRAPCRC \
 #		-DAGT_CONFIG_VISTRIGGER \
 #		-DAGT_CONFIG_DYNAMIC_TICKPRIO \
 #		-DENABLE_AGT_AUDIO \

@@ -27,6 +27,49 @@ endif
 
 # =============================================================================
 
+# -----------------------------------------------------------------------------
+remote: clean-remote remote_disk
+# -----------------------------------------------------------------------------
+ifeq ($(POST_REMOTE),ultradev)
+# -----------------------------------------------------------------------------
+	${AGTROOT}/scripts/post_ultra.sh $(REMOTE_BINARY) $(REMOTE_DISK)
+# -----------------------------------------------------------------------------
+endif # ultradev
+# -----------------------------------------------------------------------------
+.PHONY: remote
+
+
+# -----------------------------------------------------------------------------
+# define content of remote disk (that should be: everything)
+# -----------------------------------------------------------------------------
+
+REMOTE_BINARY = $(BUILD_DIR)/$(REMOTE_PRG)
+REMOTE_ASSETS = $(ASSETS_COMMON) $(ASSETS_S1) $(ASSETS_S2) $(ASSETS_S3) $(ASSETS_S4) $(ASSETS_S5)
+
+remote_disk: $(CACHE)/diskr.tag
+.PHONY: remote_disk
+
+clean-remote:
+	rm -rf $(REMOTE_DISK)/*
+	rm -f $(CACHE)/diskr.tag
+.PHONY: clean-remote
+
+# -----------------------------------------------------------------------------
+# rule to build remote disk
+# -----------------------------------------------------------------------------
+
+$(CACHE)/diskr.tag: $(REMOTE_BINARY) $(REMOTE_ASSETS)
+	@echo "GENERATING REMOTE DISK"
+	@mkdir -p $(CACHE)
+	@mkdir -p $(REMOTE_DISK)/auto
+	cp -r $(REMOTE_BINARY) $(REMOTE_DISK)/auto/.
+	$(if $(strip $(REMOTE_FILES)),$(AGTROOT)/scripts/copyassets.sh $(ASSETS) "$(REMOTE_FILES)" ../$(REMOTE_DISK)/)
+	@touch $(CACHE)/diskr.tag
+
+REMOTE_FILES = $(REMOTE_ASSETS:$(ASSETS)/%=%)
+
+# =============================================================================
+
 # limit recognised suffixes
 #
 .SUFFIXES:

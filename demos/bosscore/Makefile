@@ -12,6 +12,10 @@ PROJECT := bosscore
 # debug/testing/release
 BUILD_CFG = release
 
+# remote testing post-build step, if required [ultradev,hxcusb]
+POST_REMOTE = ultradev
+REMOTE_PRG = bosscore.prg
+
 # make job can specify one AGT 'architecture' to target at a time (mainly STE)
 AGLIB=$(AGLIB_STE)
 AGLIB_OBJ=$(AGLIB_STE_OBJ)

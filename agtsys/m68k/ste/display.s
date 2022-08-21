@@ -75,12 +75,12 @@ max_displayports	=	16
 *-------------------------------------------------------*
 	.abs
 *-------------------------------------------------------*
-DISP_STE_200:		ds.w	1
-DISP_STE_240:		ds.w	1
-DISP_STE_256:		ds.w	1
-DISP_STE_272:		ds.w	1
-DISP_STE_136SS:		ds.w	1
-DISP_size:
+;DISP_STE_200:		ds.w	1
+;DISP_STE_240:		ds.w	1
+;DISP_STE_256:		ds.w	1
+;DISP_STE_272:		ds.w	1
+;DISP_STE_136SS:		ds.w	1
+;DISP_size:
 *-------------------------------------------------------*
 			.text
 *-------------------------------------------------------*
@@ -124,10 +124,9 @@ DISP_size:
 *-------------------------------------------------------*
 
 	include		"ste/disp200.s"
-	include		"ste/disp240.s"
-	include		"ste/disp256.s"
+;	include		"ste/disp240.s"
+;	include		"ste/disp256.s"
 	include		"ste/disp272.s"
-	include		"ste/disp136s.s"
 	include		"ste/dispxs.s"
 	
 *-------------------------------------------------------*
@@ -140,7 +139,6 @@ _g_displayservice_consumed_lines:
 	dc.w		0				; 240	displayservice_ste240_d0_tb
 	dc.w		0				; 256	displayservice_ste256_d0_tb
 	dc.w		0				; 272	displayservice_ste272_d0_tb
-	dc.w		0				; 136s	displayservice_ste136s_d0_tb
 	dc.w		0				; nickel
 
 *-------------------------------------------------------*
@@ -259,10 +257,7 @@ _STE_InstallDisplayService:
 	dc.l		displayservice_ste200_vbi
 	dc.l		displayservice_nickel_vbi	; 240
 	dc.l		displayservice_nickel_vbi	; 256
-;	dc.l		displayservice_ste240_vbi
-;	dc.l		displayservice_ste256_vbi
 	dc.l		displayservice_ste272_vbi
-	dc.l		displayservice_ste136s_vbi
 	dc.l		displayservice_nickel_vbi
 	
 *-------------------------------------------------------*

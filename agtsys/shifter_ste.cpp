@@ -45,7 +45,6 @@ void shifter_ste::init(STEDisplayMode _mode)
 	// specific display configs
 	case STLow200:
 	case STLow272:
-	case STLowSplit136:
 		break;
 
 	// user-defined display config
@@ -188,7 +187,7 @@ void shifter_ste::load_nickel(nickel_op_t *_pevents, int _timing_resilience)
 			u8 absline = 229;
 
 			u8 rel_line = absline - last_line;
-			last_line = absline;
+			last_line = absline+1;
 			pinstruction->sync8 = rel_line - (timecritical_pad_tb<<1);
 			pinstruction->time8 = rel_line - (timecritical_pad_tb<<0);
 			pinstruction->psyncsmc = g_a_nickel_border_cfg[0];

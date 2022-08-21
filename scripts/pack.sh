@@ -30,6 +30,17 @@
 #       arj7            826              53.6%   31.1%   18.0%  <- favour compression
 #==============================================================================
 
+exit_on_error() 
+{
+    exit_code=$1
+    if [ $exit_code -ne 0 ]; then
+        >&2 echo "wrapping failed with exit code ${exit_code}."
+        exit $exit_code
+    fi
+}
+
+#==============================================================================
+
 # required to orient against scripts/
 SCRIPTS=$( dirname -- "$0"; )
 AGTROOT=${SCRIPTS}/..
@@ -134,3 +145,7 @@ case $MODE in
     ;;
 
 esac
+
+exit_on_error $?
+
+#==============================================================================
