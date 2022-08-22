@@ -9,11 +9,13 @@
 	.if		^^defined AGT_CONFIG_PROFILER
 
 	.globl		_agtprintf
+	.globl		_agtprintf_coded
 	.globl		_gp_prf_context_refs
 	.globl		_g_prf_context_num
 	.globl		_g_lock_consolerefresh
+	.globl		_g_concode
 	
-	include		"rmac/prf.inc"
+	include		"prf.inc"
 
 	.endif
 
@@ -72,6 +74,8 @@ _AGT_Sys_ProfilerDoReport:
 	movem.l		d0-a6,-(sp)
 
 	pushctxr	profiling,a0
+	
+	move.b		#2,_g_concode
 	
 	addq.w		#1,_g_lock_consolerefresh
 	
@@ -150,7 +154,8 @@ _AGT_Sys_ProfilerDoReport:
 	
 	bsr		pushreal2
 		
-	lea		txtspace,a0
+;	lea		txtspace,a0
+	lea		txtalign,a0
 	bsr		push_string
 
 	move.l		e_prf_text(a6),a0	; context name
@@ -159,7 +164,7 @@ _AGT_Sys_ProfilerDoReport:
 	move.l		numtext_ptr,a0
 
 	pea		(a0)
-	jsr		_agtprintf
+	jsr		_agtprintf_coded
 	addq.l		#4,sp
 
 .ignore:	
@@ -326,6 +331,7 @@ ctxstack_data_end:
 txtcrlf:			dc.b	13,10,0	
 txtreport:			dc.b	10,"Profiler:",10,0	
 txtspace:			dc.b	" ",0	
+txtalign:			dc.b	2,20,0
 txtpercent:			dc.b	"%",0
 txtpoint:			dc.b	".",0
 				even

@@ -133,7 +133,7 @@ void* ealloc(int _s)
 
 	if (!v)
 	{
-		eprintf("ealloc(%d) failure!\n", as);
+		eprintf("error: ealloc(%d) failure!\n", as);
 		while (1) { }
 		return 0;
 	}
@@ -185,7 +185,7 @@ void* talloc(int _s)
 	if (as > (g_tempend - g_temphead))
 	{
 		// not enough space in scratch area - alloc properly
-		eprintf("scratch overflow: [%d] > [%d]\n", 
+		wprintf("warning: scratch overflow: [%d] > [%d]\n", 
 			as, (g_tempend - g_temphead));
 		return ealloc(_s);
 	}

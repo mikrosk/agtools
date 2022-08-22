@@ -184,6 +184,8 @@ _STE_ConfigureDisplayService:
 	clr.w		BGRAST.w
 	.endif
 	
+	clr.b		psilence_+3
+	
 *-------------------------------------------------------*
 	unlk		a6
 	movem.l		(sp)+,d2-d7/a2-a5
@@ -476,27 +478,28 @@ _AGT_ConsoleText_68k:
 ;	d0	column
 ;	d1	row
 ;	d2	*
-
+;	d3	*
 *-------------------------------------------------------*
-	.if		(use_debugconsole)
 
-	mulu.w		#dst_linewid*6,d1	; line
+con_linewid	=	160
+
+	.if		(use_debugconsole)
+	
+	move.w		#40,d3				; line chars remaining
+
+	mulu.w		#con_linewid*6,d1	; line
 	add.l		d1,a1
 
-	moveq		#8,d1
-	and.w		d0,d1
-	lsr.w		#3,d1		; 0 or 1 for even or odd char plots
-	add.w		d1,a1
-
-	; if we start on 0, next inc will be 1
-	; if we start on 1, next inc will be 7
-	
+	moveq		#1,d1
+	and.w		d0,d1		; 0 or 1 for even or odd char plots
+	add.w		d1,a1	
 	move.b		.init(pc,d1.w),d1
 
-	and.w		#-16,d0		; word start position
-	lsr.w		#1,d0
+	and.w		#-2,d0
+	add.w		d0,d0
+	add.w		d0,d0
 	add.w		d0,a1
-	
+
 	move.w		#$e0,d2
 	lea		.recover(pc),a2
 	bra.s		.start
@@ -514,21 +517,27 @@ _AGT_ConsoleText_68k:
 	add.w		d1,a1
 	eor.w		#7^1,d1
 
+	subq.w		#1,d3			; stop at 40 chars
+	beq.s		.clip
+
+.con_recurse_:
+
 .start:	move.w		d2,d0		
 	add.b		(a0)+,d0
 	bpl.s		.next
 	cmp.w		d2,d0	
 	bne		.special
 
+.clip:
+
 	; 0 = terminate
-	
+		
 	.endif		;(use_debugconsole)
-	
+
 *-------------------------------------------------------*
-.noen:	rts
 
-
-
+	rts
+	
 *-------------------------------------------------------*
 
 .jtab:	dc.w		.cSPC-.jtab	; space
@@ -635,455 +644,516 @@ _AGT_ConsoleText_68k:
 	dc.w		.invalid-.jtab	; DEL
 
 *-------------------------------------------------------*
+.con_printline_:
+*-------------------------------------------------------*
+	tst.w		d3
+	bne		.con_recurse_	
+	rts
+
+*-------------------------------------------------------*
+.special_setcolumn:
+*-------------------------------------------------------*
+*	pad with spaces until column [c]
+*-------------------------------------------------------*
+		
+	moveq		#0,d0
+	move.b		(a0)+,d0	; new position
+	sub.w		#40,d0
+	add.w		d3,d0		; - current position
+	ble		.start		; no change or -ve change
+
+	; fill d0 spaces, updating d1/a1,d3
+	movem.l		a0/a2,-(sp)
+	lea		con_spaces_,a0
+	add.w		d0,a0
+	clr.b		(a0)		; temporary termination
+	move.l		a0,-(sp)
+	sub.w		d0,a0
+	bsr		.con_printline_	; print N spaces
+	move.l		(sp)+,a0
+	move.b		#' ',(a0)	; restore termination
+	movem.l		(sp)+,a0/a2
+
+	bra		.start
+	
+
+	.if		(0)
+
+;	skip without drawing spaces (not useful for console)
+
+	move.l		a3,a1		; restore line start
+			
+	moveq		#1,d1
+	and.w		d0,d1		; 0 or 1 for even or odd char plots
+	add.w		d1,a1	
+	move.b		.initc(pc,d1.w),d1
+
+	and.w		#-2,d0
+	add.w		d0,d0
+	add.w		d0,d0
+	add.w		d0,a1
+	
+	bra		.start
+	
+.initc:	dc.b		1,7
+
+	.endif
+	
+*-------------------------------------------------------*
 .special:
 *-------------------------------------------------------*
 	cmp.b		#10-32,d0
-	beq.s		.cSPC
+	beq.s		.noop
 	cmp.b		#13-32,d0
-	beq.s		.cSPC
+	beq.s		.noop
+	cmp.b		#2-32,d0
+	beq.s		.special_setcolumn
+
+*-------------------------------------------------------*
+.noop:	bra		.start
 *-------------------------------------------------------*
 .invalid:
 *-------------------------------------------------------*
 	moveq		#%11111110,d0
 	move.b		d0,(a1)
-	move.b		d0,dst_linewid*1(a1)
-	move.b		d0,dst_linewid*2(a1)
-	move.b		d0,dst_linewid*3(a1)
-	move.b		d0,dst_linewid*4(a1)
+	move.b		d0,con_linewid*1(a1)
+	move.b		d0,con_linewid*2(a1)
+	move.b		d0,con_linewid*3(a1)
+	move.b		d0,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
 .cSPC:	moveq		#%00000000,d0
 	move.b		d0,(a1)
-	move.b		d0,dst_linewid*1(a1)
-	move.b		d0,dst_linewid*2(a1)
-	move.b		d0,dst_linewid*3(a1)
-	move.b		d0,dst_linewid*4(a1)
+	move.b		d0,con_linewid*1(a1)
+	move.b		d0,con_linewid*2(a1)
+	move.b		d0,con_linewid*3(a1)
+	move.b		d0,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
 .cCOL:	moveq		#%00000000,d0
 	move.b		d0,(a1)
-	move.b		#%00011000,dst_linewid*1(a1)
-	move.b		d0,dst_linewid*2(a1)
-	move.b		#%00011000,dst_linewid*3(a1)
-	move.b		d0,dst_linewid*4(a1)
+	move.b		#%00011000,con_linewid*1(a1)
+	move.b		d0,con_linewid*2(a1)
+	move.b		#%00011000,con_linewid*3(a1)
+	move.b		d0,con_linewid*4(a1)
 	jmp		(a2)
 .cSEM:	moveq		#%00000000,d0
 	move.b		d0,(a1)
-	move.b		#%00011000,dst_linewid*1(a1)
-	move.b		d0,dst_linewid*2(a1)
-	move.b		#%00011000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%00011000,con_linewid*1(a1)
+	move.b		d0,con_linewid*2(a1)
+	move.b		#%00011000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cLAB:	move.b		#%00000110,(a1)
-	move.b		#%00011000,dst_linewid*1(a1)
-	move.b		#%01100000,dst_linewid*2(a1)
-	move.b		#%00011000,dst_linewid*3(a1)
-	move.b		#%00000110,dst_linewid*4(a1)
+	move.b		#%00011000,con_linewid*1(a1)
+	move.b		#%01100000,con_linewid*2(a1)
+	move.b		#%00011000,con_linewid*3(a1)
+	move.b		#%00000110,con_linewid*4(a1)
 	jmp		(a2)
 .cEQU:	moveq		#%00000000,d0
 	move.b		d0,(a1)
-	move.b		#%00111100,dst_linewid*1(a1)
-	move.b		d0,dst_linewid*2(a1)
-	move.b		#%00111100,dst_linewid*3(a1)
-	move.b		d0,dst_linewid*4(a1)
+	move.b		#%00111100,con_linewid*1(a1)
+	move.b		d0,con_linewid*2(a1)
+	move.b		#%00111100,con_linewid*3(a1)
+	move.b		d0,con_linewid*4(a1)
 	jmp		(a2)
 .cRAB:	move.b		#%01100000,(a1)
-	move.b		#%00011000,dst_linewid*1(a1)
-	move.b		#%00000110,dst_linewid*2(a1)
-	move.b		#%00011000,dst_linewid*3(a1)
-	move.b		#%01100000,dst_linewid*4(a1)
+	move.b		#%00011000,con_linewid*1(a1)
+	move.b		#%00000110,con_linewid*2(a1)
+	move.b		#%00011000,con_linewid*3(a1)
+	move.b		#%01100000,con_linewid*4(a1)
 	jmp		(a2)
 .cQUE:	move.b		#%01111100,(a1)
-	move.b		#%00000010,dst_linewid*1(a1)
-	move.b		#%00011100,dst_linewid*2(a1)
-	move.b		#%00000000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%00000010,con_linewid*1(a1)
+	move.b		#%00011100,con_linewid*2(a1)
+	move.b		#%00000000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cAT:	move.b		#%01111100,(a1)
-	move.b		#%10011010,dst_linewid*1(a1)
-	move.b		#%10101010,dst_linewid*2(a1)
-	move.b		#%10011110,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10011010,con_linewid*1(a1)
+	move.b		#%10101010,con_linewid*2(a1)
+	move.b		#%10011110,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
 .cEXC:	move.b		#%00011000,(a1)
-	move.b		#%00011000,dst_linewid*1(a1)
-	move.b		#%00011000,dst_linewid*2(a1)
-	move.b		#%00000000,dst_linewid*3(a1)
-	move.b		#%00011000,dst_linewid*4(a1)
+	move.b		#%00011000,con_linewid*1(a1)
+	move.b		#%00011000,con_linewid*2(a1)
+	move.b		#%00000000,con_linewid*3(a1)
+	move.b		#%00011000,con_linewid*4(a1)
 	jmp		(a2)
 .cDQU:	move.b		#%00101000,(a1)
-	move.b		#%00101000,dst_linewid*1(a1)
-	move.b		#%00000000,dst_linewid*2(a1)
-	move.b		#%00000000,dst_linewid*3(a1)
-	move.b		#%00000000,dst_linewid*4(a1)
+	move.b		#%00101000,con_linewid*1(a1)
+	move.b		#%00000000,con_linewid*2(a1)
+	move.b		#%00000000,con_linewid*3(a1)
+	move.b		#%00000000,con_linewid*4(a1)
 	jmp		(a2)
 .cHAS:	move.b		#%00101000,(a1)
-	move.b		#%01111100,dst_linewid*1(a1)
-	move.b		#%00101000,dst_linewid*2(a1)
-	move.b		#%01111100,dst_linewid*3(a1)
-	move.b		#%00101000,dst_linewid*4(a1)
+	move.b		#%01111100,con_linewid*1(a1)
+	move.b		#%00101000,con_linewid*2(a1)
+	move.b		#%01111100,con_linewid*3(a1)
+	move.b		#%00101000,con_linewid*4(a1)
 	jmp		(a2)
 .cDOL:	move.b		#%00111000,(a1)
-	move.b		#%01010000,dst_linewid*1(a1)
-	move.b		#%00111000,dst_linewid*2(a1)
-	move.b		#%00010100,dst_linewid*3(a1)
-	move.b		#%00111000,dst_linewid*4(a1)
+	move.b		#%01010000,con_linewid*1(a1)
+	move.b		#%00111000,con_linewid*2(a1)
+	move.b		#%00010100,con_linewid*3(a1)
+	move.b		#%00111000,con_linewid*4(a1)
 	jmp		(a2)
 .cPCT:	move.b		#%01100100,(a1)
-	move.b		#%01101000,dst_linewid*1(a1)
-	move.b		#%00010000,dst_linewid*2(a1)
-	move.b		#%00101100,dst_linewid*3(a1)
-	move.b		#%01001100,dst_linewid*4(a1)
+	move.b		#%01101000,con_linewid*1(a1)
+	move.b		#%00010000,con_linewid*2(a1)
+	move.b		#%00101100,con_linewid*3(a1)
+	move.b		#%01001100,con_linewid*4(a1)
 	jmp		(a2)
 .cAMP:	move.b		#%00110000,(a1)
-	move.b		#%01001000,dst_linewid*1(a1)
-	move.b		#%01110000,dst_linewid*2(a1)
-	move.b		#%10001010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%01001000,con_linewid*1(a1)
+	move.b		#%01110000,con_linewid*2(a1)
+	move.b		#%10001010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cSQU:	move.b		#%00011000,(a1)
-	move.b		#%00011000,dst_linewid*1(a1)
-	move.b		#%00000000,dst_linewid*2(a1)
-	move.b		#%00000000,dst_linewid*3(a1)
-	move.b		#%00000000,dst_linewid*4(a1)
+	move.b		#%00011000,con_linewid*1(a1)
+	move.b		#%00000000,con_linewid*2(a1)
+	move.b		#%00000000,con_linewid*3(a1)
+	move.b		#%00000000,con_linewid*4(a1)
 	jmp		(a2)
 .cOBR:	move.b		#%00011000,(a1)
-	move.b		#%00100000,dst_linewid*1(a1)
-	move.b		#%00100000,dst_linewid*2(a1)
-	move.b		#%00100000,dst_linewid*3(a1)
-	move.b		#%00011000,dst_linewid*4(a1)
+	move.b		#%00100000,con_linewid*1(a1)
+	move.b		#%00100000,con_linewid*2(a1)
+	move.b		#%00100000,con_linewid*3(a1)
+	move.b		#%00011000,con_linewid*4(a1)
 	jmp		(a2)
 .cCBR:	move.b		#%00110000,(a1)
-	move.b		#%00001000,dst_linewid*1(a1)
-	move.b		#%00001000,dst_linewid*2(a1)
-	move.b		#%00001000,dst_linewid*3(a1)
-	move.b		#%00110000,dst_linewid*4(a1)
+	move.b		#%00001000,con_linewid*1(a1)
+	move.b		#%00001000,con_linewid*2(a1)
+	move.b		#%00001000,con_linewid*3(a1)
+	move.b		#%00110000,con_linewid*4(a1)
 	jmp		(a2)
 .cSTR:	move.b		#%01010100,(a1)
-	move.b		#%00111000,dst_linewid*1(a1)
-	move.b		#%11111110,dst_linewid*2(a1)
-	move.b		#%00111000,dst_linewid*3(a1)
-	move.b		#%01010100,dst_linewid*4(a1)
+	move.b		#%00111000,con_linewid*1(a1)
+	move.b		#%11111110,con_linewid*2(a1)
+	move.b		#%00111000,con_linewid*3(a1)
+	move.b		#%01010100,con_linewid*4(a1)
 	jmp		(a2)
 .cPLS:	move.b		#%00010000,(a1)
-	move.b		#%00010000,dst_linewid*1(a1)
-	move.b		#%01111100,dst_linewid*2(a1)
-	move.b		#%00010000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%00010000,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%00010000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cCOM:	moveq		#%00000000,d0
 	move.b		d0,(a1)
-	move.b		d0,dst_linewid*1(a1)
-	move.b		d0,dst_linewid*2(a1)
-	move.b		#%00011000,dst_linewid*3(a1)
-	move.b		#%00110000,dst_linewid*4(a1)
+	move.b		d0,con_linewid*1(a1)
+	move.b		d0,con_linewid*2(a1)
+	move.b		#%00011000,con_linewid*3(a1)
+	move.b		#%00110000,con_linewid*4(a1)
 	jmp		(a2)
 .cMIN:	move.b		#%00010000,(a1)
-	move.b		#%00010000,dst_linewid*1(a1)
-	move.b		#%01111100,dst_linewid*2(a1)
-	move.b		#%00010000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%00010000,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%00010000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cDOT:	moveq		#%00000000,d0
 	move.b		d0,(a1)
-	move.b		d0,dst_linewid*1(a1)
-	move.b		d0,dst_linewid*2(a1)
-	move.b		#%00011000,dst_linewid*3(a1)
-	move.b		#%00011000,dst_linewid*4(a1)
+	move.b		d0,con_linewid*1(a1)
+	move.b		d0,con_linewid*2(a1)
+	move.b		#%00011000,con_linewid*3(a1)
+	move.b		#%00011000,con_linewid*4(a1)
 	jmp		(a2)
 .cSLS:	move.b		#%00000100,(a1)
-	move.b		#%00001000,dst_linewid*1(a1)
-	move.b		#%00010000,dst_linewid*2(a1)
-	move.b		#%00100000,dst_linewid*3(a1)
-	move.b		#%01000000,dst_linewid*4(a1)
+	move.b		#%00001000,con_linewid*1(a1)
+	move.b		#%00010000,con_linewid*2(a1)
+	move.b		#%00100000,con_linewid*3(a1)
+	move.b		#%01000000,con_linewid*4(a1)
 	jmp		(a2)	
 *-------------------------------------------------------*
 .cA:	move.b		#%01111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%11111110,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%10000010,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%11111110,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%10000010,con_linewid*4(a1)
 	jmp		(a2)
 .cB:	move.b		#%11111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%11111100,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%11111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%11111100,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%11111100,con_linewid*4(a1)
 	jmp		(a2)
 .cC:	move.b		#%01111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%10000000,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%10000000,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cD:	move.b		#%11111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%10000010,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%11111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%10000010,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%11111100,con_linewid*4(a1)
 	jmp		(a2)
 .cE:	move.b		#%11111110,(a1)
-	move.b		#%10000000,dst_linewid*1(a1)
-	move.b		#%11111100,dst_linewid*2(a1)
-	move.b		#%10000000,dst_linewid*3(a1)
-	move.b		#%11111110,dst_linewid*4(a1)
+	move.b		#%10000000,con_linewid*1(a1)
+	move.b		#%11111100,con_linewid*2(a1)
+	move.b		#%10000000,con_linewid*3(a1)
+	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 .cF:	move.b		#%11111110,(a1)
-	move.b		#%10000000,dst_linewid*1(a1)
-	move.b		#%11111100,dst_linewid*2(a1)
-	move.b		#%10000000,dst_linewid*3(a1)
-	move.b		#%10000000,dst_linewid*4(a1)
+	move.b		#%10000000,con_linewid*1(a1)
+	move.b		#%11111100,con_linewid*2(a1)
+	move.b		#%10000000,con_linewid*3(a1)
+	move.b		#%10000000,con_linewid*4(a1)
 	jmp		(a2)
 .cG:	move.b		#%01111100,(a1)
-	move.b		#%10000000,dst_linewid*1(a1)
-	move.b		#%10001110,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000000,con_linewid*1(a1)
+	move.b		#%10001110,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cH:	move.b		#%10000010,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%11111110,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%10000010,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%11111110,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%10000010,con_linewid*4(a1)
 	jmp		(a2)
 .cI:	move.b		#%01111100,(a1)
-	move.b		#%00010000,dst_linewid*1(a1)
-	move.b		#%00010000,dst_linewid*2(a1)
-	move.b		#%00010000,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%00010000,con_linewid*1(a1)
+	move.b		#%00010000,con_linewid*2(a1)
+	move.b		#%00010000,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cJ:	move.b		#%00001110,(a1)
-	move.b		#%00000100,dst_linewid*1(a1)
-	move.b		#%00000100,dst_linewid*2(a1)
-	move.b		#%01000100,dst_linewid*3(a1)
-	move.b		#%00111000,dst_linewid*4(a1)
+	move.b		#%00000100,con_linewid*1(a1)
+	move.b		#%00000100,con_linewid*2(a1)
+	move.b		#%01000100,con_linewid*3(a1)
+	move.b		#%00111000,con_linewid*4(a1)
 	jmp		(a2)
 .cK:	move.b		#%10000110,(a1)
-	move.b		#%10001000,dst_linewid*1(a1)
-	move.b		#%11110000,dst_linewid*2(a1)
-	move.b		#%10001000,dst_linewid*3(a1)
-	move.b		#%10000110,dst_linewid*4(a1)
+	move.b		#%10001000,con_linewid*1(a1)
+	move.b		#%11110000,con_linewid*2(a1)
+	move.b		#%10001000,con_linewid*3(a1)
+	move.b		#%10000110,con_linewid*4(a1)
 	jmp		(a2)
 .cL:	move.b		#%10000000,(a1)
-	move.b		#%10000000,dst_linewid*1(a1)
-	move.b		#%10000000,dst_linewid*2(a1)
-	move.b		#%10000000,dst_linewid*3(a1)
-	move.b		#%11111110,dst_linewid*4(a1)
+	move.b		#%10000000,con_linewid*1(a1)
+	move.b		#%10000000,con_linewid*2(a1)
+	move.b		#%10000000,con_linewid*3(a1)
+	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 .cM:	move.b		#%10000010,(a1)
-	move.b		#%11000110,dst_linewid*1(a1)
-	move.b		#%10101010,dst_linewid*2(a1)
-	move.b		#%10010010,dst_linewid*3(a1)
-	move.b		#%10000010,dst_linewid*4(a1)
+	move.b		#%11000110,con_linewid*1(a1)
+	move.b		#%10101010,con_linewid*2(a1)
+	move.b		#%10010010,con_linewid*3(a1)
+	move.b		#%10000010,con_linewid*4(a1)
 	jmp		(a2)
 .cN:	move.b		#%11000010,(a1)
-	move.b		#%10100010,dst_linewid*1(a1)
-	move.b		#%10010010,dst_linewid*2(a1)
-	move.b		#%10001010,dst_linewid*3(a1)
-	move.b		#%10000110,dst_linewid*4(a1)
+	move.b		#%10100010,con_linewid*1(a1)
+	move.b		#%10010010,con_linewid*2(a1)
+	move.b		#%10001010,con_linewid*3(a1)
+	move.b		#%10000110,con_linewid*4(a1)
 	jmp		(a2)
 .cO:	move.b		#%01111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%10000010,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%10000010,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cP:	move.b		#%11111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%11111100,dst_linewid*2(a1)
-	move.b		#%10000000,dst_linewid*3(a1)
-	move.b		#%10000000,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%11111100,con_linewid*2(a1)
+	move.b		#%10000000,con_linewid*3(a1)
+	move.b		#%10000000,con_linewid*4(a1)
 	jmp		(a2)
 .cQ:	move.b		#%01111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%10001010,dst_linewid*2(a1)
-	move.b		#%10000110,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%10001010,con_linewid*2(a1)
+	move.b		#%10000110,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cR:	move.b		#%11111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%11111100,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%10000010,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%11111100,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%10000010,con_linewid*4(a1)
 	jmp		(a2)
 .cS:	move.b		#%01111100,(a1)
-	move.b		#%10000000,dst_linewid*1(a1)
-	move.b		#%01111100,dst_linewid*2(a1)
-	move.b		#%00000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000000,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%00000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cT:	move.b		#%11111110,(a1)
-	move.b		#%00010000,dst_linewid*1(a1)
-	move.b		#%00010000,dst_linewid*2(a1)
-	move.b		#%00010000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%00010000,con_linewid*1(a1)
+	move.b		#%00010000,con_linewid*2(a1)
+	move.b		#%00010000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cU:	move.b		#%10000010,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%10000010,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%10000010,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cV:	move.b		#%10000010,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%01000100,dst_linewid*2(a1)
-	move.b		#%00101000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%01000100,con_linewid*2(a1)
+	move.b		#%00101000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cW:	move.b		#%10000010,(a1)
-	move.b		#%10010010,dst_linewid*1(a1)
-	move.b		#%10010010,dst_linewid*2(a1)
-	move.b		#%10010010,dst_linewid*3(a1)
-	move.b		#%01101100,dst_linewid*4(a1)
+	move.b		#%10010010,con_linewid*1(a1)
+	move.b		#%10010010,con_linewid*2(a1)
+	move.b		#%10010010,con_linewid*3(a1)
+	move.b		#%01101100,con_linewid*4(a1)
 	jmp		(a2)
 .cX:	move.b		#%10000010,(a1)
-	move.b		#%01000100,dst_linewid*1(a1)
-	move.b		#%00111000,dst_linewid*2(a1)
-	move.b		#%01000100,dst_linewid*3(a1)
-	move.b		#%10000010,dst_linewid*4(a1)
+	move.b		#%01000100,con_linewid*1(a1)
+	move.b		#%00111000,con_linewid*2(a1)
+	move.b		#%01000100,con_linewid*3(a1)
+	move.b		#%10000010,con_linewid*4(a1)
 	jmp		(a2)
 .cY:	move.b		#%10000010,(a1)
-	move.b		#%01000100,dst_linewid*1(a1)
-	move.b		#%00111000,dst_linewid*2(a1)
-	move.b		#%00010000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%01000100,con_linewid*1(a1)
+	move.b		#%00111000,con_linewid*2(a1)
+	move.b		#%00010000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cZ:	move.b		#%11111110,(a1)
-	move.b		#%00000100,dst_linewid*1(a1)
-	move.b		#%00111000,dst_linewid*2(a1)
-	move.b		#%01000000,dst_linewid*3(a1)
-	move.b		#%11111110,dst_linewid*4(a1)
+	move.b		#%00000100,con_linewid*1(a1)
+	move.b		#%00111000,con_linewid*2(a1)
+	move.b		#%01000000,con_linewid*3(a1)
+	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
 .cOSB:	move.b		#%00111000,(a1)
-	move.b		#%00100000,dst_linewid*1(a1)
-	move.b		#%00100000,dst_linewid*2(a1)
-	move.b		#%00100000,dst_linewid*3(a1)
-	move.b		#%00111000,dst_linewid*4(a1)
+	move.b		#%00100000,con_linewid*1(a1)
+	move.b		#%00100000,con_linewid*2(a1)
+	move.b		#%00100000,con_linewid*3(a1)
+	move.b		#%00111000,con_linewid*4(a1)
 	jmp		(a2)
 .cSL2:	move.b		#%01000000,(a1)
-	move.b		#%00100000,dst_linewid*1(a1)
-	move.b		#%00010000,dst_linewid*2(a1)
-	move.b		#%00001000,dst_linewid*3(a1)
-	move.b		#%00000100,dst_linewid*4(a1)
+	move.b		#%00100000,con_linewid*1(a1)
+	move.b		#%00010000,con_linewid*2(a1)
+	move.b		#%00001000,con_linewid*3(a1)
+	move.b		#%00000100,con_linewid*4(a1)
 	jmp		(a2)
 .cCSB:	move.b		#%00111000,(a1)
-	move.b		#%00001000,dst_linewid*1(a1)
-	move.b		#%00001000,dst_linewid*2(a1)
-	move.b		#%00001000,dst_linewid*3(a1)
-	move.b		#%00111000,dst_linewid*4(a1)
+	move.b		#%00001000,con_linewid*1(a1)
+	move.b		#%00001000,con_linewid*2(a1)
+	move.b		#%00001000,con_linewid*3(a1)
+	move.b		#%00111000,con_linewid*4(a1)
 	jmp		(a2)
 .cCAR:	move.b		#%00010000,(a1)
-	move.b		#%00101000,dst_linewid*1(a1)
-	move.b		#%01000100,dst_linewid*2(a1)
-	move.b		#%00000000,dst_linewid*3(a1)
-	move.b		#%00000000,dst_linewid*4(a1)
+	move.b		#%00101000,con_linewid*1(a1)
+	move.b		#%01000100,con_linewid*2(a1)
+	move.b		#%00000000,con_linewid*3(a1)
+	move.b		#%00000000,con_linewid*4(a1)
 	jmp		(a2)
 .cUSC:	move.b		#%00000000,(a1)
-	move.b		#%00000000,dst_linewid*1(a1)
-	move.b		#%00000000,dst_linewid*2(a1)
-	move.b		#%00000000,dst_linewid*3(a1)
-	move.b		#%11111110,dst_linewid*4(a1)
+	move.b		#%00000000,con_linewid*1(a1)
+	move.b		#%00000000,con_linewid*2(a1)
+	move.b		#%00000000,con_linewid*3(a1)
+	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 .cAPO:	move.b		#%00011000,(a1)
-	move.b		#%00001000,dst_linewid*1(a1)
-	move.b		#%00000000,dst_linewid*2(a1)
-	move.b		#%00000000,dst_linewid*3(a1)
-	move.b		#%00000000,dst_linewid*4(a1)
+	move.b		#%00001000,con_linewid*1(a1)
+	move.b		#%00000000,con_linewid*2(a1)
+	move.b		#%00000000,con_linewid*3(a1)
+	move.b		#%00000000,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
 .c0:	move.b		#%00111000,(a1)
-	move.b		#%01000100,dst_linewid*1(a1)
-	move.b		#%10010010,dst_linewid*2(a1)
-	move.b		#%01000100,dst_linewid*3(a1)
-	move.b		#%00111000,dst_linewid*4(a1)
+	move.b		#%01000100,con_linewid*1(a1)
+	move.b		#%10010010,con_linewid*2(a1)
+	move.b		#%01000100,con_linewid*3(a1)
+	move.b		#%00111000,con_linewid*4(a1)
 	jmp		(a2)
 .c1:	move.b		#%00110000,(a1)
-	move.b		#%01110000,dst_linewid*1(a1)
-	move.b		#%00010000,dst_linewid*2(a1)
-	move.b		#%00010000,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%01110000,con_linewid*1(a1)
+	move.b		#%00010000,con_linewid*2(a1)
+	move.b		#%00010000,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .c2:	move.b		#%01111100,(a1)
-	move.b		#%10000110,dst_linewid*1(a1)
-	move.b		#%00111100,dst_linewid*2(a1)
-	move.b		#%01000000,dst_linewid*3(a1)
-	move.b		#%11111110,dst_linewid*4(a1)
+	move.b		#%10000110,con_linewid*1(a1)
+	move.b		#%00111100,con_linewid*2(a1)
+	move.b		#%01000000,con_linewid*3(a1)
+	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 .c3:	move.b		#%01111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%00111100,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%00111100,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .c4:	move.b		#%00100010,(a1)
-	move.b		#%01000010,dst_linewid*1(a1)
-	move.b		#%11111110,dst_linewid*2(a1)
-	move.b		#%00000010,dst_linewid*3(a1)
-	move.b		#%00000010,dst_linewid*4(a1)
+	move.b		#%01000010,con_linewid*1(a1)
+	move.b		#%11111110,con_linewid*2(a1)
+	move.b		#%00000010,con_linewid*3(a1)
+	move.b		#%00000010,con_linewid*4(a1)
 	jmp		(a2)
 .c5:	move.b		#%11111110,(a1)
-	move.b		#%10000000,dst_linewid*1(a1)
-	move.b		#%01111100,dst_linewid*2(a1)
-	move.b		#%00000010,dst_linewid*3(a1)
-	move.b		#%11111100,dst_linewid*4(a1)
+	move.b		#%10000000,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%00000010,con_linewid*3(a1)
+	move.b		#%11111100,con_linewid*4(a1)
 	jmp		(a2)
 .c6:	move.b		#%01111100,(a1)
-	move.b		#%10000000,dst_linewid*1(a1)
-	move.b		#%11111100,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000000,con_linewid*1(a1)
+	move.b		#%11111100,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .c7:	move.b		#%11111110,(a1)
-	move.b		#%00000010,dst_linewid*1(a1)
-	move.b		#%00001100,dst_linewid*2(a1)
-	move.b		#%00010000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%00000010,con_linewid*1(a1)
+	move.b		#%00001100,con_linewid*2(a1)
+	move.b		#%00010000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .c8:	move.b		#%01111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%01111100,dst_linewid*2(a1)
-	move.b		#%10000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .c9:	move.b		#%01111100,(a1)
-	move.b		#%10000010,dst_linewid*1(a1)
-	move.b		#%01111110,dst_linewid*2(a1)
-	move.b		#%00000010,dst_linewid*3(a1)
-	move.b		#%01111100,dst_linewid*4(a1)
+	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%01111110,con_linewid*2(a1)
+	move.b		#%00000010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
 .cOCB:	move.b		#%00011000,(a1)
-	move.b		#%00100000,dst_linewid*1(a1)
-	move.b		#%00100000,dst_linewid*2(a1)
-	move.b		#%00100000,dst_linewid*3(a1)
-	move.b		#%00011000,dst_linewid*4(a1)
+	move.b		#%00100000,con_linewid*1(a1)
+	move.b		#%00100000,con_linewid*2(a1)
+	move.b		#%00100000,con_linewid*3(a1)
+	move.b		#%00011000,con_linewid*4(a1)
 	jmp		(a2)
 .cBAR:	move.b		#%00010000,(a1)
-	move.b		#%00010000,dst_linewid*1(a1)
-	move.b		#%00000000,dst_linewid*2(a1)
-	move.b		#%00010000,dst_linewid*3(a1)
-	move.b		#%00010000,dst_linewid*4(a1)
+	move.b		#%00010000,con_linewid*1(a1)
+	move.b		#%00000000,con_linewid*2(a1)
+	move.b		#%00010000,con_linewid*3(a1)
+	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cCCB:	move.b		#%00110000,(a1)
-	move.b		#%00001000,dst_linewid*1(a1)
-	move.b		#%00001000,dst_linewid*2(a1)
-	move.b		#%00001000,dst_linewid*3(a1)
-	move.b		#%00110000,dst_linewid*4(a1)
+	move.b		#%00001000,con_linewid*1(a1)
+	move.b		#%00001000,con_linewid*2(a1)
+	move.b		#%00001000,con_linewid*3(a1)
+	move.b		#%00110000,con_linewid*4(a1)
 	jmp		(a2)
 .cTIL:	move.b		#%00000000,(a1)
-	move.b		#%00100000,dst_linewid*1(a1)
-	move.b		#%01010100,dst_linewid*2(a1)
-	move.b		#%00001000,dst_linewid*3(a1)
-	move.b		#%00000000,dst_linewid*4(a1)
+	move.b		#%00100000,con_linewid*1(a1)
+	move.b		#%01010100,con_linewid*2(a1)
+	move.b		#%00001000,con_linewid*3(a1)
+	move.b		#%00000000,con_linewid*4(a1)
 	jmp		(a2)
 
 *-------------------------------------------------------*
 
 	.if		(use_debugconsole)
 
-	include		"ste/con_xprn.s"
+	include		"con_xprn.s"
 	
 	.endif
 				
@@ -1106,12 +1176,22 @@ _g_seek:		dc.w	0
 
 displayservice_installed:
 			dc.w	0
+
+con_spaces_:		dcb.b	40,' '
+
+; shared
+psilence_:
+	dc.l		rsilence_+255
 			
 *-------------------------------------------------------*
 	.bss
 *-------------------------------------------------------*
 
 savestate:		ds.l	4
+
+; shared
+rsilence_:
+	ds.b		(160*40)+256
 
 *-------------------------------------------------------*
 	.text

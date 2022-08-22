@@ -19,7 +19,7 @@ use_timecritical_rasters	=	1
 *	externally configured via CFLAGS
 *-------------------------------------------------------*
 
-			.if	^^defined AGT_CONFIG_DEBUG_CONSOLE
+			.if	^^defined AGT_CONFIG_DEBUG_CONSOLE_NATIVE
 use_debugconsole	=	1
 			.else
 use_debugconsole	=	0

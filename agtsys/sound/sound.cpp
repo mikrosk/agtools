@@ -856,12 +856,12 @@ agt_outline void assign_bmm_channel(virtual_channel_t *_virt_channel, s16 _bmmch
 	}
 	
 	if ((note == 0) && (g_bmm_channel_controller_pbend[_bmmchannel] != 0))
-		eprintf("audiodevice: error - nonzero pbend on zero note\n");
+		eprintf("error: audiodevice: nonzero pbend on zero note\n");
 
 	pbnote = ((s16)note << pbend_bits) + g_bmm_channel_controller_pbend[_bmmchannel];
 
 	if (pbnote < 0 || pbnote >= (128*pbend_steps))
-		eprintf("audiodevice: error - pbnote out of range(1): pb=%d n=%d pbn=%d\n",
+		eprintf("error: audiodevice: pbnote out of range(1): pb=%d n=%d pbn=%d\n",
 			(int)g_bmm_channel_controller_pbend[_bmmchannel], (int)note, (int)pbnote);
 
 	// lookup instrument
@@ -1102,7 +1102,7 @@ PRFINLINE int bmm_event_feeder(void)
 				// lookup instrument
 				yminstrument_t *pins = &g_yminstrument_dict[ymi];
 				if (!pins->p_wav)
-					eprintf("missing drum: %d [%s]\n", ymi, pins->p_samplename);
+					eprintf("error: missing drum: %d [%s]\n", ymi, pins->p_samplename);
 
 				if (control & 4)
 				{
@@ -1309,12 +1309,12 @@ PRFINLINE int bmm_event_feeder(void)
 					// note-off
 
 					if (curr->status_ != 0)
-						eprintf("audiodevice: bmm: error - faulty note-off h:%04x ch:%d n:%02x status:%d\n", 
+						eprintf("error: audiodevice: bmm: faulty note-off h:%04x ch:%d n:%02x status:%d\n", 
 							(int)curr->handle, (int)mc, (int)note, (int)curr->status_); 
 
 					if (!curr->noteon)
 					{
-						wprintf("audiodevice: bmm: warning - multiple note-off h:%04x ch:%d n:%02x\n", 
+						wprintf("warning: audiodevice: bmm: multiple note-off h:%04x ch:%d n:%02x\n", 
 							(int)curr->handle, (int)mc, (int)note); 
 					}
 					else
@@ -1349,7 +1349,7 @@ PRFINLINE int bmm_event_feeder(void)
 					// note-on
 
 					if (curr->status_ != 0)
-						eprintf("audiodevice: bmm: error - faulty note-on h:%04x ch:%d n:%02x status:%d\n", 
+						eprintf("error: audiodevice: bmm: faulty note-on h:%04x ch:%d n:%02x status:%d\n", 
 							(int)curr->handle, (int)mc, (int)note, (int)curr->status_); 
 
 					dprintf("audiodevice: bmm: note-on (reassigned) h:%04x ch:%d n:%02x\n", 
@@ -1397,7 +1397,7 @@ PRFINLINE int bmm_event_feeder(void)
 					// velocity
 
 					if (curr->status_ != 0)
-						eprintf("audiodevice: bmm: error - faulty vol h:%04x ch:%d n:%02x status:%d\n", 
+						eprintf("error: audiodevice: bmm: faulty vol h:%04x ch:%d n:%02x status:%d\n", 
 							(int)curr->handle, (int)mc, (int)note, (int)curr->status_); 
 
 					// adjust channel state (volume, note)
@@ -1414,7 +1414,7 @@ PRFINLINE int bmm_event_feeder(void)
 				// channel/note does not exist yet
 
 				if (curr && (curr->status_ == 0))
-					eprintf("audiodevice: bmm: error - faulty status h:%04x ch:%d n:%02x status:%d\n", 
+					eprintf("error: audiodevice: bmm: faulty status h:%04x ch:%d n:%02x status:%d\n", 
 						(int)curr->handle, (int)mc, (int)note, (int)curr->status_); 
 
 				if (control & 4)
@@ -1623,7 +1623,7 @@ PRFINLINE int bmm_event_feeder(void)
 						}
 						else
 						{
-							eprintf("audiodevice: bmm: error - failed to acquire vchannel\n");
+							eprintf("error: audiodevice: bmm: failed to acquire vchannel\n");
 						}
 
 					}
@@ -1721,7 +1721,7 @@ PRFINLINE int sfx_event_feeder(void)
 			l_event_tail = (l_event_tail + 1) & (max_events_per_frame-1);
 
 			if (_dbg_counter_++ > 100)
-			{ eprintf("audiodevice: sfx: error - frame_event insert infinite loop\n"); _dbg_counter_ = 0; }
+			{ eprintf("error: audiodevice: sfx: frame_event insert infinite loop\n"); _dbg_counter_ = 0; }
 		}
 		// release queue here
 		event_tail = l_event_tail;
@@ -2102,7 +2102,7 @@ PRFINLINE void frame_event(void)
 
 			if (g_active_channels[curr->handle] == 0)
 			{
-				eprintf("audiodevice: error - channel handle h:%04x already retired\n", (int)curr->handle);
+				eprintf("error: audiodevice: channel handle h:%04x already retired\n", (int)curr->handle);
 
 //				{
 //				int x;
@@ -2113,7 +2113,7 @@ PRFINLINE void frame_event(void)
 			}
 
 			if (curr->noteon)
-				eprintf("audiodevice: error - channel retired with note-on status\n");
+				eprintf("error: audiodevice: channel retired with note-on status\n");
 
 /*			s16 h = curr->handle;
 			if (h < 0)
@@ -2158,7 +2158,7 @@ PRFINLINE void frame_event(void)
 //			curr->p_aprev->p_anext = curr->p_anext;
 
 			if (g_remove_channel_count > max_toremove_channels)
-				eprintf("audiodevice: error - channel could not be queued for removal\n");
+				eprintf("error: audiodevice: channel could not be queued for removal\n");
 
 			} // (!g_serverlocks)
 		}
@@ -2237,7 +2237,7 @@ PRFINLINE void frame_cleanup()
 				// unmap channel from handle which may be used by client side
 				if (unlikely(g_active_channels[h] != curr))
 				{
-					wprintf("audiodevice: frame: warning - retiring channel with orphaned h:%04x c:%08x\n", (int)h, (int)g_active_channels[h]);
+					wprintf("warning: audiodevice: frame: retiring channel with orphaned h:%04x c:%08x\n", (int)h, (int)g_active_channels[h]);
 				}
 				else
 				{
@@ -2292,7 +2292,7 @@ PRFINLINE void frame_cleanup()
 			}
 */
 			if (_dbg_counter_++ > 100)
-				{ eprintf("audiodevice: error - frame_event removal infinite loop\n"); _dbg_counter_ = 0; }
+			{ eprintf("error: audiodevice: frame_event removal infinite loop\n"); _dbg_counter_ = 0; }
 		}
 
 		g_remove_channel_count = 0;
@@ -2306,8 +2306,8 @@ extern "C" void api_channel_cleanup()
 
 	g_serverlocks++;
 
-	eprintf("*** LOOP LOOP LOOP ***\n");
-	printf("num vch free: %d\n", g_channel_freepool_count);
+	//eprintf("*** LOOP LOOP LOOP ***\n");
+	dprintf("num vch free: %d\n", g_channel_freepool_count);
 
 	curr = g_front_uoactive.p_uoanext;
 	while (curr && curr->p_uoanext)
@@ -2352,7 +2352,7 @@ extern "C" void api_channel_cleanup()
 			if (curr->noteon)
 			{
 				curr->noteon = false;	// should never loop with any notes on, if BMZ is valid
-				eprintf("audiodevice: error - track completed with note on : chn[%d]\n", curr->chn);
+				eprintf("error: audiodevice: track completed with note on : chn[%d]\n", curr->chn);
 			}
 
 //			curr->loopcount = 0;
@@ -2453,12 +2453,12 @@ PRFINLINE void subframe_event()
 					{
 
 						if ((curr->note == 0) && (pbend != 0))
-							eprintf("audiodevice: error - nonzero pbend on zero note\n");
+							eprintf("error: audiodevice: nonzero pbend on zero note\n");
 
 						pbnote = (curr->note << pbend_bits) + pbend;
 
 						if (pbnote < 0 || pbnote >= 128*pbend_steps)
-							eprintf("audiodevice: error - pbnote out of range(3): pb=%d n=%d pbn=%d\n",
+							eprintf("error: audiodevice: pbnote out of range(3): pb=%d n=%d pbn=%d\n",
 							(int)pbend, (int)curr->note, (int)pbnote);
 					}
 
@@ -2498,7 +2498,7 @@ PRFINLINE void subframe_event()
 		} // status_active
 
 		if (_dbg_counter_++ > 100)
-			{ eprintf("audiodevice: error - subframe_event infinite loop\n"); _dbg_counter_ = 0; }
+		{ eprintf("error: audiodevice: subframe_event infinite loop\n"); _dbg_counter_ = 0; }
 
 		// next vchannel
 		pcurr = pnext;
@@ -2603,7 +2603,7 @@ void audio_mux_frame(void)
 //	s_pass++;
 
 	if (audioframe_collisions)
-		{ eprintf("audiodevice: error - mux timecritical overrun!\n"); audioframe_collisions = 0; }
+	{ eprintf("error: audiodevice: mux timecritical overrun!\n"); audioframe_collisions = 0; }
 
 //	output();
 

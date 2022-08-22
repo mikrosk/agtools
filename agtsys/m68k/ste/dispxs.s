@@ -124,18 +124,22 @@ displayservice_nickel_vbi:
 	.if		(use_debugconsole)
 	move.l		_max_console,d0
 	beq.s		.normal
+	move.b		d0,$ffff8265.w
 	move.l		d0,d1
 	lsr.w		#8,d0
-	clr.b		$ffff8265.w
+;	clr.b		$ffff8265.w
 	move.l		d0,$ffff8200.w
 	move.b		d1,$ffff820d.w
-	move.b		#(dst_linewid-160)>>1,$ffff820f.w
+	move.b		d1,$ffff820f.w
+;	move.b		#(dst_linewid-160)>>1,$ffff820f.w
 	
 	move.l		#$00340fff,$ffff8240.w
 	clr.w		$ffff8244.w
 
+	bsr		displayservice_nickel_fullconsole
+
 	bra		.skip
-	.endif
+	.endif ; (use_debugconsole)
 	
 .normal:
 ;	move.l		_g_a_displayports,d0
@@ -737,6 +741,27 @@ displayservice_nickel_blank_b:
 	
 displayservice_nickel_blank_smc	set	.smc+3
 
+
+	.if		(use_debugconsole)
+
+*-----------------------------------------------------------------------------*
+displayservice_nickel_fullconsole:
+*-----------------------------------------------------------------------------*
+	
+	clr.b		tbcr.w					; TimerB CTRL: halt
+
+	bset.b		#0,iera.w				; TimerB IE: enable
+	bset.b		#0,imra.w				; TimerB IM: enable
+	move.b		#229-timecritical_pad_tb,tbdr.w		; TimerB DATA: count
+	move.b		#8,tbcr.w				; TimerB CTRL: start))
+
+	move.l		#displayservice_nickel_fullconsole_b,$120.w
+				
+	rts
+
+	.endif		; (use_debugconsole)
+
+
 *-----------------------------------------------------------------------------*
 displayservice_stexs:	;_first_b:
 *-----------------------------------------------------------------------------*	
@@ -775,27 +800,16 @@ displayservice_stexs:	;_first_b:
 ;	move.b		#displayservice_nickel_dlb_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
 ;	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
-;	.if		(use_debugconsole)
-;	tst.w		_max_console
-;	bne		.normal
-;	tst.w		_min_pconsole
-;	beq.s		.normal
-;	move.l		#displayservice_nickel_lowerconsole_b,$120.w
-;	bra.s		.cont
-;	.endif		;(use_debugconsole)
-;	
-;.normal:
-;	move.l		#displayservice_nickel_split_b,$120.w
-
+	
 .cont:
 	
 	move.l		ste_palette,a0
-	.if		(use_debugconsole)
-	tst.w		_max_console
-	beq.s		.ncon
-	lea		con_palette,a0	
-.ncon:	
-	.endif
+;	.if		(use_debugconsole)
+;	tst.w		_max_console
+;	beq.s		.ncon
+;	lea		con_palette,a0	
+;.ncon:	
+;	.endif
 	
 		
 	lea		$ffff8240.w,a1	
@@ -837,6 +851,140 @@ displayservice_nickel_end_b:
 displayservice_nickel_end_smc:
 	dc.w		0
 
+
+	.if		(use_debugconsole)
+
+displayservice_nickel_fullconsole_b:
+
+	.if		(use_blitter_compatibility)	
+
+	blitoff
+	
+	.endif
+		
+	move.w		#$2700,sr
+	move.l		d0,-(sp)
+	move.l		a0,-(sp)
+		
+	moveq		#229-(timecritical_pad_tb*2),d0
+
+	lea		tbdr.w,a0
+.wl:	cmp.b		(a0),d0
+	blo.s		.wl
+	
+	nop		; pad until lower border event
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+
+	nop		; HW: almost stable
+	nop		; HW: stable
+;	nop		; HW: almost stable
+
+	clr.b		$ffff820a.w			; 60 Hz
+	dcb.w		5,$4e71				; ...wait...
+	move.b		#2,$ffff820a.w			; 50 Hz
+
+	clr.b		tbcr.w				; TimerB CTRL: halt
+	
+	movem.l		(sp)+,a0
+	movem.l		(sp)+,d0
+	
+	clr.b		_g_seek
+	
+	.if		(use_blitter_compatibility)
+	bliton
+	.endif
+	
+	.if		(0=use_auto_end_of_interrupt)
+;	manual EOI
+	bclr.b		#0,isra.w
+	.endif
+	
+	rte
+	
+displayservice_nickel_lowerconsole_routing:
+	
+	lea		tbdr.w,a0
+.wl:	cmp.b		(a0),d0
+	blo.s		.wl
+
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+	move.l		psilence_,d0			; 5 nops
+	
+;	nop		; pad until lower border event
+;	nop
+;	nop
+	move.b		d0,$ffff820f.w			; 3 nops
+
+
+;	move.l		_min_pconsole,a0		; 8 nops
+;	move.l		(a0),d0
+
+	move.b		d0,$ffff8209.w			; 3 nops
+
+;	nop		; HW: almost stable
+;	nop		; HW: stable
+;;	nop		; HW: almost stable
+;	nop
+	
+	move.b		d0,$ffff820a.w
+;	clr.b		$ffff820a.w			; 60 Hz 4 nops
+;	dcb.w		5,$4e71				; ...wait...
+	dcb.w		2,$4e71				; ...wait...
+	move.b		d0,$ffff8265.w
+	move.b		#2,$ffff820a.w			; 50 Hz
+
+;	move.b		d0,$ffff8209.w
+	lsr.w		#8,d0
+	move.l		d0,$ffff8204.w
+
+;	moveq		#0,d0
+;	move.b		d0,$ffff820f.w
+
+	move.l		_min_pconsole,a0		; 8 nops
+	move.l		(a0),d0
+
+	.rept		28
+	tst.l		(a0)
+	.endr
+
+	move.b		d0,$ffff8209.w
+	lsr.w		#8,d0
+	move.l		d0,$ffff8204.w
+	move.l		#$00340fff,$ffff8240.w
+	clr.w		$ffff8244.w
+
+	clr.b		tbcr.w				; TimerB CTRL: halt
+	
+	movem.l		(sp)+,a0
+	movem.l		(sp)+,d0
+	
+	clr.b		_g_seek
+	
+	.if		(use_blitter_compatibility)
+	bliton
+	.endif
+	
+	.if		(0=use_auto_end_of_interrupt)
+;	manual EOI
+	bclr.b		#0,isra.w
+	.endif
+	
+	rte	
+
+	.endif ; (use_debugconsole)
+	
+
+
 *-----------------------------------------------------------------------------*
 displayservice_nickel_border_b:
 *-----------------------------------------------------------------------------*
@@ -844,16 +992,21 @@ displayservice_nickel_border_b:
 
 	blitoff
 	
-	;not.w		$ffff8240.w
+	.endif
 		
 	move.w		#$2700,sr
-;	movem.l		d0/a0,-(sp)
 	move.l		d0,-(sp)
 	move.l		a0,-(sp)
-
+		
 ;	insert 'padding' scans to absorb short blitter jobs - 
 
 .smc:	moveq		#99,d0	;displayservice_nickel_dlb_tb-(timecritical_pad_tb*2),d0
+
+	.if		(use_debugconsole)
+	tst.w		_min_pconsole
+	bne		displayservice_nickel_lowerconsole_routing	
+	.endif
+
 	lea		tbdr.w,a0
 .wl:	cmp.b		(a0),d0
 	blo.s		.wl
@@ -875,21 +1028,6 @@ displayservice_nickel_border_b:
 	dcb.w		5,$4e71				; ...wait...
 	move.b		#2,$ffff820a.w			; 50 Hz
 		
-	
-	.else		; (use_blitter_compatibility)	
-
-	clr.b		$ffff820a.w			; 60 Hz
-	move.w		#$2700,sr
-	dcb.w		4,$4e71				; ...wait...
-	move.b		#2,$ffff820a.w			; 50 Hz
-		
-;	movem.l		d0/a0,-(sp)
-	move.l		d0,-(sp)
-	move.l		a0,-(sp)
-
-	.endif		; (use_blitter_compatibility)	
-
-;	clr.b		tbcr.w				; TimerB CTRL: halt
 
 	move.l		a1,-(sp)
 	
@@ -904,7 +1042,6 @@ displayservice_nickel_border_b:
 	
 	move.l		(sp)+,a1
 	
-;	movem.l		(sp)+,d0/a0
 	movem.l		(sp)+,a0
 	movem.l		(sp)+,d0
 	
@@ -923,101 +1060,6 @@ displayservice_nickel_border_b:
 
 displayservice_nickel_border_smc	set	.smc+1
 
-	.if		(use_debugconsole)
-
-*-----------------------------------------------------------------------------*
-displayservice_nickel_lowerconsole_b:
-*-----------------------------------------------------------------------------*
-;	.if		(use_blitter_compatibility)	
-
-	blitoff
-		
-	move.w		#$2700,sr
-	movem.l		d0/d1/a0,-(sp)
-
-;	move.l		_min_pconsole,d1
-	move.l		_min_pconsole,a0
-	move.l		(a0),d1
-	
-;	insert 'padding' scans to absorb short blitter jobs - 
-
-	moveq		#displayservice_nickel_dlb_tb-(timecritical_pad_tb*2),d0
-	lea		tbdr.w,a0
-.wl:	cmp.b		(a0),d0
-	blo.s		.wl
-
-	; 10 nops worth
-	move.l		#$00340fff,$ffff8240.w
-	clr.w		$ffff8244.w
-
-;	nop		; pad until lower border event
-;	nop
-;	nop
-;	nop
-;	nop
-;	nop
-;	nop
-;	nop
-;	nop		; HW: almost stable
-;	nop		; HW: stable
-;;	nop		; HW: almost stable
-
-	clr.b		$ffff820a.w			; 60 Hz
-	dcb.w		5,$4e71				; ...wait...
-	move.b		#2,$ffff820a.w			; 50 Hz
-	
-;	.else		; (use_blitter_compatibility)	
-;
-;	clr.b		$ffff820a.w			; 60 Hz
-;	move.w		#$2700,sr
-;	dcb.w		4,$4e71				; ...wait...
-;	move.b		#2,$ffff820a.w			; 50 Hz
-;	
-;	movem.l		d0/d1/a0,-(sp)
-;	
-;	.endif		; (use_blitter_compatibility)	
-
-;	if console is enabled by build flags, 
-;	show it in lower border if the console buffer is valid
-	
-	move.b		d1,$ffff8265.w
-	move.b		d1,$ffff8209.w
-	lsr.w		#8,d1
-	move.l		d1,$ffff8204.w
-	move.b		#(dst_linewid-160)>>1,$ffff820f.w
-
-;	lea		$ffff8240.w,a0
-;	moveq		#0,d0
-;	subq.w		#1,d0
-;	move.l		d0,(a0)+
-;	clr.w		d0
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-
-	move.b		d0,tbcr.w				; TimerB CTRL: halt
-	
-	movem.l		(sp)+,d0/d1/a0
-
-	clr.b		_g_seek
-
-;	.if		(use_blitter_compatibility)
-	bliton
-;	.endif
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#0,isra.w
-	.endif
-	
-	rte
-
-	.endif		;(use_debugconsole)
-	
 	
 
 ; shared	
@@ -1036,7 +1078,6 @@ _g_a_nickel_stop_cfg:
 _g_a_nickel_end_cfg:
 	.globl		_g_a_nickel_end_cfg
 	dc.l		displayservice_nickel_end_smc,displayservice_nickel_end_b
-
 
 
 nickel_lastline		set	0
@@ -1121,10 +1162,6 @@ codegen_space_0:
 codegen_space_1:
 	ds.w		(nickel_codegen_space+256)>>1
 
-; shared
-rsilence_:
-	ds.b		(160*40)+256
-				
 	text
 
 ; buffered
@@ -1132,10 +1169,6 @@ _g_a_displayport_maps:
 	.globl		_g_a_displayport_maps
 	dc.l		displayport_map_0
 	dc.l		displayport_map_1
-
-; shared
-psilence_:
-	dc.l		rsilence_+255
 
 ; todo: per-shiftgroup
 _g_a_nickel_codegen_area:

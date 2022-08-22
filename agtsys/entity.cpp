@@ -25,7 +25,7 @@
 extern "C" void EntityTick_68k();
 extern "C" void EntitySpatial_68k();
 
-#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+#if defined(AGT_CONFIG_DEBUG_CONSOLE_)
 extern "C" void AGT_Sys_ConsoleRefresh();
 #endif
 
@@ -494,7 +494,7 @@ void EntityExecuteAllRemoves()
 
 	s_entity_remove_count = 0;
 
-#if defined(AGT_CONFIG_DEBUG_CONSOLE)
+#if defined(AGT_CONFIG_DEBUG_CONSOLE_)
 	AGT_Sys_ConsoleRefresh();
 #endif
 }

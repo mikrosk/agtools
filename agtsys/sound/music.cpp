@@ -328,7 +328,7 @@ void AGT_MusicLoad(const char* _name)
 					{
 						keepevent = false;
 
-						wprintf("audiodevice: warning: track uses unmapped percussion [gmi=%d+1]\n", n);
+						wprintf("warning: audiodevice: track uses unmapped percussion [gmi=%d+1]\n", n);
 					}
 				}
 

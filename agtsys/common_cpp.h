@@ -369,6 +369,7 @@ extern "C" int qmemset00(void *dest, size_t num);
 extern "C" int qmemsetff(void *dest, size_t num);
 
 extern "C" int agtprintf(const char *pFormat, ...);
+extern "C" int agtprintf_coded(const char *pFormat, ...);
 
 //#define printf agtprintf
 
@@ -394,22 +395,24 @@ extern "C" int agtprintf(const char *pFormat, ...);
 #define AGT_CONFIG_ALLOW_PRINT (1)
 #endif
 
+extern "C" u8 g_concode;
+
 // std printf - always emitted
 #define printf(...) { if ((1) && AGT_CONFIG_ALLOW_PRINT) { agtprintf(__VA_ARGS__) ; } }
 
 // error printf (debug/testing builds)
-#define eprintf(...) { if ((AGT_PRINT_LEVEL_>=0)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
+#define eprintf(...) { if ((AGT_PRINT_LEVEL_>=0)&& AGT_CONFIG_ALLOW_PRINT) { g_concode = 1; agtprintf_coded(__VA_ARGS__) ; } }
 // warning printf (debug/testing builds)
-#define wprintf(...) { if ((AGT_PRINT_LEVEL_>=1)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
+#define wprintf(...) { if ((AGT_PRINT_LEVEL_>=1)&& AGT_CONFIG_ALLOW_PRINT) { g_concode = 3; agtprintf_coded(__VA_ARGS__) ; } }
 // debug printf (debug builds - detailed info only)
-#define dprintf(...) { if ((AGT_PRINT_LEVEL_>=2)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
+#define dprintf(...) { if ((AGT_PRINT_LEVEL_>=2)&& AGT_CONFIG_ALLOW_PRINT) { g_concode = 2; agtprintf_coded(__VA_ARGS__) ; } }
 
 // progress printf (debug/testing builds - loading/parsing or any significant envents)
-#define pprintf(...) { if ((AGT_PRINT_LEVEL_>=0)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
+#define pprintf(...) { if ((AGT_PRINT_LEVEL_>=0)&& AGT_CONFIG_ALLOW_PRINT) { agtprintf(__VA_ARGS__) ; } }
 // entity printf (entity manager detail)
-#define entprintf(...) { if ((AGT_PRINT_LEVEL_>=1)&& AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
+#define entprintf(...) { if ((AGT_PRINT_LEVEL_>=1)&& AGT_CONFIG_ALLOW_PRINT) { g_concode = 6; agtprintf_coded(__VA_ARGS__) ; } }
 // mapmod printf (mapmod/multimod detail)
-#define mmprintf(...) { if ((0) && AGT_CONFIG_ALLOW_PRINT) { printf(__VA_ARGS__) ; } }
+#define mmprintf(...) { if ((0) && AGT_CONFIG_ALLOW_PRINT) { agtprintf(__VA_ARGS__) ; } }
 
 // --------------------------------------------------------------------
 

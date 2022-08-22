@@ -8,6 +8,13 @@
 #define system_h_
 
 // ---------------------------------------------------------------------------------------------------------------------
+//	Include shared console code if any of the supported consoles is enabled
+
+#if defined(AGT_CONFIG_DEBUG_CONSOLE_NATIVE) || defined(AGT_CONFIG_DEBUG_CONSOLE_UDEV)
+#define AGT_CONFIG_DEBUG_CONSOLE_
+#endif
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 class machine
 {
@@ -67,7 +74,7 @@ extern "C" u8 bFalcon030;
 // ---------------------------------------------------------------------------------------------------------------------
 // Hatari NATFEATS interface for 'remote' console/printf debugging without touching ST's display
 
-#if defined(HATARI_NF_PRINTF)
+#if defined(AGT_CONFIG_HATARI_DEBUG)
 extern "C" 
 {
 	#include "3rdparty/natfeats.h"
