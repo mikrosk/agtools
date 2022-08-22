@@ -540,6 +540,8 @@ con_linewid	=	160
 	
 *-------------------------------------------------------*
 
+	.if		(use_debugconsole)
+
 .jtab:	dc.w		.cSPC-.jtab	; space
 	dc.w		.cEXC-.jtab	; !
 	dc.w		.cDQU-.jtab	; "
@@ -643,9 +645,11 @@ con_linewid	=	160
 	dc.w		.cTIL-.jtab	; ~
 	dc.w		.invalid-.jtab	; DEL
 
+
 *-------------------------------------------------------*
 .con_printline_:
 *-------------------------------------------------------*
+
 	tst.w		d3
 	bne		.con_recurse_	
 	rts
@@ -1151,11 +1155,9 @@ con_linewid	=	160
 
 *-------------------------------------------------------*
 
-	.if		(use_debugconsole)
-
 	include		"con_xprn.s"
 	
-	.endif
+	.endif		; (use_debugconsole)
 				
 *-------------------------------------------------------*
 	.data
