@@ -113,8 +113,10 @@ typedef struct wrapheader_s
 //
 // lz77
 extern "C" int DeLz77_68k(u8 *src, u8 *dst);
-// lz77
+// lzsa
 extern "C" int DeLzsa_68k(u8 *src, u8 *dst);
+// zx0
+extern "C" int DeZx0_68k(u8 *src, u8 *dst);
 // pack2e/nrv2e
 extern "C" int DePack2e_68k(u8 *src, u8 *dst);
 // arj4

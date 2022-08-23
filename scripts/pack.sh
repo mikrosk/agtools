@@ -9,6 +9,7 @@
 #==============================================================================
 #       - wrap          y    y    y    y       wrap with CRC only, no compression
 #       - lz77          y    y    y    y       LZ77 decoder (ray/tscc)
+#       - zx0           y    y    y    y       ZX0 decoder (Einar Saukas/Emmanuel Marty)
 #       - lzs1          y    y    y    y       LZSA-1 decoder (tAt/avena)
 #       - pk2e          y    n    n    n       NRV2e decoder (Markus Franz Xaver Johannes Oberhumer)
 #       - lzs2(lzsa)    y    y    y    y       LZSA-2 decoder (tAt/avena)
@@ -22,12 +23,13 @@
 #       test(abreed):   ticks(200hz)    tiles   sprite  map 
 #------------------------------------------------------------------------------
 #       wrap            42              100.0%  100.0%  100.0%
-#       lz77            216              75.4%   51.3%   36.5%
+#       lz77            216              75.4%   51.3%   36.5%  <- quickest
 #       arj4            902              62.8%   36.6%   19.8%
-#       lzs1            273              58.8%   36.3%   21.6%  <- favour speed
+#       lzs1            273              58.8%   36.3%   21.6%  <- balance for speed
 #       pk2e            492              56.7%   33.6%   20.2%
-#       lzs2            363              54.4%   31.9%   19.1%  <- best balance
-#       arj7            826              53.6%   31.1%   18.0%  <- favour compression
+#       lzs2            363              54.4%   31.9%   19.1%  <- best overall balance
+#       zx0             517              53.8%   31.9%   19.2%  <- slow to compress
+#       arj7            826              53.6%   31.1%   18.0%  <- best compression
 #==============================================================================
 
 exit_on_error() 
@@ -57,7 +59,7 @@ MODE=$2
 #==============================================================================
 
 # only Windows supports all packers just now, so filter here
-# currently supported cross-host modes: 'wrap', 'lz77', 'lzs1', 'lzs2/lzsa'
+# currently supported cross-host modes: 'wrap', 'lz77', 'zx0', 'lzs1', 'lzs2/lzsa'
 
 HOST_SYSTEM=`${SCRIPTS}/host.sh`
 
@@ -66,6 +68,9 @@ HOST_SYSTEM=`${SCRIPTS}/host.sh`
 if [ $MODE == "none" ]; then
 echo "note: aliased [${MODE}] to [wrap]"
 MODE=wrap
+elif [ $MODE == "zx0" ]; then
+echo "note: aliased [${MODE}] to [zx0_]"
+MODE=zx0_
 elif [ $MODE == "lzsa" ]; then
 echo "note: aliased [${MODE}] to [lzs2]"
 MODE=lzs2
@@ -107,6 +112,11 @@ case $MODE in
 
   "lz77")
     ${AGTBIN}/lz77 p ${ASSET} ${ASSET}.${MODE}
+    ${AGTBIN}/packwrap ${ASSET} ${ASSET}.${MODE} ${ASSET} ${MODE}
+    ;;
+
+  "zx0_")
+    ${AGTBIN}/zx0 ${ASSET} ${ASSET}.${MODE}
     ${AGTBIN}/packwrap ${ASSET} ${ASSET}.${MODE} ${ASSET} ${MODE}
     ;;
 

@@ -219,6 +219,7 @@ AGLIB_COMMON_SRC_LIST = \
 	3rdparty/m68k/pack2e.s \
 	3rdparty/m68k/arjm4.s \
 	3rdparty/m68k/arjm7.s \
+	3rdparty/m68k/zx0/unzx0.s \
 	\
 	3rdparty/tinyxml2.cpp \
 	3rdparty/vsnprint.c \

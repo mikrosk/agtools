@@ -86,6 +86,14 @@ static void decompressor
 		wprintf("warning: define AGT_CONFIG_PACKER_LZ77 (or _ANY) in Makefile for lz77 mode");
 #endif
 		break;
+	case 'zx0_':
+		// unpack with unzx0.s
+#if defined(AGT_CONFIG_PACKER_ANY) || defined(AGT_CONFIG_PACKER_ZX0)
+		DeZx0_68k(_packed, _unpacked);
+#else
+		wprintf("warning: define AGT_CONFIG_PACKER_ZX0 (or _ANY) in Makefile for zx0 modes");
+#endif
+		break;
 	case 'lzs1':
 	case 'lzs2':
 	case 'lzsa':
