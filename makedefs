@@ -12,6 +12,7 @@ USE_COMPILER=default
 # set GCC version here
 # [4.6.4], [6.2.0], [7.1.0], [7.5.0], [10.2.0], [12.1.0]
 GCC_VERSION=4.6.4
+#GCC_VERSION=7.5.0
 #GCC_VERSION=6.2.0
 #GCC_VERSION=12.1.0
 # set=yes if GCC install is portable/install-anywhere (=no for default/vincentcc)
@@ -19,6 +20,7 @@ GCC_PORTABLE_PACKAGE=no
 # set GCC install path for portable/install-anywhere case (browncc/mikrocc)
 #GCC_INSTALL=$(AGTROOT)/gcc/browncc-12.1
 #GCC_INSTALL=~/gnu-tools-464/m68000
+GCC_INSTALL=~/gnu-tools/m68000
 
 # reduces size of binary, custom crt but no MiNTlib under [m68k-atari-mint]
 # note: 'USE_COMPILER=browncc' requires =yes

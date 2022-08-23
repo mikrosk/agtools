@@ -459,19 +459,22 @@ int fgetc(FILE * stream)
 // This is a dummy class to force a static initialisation and destruction lists
 // to be built by gcc.
 
+// discourage deadcode stripping (this is a quickfix, needs to be an ext ref from somewhere)
+__attribute__((used))
+volatile int g_data = 0;
+
 struct MicroStartupForceStaticCtorDtor
 {
-	int m_data;
 	MicroStartupForceStaticCtorDtor()
 	{
-		m_data = 10;
+		g_data = 10;
 	}
 	~MicroStartupForceStaticCtorDtor()
 	{
 		//printf("static destruct %d\r\n", m_data);
 		// dml: dtor must do something, otherwise GCC optimizer will prune the __DTOR_LIST__
 		// and cause the link step to fail.
-		m_data = 0;
+		g_data = 0;
 	}
 };
 
