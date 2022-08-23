@@ -97,13 +97,13 @@ int AGT_EntryPointPre()
 	// enter medium res/80-column mode for benefit of early init & loading TTY prints on native display
 	__asm volatile 
 	(
-		"move.w #-1,-(sp); "
-		"move.w #1,-(sp); "
+		"move.w #-1,-(%%sp); "
+		"move.w #1,-(%%sp); "
 		"pea -1; "
 		"pea -1; "
-		"move.w #5,-(sp); "
+		"move.w #5,-(%%sp); "
 		"trap #14; "
-		"lea 14(sp),sp; "
+		"lea 14(%%sp),%%sp; "
 		"clr.w 0xffff8242.w; "
 		"clr.w 0xffff8244.w; "
 		"clr.w 0xffff8246.w; "

@@ -519,7 +519,7 @@ u8 * load_asset
 
 							fclose(fh);
 							reg8(a4) = 0;
-							return false;
+							return nullptr;
 						}
 
 						if (_flags & af_asset_scratch)

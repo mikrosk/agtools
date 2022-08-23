@@ -2,9 +2,27 @@
 #	~/gnu-tools/m68000/ [m68k-atari-mint-]
 # =============================================================================
 
+ifeq ($(GCC_PORTABLE_PACKAGE),yes)
+else
+error USE_COMPILER=mikrocc requires GCC_PORTABLE_PACKAGE=yes
+endif
+
 TOOLCHAIN_NAME = m68k-atari-mint
+
+# version defaults to 4.6.4
+ifdef GCC_VERSION
+TOOLCHAIN_VER = $(GCC_VERSION)
+else
 TOOLCHAIN_VER = 4.6.4
-TOOLCHAIN_INSTALL = ~/gnu-tools/m68000
+endif
+
+# install location: normally will be ~/gnu-tools/m68000/
+ifdef GCC_INSTALL
+LOCAL_TOOLCHAIN = $(GCC_INSTALL)
+else
+LOCAL_TOOLCHAIN = ~/gnu-tools/m68000/
+endif
+
 RMAC_CFG = -fa
 EXT = tos
 
@@ -27,9 +45,14 @@ endif
 CWARNINGFLAGS = -Wall -Wno-unused-variable -Wno-multichar
 CXXWARNINGFLAGS = -Wall -Wno-reorder -Wno-unused-variable -Wno-multichar
 
+LIBGCCPATH = \
+	$(LOCAL_TOOLCHAIN)/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)
+CRTPATH = \
+	$(LOCAL_TOOLCHAIN)/$(TOOLCHAIN_NAME)/lib
+
 LIBPATHS = \
-	-L$(TOOLCHAIN_INSTALL)/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/ \
-	-L$(TOOLCHAIN_INSTALL)/$(TOOLCHAIN_NAME)/lib/
+	-L$(LIBGCCPATH) \
+	-L$(LOCAL_TOOLCHAIN)/$(TOOLCHAIN_NAME)/lib
 
 # -----------------------------------------------------------------------------
 #	With LINK_MINIMAL, we modify the linker command to use minimal LIBC
@@ -79,3 +102,17 @@ LDFLAGS +=
 # -----------------------------------------------------------------------------
 endif # LINK_MINIMAL
 # -----------------------------------------------------------------------------
+
+CC = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)gcc -x c
+ifeq ($(TOOLCHAIN_VER),4.6.4)
+CXX = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)g++ -x c++ -std=c++0x
+else
+CXX = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)g++ -x c++ -std=c++11
+endif
+AR = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)ar
+AS = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)as
+NM = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)nm
+LINK = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)g++
+STRIP = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)strip
+STACK = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)stack
+FLAGS = $(LOCAL_TOOLCHAIN)/bin/$(TOOLCHAIN_PREFIX)flags

@@ -6,17 +6,30 @@ $(error AGTROOT is not set)
 endif
 # =============================================================================
 
-# use ELF-based versions of GCC >= v6.x (this requires the brownout tool)
-# [no], [yes]/[6.2.0], [7.1.0], [10.2.0]
-USE_BROWNCC=no
-
 # 'default'(or 'vincentcc')/'browncc'/'mikrocc'
 USE_COMPILER=default
 
+# set GCC version here
+# [4.6.4], [6.2.0], [7.1.0], [7.5.0], [10.2.0], [12.1.0]
+GCC_VERSION=4.6.4
+#GCC_VERSION=6.2.0
+#GCC_VERSION=12.1.0
+# set=yes if GCC install is portable/install-anywhere (=no for default/vincentcc)
+GCC_PORTABLE_PACKAGE=no
+# set GCC install path for portable/install-anywhere case (browncc/mikrocc)
+#GCC_INSTALL=$(AGTROOT)/gcc/browncc-12.1
+#GCC_INSTALL=~/gnu-tools-464/m68000
+
 # reduces size of binary, custom crt but no MiNTlib under [m68k-atari-mint]
+# note: 'USE_COMPILER=browncc' requires =yes
 LINK_MINIMAL=yes
 
-BUILD_DIR = build
+# can modify default stack size here. CAUTION: need approx 12k headroom for arj7 unpacker!
+STACKSIZE=16384
+
+# =============================================================================
+
+BUILD_DIR=build
 
 # directory for runtime assets used by game
 ASSETS := ./assets
@@ -24,13 +37,11 @@ ASSETS := ./assets
 # directory for intermediate data, dependency tags etc.
 CACHE := ./cache
 
-STACKSIZE=16384
-
 # only RMAC supported in this version
 USE_ASSEMBLER=rmac
 
-# select ultraDev support version (USE_DEBUG_CONSOLE==udev) 
-USE_ULTRADEV_VERSION = 0.57.b3
+# select ultraDev support version (USE_DEBUG_CONSOLE==udev)
+USE_ULTRADEV_VERSION=0.57.b3
 
 # -----------------------------------------------------------------------------
 
@@ -130,16 +141,6 @@ endif
 endif
 endif
 # =============================================================================
-
-CC = $(TOOLCHAIN_PREFIX)gcc -x c
-CXX = $(TOOLCHAIN_PREFIX)g++ -x c++ -std=c++0x
-AR = $(TOOLCHAIN_PREFIX)ar
-AS = $(TOOLCHAIN_PREFIX)as
-NM = $(TOOLCHAIN_PREFIX)nm
-LINK = $(TOOLCHAIN_PREFIX)g++
-STRIP = $(TOOLCHAIN_PREFIX)strip
-STACK = $(TOOLCHAIN_PREFIX)stack
-FLAGS = $(TOOLCHAIN_PREFIX)flags
 
 # -----------------------------------------------------------------------------
 #	Configure assembler & other local tools
@@ -258,7 +259,7 @@ endif
 # -----------------------------------------------------------------------------
 #	ultraDev console support
 # -----------------------------------------------------------------------------
-	
+
 ifeq ($(USE_DEBUG_CONSOLE),udev)
 COMPILERDEFS +=	-DAGT_CONFIG_DEBUG_CONSOLE_UDEV
 EXTSUPPORT_SRC_LIST = 3rdparty/m68k/ultraDev/$(USE_ULTRADEV_VERSION)/udlib.s
@@ -267,7 +268,7 @@ endif
 # -----------------------------------------------------------------------------
 #	native console support
 # -----------------------------------------------------------------------------
-	
+
 ifeq ($(USE_DEBUG_CONSOLE),native)
 COMPILERDEFS +=	-DAGT_CONFIG_DEBUG_CONSOLE_NATIVE
 endif

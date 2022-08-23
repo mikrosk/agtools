@@ -5,6 +5,7 @@
 TOOLCHAIN_NAME = m68k-atari-mint
 TOOLCHAIN_VER = 4.6.4
 TOOLCHAIN_INSTALL = /opt/cross-mint
+
 RMAC_CFG = -fa
 EXT = tos
 
@@ -27,9 +28,14 @@ endif
 CWARNINGFLAGS = -Wall -Wno-unused-variable -Wno-multichar
 CXXWARNINGFLAGS = -Wall -Wno-reorder -Wno-unused-variable -Wno-multichar
 
+LIBGCCPATH = \
+	$(TOOLCHAIN_INSTALL)/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)
+CRTPATH = \
+	$(TOOLCHAIN_INSTALL)/$(TOOLCHAIN_NAME)/lib
+
 LIBPATHS = \
-	-L$(TOOLCHAIN_INSTALL)/lib/gcc/$(TOOLCHAIN_NAME)/$(TOOLCHAIN_VER)/ \
-	-L$(TOOLCHAIN_INSTALL)/$(TOOLCHAIN_NAME)/lib/
+	-L$(LIBGCCPATH) \
+	-L$(TOOLCHAIN_INSTALL)/$(TOOLCHAIN_NAME)/lib
 		
 # -----------------------------------------------------------------------------
 #	With LINK_MINIMAL, we modify the linker command to use minimal LIBC
@@ -79,3 +85,13 @@ LDFLAGS +=
 # -----------------------------------------------------------------------------
 endif # LINK_MINIMAL
 # -----------------------------------------------------------------------------
+
+CC = $(TOOLCHAIN_PREFIX)gcc -x c
+CXX = $(TOOLCHAIN_PREFIX)g++ -x c++ -std=c++0x
+AR = $(TOOLCHAIN_PREFIX)ar
+AS = $(TOOLCHAIN_PREFIX)as
+NM = $(TOOLCHAIN_PREFIX)nm
+LINK = $(TOOLCHAIN_PREFIX)g++
+STRIP = $(TOOLCHAIN_PREFIX)strip
+STACK = $(TOOLCHAIN_PREFIX)stack
+FLAGS = $(TOOLCHAIN_PREFIX)flags
