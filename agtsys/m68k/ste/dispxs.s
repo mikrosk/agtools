@@ -5,9 +5,6 @@ displayservice_nickel_d0_tb	=	0
 
 ;displayservice_nickel_ds_tb	=	96
 ;displayservice_nickel_dlb_tb	=	229-displayservice_nickel_ds_tb
-
-timecritical_pad_tb		set	3-1
-timecritical_pad_ta		set	6-1
 	
 nickel_codegen_space		=	2048
 max_nevents			=	64
@@ -69,10 +66,6 @@ displayservice_nickel_vbi:
 	move.l		#displayservice_nickel_upper_d,$110.w
 
 	.endif
-
-;	move.l		_g_a_nickel_eventbase,DPNickelEventPos.w
-
-	;move.w		#$555,$ffff8240.w
 
 
 	movem.l		d0-d7/a0-a6,-(sp)
@@ -854,7 +847,9 @@ displayservice_nickel_end_smc:
 
 	.if		(use_debugconsole)
 
+*-----------------------------------------------------------------------------*
 displayservice_nickel_fullconsole_b:
+*-----------------------------------------------------------------------------*
 
 	.if		(use_blitter_compatibility)	
 
@@ -907,7 +902,9 @@ displayservice_nickel_fullconsole_b:
 	
 	rte
 	
+*-----------------------------------------------------------------------------*
 displayservice_nickel_lowerconsole_routing:
+*-----------------------------------------------------------------------------*
 	
 	lea		tbdr.w,a0
 .wl:	cmp.b		(a0),d0
