@@ -42,11 +42,13 @@ int nf_init(void)
 	if (g_hnf_ok) {
 		/* initialize handles */
 		nfid_print = nf_id("NF_STDERR");
+		nf_print("Hatari NATFEATS console enabled...\r\n");
 	} else {
 #ifndef RELEASE_BUILD
-		Cconws("Native Features initialization failed!\r\n");
+		Cconws("Hatari NATFEATS init failed!\r\n");
 #endif
 	}
+	
 	return g_hnf_ok;
 }
 

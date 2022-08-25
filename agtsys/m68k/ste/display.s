@@ -85,7 +85,9 @@ max_displayports	=	16
 			.text
 *-------------------------------------------------------*
 	
+	include		"tburn.s"
 
+*-------------------------------------------------------*
 
 .macro	blitoff
 	.if		(use_blitter_compatibility)
@@ -123,9 +125,8 @@ max_displayports	=	16
 
 *-------------------------------------------------------*
 
+	include		"ste/dispcom.s"
 	include		"ste/disp200.s"
-;	include		"ste/disp240.s"
-;	include		"ste/disp256.s"
 	include		"ste/disp272.s"
 	include		"ste/dispxs.s"
 	

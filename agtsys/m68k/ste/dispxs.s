@@ -1,15 +1,9 @@
 
-;split_point			set	96		; absolute max. around line 227 (low border)
-
 displayservice_nickel_d0_tb	=	0
 
-;displayservice_nickel_ds_tb	=	96
-;displayservice_nickel_dlb_tb	=	229-displayservice_nickel_ds_tb
-	
 nickel_codegen_space		=	2048
 max_nevents			=	64
 	
-*-------------------------------------------------------*
 	
 
 *-------------------------------------------------------*
@@ -53,7 +47,7 @@ displayservice_nickel_vbi:
 	move.b		#4,tacr.w				; TimerA CTRL: start
 	bset		#5,imra.w				; TimerA IM: enable
 
-	move.l		#displayservice_nickel_upper_a,$134.w
+	move.l		#displayservice_common_upper_a,$134.w
 	
 	.else
 
@@ -63,7 +57,7 @@ displayservice_nickel_vbi:
 	or.b		#4,cdcr.w				; TimerD CTRL: start
 	bset		#4,imrb.w				; TimerD IM: enable
 	
-	move.l		#displayservice_nickel_upper_d,$110.w
+	move.l		#displayservice_common_upper_d,$110.w
 
 	.endif
 
@@ -129,7 +123,7 @@ displayservice_nickel_vbi:
 	move.l		#$00340fff,$ffff8240.w
 	clr.w		$ffff8244.w
 
-	bsr		displayservice_nickel_fullconsole
+	bsr		displayservice_common_full_setlower
 
 	bra		.skip
 	.endif ; (use_debugconsole)
@@ -251,174 +245,6 @@ displayservice_nickel_vbi:
 	bliton
 	
   	rte
-
-
-
-	.if		(use_overscan_timera)
-
-*-----------------------------------------------------------------------------*
-displayservice_nickel_upper_a:
-*-----------------------------------------------------------------------------*
-	blitoff
-*-----------------------------------------------------------------------------*
-	movem.l		d0/d1/a0/a1,-(sp)
-*-----------------------------------------------------------------------------*
-*	critical: re-synchronize with free running TimerA data before
-*	starting to count hblanks as TimerA may be delayed by BLITs and
-*	we may not have landed on the correct line...
-*-----------------------------------------------------------------------------*
-
-	;move.w		#$fff,$ffff8240.w
-	
-	moveq		#1,d1
-	lea		$ffff820a.w,a1	
-
-	lea		tadr.w,a0
-	moveq		#displayservice_upper_delay-(timecritical_pad_ta*2),d0
-.tasyn:	cmp.b		(a0),d0
-	blo.s		.tasyn
-*-----------------------------------------------------------------------------*
-	
-	moveq		#0,d0
-	
-	move.w		#$2100,sr				; enable HBL
-	stop		#$2100					; wait next HBL
-	move.w		#$2700,sr				; lockout
-		
-	.if		(1)
-
-	dcb.w		94,$4e71
-	
-;	divs.w		d1,d0
-;	divs.w		d1,d0	
-;;	eor.l		d0,d0
-;;	eor.l		d0,d0
-;;	nop
-;;	lsl.l		#6,d0
-;	muls.w		d0,d0
-;;	muls.w		d0,d0
-;	lsl.l		#8,d0
-;;	eor.l		d0,d0
-;;	nop
-;	lsl.l		#3,d0
-		
-	.endif
-
-;	open top border
-
-	move.b		d0,(a1)	;$ffff820a.w
-	
-	lsl.l		#8,d0
-	
-	move.w		a1,(a1)	;$ffff820a.w
-
-;	move.b		d0,tbcr.w				; TimerB CTRL: halt
-;	bset.b		#0,iera.w				; TimerB IE: enable
-;	bset.b		#0,imra.w				; TimerB IM: enable
-;	move.b		#displayservice_nickel_ds_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
-;	move.b		#8,tbcr.w				; TimerB CTRL: start))
-;
-;	move.l		#displayservice_nickel_split_b,$120.w
-
-	move.b		d0,tacr.w				; TimerA CTRL: halt
-
-	movem.l		(sp)+,d0/d1/a0/a1
-
-	;move.w		#$0,$ffff8240.w
-
-	bliton
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#5,isra.w
-	.endif
-		
-	rte
-
-	.else
-
-*-----------------------------------------------------------------------------*
-displayservice_nickel_upper_d:
-*-----------------------------------------------------------------------------*
-	blitoff
-	move.w		#$2700,sr
-*-----------------------------------------------------------------------------*
-	movem.l		d0/d1/a0/a1,-(sp)
-*-----------------------------------------------------------------------------*
-*	critical: re-synchronize with free running TimerA data before
-*	starting to count hblanks as TimerA may be delayed by BLITs and
-*	we may not have landed on the correct line...
-*-----------------------------------------------------------------------------*
-	;move.w		#$fff,$ffff8240.w
-
-	moveq		#1,d1
-	lea		$ffff820a.w,a1	
-
-	lea		cddr.w,a0
-	moveq		#displayservice_upper_delay-(timecritical_pad_td*2),d0
-.tasyn:	cmp.b		(a0),d0
-	blo.s		.tasyn
-*-----------------------------------------------------------------------------*
-	
-	moveq		#0,d0
-	
-	move.w		#$2100,sr				; enable HBL
-	stop		#$2100					; wait next HBL
-	move.w		#$2700,sr				; lockout
-		
-	.if		(1)
-
-	dcb.w		94,$4e71
-	
-;	divs.w		d1,d0
-;	divs.w		d1,d0	
-;;	eor.l		d0,d0
-;;	eor.l		d0,d0
-;;	nop
-;;	lsl.l		#6,d0
-;	muls.w		d0,d0
-;;	muls.w		d0,d0
-;	lsl.l		#8,d0
-;;	eor.l		d0,d0
-;;	nop
-;	lsl.l		#3,d0
-		
-	.endif
-
-;	open top border
-
-	move.b		d0,(a1)	;$ffff820a.w
-	
-	lsl.l		#8,d0
-	
-	move.w		a1,(a1)	;$ffff820a.w
-
-;	move.b		d0,tbcr.w				; TimerB CTRL: halt
-;	bset.b		#0,iera.w				; TimerB IE: enable
-;	bset.b		#0,imra.w				; TimerB IM: enable
-;	move.b		#displayservice_nickel_ds_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
-;	move.b		#8,tbcr.w				; TimerB CTRL: start))
-;
-;	move.l		#displayservice_nickel_split_b,$120.w
-
-	and.b		#$f8,cdcr.w				; TimerD CTRL: halt
-
-
-	movem.l		(sp)+,d0/d1/a0/a1
-
-	;move.w		#$0,$ffff8240.w
-
-	bliton
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#4,isrb.w
-	.endif
-		
-	rte
-
-	.endif
-
 
 
 *-----------------------------------------------------------------------------*
@@ -735,26 +561,6 @@ displayservice_nickel_blank_b:
 displayservice_nickel_blank_smc	set	.smc+3
 
 
-	.if		(use_debugconsole)
-
-*-----------------------------------------------------------------------------*
-displayservice_nickel_fullconsole:
-*-----------------------------------------------------------------------------*
-	
-	clr.b		tbcr.w					; TimerB CTRL: halt
-
-	bset.b		#0,iera.w				; TimerB IE: enable
-	bset.b		#0,imra.w				; TimerB IM: enable
-	move.b		#229-timecritical_pad_tb,tbdr.w		; TimerB DATA: count
-	move.b		#8,tbcr.w				; TimerB CTRL: start))
-
-	move.l		#displayservice_nickel_fullconsole_b,$120.w
-				
-	rts
-
-	.endif		; (use_debugconsole)
-
-
 *-----------------------------------------------------------------------------*
 displayservice_stexs:	;_first_b:
 *-----------------------------------------------------------------------------*	
@@ -848,61 +654,6 @@ displayservice_nickel_end_smc:
 	.if		(use_debugconsole)
 
 *-----------------------------------------------------------------------------*
-displayservice_nickel_fullconsole_b:
-*-----------------------------------------------------------------------------*
-
-	.if		(use_blitter_compatibility)	
-
-	blitoff
-	
-	.endif
-		
-	move.w		#$2700,sr
-	move.l		d0,-(sp)
-	move.l		a0,-(sp)
-		
-	moveq		#229-(timecritical_pad_tb*2),d0
-
-	lea		tbdr.w,a0
-.wl:	cmp.b		(a0),d0
-	blo.s		.wl
-	
-	nop		; pad until lower border event
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-
-	nop		; HW: almost stable
-	nop		; HW: stable
-;	nop		; HW: almost stable
-
-	clr.b		$ffff820a.w			; 60 Hz
-	dcb.w		5,$4e71				; ...wait...
-	move.b		#2,$ffff820a.w			; 50 Hz
-
-	clr.b		tbcr.w				; TimerB CTRL: halt
-	
-	movem.l		(sp)+,a0
-	movem.l		(sp)+,d0
-	
-	clr.b		_g_seek
-	
-	.if		(use_blitter_compatibility)
-	bliton
-	.endif
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#0,isra.w
-	.endif
-	
-	rte
-	
-*-----------------------------------------------------------------------------*
 displayservice_nickel_lowerconsole_routing:
 *-----------------------------------------------------------------------------*
 	
@@ -936,7 +687,8 @@ displayservice_nickel_lowerconsole_routing:
 	move.b		d0,$ffff820a.w
 ;	clr.b		$ffff820a.w			; 60 Hz 4 nops
 ;	dcb.w		5,$4e71				; ...wait...
-	dcb.w		2,$4e71				; ...wait...
+;	dcb.w		2,$4e71				; ...wait...
+	tburns		2
 	move.b		d0,$ffff8265.w
 	move.b		#2,$ffff820a.w			; 50 Hz
 
@@ -950,9 +702,15 @@ displayservice_nickel_lowerconsole_routing:
 	move.l		_min_pconsole,a0		; 8 nops
 	move.l		(a0),d0
 
-	.rept		28
-	tst.l		(a0)
-	.endr
+;	.rept		84
+;	nop
+;	.endr
+
+;	.rept		28
+;	tst.l		(a0)
+;	.endr
+
+	tburns		84
 
 	move.b		d0,$ffff8209.w
 	lsr.w		#8,d0
@@ -962,8 +720,8 @@ displayservice_nickel_lowerconsole_routing:
 
 	clr.b		tbcr.w				; TimerB CTRL: halt
 	
-	movem.l		(sp)+,a0
-	movem.l		(sp)+,d0
+	move.l		(sp)+,a0
+	move.l		(sp)+,d0
 	
 	clr.b		_g_seek
 	
@@ -1008,21 +766,24 @@ displayservice_nickel_border_b:
 .wl:	cmp.b		(a0),d0
 	blo.s		.wl
 	
-	nop		; pad until lower border event
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	tburnrs		10,d0
 
-	nop		; HW: almost stable
-	nop		; HW: stable
+;	nop		; pad until lower border event
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+
+;	nop		; HW: almost stable
+;	nop		; HW: stable
 ;	nop		; HW: almost stable
 
 	clr.b		$ffff820a.w			; 60 Hz
-	dcb.w		5,$4e71				; ...wait...
+;	dcb.w		5,$4e71				; ...wait...
+	tburnrs		5,d0
 	move.b		#2,$ffff820a.w			; 50 Hz
 		
 
@@ -1039,8 +800,8 @@ displayservice_nickel_border_b:
 	
 	move.l		(sp)+,a1
 	
-	movem.l		(sp)+,a0
-	movem.l		(sp)+,d0
+	move.l		(sp)+,a0
+	move.l		(sp)+,d0
 	
 	clr.b		_g_seek
 	

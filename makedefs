@@ -254,7 +254,7 @@ AGLIB_STFONLY_SRC_LIST = \
 
 ifeq ($(USE_HATARI_NATFEATS),yes)
 COMPILERDEFS +=	-DAGT_CONFIG_HATARI_DEBUG
-EXTSUPPORT_SRC_LIST = \
+EXTSUPPORT_SRC_LIST += \
 	3rdparty/m68k/Hatari/natfeats_.s \
 	3rdparty/natfeats.c
 endif
@@ -265,7 +265,7 @@ endif
 
 ifeq ($(USE_DEBUG_CONSOLE),udev)
 COMPILERDEFS +=	-DAGT_CONFIG_DEBUG_CONSOLE_UDEV
-EXTSUPPORT_SRC_LIST = 3rdparty/m68k/ultraDev/$(USE_ULTRADEV_VERSION)/udlib.s
+EXTSUPPORT_SRC_LIST += 3rdparty/m68k/ultraDev/$(USE_ULTRADEV_VERSION)/udlib.s
 endif
 
 # -----------------------------------------------------------------------------

@@ -12,6 +12,10 @@
 
 *-----------------------------------------------------------------------------*
 
+	include		"tburn.s"
+	
+*-----------------------------------------------------------------------------*
+
 enable_vscroll		set	0
 hotswap_machine		set	0
 configure_mste		set	0
@@ -29,11 +33,23 @@ display_cch_linewords	=	10	; palette words per (normal) cpu-channel line
 
 display_lines		=	display_lines_primary+1+display_lines_lowborder
 
-disp_code_size		=	8898
+;disp_code_size		=	8898
 
 *-----------------------------------------------------------------------------*
 pcsv6_view:
 *-----------------------------------------------------------------------------*
+
+	move.l	pcsv6_view_period,d0
+	beq.s	.no_timer
+	add.l	$462.w,d0
+.no_timer:
+	move.l	d0,pcsv6_view_timeout
+
+*-----------------------------------------------------------------------------*
+*	start display
+*-----------------------------------------------------------------------------*
+
+	bsr	pcsv6_savestate
 
 *-----------------------------------------------------------------------------*
 *	wait for next vblank
@@ -42,12 +58,6 @@ pcsv6_view:
 .waitv:	cmp.l	$462.w,d0
 	beq.s	.waitv
 
-*-----------------------------------------------------------------------------*
-*	start display
-*-----------------------------------------------------------------------------*
-
-	bsr	pcsv6_savestate
-
 	bsr	pcsv6_openview
 
 *-----------------------------------------------------------------------------*
@@ -55,21 +65,24 @@ pcsv6_view:
 *-----------------------------------------------------------------------------*
 main_loop:	
 *-----------------------------------------------------------------------------*
-	nop	
-	nop	
-	btst	#0,$fffffc00.w
+	move.l	pcsv6_view_timeout,d0
+	beq.s	.notm
+	cmp.l	$462.w,d0	
+	bmi.s	.stop
+.notm:	btst	#0,$fffffc00.w
 	beq.s	main_loop
-	cmp.b	#$39,$fffffc02.w
+	move.b	$fffffc02.w,d0
+;	cmp.b	#$01,d0
+;	beq.s	.exit
+	cmp.b	#$39,d0
 	bne.s	main_loop
-.hold:	cmp.b	#$39,$fffffc02.w
+.hold:	cmp.b	$fffffc02.w,d0
 	beq.s	.hold
 
 *-----------------------------------------------------------------------------*
 *	restore display & exit	
 *-----------------------------------------------------------------------------*
-
-	bsr	pcsv6_restorestate
-
+.stop:	bsr	pcsv6_restorestate
 	rts
 
 
@@ -77,9 +90,11 @@ main_loop:
 pcsv6_savestate:
 *-----------------------------------------------------------------------------*
 	move	#$2700,sr
-	lea	recovery_state,a0
+	lea	pcsv6_recovery_state,a0
 	
 	; vectors
+	move.l	usp,a1
+	move.l	a1,(a0)+
 	move.l	$68.w,(a0)+	
 	move.l	$70.w,(a0)+
 	move.l	$134.w,(a0)+
@@ -125,9 +140,11 @@ pcsv6_savestate:
 pcsv6_restorestate:
 *-----------------------------------------------------------------------------*
 	move	#$2700,sr
-	lea	recovery_state,a0
+	lea	pcsv6_recovery_state,a0
 	
 	; vectors
+	move.l	(a0)+,a1
+	move.l	a1,usp
 	move.l	(a0)+,$68.w	
 	move.l	(a0)+,$70.w
 	move.l	(a0)+,$134.w
@@ -142,6 +159,7 @@ pcsv6_restorestate:
 	move.b	(a0)+,$ffff8265.w
 	clr.b	(a0)+
 	movem.l	(a0)+,d0-d7
+
 	; when integrated into engine only - not for viewer with clean exit
 	moveq	#0,d0
 	moveq	#0,d1
@@ -151,6 +169,7 @@ pcsv6_restorestate:
 	moveq	#0,d5
 	moveq	#0,d6
 	moveq	#0,d7
+
 	movem.l	d0-d7,$ffff8240.w
 	; blitter
 	move.w	(a0)+,$ffff8a20.w	; sxinc
@@ -210,7 +229,8 @@ pcsv6_openview:
 
 	move.l	#pcsv6_hbl,$68.w
 	move.l	#pcsv6_vbl,$70.w
-	move.l	#pcsv6_timera,$134.w
+
+	move.l	#pcsv6_timera_ste,$134.w
 	
 	bset	#5,$fffffa07.w
 	bset	#5,$fffffa13.w
@@ -244,44 +264,47 @@ _STE_PCSV6_Setup416x272:
 	link		a6,#-.frame_
 *-------------------------------------------------------*
 
-	move.w		.numlines+2(a6),num_lines
+	move.w		.numlines+2(a6),pcsv6_num_lines
 
 	move.l		.pimg_fields(a6),a0
 	move.l		.pbpal_fields(a6),a1
 	move.l		.pcpal_fields(a6),a2
-	move.w		.scrl_delay+2(a6),scroll_delay
+	move.w		.scrl_delay+2(a6),pcsv6_scroll_delay
 	
-	lea		displayfields,a3
-	lea		bch_palettes,a4
-	lea		cch_palettes,a5
+	lea		pcsv6_displayfield_tab,a3
+	lea		pcsv6_bch_palette_tab,a4
+	lea		pcsv6_cch_palette_tab,a5
 		
 	move.w		.numfields+2(a6),d7
-	move.w		d7,num_fields
+	move.w		d7,pcsv6_num_fields
 	subq.w		#1,d7
 .load:	move.l		(a0)+,(a3)+
 	move.l		(a1)+,(a4)+
 	move.l		(a2)+,(a5)+
 	dbra		d7,.load
 	
-	clr.l		bch_scroll_next
-	clr.l		bch_scroll
-	clr.l		cch_scroll_next
-	clr.l		cch_scroll
-	clr.l		pcs_scroll
-	clr.w		scroll_line	
-	clr.b		dir	
+;	clr.l		bch_scroll_next
+;	clr.l		bch_scroll
+;	clr.l		cch_scroll_next
+;	clr.l		cch_scroll
+;	clr.l		pcs_scroll
+;	clr.w		scroll_line	
+;	clr.b		dir	
+
+	bsr		pcsv6_reset_scroll
+
 *-----------------------------------------------------------------------------*
 *	initialize sequence with first field
 *-----------------------------------------------------------------------------*
-	clr.w		field_active
+	clr.w		pcsv6_field_active
 *-----------------------------------------------------------------------------*
 *	generate field sequence
 *-----------------------------------------------------------------------------*
-	lea		field_sequence,a0
+	lea		pcsv6_field_sequence,a0
 	clr.l		(a0)
 	clr.l		4(a0)
 	moveq		#1,d0
-.prep:	cmp.w		num_fields,d0
+.prep:	cmp.w		pcsv6_num_fields,d0
 	beq.s		.pdon
 	move.w		d0,(a0)+
 	addq.w		#1,d0
@@ -319,15 +342,15 @@ _STE_PCSV6_Show416x272:
 pcsv6_palette:		dc.l	0	;cpu_channel0
 	
 *-----------------------------------------------------------------------------*
-field_active:		dc.w	0
+pcsv6_field_active:	dc.w	0
 *-----------------------------------------------------------------------------*
-field_sequence:		dc.w	0
+pcsv6_field_sequence:	dc.w	0
 			dc.w	0
 			dc.w	0
 			dc.w	0
 				
 *-----------------------------------------------------------------------------*
-displayfields:
+pcsv6_displayfield_tab:
 *-----------------------------------------------------------------------------*
 			dc.l	0
 			dc.l	0
@@ -335,7 +358,7 @@ displayfields:
 			dc.l	0
 
 *-----------------------------------------------------------------------------*
-bch_palettes:
+pcsv6_bch_palette_tab:
 *-----------------------------------------------------------------------------*
 			dc.l	0
 			dc.l	0
@@ -343,7 +366,7 @@ bch_palettes:
 			dc.l	0
 
 *-----------------------------------------------------------------------------*
-cch_palettes:
+pcsv6_cch_palette_tab:
 *-----------------------------------------------------------------------------*
 			dc.l	0
 			dc.l	0
@@ -360,23 +383,26 @@ pcsv6_vbl:
 	move.b	#4,$fffffa19.w
 		
 *-----------------------------------------------------------------------------*
+	addq.l	#1,$462.w
+
+*-----------------------------------------------------------------------------*
 *	cycle fields, load video base, clear BG colour
 *-----------------------------------------------------------------------------*
 	move.l	d0,-(sp)	
 	move.l	a0,-(sp)	
 *-----------------------------------------------------------------------------*
-	move.w	field_active(pc),d0
+	move.w	pcsv6_field_active(pc),d0
 	add.w	d0,d0
-	move.w	field_sequence(pc,d0.w),field_active
+	move.w	pcsv6_field_sequence(pc,d0.w),pcsv6_field_active
 	add.w	d0,d0
-	move.l	bch_palettes(pc,d0.w),a0
-	add.l	bch_scroll,a0
+	move.l	pcsv6_bch_palette_tab(pc,d0.w),a0
+	add.l	pcsv6_bch_scroll,a0
 	move.l	a0,$ffff8a24.w
-	move.l	cch_palettes(pc,d0.w),a0
-	add.l	cch_scroll,a0
+	move.l	pcsv6_cch_palette_tab(pc,d0.w),a0
+	add.l	pcsv6_cch_scroll,a0
 	move.l	a0,pcsv6_palette
-	move.l	displayfields(pc,d0.w),d0
-	add.l	pcs_scroll,d0
+	move.l	pcsv6_displayfield_tab(pc,d0.w),d0
+	add.l	pcsv6_pcs_scroll,d0
 	ror.w	#8,d0
 	move.l	d0,$ffff8200.w
 	ror.w	#8,d0
@@ -384,35 +410,38 @@ pcsv6_vbl:
 	clr.w	$ffff8240.w
 	
 
-	.if	(enable_vscroll)
-	subq.w	#1,scroll_delay
+	if	(enable_vscroll)
+	cmp.w	#max_displayed_lines,pcsv6_num_lines
+	ble	.endscrl
+	
+	subq.w	#1,pcsv6_scroll_delay
 	bpl	.endscrl
 	
-	move.l	bch_scroll_next,bch_scroll
-	move.l	cch_scroll_next,cch_scroll
-	tst.b	dir
+	move.l	pcsv6_bch_scroll_next,pcsv6_bch_scroll
+	move.l	pcsv6_cch_scroll_next,pcsv6_cch_scroll
+	tst.b	pcsv6_scroll_dir
 	beq.s	.down
 
-.up:	sub.l	#display_bch_linewords*2,bch_scroll_next
-	sub.l	#display_cch_linewords*2,cch_scroll_next
-	sub.l	#display_linebytes,pcs_scroll
-	subq.w	#1,scroll_line
+.up:	sub.l	#display_bch_linewords*2,pcsv6_bch_scroll_next
+	sub.l	#display_cch_linewords*2,pcsv6_cch_scroll_next
+	sub.l	#display_linebytes,pcsv6_pcs_scroll
+	subq.w	#1,pcsv6_scroll_line
 	bne.s	.endscrl
-	sf	dir
+	sf	pcsv6_scroll_dir
 	bra.s	.endscrl
 
-.down:	add.l	#display_bch_linewords*2,bch_scroll_next
-	add.l	#display_cch_linewords*2,cch_scroll_next
-	add.l	#display_linebytes,pcs_scroll
-	addq.w	#1,scroll_line
-	move.w	num_lines,d0
+.down:	add.l	#display_bch_linewords*2,pcsv6_bch_scroll_next
+	add.l	#display_cch_linewords*2,pcsv6_cch_scroll_next
+	add.l	#display_linebytes,pcsv6_pcs_scroll
+	addq.w	#1,pcsv6_scroll_line
+	move.w	pcsv6_num_lines,d0
 	sub.w	#display_lines,d0
-	cmp.w	scroll_line,d0
+	cmp.w	pcsv6_scroll_line,d0
 	bne.s	.endscrl
-	st	dir
-.endscrl:
+	st	pcsv6_scroll_dir
+.endscrl:	
 	
-	.endif
+	endif
 		
 *-----------------------------------------------------------------------------*
 	move.l	(sp)+,a0
@@ -440,24 +469,43 @@ pcsv6_hbl:
 	.endm
 
 *-----------------------------------------------------------------------------*
-pcsv6_timera:
+pcsv6_timera_ste:
 *-----------------------------------------------------------------------------*
 	movem.l	d0-a6,-(sp)
 *-----------------------------------------------------------------------------*
 ;	clr.b	$fffffa19.w
 	bclr.b	#5,$fffffa0f.w
 *-----------------------------------------------------------------------------*
+
+	; make first line invisible (overscan corrupted bitmap)
+	
+	lea	$ffff8240.w,a6
+	moveq	#0,d0
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+
+	; line 0 is visible and non-empty in vscroll PCS images but only single palette active on this line
+	; line 0 is visible but empty in non-vscroll PCS images
+	
 	lea	$ffff820a.w,a2
 	lea	$ffff8260.w,a3
 	lea	$ffff8a38.w,a4
 	lea	$ffff8a3c.w,a5
-	lea	$ffff824c.w,a6	
+
+	; !!! hack for 10 CPU cols
+	move.l	pcsv6_palette(pc),a0	; src CPU cols 06...16
+	lea	$ffff824c.w,a6		; dst CPU cols 06...16
+
 	moveq	#-64,d7
 	moveq	#3,d6
 	moveq	#0,d0
 	moveq	#2,d1
-
-	move.l	pcsv6_palette(pc),a0
 			
 *-----------------------------------------------------------------------------*
 *	wait for HBL
@@ -469,23 +517,25 @@ pcsv6_timera:
 *-----------------------------------------------------------------------------*
 *	the fun begins here...
 *-----------------------------------------------------------------------------*
-pcsv6_displayroutine:
+.pcsv6_displayroutine:
 *-----------------------------------------------------------------------------*
 	move.w	#$2700,sr
 	clr.b	$fffffa19.w
 
 	move.l	a7,usp
-	lea	$ffff824c.w,a7
+	lea	$ffff824c.w,a7		; dst CPU cols 06...16
 		
 *-----------------------------------------------------------------------------*
 *	top border removal
 *-----------------------------------------------------------------------------*
 
-	cycles	86
+;	cycles	86
+	tburnrr	86,d2,d3
 	
 	clr.b	$ffff820a.w
 
-	cycles	9
+;	cycles	9
+	tburnrr	9,d2,d3
 
 	move.b	#2,$ffff820a.w
 
@@ -513,53 +563,168 @@ pcsv6_displayroutine:
 	lsr.l	d2,d2
 
 *-----------------------------------------------------------------------------*
-_STE_PCSV6_begin_:
-*-----------------------------------------------------------------------------*
 
-	.if	(hotswap_machine)
-
-	; machine-specific code is unpacked at runtime
-	dcb.w	(disp_code_size/2),$4e71
-
-	.else
+configure_mste	set	0
 
 	; statically defined code
 	include	"ste/b416c52.s"
 	
-	.endif
-
-*-----------------------------------------------------------------------------*
-_STE_PCSV6_end_:
 *-----------------------------------------------------------------------------*
 
 	move.l	usp,a7	
 	movem.l	(sp)+,d0-a6
 	rte
 
+*-----------------------------------------------------------------------------*
+pcsv6_timera_mste:
+*-----------------------------------------------------------------------------*
+	movem.l	d0-a6,-(sp)
+*-----------------------------------------------------------------------------*
+;	clr.b	$fffffa19.w
+	bclr.b	#5,$fffffa0f.w
+*-----------------------------------------------------------------------------*
+
+	; make first line invisible (overscan corrupted bitmap)
+	
+	lea	$ffff8240.w,a6
+	moveq	#0,d0
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+	move.l	d0,(a6)+
+
+	; line 0 is visible and non-empty in vscroll PCS images but only single palette active on this line
+	; line 0 is visible but empty in non-vscroll PCS images
+	
+	lea	$ffff820a.w,a2
+	lea	$ffff8260.w,a3
+	lea	$ffff8a38.w,a4
+	lea	$ffff8a3c.w,a5
+
+	; !!! hack for 10 CPU cols
+	move.l	pcsv6_palette(pc),a0	; src CPU cols 06...16
+	lea	$ffff824c.w,a6		; dst CPU cols 06...16
+
+	moveq	#-64,d7
+	moveq	#3,d6
+	moveq	#0,d0
+	moveq	#2,d1
+			
+*-----------------------------------------------------------------------------*
+*	wait for HBL
+*-----------------------------------------------------------------------------*
+	move.w	#$2100,sr
+	stop	#$2100
+
+
+*-----------------------------------------------------------------------------*
+*	the fun begins here...
+*-----------------------------------------------------------------------------*
+.pcsv6_displayroutine:
+*-----------------------------------------------------------------------------*
+	move.w	#$2700,sr
+	clr.b	$fffffa19.w
+
+	move.l	a7,usp
+	lea	$ffff824c.w,a7		; dst CPU cols 06...16
+		
+*-----------------------------------------------------------------------------*
+*	top border removal
+*-----------------------------------------------------------------------------*
+
+;	cycles	86
+	tburnrr	86,d2,d3
+		
+	clr.b	$ffff820a.w
+
+;	cycles	9
+	tburnrr	9,d2,d3
+	
+	move.b	#2,$ffff820a.w
+
+*-----------------------------------------------------------------------------*
+*	hardsync
+*-----------------------------------------------------------------------------*
+
+;	original non-scrolling version
+;
+;	lea	$ffff8209.w,a1
+;	moveq	#128-1,d5
+;.hsync:	tst.b	(a1)
+;	beq.s	.hsync
+;	move.b	(a1),d2
+;	sub.b	d2,d5
+;	lsr.l	d5,d5
+
+;	STE scrolling version
+
+	lea	$ffff8209.w,a1
+	move.b	(a1),d2
+.hsync:	cmp.b	(a1),d2
+	beq.s	.hsync
+	sub.b	(a1),d2
+	lsr.l	d2,d2
+
+*-----------------------------------------------------------------------------*
+
+configure_mste	set	1
+
+	; statically defined code
+	include	"ste/b416c52.s"
+	
+*-----------------------------------------------------------------------------*
+
+	move.l	usp,a7	
+	movem.l	(sp)+,d0-a6
+	rte
+
+*-----------------------------------------------------------------------------*
+pcsv6_reset_scroll:
+*-----------------------------------------------------------------------------*
+	clr.l		pcsv6_pcs_scroll
+	clr.l		pcsv6_bch_scroll
+	clr.l		pcsv6_cch_scroll
+	clr.l		pcsv6_bch_scroll_next
+	clr.l		pcsv6_cch_scroll_next
+	;
+	clr.w		pcsv6_scroll_dir
+	clr.w		pcsv6_scroll_line
+	clr.w		pcsv6_scroll_delay
+	rts
+
 
 *=============================================================================*
 			.data
 *=============================================================================*
 
-pcs_scroll:		dc.l	0
-bch_scroll:		dc.l	0
-cch_scroll:		dc.l	0
-bch_scroll_next:	dc.l	0
-cch_scroll_next:	dc.l	0
+pcsv6_mch_active:	dc.w	1	; ste
 
-num_fields:		dc.w	0
-num_lines:		dc.w	0
+pcsv6_view_period:	dc.l	0
+pcsv6_view_timeout:	dc.l	0
 
-dir:			dc.w	0
-scroll_line:		dc.w	0
-scroll_delay:		dc.w	0
-			dc.w	0
+pcsv6_num_fields:	dc.w	0
+pcsv6_num_lines:	dc.w	0
+
+pcsv6_pcs_scroll:	dc.l	0
+pcsv6_bch_scroll:	dc.l	0
+pcsv6_cch_scroll:	dc.l	0
+pcsv6_bch_scroll_next:	dc.l	0
+pcsv6_cch_scroll_next:	dc.l	0
+
+pcsv6_scroll_dir:	dc.w	0
+pcsv6_scroll_line:	dc.w	0
+pcsv6_scroll_delay:	dc.w	0
 
 *=============================================================================*
 			.bss
 *=============================================================================*
 
-recovery_state:		ds.b	1024
+; TODO: size
+pcsv6_recovery_state:	ds.b	1024
 
 *=============================================================================*
 			.text

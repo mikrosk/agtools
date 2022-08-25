@@ -1,6 +1,5 @@
 
-displayservice_ste272_d0_tb	=	0
-displayservice_ste272_d1_tb	=	229-displayservice_ste272_d0_tb
+displayservice_ste272_d1_tb	=	229
 	 
 *-------------------------------------------------------*
 displayservice_ste272_vbi:
@@ -21,7 +20,7 @@ displayservice_ste272_vbi:
 	move.b		#4,tacr.w				; TimerA CTRL: start
 	bset		#5,imra.w				; TimerA IM: enable
 
-	move.l		#displayservice_ste272_upper_a,$134.w
+	move.l		#displayservice_common_upper_a,$134.w
 	
 	.else
 
@@ -31,7 +30,7 @@ displayservice_ste272_vbi:
 	or.b		#4,cdcr.w				; TimerD CTRL: start
 	bset		#4,imrb.w				; TimerD IM: enable
 	
-	move.l		#displayservice_ste272_upper_d,$110.w
+	move.l		#displayservice_common_upper_d,$110.w
 
 	.endif
 
@@ -53,7 +52,7 @@ displayservice_ste272_vbi:
 	move.l		#$00340fff,$ffff8240.w
 	clr.w		$ffff8244.w
 
-	bsr		displayservice_ste272_fullconsole
+	bsr		displayservice_common_full_setlower
 
 	bra		.skip
 	.endif ; (use_debugconsole)
@@ -81,29 +80,10 @@ displayservice_ste272_vbi:
 	; load field palette
 	
 	lea		6(a0),a0
-
-;	schedule palette on first real line, to achieve 256 lines
-	move.l		a0,ste_palette
+;	move.l		a0,ste_palette
 	
 	bsr		displayservice_ste272
 	
-;	moveq		#0,d0
-;	lea		$ffff8240.w,a0
-;
-;	.if		(^^defined TIMING_RASTERS | use_rasters)
-;	move.w		BGRAST.w,(a0)+
-;	move.w		d0,(a0)+
-;	.else
-;	move.l		d0,(a0)+
-;	.endif
-;
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
-;	move.l		d0,(a0)+
 	
 	.if		(^^defined TIMING_RASTERS | use_rasters)
 	move.w		BGRAST.w,$ffff8240.w
@@ -152,203 +132,18 @@ displayservice_ste272_vbi:
   	rte
 
 
-
-	.if		(use_overscan_timera)
-
-*-----------------------------------------------------------------------------*
-displayservice_ste272_upper_a:
-*-----------------------------------------------------------------------------*
-	blitoff
-*-----------------------------------------------------------------------------*
-	movem.l		d0/d1/a0/a1,-(sp)
-*-----------------------------------------------------------------------------*
-*	critical: re-synchronize with free running TimerA data before
-*	starting to count hblanks as TimerA may be delayed by BLITs and
-*	we may not have landed on the correct line...
-*-----------------------------------------------------------------------------*
-
-	;move.w		#$fff,$ffff8240.w
-	
-	moveq		#1,d1
-	lea		$ffff820a.w,a1	
-
-	lea		tadr.w,a0
-	moveq		#displayservice_upper_delay-(timecritical_pad_ta*2),d0
-.tasyn:	cmp.b		(a0),d0
-	blo.s		.tasyn
-*-----------------------------------------------------------------------------*
-	
-	moveq		#0,d0
-	
-	move.w		#$2100,sr				; enable HBL
-	stop		#$2100					; wait next HBL
-	move.w		#$2700,sr				; lockout
-		
-	.if		(1)
-
-	dcb.w		94,$4e71
-	
-;	divs.w		d1,d0
-;	divs.w		d1,d0	
-;;	eor.l		d0,d0
-;;	eor.l		d0,d0
-;;	nop
-;;	lsl.l		#6,d0
-;	muls.w		d0,d0
-;;	muls.w		d0,d0
-;	lsl.l		#8,d0
-;;	eor.l		d0,d0
-;;	nop
-;	lsl.l		#3,d0
-		
-	.endif
-
-;	open top border
-
-	move.b		d0,(a1)	;$ffff820a.w
-	
-	lsl.l		#8,d0
-	
-	move.w		a1,(a1)	;$ffff820a.w
-
-;	move.b		d0,tbcr.w				; TimerB CTRL: halt
-;	bset.b		#0,iera.w				; TimerB IE: enable
-;	bset.b		#0,imra.w				; TimerB IM: enable
-;	move.b		#displayservice_ste272_d0_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
-;	move.b		#8,tbcr.w				; TimerB CTRL: start))
-;
-;	move.l		#displayservice_ste272_first_b,$120.w
-
-	move.b		d0,tacr.w				; TimerA CTRL: halt
-
-	movem.l		(sp)+,d0/d1/a0/a1
-
-	;move.w		#$0,$ffff8240.w
-
-	bliton
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#5,isra.w
-	.endif
-		
-	rte
-
-	.else
-
-*-----------------------------------------------------------------------------*
-displayservice_ste272_upper_d:
-*-----------------------------------------------------------------------------*
-	blitoff
-	move.w		#$2700,sr
-*-----------------------------------------------------------------------------*
-	movem.l		d0/d1/a0/a1,-(sp)
-*-----------------------------------------------------------------------------*
-*	critical: re-synchronize with free running TimerA data before
-*	starting to count hblanks as TimerA may be delayed by BLITs and
-*	we may not have landed on the correct line...
-*-----------------------------------------------------------------------------*
-	;move.w		#$fff,$ffff8240.w
-
-	moveq		#1,d1
-	lea		$ffff820a.w,a1	
-
-	lea		cddr.w,a0
-	moveq		#displayservice_upper_delay-(timecritical_pad_td*2),d0
-.tasyn:	cmp.b		(a0),d0
-	blo.s		.tasyn
-*-----------------------------------------------------------------------------*
-	
-	moveq		#0,d0
-	
-	move.w		#$2100,sr				; enable HBL
-	stop		#$2100					; wait next HBL
-	move.w		#$2700,sr				; lockout
-		
-	.if		(1)
-
-	dcb.w		94,$4e71
-	
-;	divs.w		d1,d0
-;	divs.w		d1,d0	
-;;	eor.l		d0,d0
-;;	eor.l		d0,d0
-;;	nop
-;;	lsl.l		#6,d0
-;	muls.w		d0,d0
-;;	muls.w		d0,d0
-;	lsl.l		#8,d0
-;;	eor.l		d0,d0
-;;	nop
-;	lsl.l		#3,d0
-		
-	.endif
-
-;	open top border
-
-	move.b		d0,(a1)	;$ffff820a.w
-	
-	lsl.l		#8,d0
-	
-	move.w		a1,(a1)	;$ffff820a.w
-
-;	move.b		d0,tbcr.w				; TimerB CTRL: halt
-;	bset.b		#0,iera.w				; TimerB IE: enable
-;	bset.b		#0,imra.w				; TimerB IM: enable
-;	move.b		#displayservice_ste272_d0_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
-;	move.b		#8,tbcr.w				; TimerB CTRL: start))
-;
-;	move.l		#displayservice_ste272_first_b,$120.w
-
-	and.b		#$f8,cdcr.w				; TimerD CTRL: halt
-
-
-	movem.l		(sp)+,d0/d1/a0/a1
-
-	;move.w		#$0,$ffff8240.w
-
-	bliton
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#4,isrb.w
-	.endif
-		
-	rte
-
-	.endif
-
-
-	.if		(use_debugconsole)
-
-*-----------------------------------------------------------------------------*
-displayservice_ste272_fullconsole:
-*-----------------------------------------------------------------------------*
-
-	clr.b		tbcr.w					; TimerB CTRL: halt
-
-	bset.b		#0,iera.w				; TimerB IE: enable
-	bset.b		#0,imra.w				; TimerB IM: enable
-	move.b		#229-timecritical_pad_tb,tbdr.w		; TimerB DATA: count
-	move.b		#8,tbcr.w				; TimerB CTRL: start))
-
-	move.l		#displayservice_ste272_fullconsole_b,$120.w
-				
-	rts
-
-	.endif		; (use_debugconsole)
-
-
 *-----------------------------------------------------------------------------*
 displayservice_ste272:
 *-----------------------------------------------------------------------------*
 	
-	clr.b		tbcr.w				; TimerB CTRL: halt
+;	clr.b		tbcr.w				; TimerB CTRL: halt
+;
+;	bset.b		#0,iera.w				; TimerB IE: enable
+;	bset.b		#0,imra.w				; TimerB IM: enable
+;	move.b		#displayservice_ste272_d1_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
+;	move.b		#8,tbcr.w				; TimerB CTRL: start))
 
-	bset.b		#0,iera.w				; TimerB IE: enable
-	bset.b		#0,imra.w				; TimerB IM: enable
-	move.b		#displayservice_ste272_d1_tb-timecritical_pad_tb,tbdr.w	; TimerB DATA: count
-	move.b		#8,tbcr.w				; TimerB CTRL: start))
+	bsr		displayservice_common_full_setlower
 
 	.if		(use_debugconsole)
 	tst.w		_max_console
@@ -360,10 +155,10 @@ displayservice_ste272:
 	.endif		;(use_debugconsole)
 	
 .normal:
-	move.l		#displayservice_ste272_lower_b,$120.w
+;	move.l		#displayservice_ste272_lower_b,$120.w
 .cont:
 
-	move.l		ste_palette,a0
+;	move.l		ste_palette,a0
 ;	.if		(use_debugconsole)
 ;	tst.w		_max_console
 ;	beq.s		.ncon
@@ -391,6 +186,8 @@ displayservice_ste272:
 	rts
 
 
+	.if		0
+	
 *-----------------------------------------------------------------------------*
 displayservice_ste272_lower_b:
 *-----------------------------------------------------------------------------*
@@ -412,21 +209,24 @@ displayservice_ste272_lower_b:
 .wl:	cmp.b		(a0),d0
 	blo.s		.wl
 	
-	nop		; pad until lower border event
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	tburnrs		10,d0
 
-	nop		; HW: almost stable
-	nop		; HW: stable
+;	nop		; pad until lower border event
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+;	nop
+;
 ;	nop		; HW: almost stable
+;	nop		; HW: stable
+;;	nop		; HW: almost stable
 
 	clr.b		$ffff820a.w			; 60 Hz
-	dcb.w		5,$4e71				; ...wait...
+;	dcb.w		5,$4e71				; ...wait...
+	tburnrs		5,d0
 	move.b		#2,$ffff820a.w			; 50 Hz
 
 	clr.b		tbcr.w				; TimerB CTRL: halt
@@ -445,8 +245,8 @@ displayservice_ste272_lower_b:
 	and.l		d0,(a0)+
 	.endif
 	
-	movem.l		(sp)+,a0
-	movem.l		(sp)+,d0
+	move.l		(sp)+,a0
+	move.l		(sp)+,d0
 	
 	clr.b		_g_seek
 	
@@ -460,64 +260,12 @@ displayservice_ste272_lower_b:
 	.endif
 	
 	rte
+
+	.endif ; 0
+
 
 
 	.if		(use_debugconsole)
-
-*-----------------------------------------------------------------------------*
-displayservice_ste272_fullconsole_b:
-*-----------------------------------------------------------------------------*
-
-	.if		(use_blitter_compatibility)	
-
-	blitoff
-	
-	.endif
-		
-	move.w		#$2700,sr
-	move.l		d0,-(sp)
-	move.l		a0,-(sp)
-		
-	moveq		#229-(timecritical_pad_tb*2),d0
-
-	lea		tbdr.w,a0
-.wl:	cmp.b		(a0),d0
-	blo.s		.wl
-	
-	nop		; pad until lower border event
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-
-	nop		; HW: almost stable
-	nop		; HW: stable
-;	nop		; HW: almost stable
-
-	clr.b		$ffff820a.w			; 60 Hz
-	dcb.w		5,$4e71				; ...wait...
-	move.b		#2,$ffff820a.w			; 50 Hz
-
-	clr.b		tbcr.w				; TimerB CTRL: halt
-	
-	movem.l		(sp)+,a0
-	movem.l		(sp)+,d0
-	
-	clr.b		_g_seek
-	
-	.if		(use_blitter_compatibility)
-	bliton
-	.endif
-	
-	.if		(0=use_auto_end_of_interrupt)
-;	manual EOI
-	bclr.b		#0,isra.w
-	.endif
-	
-	rte
 
 *-----------------------------------------------------------------------------*
 displayservice_ste272_lowerconsole_b:
@@ -564,7 +312,8 @@ displayservice_ste272_lowerconsole_b:
 	move.b		d0,$ffff820a.w
 ;	clr.b		$ffff820a.w			; 60 Hz 4 nops
 ;	dcb.w		5,$4e71				; ...wait...
-	dcb.w		2,$4e71				; ...wait...
+;	dcb.w		2,$4e71				; ...wait...
+	tburns		2
 	move.b		d0,$ffff8265.w
 	move.b		#2,$ffff820a.w			; 50 Hz
 
@@ -578,9 +327,11 @@ displayservice_ste272_lowerconsole_b:
 	move.l		_min_pconsole,a0		; 8 nops
 	move.l		(a0),d0
 
-	.rept		28
-	tst.l		(a0)
-	.endr
+;	.rept		28
+;	tst.l		(a0)
+;	.endr
+
+	tburns		84
 
 	move.b		d0,$ffff8209.w
 	lsr.w		#8,d0
@@ -590,8 +341,8 @@ displayservice_ste272_lowerconsole_b:
 
 	clr.b		tbcr.w				; TimerB CTRL: halt
 	
-	movem.l		(sp)+,a0
-	movem.l		(sp)+,d0
+	move.l		(sp)+,a0
+	move.l		(sp)+,d0
 	
 	clr.b		_g_seek
 	
