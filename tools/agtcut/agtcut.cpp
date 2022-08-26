@@ -42,10 +42,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../3rdparty/stb_image.h"
 
-#define BMP_TYPICAL_ROW_ORDER (1)		// 0 = -ve height, +ve ordering (easier to parse back in)
-										// 1 = +ve height, -ve ordering (more common)
+#include "../common/common.h"
+#include "../common/endian.h"
+#include "../common/p42n.h"
 #include "../common/rnd.h"
 #include "../common/csvreader.h"
+#include "../common/exec.h"
+#include "../common/tga.h"
 
 #include "../../agtsys/tables/tiny6x6fnt.c"
 
@@ -54,7 +57,7 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.474";
+static const char* const g_version_string = "v0.475";
 
 // SPS file format version
 static const int SPS_VERSION = 0x0206;
@@ -100,46 +103,12 @@ static const int DEFAULT_EMX_OPTLEVEL = 0;//16;
 
 #define USE_NOP_BINARY_VALIDATION (0)
 
+#define BMP_TYPICAL_ROW_ORDER (1)		// 0 = -ve height, +ve ordering (easier to parse back in)
+										// 1 = +ve height, -ve ordering (more common)
+
 // --------------------------------------------------------------------
 //	local types
 // --------------------------------------------------------------------
-
-typedef unsigned int datasize_t;
-
-typedef int long_t;
-typedef short word_t;
-typedef signed char byte_t;
-
-typedef unsigned int ulong_t;
-typedef unsigned short uword_t;
-typedef unsigned char ubyte_t;
-
-// alternates, for working with engine types
-typedef int s32;
-typedef short s16;
-typedef signed char s8;
-
-typedef unsigned int u32;
-typedef unsigned short u16;
-typedef unsigned char u8;
-
-typedef unsigned long long u64;
-
-// meh: this arrived with BMP and lingers on...
-
-typedef struct RGB
-{
-    ubyte_t blue;
-    ubyte_t green;
-    ubyte_t red;
-} RGB;
-
-typedef struct iRGB
-{
-    int blue;
-    int green;
-    int red;
-} iRGB;
 
 typedef struct spritemapping_s
 {
@@ -199,107 +168,6 @@ static uword_t *g_workbufferbpl = 0;
 //	misc. small helper functions
 // --------------------------------------------------------------------
 
-//#undef assert
-#define xassert(_x_) \
-{ \
-	if (!(_x_)) \
-	{ \
-		__asm { int 3 }; \
-	}; \
-}
-
-static inline uword_t endianswap16(const uword_t _v)
-{
-	return ((_v & 0xFF00) >> 8) | ((_v & 0x00FF) << 8);
-}
-
-static inline ulong_t endianswap32(const ulong_t _v)
-{
-	return  ((_v & 0xFF000000) >> 24) |
-			((_v & 0x00FF0000) >> 8) |
-			((_v & 0x0000FF00) << 8) |
-			((_v & 0x000000FF) << 24);
-}
-
-static inline int xmin(int _x, int _y)
-{
-	return (_x < _y) ? _x : _y;
-}
-
-static inline int xmax(int _x, int _y)
-{
-	return (_x > _y) ? _x : _y;
-}
-
-
-ulong_t rofl32(ulong_t _v, size_t _bits)
-{
-    return (_v >> _bits) | (_v << ((sizeof(_v) << 3) - _bits));
-}
-
-ulong_t lofl32(ulong_t _v, size_t _bits)
-{
-    return (_v << _bits) | (_v >> ((sizeof(_v) << 3) - _bits));
-}
-
-uword_t rofl16(uword_t _v, size_t _bits)
-{
-    return (_v >> _bits) | (_v << ((sizeof(_v) << 3) - _bits));
-}
-
-uword_t lofl16(uword_t _v, size_t _bits)
-{
-    return (_v << _bits) | (_v >> ((sizeof(_v) << 3) - _bits));
-}
-
-template<class T>
-inline const T bceil(const T _v)
-{
-	T t = 0;
-
-	while ((1 << t) < _v)
-	{
-		++t;
-	}
-
-	return (t);	
-}
-
-
-static void replace_extension(std::string &_fname, const char* const _ext)
-{
-	size_t dot = _fname.find_last_of(".");
-	if (dot != std::string::npos)
-	{
-		_fname = _fname.substr(0, dot+1);
-		_fname.append(_ext);
-	}
-	else
-	{
-		_fname.append(".");
-		_fname.append(_ext);
-	}
-}
-
-static void remove_extension(std::string &_fname)
-{
-	size_t dot = _fname.find_last_of(".");
-	if (dot != std::string::npos)
-		_fname = _fname.substr(0, dot);
-}
-
-inline char sanitise_csv_integer(char ch)
-{
-	unsigned char uc = (unsigned char)ch;
-	if ((uc >= '0' && uc <= '9') ||
-		(uc >= 'a' && uc <= 'f') ||
-		(uc >= 'A' && uc <= 'F') ||
-		(uc == '-') ||
-		(uc == 'x'))
-		return ch;
-
-	return ' ';
-}
 
 static void plot6x6char(RGB *_buf, int _bufw, int _c, int _x, int _y)
 {
@@ -725,41 +593,6 @@ static void usage(int level)
 
 // --------------------------------------------------------------------
 
-#if defined(_MSC_VER)
-#define POPEN _popen
-#define PCLOSE _pclose
-#else
-#define POPEN popen
-#define PCLOSE pclose
-#endif
-
-#if defined(__MINGW32__)
-extern "C" FILE *popen(const char *command, const char *mode);
-extern "C" void pclose(FILE *pipe);
-#endif
-
-#include <memory>
-
-static bool exec(const std::string &cmd, std::string &r_result)
-{
-	char buffer[4096] = { 0 };
-	std::string result;
-	std::shared_ptr<FILE> pipe(POPEN(cmd.c_str(), "r"), PCLOSE);
-
-	if (pipe == nullptr)
-		return false;
-
-	while (!feof(pipe.get()))
-	{
-		if (fgets(buffer, (4096-1), pipe.get()) != nullptr)
-			result += buffer;
-	}
-	
-	r_result = result;
-	
-	return true;
-}
-
 void update_file_crc(FILE* hout, size_t crc_offset)
 {
 	u16 wv;
@@ -1046,7 +879,7 @@ static ulong_t strqhash(ulong_t _h, char* _str)
 
 	int p = 0;
 	ubyte_t c = 0;
-	while (c = _str[p])
+	while ((c = _str[p]))
 	{
 		h -= rofl32(h, 7);
 		h *= 0x12967ad1;
@@ -2253,83 +2086,6 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 		// into the required colour format etc.
 	}
 }
-
-
-// --------------------------------------------------------------------
-//	chunky (8bit) to N-planar conversion
-// --------------------------------------------------------------------
-
-static void c2pw
-(
-	ubyte_t* _csrc, uword_t* _pdst, 
-	int _w, int _h,
-	int _sstride, int _dstride,
-	int _nplanes
-)
-{	
-	// v line loop
-	for (int yc = 0; yc < _h; ++yc)
-	{
-		ubyte_t* src = &_csrc[yc * _sstride];
-		uword_t* dst = &_pdst[yc * _dstride];
-		
-		// h word loop
-		for (int xc = (_w >> 4) - 1; xc >= 0; --xc)
-		{
-			// h pixel loop				
-			for (int xbc = 16-1; xbc >= 0; --xbc)
-			{
-				ubyte_t val = *(src++);
-					
-				// plane loop
-				uword_t* o = dst;
-				for (int p = _nplanes - 1; p >= 0; --p)
-				{
-					*(o) = (*(o) << 1) | (val & 1); val >>= 1; o++;
-				}
-			}
-				
-			// advance per word
-			dst += _nplanes;
-		}
-	}
-}	
-
-static void c2pb
-(
-	ubyte_t* _csrc, ubyte_t* _pdst, 
-	int _w, int _h,
-	int _sstride, int _dstride,
-	int _nplanes
-)
-{	
-	// v line loop
-	for (int yc = 0; yc < _h; ++yc)
-	{
-		ubyte_t* src = &_csrc[yc * _sstride];
-		ubyte_t* dst = &_pdst[yc * _dstride];
-		
-		// h word loop
-		for (int xc = (_w >> 3) - 1; xc >= 0; --xc)
-		{
-			// h pixel loop				
-			for (int xbc = 8-1; xbc >= 0; --xbc)
-			{
-				ubyte_t val = *(src++);
-					
-				// plane loop
-				ubyte_t* o = dst;
-				for (int p = _nplanes - 1; p >= 0; --p)
-				{
-					*(o) = (*(o) << 1) | (val & 1); val >>= 1; o++;
-				}
-			}
-				
-			// advance per word
-			dst += _nplanes;
-		}
-	}
-}	
 
 // --------------------------------------------------------------------
 //	palette reading: 24bit .PAL
@@ -3650,7 +3406,7 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 
 		std::cout << " indexed colours used in final image: " << num_unique << std::endl;
 
-		if ((_sourced == 0) || (_sourced >= 16) && 
+		if (((_sourced == 0) || (_sourced >= 16)) && 
 			!g_allargs.quickcut && !g_allargs.quiet)
 		{
 			std::cout << "summary of destination palette for " << ((_sourced > 0) ? _sourced : 24) << "-bit source image being remapped" << std::endl;
@@ -3916,6 +3672,9 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24, int _ccf)
 			fwrite(palette4bit, 1, sizeof(palette4bit), h);
 		}
 
+		// only convert to nibbles if this is 4-plane, base layer
+		bool nibble_formatted = (g_allargs.planes == 4) && (!g_allargs.translayer);
+
 		// write flags (1)
 		{
 			// interpretation:
@@ -3927,10 +3686,14 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24, int _ccf)
 			// %00001000
 			//  1=overlay
 			//  0=normal
+			// %00010000
+			//  1=nibble-formatted
+			//  0=planes
 
 			ubyte_t flags = 0;
 			flags |= bceil<ubyte_t>((ubyte_t)g_allargs.tilesize);
-			flags |= g_allargs.translayer ? 8 : 0;
+			flags |= g_allargs.translayer ? (1<<3) : 0;
+			flags |= nibble_formatted ? (1<<4) : 0;	// encode as nibbles only in 4pln mode
 			fwrite(&flags, 1, sizeof(flags), h);
 		}
 
@@ -3971,13 +3734,18 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24, int _ccf)
 					ubyte_t *ptilespaceb = (ubyte_t *)tilespace;
 					for (int y = 0; y < 8; y++)
 					{
+						ubyte_t *ptileoutb = ptilespaceb;
 						ubyte_t *tilesrc = tileb;
 						for (int p = 0; p < tileplanes; p++)
 							*ptilespaceb++ = *tilesrc++;
+						
+						// convert 4-plane x 8 pixels to nibbles n0...n7
+						if (nibble_formatted)
+							rotate_p42n(ptileoutb);
 
 						if (g_allargs.translayer)
 						{
-							// emit exactly 4 bytes of mask
+							// emit exactly 4 bytes of mask (and.l)
 							for (int p = 0; p < 4; p++)
 								*ptilespaceb++ = tileb[7];
 						}
@@ -4001,14 +3769,19 @@ static void emit_tiles_cct(std::string outfile, RGB *_ppal24, int _ccf)
 					{
 						if (g_allargs.translayer)
 						{
-							// emit exactly 2 words of mask
+							// emit exactly 2 words of mask (and.l)
 							for (int p = 0; p < 2; p++)
 								*ptilespace++ = tile[7];
 						}
 
+						uword_t *ptileout = ptilespace;
 						uword_t *tilesrc = tile;
 						for (int p = 0; p < tileplanes; p++)
 							*ptilespace++ = *tilesrc++;
+
+						// convert 4-plane x 16 pixels to nibbles n0...n15
+						if (nibble_formatted)
+							rotate_p42n</*BE=*/false>(ptileout);
 
 						tile += 8;
 					}
@@ -4240,48 +4013,6 @@ static void emit_tiles_rbplus(std::string outfile, RGB *_ppal24)
 // --------------------------------------------------------------------
 //	map & tile cutting mode
 // --------------------------------------------------------------------
-
-void emit_tga(const char* const _name, RGB *data, int _w, int _h)
-{
-	// emit trivial targa format, out of sheer lazyness
-	FILE *fptr = fopen(_name, "wb");
-	if (fptr)
-	{
-		putc(0,fptr);
-		putc(0,fptr);
-		putc(2,fptr);                         /* uncompressed RGB */
-		putc(0,fptr); putc(0,fptr);
-		putc(0,fptr); putc(0,fptr);
-		putc(0,fptr);
-		putc(0,fptr); putc(0,fptr);           /* X origin */
-		putc(0,fptr); putc(0,fptr);           /* y origin */
-		putc((_w & 0x00FF),fptr);
-		putc((_w & 0xFF00) / 256,fptr);
-		putc((_h & 0x00FF),fptr);
-		putc((_h & 0xFF00) / 256,fptr);
-		putc(24,fptr);                        /* 24 bit bitmap */
-		putc(0,fptr);
-
-		for (int y = _h-1; y >= 0; y--)
-		{
-			for (int x = 0; x < _w; x++)
-			{
-				const RGB &rgbpan = data[(y * _w) + x];
-
-				putc(rgbpan.blue,		fptr);
-				putc(rgbpan.green,		fptr);
-				putc(rgbpan.red,		fptr);
-			}
-		}
-
-		fclose(fptr);
-	}
-	else
-	{
-		std::cerr << "warning: could not create review TGA file: " << _name << std::endl;
-	}
-}
-
 
 bool stitch_sources
 (
@@ -6425,6 +6156,11 @@ void add_sprite_frame
 
 		switch (g_allargs.cutmode)
 		{
+		case Cutmode_SPRITES:
+		case Cutmode_SLABS:
+		case Cutmode_SLABRESTORE:
+		default:
+			break;		
 		case Cutmode_EMSPR:
 			{
 				// generate component count based on max wordwidth per component
@@ -9080,7 +8816,7 @@ bool do_sheet()
 	ubyte_t *m_poriginalsrccol = 0;
 	ubyte_t *m_framemask = 0;
 	RGB *pvisualrgb = 0;
-	int visualw, visualh;
+	int visualw = 0, visualh = 0;
 
 	if (g_allargs.cutmode == Cutmode_SPRITES)
 		std::cout << "spritesheet cutting mode..." << std::endl;
@@ -9825,6 +9561,7 @@ bool do_sheet()
 				emit_sprite_sequence(!g_allargs.hidden);
 				break;
 
+			default:
 			case Cutmode_EMSPR:
 				std::cout << "outputting data..." << std::endl;
 				emit_sprite_sequence(!g_allargs.hidden);

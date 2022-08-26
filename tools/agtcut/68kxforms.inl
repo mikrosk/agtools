@@ -1261,7 +1261,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								registers[rs].name.c_str(),
 								it_treg->name.c_str(),
 								it_treg->L,
-								(1UL << (registers[rs].L & 31))
+								(uword_t)(1UL << (registers[rs].L & 31))
 								);
 
 							register_rename(curr, _rold, rnew);
@@ -1287,7 +1287,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								registers[rs].name.c_str(),
 								it_treg->name.c_str(),
 								it_treg->H, it_treg->L,
-								(1UL << (registers[rs].L & 31))
+								(uword_t)(1UL << (registers[rs].L & 31))
 								);
 
 							register_rename(curr, _rold, rnew);

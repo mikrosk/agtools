@@ -101,8 +101,10 @@ LDOPTS =
 #	Final flags
 # -----------------------------------------------------------------------------
 
-CFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) -Wall -Wno-narrowing -Wno-unused-variable -Wno-multichar
-CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) -fno-exceptions -fno-rtti -Wall -Wno-reorder -Wno-narrowing -Wno-unused-variable -Wno-multichar
+SHAREDFLAGS = -Wall -Wno-unused-function -Wno-sign-compare -Wno-narrowing -Wno-unused-variable -Wno-unused-but-set-variable -Wno-multichar
+
+CFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS)
+CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS) -Wno-reorder -fno-exceptions -fno-rtti 
 
 LDFLAGS += $(CODEGENFLAGS) $(LDOPTS)
 
@@ -115,6 +117,12 @@ LIBS = $(TOOLCHAIN_LIBS)
 
 SRC_LIST = \
 	agtcut.cpp
+
+INC_LIST = \
+	68ksimops.h \
+	68kxforms.inl \
+	emxgen.inl \
+	emximpl_v2.inl \
 
 # -----------------------------------------------------------------------------
 #	Translate src->obj for local build intermediates
@@ -165,13 +173,13 @@ clean:
 # =============================================================================
 
 # rule to compile .c files
-$(OBJ_DIR)/%.o: %.c
+$(OBJ_DIR)/%.o: %.c $(INC_LIST)
 	@echo "COMPILING $< -> $@"
 	@mkdir -p '$(@D)'
 	$(CC) $(CCINCLUDES) $(CFLAGS) -c -o $@ $<
 
 # rule to compile .cpp files
-$(OBJ_DIR)/%.o: %.cpp
+$(OBJ_DIR)/%.o: %.cpp $(INC_LIST)
 	@echo "COMPILING $< -> $@"
 	@mkdir -p '$(@D)'
 	$(CXX) $(CCINCLUDES) $(CXXFLAGS) -c -o $@ $<

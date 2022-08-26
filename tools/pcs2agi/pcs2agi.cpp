@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <memory.h>
 //#include <ctype.h>
 
 //#include <sys/types.h>
@@ -9,68 +10,17 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#if defined(__linux__)
-#include <stdint.h>		// for uintxx_t
-#include <arpa/inet.h>	// for htonl/ntohl
-#endif
+#include <string>
 
-// grrr!!
-#if defined(__MINGW32__)
-__stdcall uint32_t htonl(uint32_t hostlong)
-{ 
-	uint32_t v = hostlong;
-
-	uint32_t vs = 
-		((v & 0x000000FF) << 24) | 
-		((v & 0x0000FF00) << 8) | 
-		((v & 0x00FF0000) >> 8) | 
-		((v & 0xFF000000) >> 24)
-	;
-
-	return vs;
-}
-__stdcall uint32_t ntohl(uint32_t netlong)
-{ 
-	uint32_t v = netlong;
-
-	uint32_t vs = 
-		((v & 0x000000FF) << 24) | 
-		((v & 0x0000FF00) << 8) | 
-		((v & 0x00FF0000) >> 8) | 
-		((v & 0xFF000000) >> 24)
-	;
-
-	return vs;
-}
-__stdcall uint16_t htons(uint16_t hostword)
-{ 
-	uint16_t v = hostword;
-
-	uint16_t vs = 
-		((v & 0x00FF) << 8) | 
-		((v & 0xFF00) >> 8)
-	;
-
-	return vs;
-}
-__stdcall uint16_t ntohs(uint16_t netword)
-{ 
-	uint16_t v = netword;
-
-	uint16_t vs = 
-		((v & 0x00FF) << 8) | 
-		((v & 0xFF00) >> 8)
-	;
-
-	return vs;
-}
-#endif
-
+// ---------------------------------------------------------------------------------------------------------------------
 
 // for access to PCS header etc.
 #include <../../3rdparty/binarylit.h>
 #include <../../agtsys/pcs.h>
 
+#include <../common/common.h>
+#include <../common/endian.h>
+#include <../common/p42n.h>
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -80,48 +30,6 @@ uint16_t *pcs416_cpal_fields[4];
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-static void rotateplanes(uint16_t *pdata)
-{
-	uint16_t p0 = pdata[0];
-	uint16_t p1 = pdata[1];
-	uint16_t p2 = pdata[2];
-	uint16_t p3 = pdata[3];
-
-	p0 = ntohs(p0);
-	p1 = ntohs(p1);
-	p2 = ntohs(p2);
-	p3 = ntohs(p3);
-
-	uint8_t n = 0;
-	uint8_t b = 0;
-	uint16_t w = 0;
-
-	for (int o = 0; o < 4; ++o)
-	{
-		for (int wi = 0; wi < 2; ++wi)
-		{
-			for (int bi = 0; bi < 2; ++bi)
-			{
-				n <<= 1; n |= ((p3 >> 15) & 1);
-				n <<= 1; n |= ((p2 >> 15) & 1);
-				n <<= 1; n |= ((p1 >> 15) & 1);
-				n <<= 1; n |= ((p0 >> 15) & 1);
-
-				b <<= 4;
-				b |= n;
-
-				p3 <<= 1;
-				p2 <<= 1;
-				p1 <<= 1;
-				p0 <<= 1;
-			}
-
-			w <<= 8; w |= b;
-		}
-		w = htons(w);
-		pdata[o] = w;
-	}
-}
 
 void format_field_bitmap(uint16_t *&r_psrcpos, int nlines, uint16_t *pdst)
 {
@@ -137,7 +45,7 @@ void format_field_bitmap(uint16_t *&r_psrcpos, int nlines, uint16_t *pdst)
 		pdst += c_display_linewords;
 		for (int w = 0; w < (416/16); ++w)
 		{
-			rotateplanes(r_psrcpos);
+			rotate_p42n</*BE=*/true>(r_psrcpos);
 
 			*pline++ = *r_psrcpos++;
 			*pline++ = *r_psrcpos++;
@@ -480,7 +388,7 @@ int main(int argc, char * argv[])
 	delete[] outbuffer;
 
 	printf("original size: %d\n", in_filesize);
-	printf("final size: %d\n", out_filesize);
+	printf("final size: %d\n", (uint32_t)out_filesize);
 
 	return EXIT_SUCCESS;
 }

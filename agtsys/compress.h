@@ -170,6 +170,73 @@ u32 gen_crc_lite(u16 *_data, u32 _words);
 // todo: 68k version of this needed
 u32 gen_crc(u16 *_data, u32 _words, u32 hash = c_FNVOBase);
 
+//	convert [8 nibble-pairs] to [4 plane-words]
+void rotate_n2p4(u16 *data, s32 words);
+
+static agt_inline void rotate_n2p4(u16 *data)
+{
+	__asm__ volatile
+	(
+		"moveq		#4-1,%%d6;"
+		";"
+		"wlp%=:;"
+		"move.w		(%0)+,%%d7;"
+		"moveq		#4-1,%%d5;"
+		";"
+		"nlp%=:;"
+		"add.w		%%d7,%%d7;"
+		"addx.w		%%d1,%%d1;"
+		"add.w		%%d7,%%d7;"
+		"addx.w		%%d2,%%d2;"
+		"add.w		%%d7,%%d7;"
+		"addx.w		%%d3,%%d3;"
+		"add.w		%%d7,%%d7;"
+		"addx.w		%%d4,%%d4;"
+		"dbf		%%d5,nlp%=;"
+		"dbf		%%d6,wlp%=;"
+		"move.w		%%d1,-(%0);"
+		"move.w		%%d2,-(%0);"
+		"move.w		%%d3,-(%0);"
+		"move.w		%%d4,-(%0);"
+		";"
+		:
+		: "a"(data)
+		: "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7"
+	);
+}
+
+static agt_inline void rotate_n2p4(u8 *data)
+{
+	__asm__ volatile
+	(
+		"moveq		#4-1,%%d6;"
+		";"
+		"wlp%=:;"
+		"move.b		(%0)+,%%d7;"
+		"moveq		#2-1,%%d5;"
+		";"
+		"nlp%=:;"
+		"add.b		%%d7,%%d7;"
+		"addx.b		%%d1,%%d1;"
+		"add.b		%%d7,%%d7;"
+		"addx.b		%%d2,%%d2;"
+		"add.b		%%d7,%%d7;"
+		"addx.b		%%d3,%%d3;"
+		"add.b		%%d7,%%d7;"
+		"addx.b		%%d4,%%d4;"
+		"dbf		%%d5,nlp%=;"
+		"dbf		%%d6,wlp%=;"
+		"move.b		%%d1,-(%0);"
+		"move.b		%%d2,-(%0);"
+		"move.b		%%d3,-(%0);"
+		"move.b		%%d4,-(%0);"
+		";"
+		:
+		: "a"(data)
+		: "%%d1", "%%d2", "%%d3", "%%d4", "%%d5", "%%d6", "%%d7"
+	);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 #endif // compress_h_

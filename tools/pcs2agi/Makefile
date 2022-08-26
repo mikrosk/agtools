@@ -90,8 +90,10 @@ LDOPTS =
 #	Final flags
 # -----------------------------------------------------------------------------
 
-CXXFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) -std=c++0x -Wall -Wno-narrowing -Wno-unused-variable -Wno-multichar -fno-rtti -fno-exceptions
-CFLAGS		= $(CODEGENFLAGS) $(COMPILERDEFS) -Wall -Wno-narrowing -Wno-unused-variable -Wno-multichar
+SHAREDFLAGS = -Wall -Wno-unused-function -Wno-sign-compare -Wno-narrowing -Wno-unused-variable -Wno-unused-but-set-variable -Wno-multichar
+
+CXXFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS) -std=c++0x -fno-rtti -fno-exceptions
+CFLAGS		= $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS)
 
 LDFLAGS += $(CODEGENFLAGS) $(LDOPTS)
 

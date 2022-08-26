@@ -54,9 +54,9 @@ s16 tileset::interpret_header(const cct_header& header)
 	s16 tilewords = tilelinewords * tilesize_;
 
 	// tiles with mask consume 2x the space (which may include padding in 16x16 case)
-	if (header.flags & 8)
+	if (header.flags & (1<<3))
 		tilewords <<= 1;
-
+	
 	// calculate words for complete tileset
 	numtiles_ = header.tilecount;
 
@@ -113,9 +113,40 @@ bool tileset::load_cct(const char* const _filename)
 		numtiles_ = header.tilecount;
 		s32 tilesetwords = tilewords * numtiles_;
 
+		// stored as nibbles? convert back to bitplanes
+		if (header.flags & (1<<4))
+		{
+			pprintf("converting tileset from nibbles\n");
+
+			if (tilesize_ == 8)
+			{
+				int tilescans = numtiles_ * 8;
+
+				u8 *pdata = (u8*)tiles_;
+				for (int s = 0; s < tilescans; s++)
+				{
+					// 4 bytes per tile scan
+					rotate_n2p4(pdata);
+					pdata += 4;
+				}
+			}
+			else
+			if (tilesize_ == 16)
+			{
+				int tilescans = numtiles_ * 16;
+
+				u16 *pdata = (u16*)tiles_;
+				for (int s = 0; s < tilescans; s++)
+				{
+					// 4 words per tile scan
+					rotate_n2p4(pdata);
+					pdata += 4;
+				}
+			}
+		}
+
 		pprintf("created tileset: %d tiles @ %dx%d in %dp\n", 
 			(int)numtiles_, (int)tilesize_, (int)tilesize_, (int)header.bitplanes);
-
 		success = true;
 	}
 	else

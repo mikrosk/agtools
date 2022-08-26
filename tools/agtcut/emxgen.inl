@@ -817,7 +817,7 @@ public:
 			std::string rmacpath = c_rmac_filename;
 
 #if defined(_MSC_VER)
-
+#error
 			if (g_allargs.rmacpath.length() > 1)
 				rmacpath = g_allargs.rmacpath + '\\' + c_rmac_filename;
 
