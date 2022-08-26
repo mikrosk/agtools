@@ -19,7 +19,7 @@
 #include <../../agtsys/pcs.h>
 
 #include <../common/common.h>
-#include <../common/endian.h>
+#include <../common/bendian.h>
 #include <../common/p42n.h>
 
 // ---------------------------------------------------------------------------------------------------------------------
