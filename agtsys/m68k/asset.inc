@@ -92,27 +92,27 @@ spct_size:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-spf_psm2_wordwidth:	ds.w	1
-spf_psm2_bskew:		ds.w	1
-spf_psm2_bsyi:		ds.w	1
-spf_psm2_bdyi:		ds.w	1
-spf_psm2_wordoffset:	ds.w	1
-spf_psm2_emdata:	ds.w	1		; offset to (unique) EM data
-spf_psm2_code:		ds.l	1		; offset to (shared) codegen
-spf_psm2_nextcmp:	ds.l	1		; next component
-spf_psm2_clip:					; clipping table follows
+spf_emh_psm_wordwidth:	ds.w	1
+spf_emh_psm_bskew:	ds.w	1
+spf_emh_psm_bsyi:	ds.w	1
+spf_emh_psm_bdyi:	ds.w	1
+spf_emh_psm_wordoffset:	ds.w	1
+spf_emh_psm_emdata:	ds.w	1		; offset to (unique) EM data
+spf_emh_psm_code:	ds.l	1		; offset to (shared) codegen
+spf_emh_psm_nextcmp:	ds.l	1		; next component
+spf_emh_psm_clip:					; clipping table follows
 ; shared codegen emitted standalone, like colour data
 ; EM data emitted after clipping table
 
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-spf_psmo_wordwidth:	ds.w	1
-spf_psmo_wordoffset:	ds.w	1
-spf_psmo_dstyskip:	ds.w	1
-spf_psmo_dstwords:	ds.w	1
-spf_psmo_nextcmp:	ds.l	1
-spf_psmo_codegen:
+spf_emx_psm_wordwidth:	ds.w	1
+spf_emx_psm_wordoffset:	ds.w	1
+spf_emx_psm_dstyskip:	ds.w	1
+spf_emx_psm_dstwords:	ds.w	1
+spf_emx_psm_nextcmp:	ds.l	1
+spf_emx_psm_codegen:
 
 *-------------------------------------------------------*
 			.abs	spf_data

@@ -11,16 +11,13 @@
 #error "requires include: common/common.h"
 #endif
 
+
 //----------------------------------------------------------------------------------------------------------------------
 
-#if defined(__linux__)
-#include <stdint.h>		// for uintxx_t
-#include <arpa/inet.h>	// for htonl/ntohl
-#endif
+#if defined(_MSC_VER) || defined(__MINGW32__)
 
-// grrr!!
-#if defined(__MINGW32__)
-__stdcall uint32_t htonl(uint32_t hostlong)
+// use our own - system includes not consistent
+uint32_t agt_htonl(uint32_t hostlong)
 { 
 	uint32_t v = hostlong;
 
@@ -33,7 +30,7 @@ __stdcall uint32_t htonl(uint32_t hostlong)
 
 	return vs;
 }
-__stdcall uint32_t ntohl(uint32_t netlong)
+uint32_t agt_ntohl(uint32_t netlong)
 { 
 	uint32_t v = netlong;
 
@@ -46,7 +43,7 @@ __stdcall uint32_t ntohl(uint32_t netlong)
 
 	return vs;
 }
-__stdcall uint16_t htons(uint16_t hostword)
+uint16_t agt_htons(uint16_t hostword)
 { 
 	uint16_t v = hostword;
 
@@ -57,7 +54,7 @@ __stdcall uint16_t htons(uint16_t hostword)
 
 	return vs;
 }
-__stdcall uint16_t ntohs(uint16_t netword)
+uint16_t agt_ntohs(uint16_t netword)
 { 
 	uint16_t v = netword;
 
@@ -68,7 +65,24 @@ __stdcall uint16_t ntohs(uint16_t netword)
 
 	return vs;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+#else // defined(_MSC_VER) || defined(__MINGW32__)
+//----------------------------------------------------------------------------------------------------------------------
+
+#if defined(__linux__)
+#include <arpa/inet.h>	// for htonl/ntohl
 #endif
+
+// use the platform definitions
+#define agt_htonl htonl
+#define agt_htons htons
+#define agt_ntohl ntohl
+#define agt_ntohs ntohs
+
+//----------------------------------------------------------------------------------------------------------------------
+#endif // defined(_MSC_VER) || defined(__MINGW32__)
+//----------------------------------------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------------------------------------
 #endif // tools_endian_h_

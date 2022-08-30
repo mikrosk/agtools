@@ -961,11 +961,11 @@ enable_x_clipping	set	0
 ;	move.l		spf_data+(4*2)+(4*16)-8(a0,d6.w),a6
 	move.l		spf_emx_psmaskopt-8(a0,d6.w),a6
 
-	move.w		(a6),d6				; spf_psmo_wordwidth
+	move.w		(a6),d6				; spf_emx_psm_wordwidth
 
-	lea		spf_psmo_dstyskip(a6),a4	; baked fields for pagerestore
+	lea		spf_emx_psm_dstyskip(a6),a4	; baked fields for pagerestore
 	
-	lea		spf_psmo_codegen(a6),a6		; baked sprite code
+	lea		spf_emx_psm_codegen(a6),a6		; baked sprite code
 	
 ;	access colouropt data
 ;	move.l		spf_data+(4*1)-8(a0),a0

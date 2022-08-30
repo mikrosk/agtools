@@ -18,7 +18,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 
 #if defined(_MSC_VER)
-#error // use MinGW or WSL to build this, for host compatibility & consistency
+//#error // use MinGW or WSL to build this, for host compatibility & consistency
 #define POPEN _popen
 #define PCLOSE _pclose
 #else
@@ -26,11 +26,12 @@
 #define PCLOSE pclose
 #endif
 
+/*
 #if defined(__MINGW32__)
 extern "C" FILE *popen(const char *command, const char *mode);
 extern "C" void pclose(FILE *pipe);
 #endif
-
+*/
 //----------------------------------------------------------------------------------------------------------------------
 
 static bool exec(const std::string &cmd, std::string &r_result)

@@ -11,7 +11,7 @@
 ;	sanity check on frame index!
 	cmp.w		sps_framecount(a0),d0
 	.if		(within_entitydraw)
-	bhs		_AGT_Exception_EMSFrame_68k
+	bhs		_AGT_Exception_EMHFrame_68k
 	.else
 	blo.s		.emh_frameok
 .emh_framefault:
@@ -115,15 +115,15 @@
 	move.l		spf_em_psmask-8(a0,d6.w),a6
 	
 	
-;spf_psm2_wordwidth:	ds.w	1
-;spf_psm2_bskew:		ds.w	1
-;spf_psm2_bsyi:		ds.w	1
-;spf_psm2_bdyi:		ds.w	1
-;spf_psm2_wordoffset:	ds.w	1
-;spf_psm2_emdata:	ds.w	1		; offset to (unique) EM data
-;spf_psm2_code:		ds.l	1		; offset to (shared) codegen
-;spf_psm2_nextcmp:	ds.l	1		; next component
-;spf_psm2_clip:					; clipping table follows
+;spf_emh_psm_wordwidth:	ds.w	1
+;spf_emh_psm_bskew:		ds.w	1
+;spf_emh_psm_bsyi:		ds.w	1
+;spf_emh_psm_bdyi:		ds.w	1
+;spf_emh_psm_wordoffset:	ds.w	1
+;spf_emh_psm_emdata:	ds.w	1		; offset to (unique) EM data
+;spf_emh_psm_code:		ds.l	1		; offset to (shared) codegen
+;spf_emh_psm_nextcmp:	ds.l	1		; next component
+;spf_emh_psm_clip:					; clipping table follows
 
 	
 	st		.emh_is_first_cmp
@@ -131,31 +131,31 @@
 .emh_firstcmp:
 	move.l		a6,d6
 ;	wordwidth of source mask
-	move.w		(a6)+,d5			; spf_psm2_wordwidth
+	move.w		(a6)+,d5			; spf_emh_psm_wordwidth
 	move.w		d5,.sp_maskwidth(sp)
 ;	move.w		d5,BLiTXC.w
 	
 	
 	move.w		(a6)+,d0
-;	move.b		d0,BLiTSKEW.w			; spf_psm2_bskew
+;	move.b		d0,BLiTSKEW.w			; spf_emh_psm_bskew
 	move.b		d0,.emh_skew_smc+3
 	
-	move.w		(a6)+,BLiTSYI.w			; spf_psm2_bsyi
-	move.w		(a6)+,BLiTDYI.w			; spf_psm2_bdyi	
-	move.w		(a6)+,BLiTXC.w			; spf_psm2_bxc
-;	addq		#2,a6				; spf_psm2_wordoffset
+	move.w		(a6)+,BLiTSYI.w			; spf_emh_psm_bsyi
+	move.w		(a6)+,BLiTDYI.w			; spf_emh_psm_bdyi	
+	move.w		(a6)+,BLiTXC.w			; spf_emh_psm_bxc
+;	addq		#2,a6				; spf_emh_psm_wordoffset
 ;	move.w		(a6)+,d0
 
-	move.w		(a6)+,d0			; spf_psm2_emdata
+	move.w		(a6)+,d0			; spf_emh_psm_emdata
 	move.l		d6,a3
-	add.w		d0,a3				; psmask+spf_psm2_emdata	
+	add.w		d0,a3				; psmask+spf_emh_psm_emdata	
 	move.l		a3,.emh_psm2_emdata
 
 ;	bra		*
 
-	move.l		(a6)+,d0			; spf_psm2_code
+	move.l		(a6)+,d0			; spf_emh_psm_code
 	move.l		d6,a3
-	add.l		d0,a3				; psmask+spf_psm2_code	
+	add.l		d0,a3				; psmask+spf_emh_psm_code	
 	move.l		a3,.emh_psm2_mprog
 	move.l		a3,.emh_psm2_mprog2
 		
@@ -235,7 +235,7 @@
 ;	move.w		d2,d0
 ;	mulu.w		#spct_size,d0
 ;	move.l		a6,a4
-;	add.l		d0,a4				; spf_psm2_clip+(spct_size*tyc)
+;	add.l		d0,a4				; spf_emh_psm_clip+(spct_size*tyc)
 
 	move.w		d2,d0
 	add.w		d0,d0
@@ -339,7 +339,7 @@
 	add.w		d0,a6	
 	
 ;	mulu.w		#spct_size,d0
-;	add.w		d0,a6				; spf_psm2_clip+(spct_size*tyc)
+;	add.w		d0,a6				; spf_emh_psm_clip+(spct_size*tyc)
 	
 	move.l		.emh_psm2_mprog2,a4
 	move.w		spct_mprog_off(a6),d0

@@ -541,7 +541,7 @@
 
 	move.l		a2,BLiTSRC.w
 	
-	lea		spf_psmo_nextcmp+4(a6),a6
+	lea		spf_emx_psm_nextcmp+4(a6),a6
 
 	; find destination word width of whole sprite, all composites
 	; to produce a single sprite restore rectangle

@@ -1390,6 +1390,16 @@ extern "C" void AGT_Exception_EMSFrame(s16 _frame, spritesheet::sps_header *h)
 	while(1) { }
 }
 
+extern "C" void AGT_Exception_EMHFrame(s16 _frame, spritesheet::sps_header *h)
+{
+	entitybase_t * pcurr = (entitybase_t*)(reg32(A8));
+
+	eprintf("error: EMH frame fault\n")
+	eprintf("ent:%d type:%d frame:%d >= fmax:%d\n", (unsigned int)pcurr->id, (int)pcurr->type, (int)_frame, (int)h->framecount);
+	xassert(false);
+	while(1) { }
+}
+
 extern "C" void AGT_Exception_EMXFrame(s16 _frame, spritesheet::sps_header *h)
 {
 	entitybase_t * pcurr = (entitybase_t*)(reg32(A8));

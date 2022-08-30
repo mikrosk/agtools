@@ -8,64 +8,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
-
-#if defined(__linux__)
 #include <stdint.h>		// for uintxx_t
-#include <arpa/inet.h>	// for htonl/ntohl
-#endif
 
-// grrr!!
-#if defined(__MINGW32__)
-__stdcall uint32_t htonl(uint32_t hostlong)
-{ 
-	uint32_t v = hostlong;
+#include <string>
 
-	uint32_t vs = 
-		((v & 0x000000FF) << 24) | 
-		((v & 0x0000FF00) << 8) | 
-		((v & 0x00FF0000) >> 8) | 
-		((v & 0xFF000000) >> 24)
-	;
-
-	return vs;
-}
-__stdcall uint32_t ntohl(uint32_t netlong)
-{ 
-	uint32_t v = netlong;
-
-	uint32_t vs = 
-		((v & 0x000000FF) << 24) | 
-		((v & 0x0000FF00) << 8) | 
-		((v & 0x00FF0000) >> 8) | 
-		((v & 0xFF000000) >> 24)
-	;
-
-	return vs;
-}
-__stdcall uint16_t htons(uint16_t hostword)
-{ 
-	uint16_t v = hostword;
-
-	uint16_t vs = 
-		((v & 0x00FF) << 8) | 
-		((v & 0xFF00) >> 8)
-	;
-
-	return vs;
-}
-__stdcall uint16_t ntohs(uint16_t netword)
-{ 
-	uint16_t v = netword;
-
-	uint16_t vs = 
-		((v & 0x00FF) << 8) | 
-		((v & 0xFF00) >> 8)
-	;
-
-	return vs;
-}
-#endif
-
+#include "../common/common.h"
+#include "../common/bendian.h"
 
 typedef struct wrapheader_s
 {
@@ -87,7 +35,7 @@ static uint32_t gen_crc_lite(uint16_t *_data, uint32_t _words)
 
 	do
 	{
-		uint16_t data16 = ntohs(*_data++);		// BE data representation on target
+		uint16_t data16 = agt_ntohs(*_data++);		// BE data representation on target
 
 		// xor
 		CRC ^= (uint32_t)data16;
@@ -113,7 +61,7 @@ static uint32_t gen_crc(uint16_t *_data, uint32_t _words, uint32_t hash = c_FNVO
 
 		do
 		{
-			uint16_t data16 = ntohs(*_data++);		// BE data representation on target
+			uint16_t data16 = agt_ntohs(*_data++);		// BE data representation on target
 
 			// xor
 			hash ^= data16;
@@ -240,10 +188,10 @@ int main(int argc, char * argv[])
 	wrapheader_t *header = (wrapheader_t*)bufferpos;
 
 	// create wrapper with BE encoding for 68k
-	header->prefix =		htonl('wrap');
-	header->wrapcode =		htonl(wrapcode);
-	header->data_size =		htonl(in_filesize);
-	header->unpacked_size =	htonl(orig_filesize);
+	header->prefix =		agt_htonl('wrap');
+	header->wrapcode =		agt_htonl(wrapcode);
+	header->data_size =		agt_htonl(in_filesize);
+	header->unpacked_size =	agt_htonl(orig_filesize);
 
 	bufferpos += sizeof(wrapheader_t);
 
@@ -253,8 +201,8 @@ int main(int argc, char * argv[])
 	// calculate simple CRC
 	uint32_t packed_crc = gen_crc((uint16_t*)bufferpos, in_filesize >> 1);
 
-	header->pcrc = htonl(packed_crc);
-	header->ucrc = htonl(orig_crc);
+	header->pcrc = agt_htonl(packed_crc);
+	header->ucrc = agt_htonl(orig_crc);
 
 	FILE *outfile = fopen(name_wrapped, "wb");
 	if (outfile == NULL)

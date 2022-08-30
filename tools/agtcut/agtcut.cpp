@@ -17,6 +17,7 @@
 //#error **** ALL TOOL BUILDS SHOULD NOW BE MADE WITH MINGW NOT VC++ ****
 #define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
+#include <stdint.h>
 #endif
 
 #include <stdlib.h>
@@ -41,6 +42,7 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../3rdparty/stb_image.h"
+#include "../3rdparty/ThreadPool.h"
 
 #include "../common/common.h"
 #include "../common/bendian.h"
@@ -69,6 +71,10 @@ static const char* const c_rmac_filename = "rmac.exe";
 #else
 static const char* const c_rmac_filename = "rmac";
 #endif
+
+// this allowed EMH to be y-clipped providing the lineorder is preserved - but results in bad performance and excess storage costs.
+// disabling this makes EMH useful versus both EMS and EMX foramts so long as GUARDY is used for y-clipping cases
+static const int USE_EMH_CLIPTABLE = 0;
 
 //static const int USE_LINEDUPE_OPTIMIZATION = 1;
 static const int USE_DELTA_OPTIMIZATION = 1;
@@ -105,6 +111,32 @@ static const int DEFAULT_EMX_OPTLEVEL = 0;//16;
 
 #define BMP_TYPICAL_ROW_ORDER (1)		// 0 = -ve height, +ve ordering (easier to parse back in)
 										// 1 = +ve height, -ve ordering (more common)
+
+// --------------------------------------------------------------------
+
+class hasher
+{
+public:
+
+	template<class T>
+	static u32 hash(T *source, size_t count)
+	{
+		static const u32 c_FNVPrime = 16777619;
+		static const u32 c_FNVOBase = 2166136261;
+
+		u32 hash = c_FNVOBase;
+
+		for (size_t p = 0; p < count; ++p)
+		{
+			u32 data = *source++;
+			hash ^= data;
+			hash *= c_FNVPrime;
+			hash = (hash >> 7) | (hash << (32 - 7));
+		}
+
+		return hash;
+	}
+};
 
 // --------------------------------------------------------------------
 //	local types
@@ -741,6 +773,7 @@ public:
 		  planes(4),
 		  tilesize(16),
 		  emxoptlevel(DEFAULT_EMX_OPTLEVEL),
+		  emxopttrials(4),
 		  emguardx(32),
 		  preshift_step(1),
 		  preshift_scale(0),
@@ -831,6 +864,7 @@ public:
 	int maprect_xsize;
 	int maprect_ysize;
 	int emxoptlevel;
+	int emxopttrials;
 	int emguardx;
 	int preshift_step;
 	int preshift_scale;
@@ -1198,15 +1232,40 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_EMXOPT)
 			{
 				std::string s_arg = args.OptionArg();
-				int iarg = atoi(s_arg.c_str());
-				if (iarg < 0 || iarg > 31)
+				int trials = 1;
+				int iters = 0;
+				if (s_arg.find(",") == std::string::npos)
 				{
-					std::cerr << "error: invalid arg for emxopt (max=31): " << s_arg << std::endl;
+					// single argument (iters)
+					iters = atoi(s_arg.c_str());
+				}
+				else
+				{
+					// x,y pair (iters:trials)
+					size_t split = s_arg.find(",");
+					std::string x = s_arg.substr(0,split);
+					std::string y = s_arg.substr(split+1, std::string::npos);
+					iters = atoi(x.c_str());
+					trials = atoi(y.c_str());
+
+					if (trials <= 0 || trials > 255)
+					{
+						std::cerr << "error: invalid arg for emxopt trials <iters,trials> (0 < trials < 256): " << s_arg << std::endl;
+						std::cout << "press any key..." << std::endl << std::flush;
+						getchar();
+						exit(1);
+					}
+				}
+
+				if (iters < 0 || iters > 31)
+				{
+					std::cerr << "error: invalid arg for emxopt iters (max=31): " << s_arg << std::endl;
 					std::cout << "press any key..." << std::endl << std::flush;
 					getchar();
 					exit(1);
 				}
-				_args.emxoptlevel = iarg;	
+				_args.emxoptlevel = iters;	
+				_args.emxopttrials = trials;	
 			}
 			else if (args.OptionId() == OPT_PRESHIFTSTEP)
 			{
@@ -3234,7 +3293,7 @@ static void reduce_image24(RGB *_psourcergb, ubyte_t *_psrccol, ubyte_t *_pdstco
 	{
 		// review palettes if source image is indexed
 		if ((_sourced > 0) && (_sourced < 16) && 
-			!g_allargs.quickcut && !g_allargs.quiet)
+			!g_allargs.quickcut && g_allargs.verbose)
 		{
 			std::cout << "summary of source->desintation palettes for indexed source image being remapped" << std::endl;
 			review_palettes(r_ppal, ppal, _sourced);
@@ -5358,9 +5417,11 @@ public:
 
 	std::vector<u16> shared_mask_words;
 	std::vector<scanstate_t> scan_states;
+	scanstate_t first_scan_state;
 	std::map<int, bool> occupied_lines;
 	std::vector < constrained_wordspan* > stacked_spans;
 	int mprog_final;
+	int file_offset;
 
 	preshift_t
 	(
@@ -5381,7 +5442,8 @@ public:
 		  data_(_data),
 		  p68kbin(nullptr),
 		  size68kbin(0),
-		  mprog_final(0)
+		  mprog_final(0),
+		  file_offset(0)
 	{
 		planewords_ = _height * _wordwidth;
 	}
@@ -6193,8 +6255,10 @@ void add_sprite_frame
 
 #include "emxgen.inl"
 
+#include "emcommon.inl"
 //#include "emximpl_v1.inl"
 #include "emximpl_v2.inl"
+#include "emhimpl.inl"
 
 // --------------------------------------------------------------------
 //	emit .sps spritesheet sequence file
@@ -6314,7 +6378,7 @@ bool emit_sprite_sequence(bool _storepixels)
 		std::cout << "bound xs: " << std::dec << g_sprite_width << std::endl;
 		std::cout << "bound ys: " << std::dec << g_sprite_height << std::endl;
 
-		// create sprite index (patched before closing)
+		// create sprite frame index (patched before closing)
 		int sprite_index_fpos = tracked_filesize;
 		lv = 0xBBBBBBBB;
 		for (spritelist_t::iterator it = g_spriteframes.begin(); it != g_spriteframes.end(); it++)
@@ -6322,7 +6386,10 @@ bool emit_sprite_sequence(bool _storepixels)
 			fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
 		}
 
-		// individual sprites follow
+		//std::map<int, int> mprog_fpos_remap;
+		std::map<u32, int> mprog_hash_map;
+
+		// individual sprite frames follow
 		int si = 0;
 		for (spritelist_t::iterator it = g_spriteframes.begin(); it != g_spriteframes.end(); it++, si++)
 		{
@@ -6464,7 +6531,9 @@ bool emit_sprite_sequence(bool _storepixels)
 							// patch omap index base offset
 							{
 								fseek(hout, omap_base_fpos + 4, 0);
-								wv = s16(omap_index_fpos - omap_base_fpos);
+								s32 offset = omap_index_fpos - omap_base_fpos;
+								assert((offset < 65536) && "offset too large for occlusion map data");
+								wv = s16(offset);
 								wv = endianswap16(wv);
 								fwrite(&wv, 1, 2, hout);
 							}
@@ -6501,18 +6570,63 @@ bool emit_sprite_sequence(bool _storepixels)
 
 								if (shift.size68kbin)
 								{
+									// check if we've handled this binary yet (first in a series of identical preshifts?)
 									auto look = mprog_fpos_map.find(shift.p68kbin);
 									if (look == mprog_fpos_map.end())
 									{
-										mprog_fpos_map[shift.p68kbin] = tracked_filesize;
+										// this is a new binary, although it may still duplicate another animation frame
 
-										fwrite((shift.p68kbin + 32), 1, (shift.size68kbin - 32), hout);
-										tracked_filesize += (shift.size68kbin - 32);
+										// ensure binary ends with RTS
+										ubyte_t *binend = (ubyte_t*)(shift.p68kbin + (shift.size68kbin - 2));
+										assert(binend[0] == 0x4e);
+										assert(binend[1] == 0x75);
 
-										printf("output m68k shared metaprogram for EMH preshift %d component %d\n", preshift_index, component);
+										// collapse identical codegen instances (optimization for animated sheets)
+										u32 hash32 = hasher::hash<uword_t>((uword_t*)(shift.p68kbin+32), (shift.size68kbin-32)>>1);
+										auto hashlook = mprog_hash_map.find(hash32);
+										if (hashlook == mprog_hash_map.end())
+										{
+											// unique instance, not seen before: record in file, record position
+
+											int filepos = tracked_filesize;
+											mprog_hash_map[hash32] = filepos;
+
+											fwrite((shift.p68kbin + 32), 1, (shift.size68kbin - 32), hout);
+
+											// track position for this reference
+											mprog_fpos_map[shift.p68kbin] = filepos;
+											//mprog_fpos_remap[filepos] = filepos;
+
+											tracked_filesize += (shift.size68kbin - 32);
+
+											printf("output m68k shared metaprogram H[%08x] for EMH preshift %d component %d\n", hash32, preshift_index, component);
+										}
+										else
+										{
+											int remapped_filepos = hashlook->second;
+
+											// duplicate instance, despite being a distinct reference - remap it
+											mprog_fpos_map[shift.p68kbin] = remapped_filepos;
+
+											printf("folded m68k shared metaprogram H[%08x] for EMH preshift %d component %d\n", hash32, preshift_index, component);
+										}
+
+
+										//mprog_fpos_map[h68kbin] = std::pair<int, preshift_t*>(tracked_filesize, &shift);
+
+										//shift.file_offset = tracked_filesize;
 									}
 									else
 									{
+/*
+										int real_fileoffset = look->second.first;
+										preshift_t *preal_instance = look->second.second;
+
+										// map duplicate to real instance
+										shift.p68kbin = preal_instance->p68kbin;
+										shift.size68kbin = preal_instance->size68kbin;
+										shift.file_offset = preal_instance->file_offset;
+*/
 										// duplicate reference
 									}
 								}
@@ -6529,7 +6643,7 @@ bool emit_sprite_sequence(bool _storepixels)
 					int ems2_sharedmask_codegen_fpos = 0;
 					if (g_allargs.cutmode == Cutmode_EMHSPR)
 					{
-						// spf_psm2_
+						// spf_emh_psm_
 						if (it->ems2_size68kbin_)
 						{
 							ems2_sharedmask_codegen_fpos = tracked_filesize;
@@ -6577,6 +6691,9 @@ bool emit_sprite_sequence(bool _storepixels)
 							int realy = y;
 							//						if (g_allargs.cutmode == Cutmode_EMXSPR)
 							//							realy = it->lineorder[y];
+
+							if (g_allargs.cutmode == Cutmode_EMHSPR)
+								realy = it->ems_.linemap_opt_2_src[y];
 
 							for (int p = 0; p < g_allargs.planes; p++)
 							{
@@ -6675,7 +6792,7 @@ bool emit_sprite_sequence(bool _storepixels)
 								psmask_component_index[std::pair<int, int>(preshift_index, component)] = tracked_filesize;
 								int psmask_component_fpos = tracked_filesize;
 								// spf_psm_
-								// spf_psm2_
+								// spf_emh_psm_
 
 								// write word-width for this preshift (will be 1, 2 or 3 in this mode for STE/F030 blitter endmasks)
 								wv = endianswap16(spshift->wordwidth_);
@@ -6684,13 +6801,36 @@ bool emit_sprite_sequence(bool _storepixels)
 								if (g_allargs.cutmode == Cutmode_EMHSPR)
 								{
 //#if defined(USE_EMS2)
-									const auto & ss = *(spshift->scan_states.begin());
+									//const auto & ss = *(spshift->scan_states.begin());
+//									int orig_y = it->ems_.linemap_opt_2_src[0];
+//									const auto & ss = spshift->scan_states[orig_y];
+//									const blitstate_t & bs = ss.blitstate;
+//									assert(ss.allocated);
+
+									const auto & ss = spshift->first_scan_state;
 									const blitstate_t & bs = ss.blitstate;
+									assert(ss.allocated);
+
+									if (g_allargs.verbose)
+										printf("\n");
+
+									if (g_allargs.verbose)
+										printf("mpo:%04x\n", (int)ss.mprog_offset);
+									if (g_allargs.verbose)
+										printf("dlo:%04x\n", (int)ss.dst_line_offset);
+									if (g_allargs.verbose)
+										printf("edo:%04x\n", (int)ss.emdata_offset);
+									if (g_allargs.verbose)
+										printf("sco:%04x\n", (int)ss.srccol_offset);
+
+									assert(ss.mprog_offset == 0);
+									assert(ss.emdata_offset == 0);
+									assert(ss.srccol_offset == 0);
 
 									// BLiTSKEW
 									wv = u16(bs.SKEW);
 									if (g_allargs.verbose)
-										printf("\nBLiTSKEW:%04x\n", (int)wv);
+										printf("BLiTSKEW:%04x\n", (int)wv);
 									wv = endianswap16(wv);
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
@@ -6760,18 +6900,22 @@ bool emit_sprite_sequence(bool _storepixels)
 								if (g_allargs.cutmode == Cutmode_EMHSPR)
 								{
 //#if defined(USE_EMS2)
-									// spf_psm2_
-									// spf_psm2_emdata
+									// spf_emh_psm_
+									// spf_emh_psm_emdata
 									// offset.w to emdata pool for this preshift
 									wv = 0;
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 
-									// spf_psm2_code
+									// spf_emh_psm_code
 									// offset.l to shared m68k mprog
 									//int psmask_component_codegen_offset = tracked_filesize;
 									// code already emitted, position known
 									//lv = int(ems2_sharedmask_codegen_fpos - psmask_component_fpos);
 									int ems2_sharedmask_codegen_fpos = mprog_fpos_map[spshift->p68kbin];
+
+									// an additional remap can collapse indentical instances by their hash (for animation frames producing same codegen)
+									//ems2_sharedmask_codegen_fpos = mprog_fpos_remap[ems2_sharedmask_codegen_fpos];
+
 									lv = int(ems2_sharedmask_codegen_fpos - psmask_component_fpos);
 									lv = endianswap32(lv);
 									fwrite(&lv, 1, 4, hout); tracked_filesize += 4;
@@ -6788,111 +6932,112 @@ bool emit_sprite_sequence(bool _storepixels)
 
 								if (g_allargs.cutmode == Cutmode_EMHSPR)
 								{
-
-									//#if defined(USE_EMS2)
-									// ---------------------------------------------------------------------------------------
-									// clip table (follows spf_psm2_)
-
-									std::map<int,int> scan_index;
-									std::map<int,int> remapping;
-									int compressed_tide = 0;
-
-									// clipdata index table (16 bits per scan)
-									for (int so = 0; so < spshift->scan_states.size(); so++)
+									// this defeats the point of EMH, making it bigger than EMX! y-clipping has been abandoned in favour of GUARDY
+									if (USE_EMH_CLIPTABLE && !g_allargs.noclipy)
 									{
-										const auto & rsso = spshift->scan_states[so];
+										// ---------------------------------------------------------------------------------------
+										// clip table (follows spf_emh_psm_)
 
-										int remapped_index = so;
+										std::map<int, int> scan_index;
+										std::map<int, int> remapping;
+										int compressed_tide = 0;
 
-										// find first match for all reusable fields
-										for (int si = 0; si < so; si++)
+										// clipdata index table (16 bits per scan)
+										for (int so = 0; so < spshift->scan_states.size(); so++)
 										{
+											const auto & rsso = spshift->scan_states[so];
+
+											int remapped_index = so;
+
 											// find first match for all reusable fields
-											const auto & rssi = spshift->scan_states[si];
-
-											if (rssi.alias_of(rsso))
+											for (int si = 0; si < so; si++)
 											{
-												remapped_index = si;
-												break;
+												// find first match for all reusable fields
+												const auto & rssi = spshift->scan_states[si];
+
+												if (rssi.alias_of(rsso))
+												{
+													remapped_index = si;
+													break;
+												}
 											}
+
+											int compressed_index = 0;
+
+											if (remapped_index == so)
+											{
+												// distinct - encode new compressed index
+												compressed_index = compressed_tide++;
+												remapping[so] = compressed_index;
+											}
+											else
+											{
+												// reused/compressed
+												compressed_index = remapping[remapped_index];
+											}
+
+											scan_index[so] = compressed_index;
+
+											static const int c_indexentry_size = 2;
+											static const int c_record_size = 18;
+
+											int data_offset =
+												(spshift->scan_states.size() * c_indexentry_size) +
+												(compressed_index * c_record_size);
+
+											if (g_allargs.verbose)
+												printf("scan index: %d->%d o:%d\n", so, compressed_index, data_offset);
+
+											wv = endianswap16(u16(data_offset));
+											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 										}
 
-										int compressed_index = 0;
-										
-										if (remapped_index == so)
+										//for (const auto & ss : spshift->scan_states)
+										for (auto & me : remapping)
 										{
-											// distinct - encode new compressed index
-											compressed_index = compressed_tide++;
-											remapping[so] = compressed_index;
+											int so = me.first;
+											const  auto & ss = spshift->scan_states[so];
+
+											const blitstate_t & bs = ss.blitstate;
+											/*
+												u16 emdata_offset;
+												u16 srccol_offset;
+												u16 mprog_offset;
+												u16 lines_remaining;
+												u8 dst_line_offset;
+												u8 dst_word_offset;
+												u8 SYI;
+												u8 DYI;
+												u8 SKEW; // d1
+												u8 XC;
+												u16 EM1;
+												u16 EM2;
+												u16 EM3;
+												*/
+												// cpu
+											wv = endianswap16(ss.emdata_offset);
+											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+											wv = endianswap16(ss.srccol_offset);
+											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+											wv = endianswap16(ss.mprog_offset);
+											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+											//wv = endianswap16(ss.lines_remaining);
+											//fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+											fwrite(&ss.dst_line_offset, 1, 1, hout); tracked_filesize += 1;
+											fwrite(&ss.dst_word_offset, 1, 1, hout); tracked_filesize += 1;
+											// blitter
+											fwrite(&bs.SYI, 1, 1, hout); tracked_filesize += 1;
+											fwrite(&bs.DYI, 1, 1, hout); tracked_filesize += 1;
+											fwrite(&bs.SKEW, 1, 1, hout); tracked_filesize += 1;
+											fwrite(&bs.XC, 1, 1, hout); tracked_filesize += 1;
+											wv = endianswap16(bs.EM1);
+											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+											wv = endianswap16(bs.EM2);
+											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+											wv = endianswap16(bs.EM3);
+											fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
 										}
-										else
-										{
-											// reused/compressed
-											compressed_index = remapping[remapped_index];
-										}
-
-										scan_index[so] = compressed_index;
-
-										static const int c_indexentry_size = 2;
-										static const int c_record_size = 18;
-
-										int data_offset = 
-											(spshift->scan_states.size() * c_indexentry_size) +
-											(compressed_index * c_record_size);
-
-										if (g_allargs.verbose)
-											printf("scan index: %d->%d o:%d\n", so, compressed_index, data_offset);
-
-										wv = endianswap16(u16(data_offset));
-										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-									}
-
-									//for (const auto & ss : spshift->scan_states)
-									for (auto & me : remapping)
-									{
-										int so = me.first;
-										const  auto & ss = spshift->scan_states[so];
-
-										const blitstate_t & bs = ss.blitstate;
-										/*
-											u16 emdata_offset;
-											u16 srccol_offset;
-											u16 mprog_offset;
-											u16 lines_remaining;
-											u8 dst_line_offset;
-											u8 dst_word_offset;
-											u8 SYI;
-											u8 DYI;
-											u8 SKEW; // d1
-											u8 XC;
-											u16 EM1;
-											u16 EM2;
-											u16 EM3;
-											*/
-										// cpu
-										wv = endianswap16(ss.emdata_offset);
-										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-										wv = endianswap16(ss.srccol_offset);
-										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-										wv = endianswap16(ss.mprog_offset);
-										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-										//wv = endianswap16(ss.lines_remaining);
-										//fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-										fwrite(&ss.dst_line_offset, 1, 1, hout); tracked_filesize += 1;
-										fwrite(&ss.dst_word_offset, 1, 1, hout); tracked_filesize += 1;
-										// blitter
-										fwrite(&bs.SYI, 1, 1, hout); tracked_filesize += 1;
-										fwrite(&bs.DYI, 1, 1, hout); tracked_filesize += 1;
-										fwrite(&bs.SKEW, 1, 1, hout); tracked_filesize += 1;
-										fwrite(&bs.XC, 1, 1, hout); tracked_filesize += 1;
-										wv = endianswap16(bs.EM1);
-										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-										wv = endianswap16(bs.EM2);
-										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-										wv = endianswap16(bs.EM3);
-										fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
-									}
-
+									} // USE_EMH_CLIPTABLE
 
 									// ---------------------------------------------------------------------------------------
 									// EM data
@@ -6921,7 +7066,6 @@ bool emit_sprite_sequence(bool _storepixels)
 										fseek(hout, save, 0);
 									}
 
-								//#else
 								}
 								else
 								{
@@ -6988,7 +7132,7 @@ bool emit_sprite_sequence(bool _storepixels)
 							int component = 0;
 							for (preshiftlist_t::iterator itc = itpm->begin(); itc != itpm->end(); itc++, component++)
 							{
-								// spf_psmo_
+								// spf_emx_psm_
 								auto & spshift = *itc;
 
 								//psmaskopt_component_index[emx_component].push_back(tracked_filesize);
@@ -9447,7 +9591,8 @@ bool do_sheet()
 						//if (g_allargs.alphargb_specified)
 						//	real_cuts >>= 1;
 
-						std::cout << "real_cuts: " << real_cuts << std::endl;
+						if (g_allargs.verbose)
+							std::cout << "real_cuts: " << real_cuts << std::endl;
 
 						spritemap_t::iterator found = g_allargs.spritemappings.find(real_cuts);
 						if (found != g_allargs.spritemappings.end())
@@ -9555,7 +9700,7 @@ bool do_sheet()
 				generate_emx_sequence();
 #endif
 //#if defined(USE_EMS2)
-//				generate_ems2_sequence();
+//				generate_emh_sequence();
 //#endif
 				std::cout << "outputting data..." << std::endl;
 				emit_sprite_sequence(!g_allargs.hidden);
@@ -9569,7 +9714,7 @@ bool do_sheet()
 
 			case Cutmode_EMHSPR:
 //#if defined(USE_EMS2)
-				generate_ems2_sequence();
+				generate_emh_sequence();
 //#endif
 				std::cout << "outputting data..." << std::endl;
 				emit_sprite_sequence(!g_allargs.hidden);
@@ -9616,7 +9761,6 @@ bool do_sheet()
 
 int main(int argc, char* argv[])
 {
-
 	std::cout << "[A]tari [G]ame [T]ools: playfield/sprite/slab cutter " << g_version_string << " / dml" << std::endl;
 
 	std::string argv_str(argv[0]);

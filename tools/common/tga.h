@@ -13,7 +13,9 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
+#if !defined(_MSC_VER)
 __attribute__((noinline))
+#endif
 static void emit_tga(const char* const _name, RGB *data, int _w, int _h)
 {
 	// emit trivial targa format, out of sheer lazyness

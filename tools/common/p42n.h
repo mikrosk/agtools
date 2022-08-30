@@ -23,10 +23,10 @@ static void rotate_p42n(uint16_t *pdata)
 
 	if (BE)
 	{
-		p0 = ntohs(p0);
-		p1 = ntohs(p1);
-		p2 = ntohs(p2);
-		p3 = ntohs(p3);
+		p0 = agt_ntohs(p0);
+		p1 = agt_ntohs(p1);
+		p2 = agt_ntohs(p2);
+		p3 = agt_ntohs(p3);
 	}
 
 	uint8_t n = 0;
@@ -57,7 +57,7 @@ static void rotate_p42n(uint16_t *pdata)
 		}
 		if (BE)
         {
-			w = htons(w);
+			w = agt_htons(w);
         }
 		pdata[o] = w;
 	}

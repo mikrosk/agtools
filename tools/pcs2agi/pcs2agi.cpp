@@ -9,18 +9,19 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include <string>
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 // for access to PCS header etc.
-#include <../../3rdparty/binarylit.h>
-#include <../../agtsys/pcs.h>
+#include "../../3rdparty/binarylit.h"
+#include "../../agtsys/pcs.h"
 
-#include <../common/common.h>
-#include <../common/bendian.h>
-#include <../common/p42n.h>
+#include "../common/common.h"
+#include "../common/bendian.h"
+#include "../common/p42n.h"
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -282,7 +283,7 @@ int main(int argc, char * argv[])
 	const PCS_header * pheader = (PCS_header*)indata;
 	const PCS_header & header = *pheader;
 
-	int width = ntohs(header.PCS_width);
+	int width = agt_ntohs(header.PCS_width);
 
 	if (width != 416)
 	{
@@ -290,7 +291,7 @@ int main(int argc, char * argv[])
 		ok = false;
 	}
 
-	int nlines = ntohs(header.PCS_height);
+	int nlines = agt_ntohs(header.PCS_height);
 	if (nlines < 272)
 	{
 		printf("error: PCSv6 asset has to few lines [%d]<[272]", nlines);
@@ -346,10 +347,10 @@ int main(int argc, char * argv[])
 	uint16_t flags = 0;
 
 	// create wrapper with BE encoding for 68k
-	outheader->code =		htonl('p6t1');			// pcsv6 type #1
-	outheader->w =			htons(width);
-	outheader->h =			htons(nlines);
-	outheader->flags =		htons(flags);
+	outheader->code =		agt_htonl('p6t1');			// pcsv6 type #1
+	outheader->w =			agt_htons(width);
+	outheader->h =			agt_htons(nlines);
+	outheader->flags =		agt_htons(flags);
 	outheader->pf =			palette_fields;
 	outheader->bf =			bitmap_fields;
 
@@ -370,7 +371,7 @@ int main(int argc, char * argv[])
 	);
 
 	// finalise size prefix
-	outheader->size =		htonl(out_filesize-4);
+	outheader->size =		agt_htonl(out_filesize-4);
 
 	// output converted data
 

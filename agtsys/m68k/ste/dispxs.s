@@ -720,6 +720,14 @@ displayservice_nickel_lowerconsole_routing:
 
 	clr.b		tbcr.w				; TimerB CTRL: halt
 	
+	.if		^^defined AGT_CONFIG_ENABLE_DISPLAYTIMER
+
+	move.w		#displayservice_ste272_d1_tb+1,_g_display_timer_counted
+	move.l		_min_pconsole,a0
+	move.l		(a0),_g_display_timer_begin
+	
+	.endif
+	
 	move.l		(sp)+,a0
 	move.l		(sp)+,d0
 	

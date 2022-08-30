@@ -63,6 +63,17 @@ displayservice_common_upper_a:
 
 	move.b		d0,tacr.w				; TimerA CTRL: halt
 
+	.if		^^defined AGT_CONFIG_ENABLE_DISPLAYTIMER
+
+	lea		$ffff8202.w,a0
+	movep.l		1(a0),d0
+	and.l		#$00ffffff,d0	
+	move.l		d0,_g_display_timer_begin
+	clr.w		_g_display_timer_counted
+	addq.w		#1,_g_display_timer_ticks
+	
+	.endif	
+	
 	movem.l		(sp)+,d0/a0/a1
 
 	bliton
@@ -117,6 +128,17 @@ displayservice_common_upper_d:
 	move.w		a1,(a1)	;$ffff820a.w
 
 	and.b		#$f8,cdcr.w				; TimerD CTRL: halt
+
+	.if		^^defined AGT_CONFIG_ENABLE_DISPLAYTIMER
+
+	lea		$ffff8202.w,a0
+	movep.l		1(a0),d0
+	and.l		#$00ffffff,d0	
+	move.l		d0,_g_display_timer_begin
+	clr.w		_g_display_timer_counted
+	addq.w		#1,_g_display_timer_ticks
+	
+	.endif
 
 	movem.l		(sp)+,d0/a0/a1
 
@@ -191,6 +213,53 @@ displayservice_common_full_lower_b:
 	rte
 
 
+	.if		^^defined AGT_CONFIG_ENABLE_DISPLAYTIMER
+
+*-----------------------------------------------------------------------------*	
+	.globl		_STE_GetDisplayTimer
+*-----------------------------------------------------------------------------*
+_STE_GetDisplayTimer:
+*-----------------------------------------------------------------------------*		
+	lea		$ffff8202.w,a0
+	movep.l		1(a0),d0
+	and.l		#$00ffffff,d0	
+
+	sub.l		_g_display_timer_begin,d0
+	
+	moveq		#0,d1
+	move.b		$ffff820f,d1
+	add.w		d1,d1
+	add.w		#160,d1
+
+	divu.w		d1,d0
+	add.w		_g_display_timer_counted,d0
+	ext.l		d0
+	
+	rts
+	
+*-----------------------------------------------------------------------------*
+	.globl		_STE_WaitDisplayTimerStart
+*-----------------------------------------------------------------------------*
+_STE_WaitDisplayTimerStart:
+*-----------------------------------------------------------------------------*
+	move.w		_g_display_timer_ticks,d0
+.wt:	cmp.w		_g_display_timer_ticks,d0
+	beq.s		.wt
+	rts
+
+*-----------------------------------------------------------------------------*
+	.bss
 *-----------------------------------------------------------------------------*
 	
-		
+_g_display_timer_begin:
+	ds.l		1
+_g_display_timer_counted:
+	ds.w		1
+_g_display_timer_ticks:
+	ds.w		1
+
+*-----------------------------------------------------------------------------*
+	.text
+*-----------------------------------------------------------------------------*
+	
+	.endif

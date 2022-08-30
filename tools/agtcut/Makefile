@@ -30,8 +30,9 @@ ifeq ($(host_system),Windows)
 
 # produce statically-linked mingw32 binaries for cross-system compatibility
 #
-TOOLCHAIN_NAME = mingw32
-TOOLCHAIN_INCLUDES = -Iusr/i686-pc-mingw32/sys-root/mingw/include
+#TOOLCHAIN_NAME = mingw32
+TOOLCHAIN_NAME = i686-w64-mingw32
+#TOOLCHAIN_INCLUDES = -Iusr/i686-pc-mingw32/sys-root/mingw/include
 TOOLCHAIN_LDFLAGS = -s -static -mconsole
 TOOLCHAIN_LIB_DIRS = -L/lib/w32api
 TOOLCHAIN_LIBS =
@@ -95,7 +96,11 @@ CODEGENFLAGS = $(CODEOPTFLAGS)
 
 endif
 
-LDOPTS =
+LDOPTS = $(TOOLCHAIN_LDFLAGS)
+
+ifeq ($(host_system),Linux)
+CODEGENFLAGS += -pthread
+endif
 
 # -----------------------------------------------------------------------------
 #	Final flags
@@ -103,8 +108,7 @@ LDOPTS =
 
 SHAREDFLAGS = -Wall -Wno-unused-function -Wno-sign-compare -Wno-narrowing -Wno-unused-variable -Wno-unused-but-set-variable -Wno-multichar
 
-CFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS)
-CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS) -Wno-reorder -fno-exceptions -fno-rtti 
+CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS) -Wno-reorder -fno-rtti 
 
 LDFLAGS += $(CODEGENFLAGS) $(LDOPTS)
 

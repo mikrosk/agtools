@@ -8,68 +8,15 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
-
-#if defined(__linux__)
 #include <stdint.h>		// for uintxx_t
-#include <arpa/inet.h>	// for htonl/ntohl
-#endif
 
-// grrr!!
-#if defined(__MINGW32__)
-__stdcall uint32_t htonl(uint32_t hostlong)
-{ 
-	uint32_t v = hostlong;
-
-	uint32_t vs = 
-		((v & 0x000000FF) << 24) | 
-		((v & 0x0000FF00) << 8) | 
-		((v & 0x00FF0000) >> 8) | 
-		((v & 0xFF000000) >> 24)
-	;
-
-	return vs;
-}
-__stdcall uint32_t ntohl(uint32_t netlong)
-{ 
-	uint32_t v = netlong;
-
-	uint32_t vs = 
-		((v & 0x000000FF) << 24) | 
-		((v & 0x0000FF00) << 8) | 
-		((v & 0x00FF0000) >> 8) | 
-		((v & 0xFF000000) >> 24)
-	;
-
-	return vs;
-}
-__stdcall uint16_t htons(uint16_t hostword)
-{ 
-	uint16_t v = hostword;
-
-	uint16_t vs = 
-		((v & 0x00FF) << 8) | 
-		((v & 0xFF00) >> 8)
-	;
-
-	return vs;
-}
-__stdcall uint16_t ntohs(uint16_t netword)
-{ 
-	uint16_t v = netword;
-
-	uint16_t vs = 
-		((v & 0x00FF) << 8) | 
-		((v & 0xFF00) >> 8)
-	;
-
-	return vs;
-}
-#endif
-
+#include "../common/common.h"
+#include "../common/bendian.h"
+#include "../common/p42n.h"
 
 // for access to PCS header etc.
-#include <../../3rdparty/binarylit.h>
-#include <../../agtsys/pcs.h>
+#include "../../3rdparty/binarylit.h"
+#include "../../agtsys/pcs.h"
 
 
 // ---------------------------------------------------------------------------------------------------------------------

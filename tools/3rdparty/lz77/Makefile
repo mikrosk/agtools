@@ -28,8 +28,9 @@ ifeq ($(host_system),Windows)
 
 # produce statically-linked mingw32 binaries for cross-system compatibility
 #
-TOOLCHAIN_NAME = mingw32
-TOOLCHAIN_INCLUDES = -Iusr/i686-pc-mingw32/sys-root/mingw/include
+#TOOLCHAIN_NAME = mingw32
+TOOLCHAIN_NAME = i686-w64-mingw32
+#TOOLCHAIN_INCLUDES = -Iusr/i686-pc-mingw32/sys-root/mingw/include
 TOOLCHAIN_LDFLAGS = -s -static -mconsole
 TOOLCHAIN_LIB_DIRS = -L/lib/w32api
 TOOLCHAIN_LIBS =
@@ -84,7 +85,7 @@ COMPILERDEFS += \
 CODEOPTFLAGS = $(TARGETFLAGS) -O3
 CODEGENFLAGS = $(CODEOPTFLAGS)
 
-LDOPTS =
+LDOPTS = $(TOOLCHAIN_LDFLAGS)
 
 # -----------------------------------------------------------------------------
 #	Final flags

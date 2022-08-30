@@ -881,34 +881,34 @@ con_linewid	=	160
 	move.b		#%10000010,con_linewid*4(a1)
 	jmp		(a2)
 .cB:	move.b		#%11111100,(a1)
-	move.b		#%10000010,con_linewid*1(a1)
-	move.b		#%11111100,con_linewid*2(a1)
-	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01000010,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%01000010,con_linewid*3(a1)
 	move.b		#%11111100,con_linewid*4(a1)
 	jmp		(a2)
-.cC:	move.b		#%01111100,(a1)
-	move.b		#%10000010,con_linewid*1(a1)
+.cC:	move.b		#%01111110,(a1)
+	move.b		#%10000000,con_linewid*1(a1)
 	move.b		#%10000000,con_linewid*2(a1)
-	move.b		#%10000010,con_linewid*3(a1)
-	move.b		#%01111100,con_linewid*4(a1)
+	move.b		#%10000000,con_linewid*3(a1)
+	move.b		#%01111110,con_linewid*4(a1)
 	jmp		(a2)
 .cD:	move.b		#%11111100,(a1)
-	move.b		#%10000010,con_linewid*1(a1)
-	move.b		#%10000010,con_linewid*2(a1)
-	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%01000010,con_linewid*1(a1)
+	move.b		#%01000010,con_linewid*2(a1)
+	move.b		#%01000010,con_linewid*3(a1)
 	move.b		#%11111100,con_linewid*4(a1)
 	jmp		(a2)
 .cE:	move.b		#%11111110,(a1)
-	move.b		#%10000000,con_linewid*1(a1)
-	move.b		#%11111100,con_linewid*2(a1)
-	move.b		#%10000000,con_linewid*3(a1)
+	move.b		#%01000000,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%01000000,con_linewid*3(a1)
 	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 .cF:	move.b		#%11111110,(a1)
-	move.b		#%10000000,con_linewid*1(a1)
-	move.b		#%11111100,con_linewid*2(a1)
-	move.b		#%10000000,con_linewid*3(a1)
-	move.b		#%10000000,con_linewid*4(a1)
+	move.b		#%01000000,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%01000000,con_linewid*3(a1)
+	move.b		#%11000000,con_linewid*4(a1)
 	jmp		(a2)
 .cG:	move.b		#%01111100,(a1)
 	move.b		#%10000000,con_linewid*1(a1)
@@ -934,16 +934,16 @@ con_linewid	=	160
 	move.b		#%01000100,con_linewid*3(a1)
 	move.b		#%00111000,con_linewid*4(a1)
 	jmp		(a2)
-.cK:	move.b		#%10000110,(a1)
-	move.b		#%10001000,con_linewid*1(a1)
-	move.b		#%11110000,con_linewid*2(a1)
-	move.b		#%10001000,con_linewid*3(a1)
-	move.b		#%10000110,con_linewid*4(a1)
+.cK:	move.b		#%11000110,(a1)
+	move.b		#%01001000,con_linewid*1(a1)
+	move.b		#%01110000,con_linewid*2(a1)
+	move.b		#%01001000,con_linewid*3(a1)
+	move.b		#%11000110,con_linewid*4(a1)
 	jmp		(a2)
-.cL:	move.b		#%10000000,(a1)
-	move.b		#%10000000,con_linewid*1(a1)
-	move.b		#%10000000,con_linewid*2(a1)
-	move.b		#%10000000,con_linewid*3(a1)
+.cL:	move.b		#%11000000,(a1)
+	move.b		#%01000000,con_linewid*1(a1)
+	move.b		#%01000000,con_linewid*2(a1)
+	move.b		#%01000000,con_linewid*3(a1)
 	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 .cM:	move.b		#%10000010,(a1)
@@ -965,10 +965,10 @@ con_linewid	=	160
 	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cP:	move.b		#%11111100,(a1)
-	move.b		#%10000010,con_linewid*1(a1)
-	move.b		#%11111100,con_linewid*2(a1)
-	move.b		#%10000000,con_linewid*3(a1)
-	move.b		#%10000000,con_linewid*4(a1)
+	move.b		#%01000010,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%01000000,con_linewid*3(a1)
+	move.b		#%11000000,con_linewid*4(a1)
 	jmp		(a2)
 .cQ:	move.b		#%01111100,(a1)
 	move.b		#%10000010,con_linewid*1(a1)
@@ -977,10 +977,10 @@ con_linewid	=	160
 	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .cR:	move.b		#%11111100,(a1)
-	move.b		#%10000010,con_linewid*1(a1)
-	move.b		#%11111100,con_linewid*2(a1)
-	move.b		#%10000010,con_linewid*3(a1)
-	move.b		#%10000010,con_linewid*4(a1)
+	move.b		#%01000010,con_linewid*1(a1)
+	move.b		#%01111100,con_linewid*2(a1)
+	move.b		#%01000100,con_linewid*3(a1)
+	move.b		#%11000010,con_linewid*4(a1)
 	jmp		(a2)
 .cS:	move.b		#%01111100,(a1)
 	move.b		#%10000000,con_linewid*1(a1)
@@ -1007,7 +1007,7 @@ con_linewid	=	160
 	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cW:	move.b		#%10000010,(a1)
-	move.b		#%10010010,con_linewid*1(a1)
+	move.b		#%10000010,con_linewid*1(a1)
 	move.b		#%10010010,con_linewid*2(a1)
 	move.b		#%10010010,con_linewid*3(a1)
 	move.b		#%01101100,con_linewid*4(a1)
@@ -1025,9 +1025,9 @@ con_linewid	=	160
 	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
 .cZ:	move.b		#%11111110,(a1)
-	move.b		#%00000100,con_linewid*1(a1)
-	move.b		#%00111000,con_linewid*2(a1)
-	move.b		#%01000000,con_linewid*3(a1)
+	move.b		#%00001000,con_linewid*1(a1)
+	move.b		#%00010000,con_linewid*2(a1)
+	move.b		#%00100000,con_linewid*3(a1)
 	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
@@ -1068,11 +1068,11 @@ con_linewid	=	160
 	move.b		#%00000000,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
-.c0:	move.b		#%00111000,(a1)
-	move.b		#%01000100,con_linewid*1(a1)
+.c0:	move.b		#%01111100,(a1)
+	move.b		#%10001010,con_linewid*1(a1)
 	move.b		#%10010010,con_linewid*2(a1)
-	move.b		#%01000100,con_linewid*3(a1)
-	move.b		#%00111000,con_linewid*4(a1)
+	move.b		#%10100010,con_linewid*3(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .c1:	move.b		#%00110000,(a1)
 	move.b		#%01110000,con_linewid*1(a1)
@@ -1081,15 +1081,15 @@ con_linewid	=	160
 	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .c2:	move.b		#%01111100,(a1)
-	move.b		#%10000110,con_linewid*1(a1)
+	move.b		#%00000110,con_linewid*1(a1)
 	move.b		#%00111100,con_linewid*2(a1)
 	move.b		#%01000000,con_linewid*3(a1)
 	move.b		#%11111110,con_linewid*4(a1)
 	jmp		(a2)
 .c3:	move.b		#%01111100,(a1)
-	move.b		#%10000010,con_linewid*1(a1)
+	move.b		#%00000010,con_linewid*1(a1)
 	move.b		#%00111100,con_linewid*2(a1)
-	move.b		#%10000010,con_linewid*3(a1)
+	move.b		#%00000010,con_linewid*3(a1)
 	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
 .c4:	move.b		#%00100010,(a1)
@@ -1102,9 +1102,9 @@ con_linewid	=	160
 	move.b		#%10000000,con_linewid*1(a1)
 	move.b		#%01111100,con_linewid*2(a1)
 	move.b		#%00000010,con_linewid*3(a1)
-	move.b		#%11111100,con_linewid*4(a1)
+	move.b		#%01111100,con_linewid*4(a1)
 	jmp		(a2)
-.c6:	move.b		#%01111100,(a1)
+.c6:	move.b		#%01111000,(a1)
 	move.b		#%10000000,con_linewid*1(a1)
 	move.b		#%11111100,con_linewid*2(a1)
 	move.b		#%10000010,con_linewid*3(a1)
@@ -1116,8 +1116,8 @@ con_linewid	=	160
 	move.b		#%00010000,con_linewid*3(a1)
 	move.b		#%00010000,con_linewid*4(a1)
 	jmp		(a2)
-.c8:	move.b		#%01111100,(a1)
-	move.b		#%10000010,con_linewid*1(a1)
+.c8:	move.b		#%00111000,(a1)
+	move.b		#%01000100,con_linewid*1(a1)
 	move.b		#%01111100,con_linewid*2(a1)
 	move.b		#%10000010,con_linewid*3(a1)
 	move.b		#%01111100,con_linewid*4(a1)
@@ -1126,7 +1126,7 @@ con_linewid	=	160
 	move.b		#%10000010,con_linewid*1(a1)
 	move.b		#%01111110,con_linewid*2(a1)
 	move.b		#%00000010,con_linewid*3(a1)
-	move.b		#%01111100,con_linewid*4(a1)
+	move.b		#%00111100,con_linewid*4(a1)
 	jmp		(a2)
 *-------------------------------------------------------*
 .cOCB:	move.b		#%00011000,(a1)
@@ -1159,7 +1159,57 @@ con_linewid	=	160
 	include		"con_xprn.s"
 	
 	.endif		; (use_debugconsole)
-				
+	
+*-------------------------------------------------------*
+
+			.if	0
+			
+			.abs
+*-------------------------------------------------------*
+th_routine:		ds.l	1
+th_prev:		ds.l	1
+th_next:		ds.l	1
+th_priority:		ds.w	1
+th_size_:
+*-------------------------------------------------------*
+			.text
+*-------------------------------------------------------*
+	
+scheduler_interrupt:
+
+	; round-robin
+	; next thread:
+	; - if (prio > this)
+	;   - insert sorted resume, current
+	;   - switch immediate
+	; - if (prio <= this)
+	;     - insert sorted resume, new
+	
+	movem.l		d0-d2/a0/a1,-(sp)
+	move.l		g_activethread,a0
+	move.w		th_priority(a0),d0
+	move.w		#$8000,d2			; highest priority seen so far
+		
+	lea		g_thread_sentinel_begin,a1
+	move.l		th_next(a1),d1
+	beq.s		.finish
+	cmp.w		th_priority(a1),d0
+	blo.s		.switch_now
+
+	cmp.w		th_priority(a1),d2
+	
+	
+	move.l		
+
+.switch:	
+	; 
+	
+.finish:
+	movem.l		(sp)+,d0-d2/a0/a1
+	rte
+
+			.endif
+			
 *-------------------------------------------------------*
 	.data
 *-------------------------------------------------------*

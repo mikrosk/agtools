@@ -71,6 +71,9 @@ extern "C" u8 bTT;
 extern "C" u8 bMegaSTE;
 extern "C" u8 bFalcon030;
 
+extern "C" s32 STE_GetDisplayTimer(void);
+extern "C" s32 STE_WaitDisplayTimerStart(void);
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Hatari NATFEATS interface for 'remote' console/printf debugging without touching ST's display
 

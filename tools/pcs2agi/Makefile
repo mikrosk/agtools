@@ -28,8 +28,9 @@ ifeq ($(host_system),Windows)
 
 # produce statically-linked mingw32 binaries for cross-system compatibility
 #
-TOOLCHAIN_NAME = mingw32
-TOOLCHAIN_INCLUDES = -Iusr/i686-pc-mingw32/sys-root/mingw/include
+#TOOLCHAIN_NAME = mingw32
+TOOLCHAIN_NAME = i686-w64-mingw32
+#TOOLCHAIN_INCLUDES = -Iusr/i686-pc-mingw32/sys-root/mingw/include
 TOOLCHAIN_LDFLAGS = -s -static -mconsole
 TOOLCHAIN_LIB_DIRS = -L/lib/w32api
 TOOLCHAIN_LIBS =
@@ -55,7 +56,7 @@ endif
 # -----------------------------------------------------------------------------
 
 CC = $(TOOLCHAIN_PREFIX)gcc -x c
-CXX = $(TOOLCHAIN_PREFIX)g++ -x c++
+CXX = $(TOOLCHAIN_PREFIX)g++ -x c++ -std=c++11
 AR = $(TOOLCHAIN_PREFIX)ar
 AS = $(TOOLCHAIN_PREFIX)as
 NM = $(TOOLCHAIN_PREFIX)nm
@@ -84,7 +85,7 @@ COMPILERDEFS += \
 CODEOPTFLAGS = $(TARGETFLAGS) -O3
 CODEGENFLAGS = $(CODEOPTFLAGS)
 
-LDOPTS =
+LDOPTS = $(TOOLCHAIN_LDFLAGS)
 
 # -----------------------------------------------------------------------------
 #	Final flags
@@ -92,8 +93,8 @@ LDOPTS =
 
 SHAREDFLAGS = -Wall -Wno-unused-function -Wno-sign-compare -Wno-narrowing -Wno-unused-variable -Wno-unused-but-set-variable -Wno-multichar
 
-CXXFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS) -std=c++0x -fno-rtti -fno-exceptions
 CFLAGS		= $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS)
+CXXFLAGS	= $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS) -fno-rtti -fno-exceptions
 
 LDFLAGS += $(CODEGENFLAGS) $(LDOPTS)
 

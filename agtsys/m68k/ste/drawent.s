@@ -72,6 +72,7 @@ within_entitydraw	set	1
 	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
 	.globl		_AGT_Exception_IMSFrame
 	.globl		_AGT_Exception_EMSFrame
+	.globl		_AGT_Exception_EMHFrame
 	.globl		_AGT_Exception_EMXFrame
 	.globl		_AGT_Exception_SLSFrame
 	.globl		_AGT_Exception_SLRFrame
@@ -526,6 +527,11 @@ _AGT_Exception_EMSFrame_68k:
 	move.l		a0,-(sp)
 	move.l		d0,-(sp)
 	jsr		_AGT_Exception_EMSFrame
+	; noreturn
+_AGT_Exception_EMHFrame_68k:
+	move.l		a0,-(sp)
+	move.l		d0,-(sp)
+	jsr		_AGT_Exception_EMHFrame
 	; noreturn
 _AGT_Exception_EMXFrame_68k:
 	move.l		a0,-(sp)

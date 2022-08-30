@@ -183,6 +183,8 @@ extern u8 scantokey[128];
 // buffer holding instantaneous down/up state of every key (0 or nonzero)
 extern "C" u8 key_states[128];
 extern "C" u8 debounced_key_states[128*2];
+extern "C" u8 debounced_key_presses[128];
+extern "C" u8 debounced_key_releases[128];
 // ringbuffer of key events
 extern "C" u8 key_eventring[256];
 // write position of eventring (written by IKBD interupt)

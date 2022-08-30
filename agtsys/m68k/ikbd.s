@@ -15,6 +15,8 @@
 
 	.globl		_key_states
 	.globl		_debounced_key_states
+	.globl		_debounced_key_presses
+	.globl		_debounced_key_releases
 
 	.globl		_key_eventhead
 	.globl		_key_eventtail
@@ -902,6 +904,9 @@ sys_mouse:		ds.l	1
 
 _key_states:		ds.b	128			; key press/release states
 _debounced_key_states:	ds.b	256			; separated key press/release states
+
+_debounced_key_presses	=	_debounced_key_states
+_debounced_key_releases	=	_debounced_key_states+128
 
 _key_eventring:		ds.b	256			; key press/release events in sequence
 _msclick_eventring:	ds.b	256			; mouse click/release events in sequence
