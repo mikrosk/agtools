@@ -23,6 +23,11 @@ extern "C" s16 g_spr_window_y2;
 extern "C" s16 g_spr_window_x1p;
 extern "C" s16 g_spr_window_x2p;
 
+extern "C" s16 g_spr_culltest_x;
+extern "C" s16 g_spr_culltest_xs;
+extern "C" s16 g_spr_culltest_y;
+extern "C" s16 g_spr_culltest_ys;
+
 extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
 extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 
@@ -236,6 +241,11 @@ public:
 		g_spr_window_x2 = r_ctx.clip_window_x2;
 		g_spr_window_x2p = r_ctx.clip_window_x2p;
 		g_spr_window_y2 = r_ctx.clip_window_y2;
+
+		g_spr_culltest_x = r_ctx.clip_window_x1;
+		g_spr_culltest_y = r_ctx.clip_window_y1;
+		g_spr_culltest_xs = r_ctx.clip_window_x2 - r_ctx.clip_window_x1;
+		g_spr_culltest_ys = r_ctx.clip_window_y2 - r_ctx.clip_window_y1;
 	}
 
 	// retrieve digest of draw context fields for low level graphics functions

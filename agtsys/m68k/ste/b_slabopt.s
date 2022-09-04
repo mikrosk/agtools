@@ -11,48 +11,38 @@
 *	entrypoint
 *=======================================================*
 
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
-	cmp.w		sps_framecount(a0),d0
-	.if		(within_entitydraw)
-	bhs		_AGT_Exception_SLSFrame_68k
-	.else
-	blo.s		.slb_frameok
-.slb_framefault:
-	not.w		$ffff8240.w
-	bra.s		.slb_framefault
-.slb_frameok:
-	.endif
-	.endif
+	sprite_sc_frame	a0,d0,_AGT_Exception_SLSFrame_68k
 	
 	pushraster	#$515	
-	
-	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
+		
+;	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
 
-	; 'hitflash' for strobing shape to single colour on damage etc.
-	; todo: opt
-	
-;	move.b		#3,BLiTLOP.w
-;	tst.w		d7
-;	beq.s		.slb_nohitflash
-;	bpl.s		.slb_hitflash
-;.slb_blinky:
-;	lsr.w		#1,d7
-;	bcs		.slb_end
-;	bra.s		.slb_nohitflash	
-;.slb_hitflash:
-;	move.b		#15,BLiTLOP.w	
-;.slb_nohitflash:
-	
-	; access sprite frame table
+	; need total width for guardband test
+	move.w		sls_srcwidth(a0),d3
+
+	; guardx reject test (no x clipping in SLAB)
+	lea		_g_spr_culltest,a2
+	move.w		spr_culltest_y(a2),.sp_yc(sp)
+	sprite_cullxr	a2,d1,d3,d4,d6,.slb_end
+
+	; access slab frame table
 	
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sls_frameindex(a0,d0.w),a0	; access sprite frame data
 
+	; slab rendering can't cope with -ve x as-is, even for guardband
+	; deal with left guardband case - shift framebuffer left & nudge slab right	
+	moveq		#0,d6
+	tst.w		d1
+	bpl.s		.slb_lxok
+	add.w		#AGT_CONFIG_SYS_GUARDX,d1
+	move.w		#-(AGT_CONFIG_SYS_GUARDX/2),d6
+.slb_lxok:
+	move.w		d6,.sp_xadj(sp)
+
 	move.w		d1,.sp_x(sp)
-	bmi		.slb_end			; slabs can't cope with -ve x even in guardband
-	
+;	bmi		.slb_end	
 	move.w		d2,.sp_y(sp)
 
 	bra.s		.slb_begin
@@ -65,6 +55,9 @@
 	move.l		.sp_framebuf(sp),a1
 	
 .slb_begin:			
+	; if in left guardband, offset framebuffer to keep x +ve
+	add.w		.sp_xadj(sp),a1
+	
 	move.l		slf_nextcmp(a0),.sp_nextcmp(sp)
 
 ;	move.l		slf_nextcmp(a0),d0

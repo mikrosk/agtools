@@ -125,6 +125,8 @@ void generate_emh_shared_shift_analysis
 
 				if (span_pos > 0)
 				{
+					// TODO: fix this to work with shared mask encoding
+					//
 					// check reference to shifted previous data
 					u16 mword = ~(psourceline[span_pos - 1]);
 					u32 shiftbuffer = u32(mword) << 16;
@@ -142,6 +144,8 @@ void generate_emh_shared_shift_analysis
 					//					printf("zero-term:\n");
 					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
 
+					// TODO: fix this to work with shared mask encoding
+					//
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
 						allow_NFSR &&
@@ -177,11 +181,11 @@ void generate_emh_shared_shift_analysis
 			else
 			{
 				// count bus cycles
-				int word_bcycles = 2;
+				int word_bcycles = 2;	// +srcread +dstwrite
 				if (word != 0xFFFF)
-					word_bcycles++;
+					word_bcycles++;		// +dstread
 
-				if ((accumulated_bcycles + word_bcycles + (FISR ? 1 : 0)) > c_max_buscycles_per_blit)
+				if ((accumulated_bcycles + word_bcycles + (FISR ? 1 : 0)) > c_max_buscycles_per_plane)
 				{
 					//					printf("bus limit:\n");
 					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
@@ -191,6 +195,8 @@ void generate_emh_shared_shift_analysis
 					//						(span_pos > 0) &&
 					//						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
 
+					// TODO: fix this to work with shared mask encoding
+					//
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
 						allow_NFSR &&
@@ -250,6 +256,8 @@ void generate_emh_shared_shift_analysis
 					//						(span_pos > 0) &&
 					//						(u16(0xFFFF0000UL >> _shift.shift_) & pline[span_pos]);
 
+					// TODO: fix this to work with shared mask encoding
+					//
 					// check reference to current data (not shifted from previous)
 					bool NFSR =
 						allow_NFSR &&
@@ -445,18 +453,32 @@ void generate_emh_order_spans
 	case 2:
 		// left-right, top-bottom single component
 		{
+			int max_group = -1;
 			for (auto & spanlist : shift.sa.span_vpattern_)
 			{
-				int horizontal_index = 0;
+				int hgroup = 0;
 				for (auto &span : spanlist)
 				{
-					//auto line_opt = spr.ems_.linemap_src_2_opt[span.line_orig];
-					//assert(line_opt == span.line_opt);
-					//span.line_opt = line_opt;
+					int key, group;
+					if (0)
+					{
+						group = key = hgroup;
+					}
+					else
+					{
+						key  = span.ws;
+						auto look = xmap.find(key);
+						if (look == xmap.end())
+						{
+							group = ++max_group;
+							xmap[key] = group;
+						}
+						else
+							group = look->second;
+					}
 
 					uint32_t ordering_key =
-						(uint32_t(span.ws) << (32 - 5)) |
-						//(horizontal_index << (32-5)) |
+						(uint32_t(key) << (32 - 5)) |
 						(uint32_t(32-span.ww) << (32 - 10)) |
 						(uint32_t(span.cxs)&1 << (32 - 15)) |
 						(uint32_t(span.cxe)&1 << (32 - 16)) |
@@ -476,9 +498,11 @@ void generate_emh_order_spans
 						(uint32_t(span.line_opt))
 						;
 */
+					span.group = group; // use this everywhere downstream
+
 					ordered_spans[ordering_key].push_back(&span);
 
-					horizontal_index++;
+					++hgroup;
 				}
 			}
 		}
@@ -495,12 +519,33 @@ void generate_emh_order_spans
 			_stacked_spans.push_back(pspan);
 		}
 	}
+
+	// output image showing span pattern
+	if (g_allargs.debug || g_allargs.visual)
+	{
+		std::string diagnostic_name(g_allargs.explicit_sources.front());
+		remove_extension(diagnostic_name);
+		diagnostic_name.append("_spans_emh.png");
+		printf("writing span diagnostic: %s @ %dx%d\n", diagnostic_name.c_str(), spr.w_, spr.h_);
+		output_span_diagnostic(spr.w_, spr.h_, _stacked_spans, diagnostic_name);
+	}
 }
+
+//#include "emlineorder.inl"
 
 void generate_emh_frame_flexible(spriteframe_t &spr, int _frame)
 {
 	if (g_allargs.verbose)
 		std::cout << "frame [" << _frame << "]" << std::endl << std::flush;
+
+/*
+	// find an initial common lineorder which removes empty lines and minimises gaps between spans.
+	generate_emx_emh_initial_lineorder
+	(
+		spr,
+		spr.ems_
+	);
+*/
 
 	// analyse all preshifts within this frame
 	int sharedmask_wordwidth = 0;
@@ -658,6 +703,7 @@ void generate_emh_frame_flexible(spriteframe_t &spr, int _frame)
 	//generate_emx_preshift_analysis(spr, shared_shift, /*psi=*/0, /*single_span_scans=*/true);
 
 
+#if (0)
 	// analyse all preshifts within this frame
 	{
 		std::vector<preshiftlist_t>::iterator pmit = spr.ems_.psmask_frames_.begin();
@@ -677,6 +723,8 @@ void generate_emh_frame_flexible(spriteframe_t &spr, int _frame)
 			}
 		}
 	}
+#endif
+
 
 #define EMH_MULTICOMPONENT
 
@@ -696,7 +744,7 @@ void generate_emh_frame_flexible(spriteframe_t &spr, int _frame)
 		spr.ems_, 
 		spr.ems_.linemap_opt_2_src, spr.ems_.linemap_src_2_opt, 
 		/*optimize=*/!(USE_EMH_CLIPTABLE && !g_allargs.noclipy),
-		/*shared_shift=*/nullptr	//&shared_analysis_shift
+		/*shared_shift=*/&shared_analysis_shift
 	);
 
 	// order spans within each component

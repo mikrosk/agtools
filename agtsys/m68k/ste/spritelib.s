@@ -19,6 +19,8 @@
 
 	include		"ste/b_slab.inc"
 
+	include		"ste/b_drawsup.inc"
+	
 	;.opt		"~oall"
 	
 *-------------------------------------------------------*
@@ -75,6 +77,12 @@ within_entitydraw	set	0
 	.globl		_g_spr_window_y2
 	.globl		_g_spr_window_x1p
 	.globl		_g_spr_window_x2p
+
+	.globl		_g_spr_culltest
+	.globl		_g_spr_culltest_x
+	.globl		_g_spr_culltest_xs
+	.globl		_g_spr_culltest_y
+	.globl		_g_spr_culltest_ys
 	
 	.globl		_OCM_occlusion_add_T
 	
@@ -935,6 +943,12 @@ _g_spr_window_y2:	ds.w		1
 _g_spr_window_x1p:	ds.w		1
 _g_spr_window_x2p:	ds.w		1
 
+_g_spr_culltest:
+_g_spr_culltest_x:	ds.w		1
+_g_spr_culltest_xs:	ds.w		1
+_g_spr_culltest_y:	ds.w		1
+_g_spr_culltest_ys:	ds.w		1
+	
 spandata_skew:		ds.b		1
 spandata_wordwidth:	ds.b		1
 spandata_em1:		ds.w		1

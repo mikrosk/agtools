@@ -10,63 +10,15 @@
 	
 ;enable_restore	set	0
 	
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
-	cmp.w		sps_framecount(a0),d0
-	.if		(within_entitydraw)
-	bhs		_AGT_Exception_EMXFrame_68k
-	.else
-	blo.s		.emxc_frameok
-.emxc_framefault:
-	not.w		$ffff8240.w
-	bra.s		.emxc_framefault
-.emxc_frameok:
-	.endif
-	.endif
+	sprite_sc_frame	a0,d0,_AGT_Exception_EMXFrame_68k
 
 	pushraster	#$062
 
-
-	; todo: opt
-	
-;	move.b		#3,BLiTLOP.w
-;	tst.w		d7
-;	beq.s		.emxc_nohitflash
-;	bpl.s		.emxc_hitflash
-;.emxc_blinky:
-;	lsr.w		#1,d7
-;	bcs		.BLiT_EMXCSpr_4BPL_end	
-;	bra.s		.emxc_nohitflash
-;.emxc_hitflash:
-;	move.b		#15,BLiTLOP.w	
-;.emxc_nohitflash:
-	
-
-;	move.w		#2,BLiTSYI.w
-	
-
-;	move.w		sps_flags(a0),.sp_flags(sp)
-
-
 *-------------------------------------------------------*
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.emxc_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.emxc_no_dfm:
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
-			
-	; frame fields
+	sprite_spf	a0,d0,d3,a0
 
-;	movem.l		d1-d2,.emxc_pos
-;	move.l		a0,.emxc_frame_header
-;	move.l		a1,.emxc_frame_buffer
-;	clr.w		.emxc_maskoff
+	; frame fields
 
 	move.w		(a0)+,d3			; w
 	move.w		(a0)+,d4			; h
@@ -112,27 +64,32 @@
 *-------------------------------------------------------*
 
 	.if		(enable_clipping)
+
+	lea		_g_spr_culltest,a2
 	
-	; sprite clipping window
-	lea		_g_spr_window,a2
+	sprite_cullxr	a2,d1,d3,d0,d6,.BLiT_EMXCSpr_4BPL_end
+	sprite_cullya	a2,d2,d4,d0,d6,.BLiT_EMXCSpr_NoClip_4BPL_go
 	
-	; todo: opt using carry window
-
-	cmp.w		(a2)+,d1
-	bmi		.BLiT_EMXCSpr_4BPL_end
-
-	cmp.w		(a2)+,d2
-	bmi.s		.BLiT_EMXCSpr_GuardBand_4BPL
-
-	move.w		d1,d0
-	add.w		d3,d0				; xr	
-	sub.w		(a2)+,d0			; xr - cx2
-	bgt		.BLiT_EMXCSpr_4BPL_end
-
-	move.w		d2,d0
-	add.w		d4,d0				; yr	
-	sub.w		(a2)+,d0			; yr - cy2
-	ble		.BLiT_EMXCSpr_NoClip_4BPL_go
+;	; sprite clipping window
+;	lea		_g_spr_window,a2
+;	
+;	; todo: opt using carry window
+;
+;	cmp.w		(a2)+,d1
+;	bmi		.BLiT_EMXCSpr_4BPL_end
+;
+;	cmp.w		(a2)+,d2
+;	bmi.s		.BLiT_EMXCSpr_GuardBand_4BPL
+;
+;	move.w		d1,d0
+;	add.w		d3,d0				; xr	
+;	sub.w		(a2)+,d0			; xr - cx2
+;	bgt		.BLiT_EMXCSpr_4BPL_end
+;
+;	move.w		d2,d0
+;	add.w		d4,d0				; yr	
+;	sub.w		(a2)+,d0			; yr - cy2
+;	ble		.BLiT_EMXCSpr_NoClip_4BPL_go
 	
 	.endif
 
@@ -297,9 +254,8 @@
 	.if		(use_sprite_pagerestore)
 	move.w		d2,(a5)+
 	move.w		d0,(a5)+
-	.endif
-	.endif
-
+	.endif		;(use_sprite_pagerestore)
+	.endif		;(enable_restore)
 
 	add.w		d0,a1
 
@@ -326,8 +282,8 @@
 	sub.w		d6,a4
 	lsr.w		#(4-1),d6		; >>4 *2
 
-	.if		(1)
-	
+
+
 	.if		(enable_restore)
 	.if		(use_sprite_pagerestore)
 
@@ -340,7 +296,7 @@
 	move.w		d6,(a5)+			; word width*2
 	move.w		d4,(a5)+			; lines
 
-	.endif
+	.endif		;(use_sprite_pagerestore)
 
 	.if		(use_sprite_saverestore)
 
@@ -370,8 +326,8 @@
 	add.w		a4,a3
 	dbra		d1,.BLiT_EMXCSpr_YC_sylp
 
-	.endif
-	.endif
+	.endif		;(use_sprite_saverestore)
+	.endif		;(enable_restore)
 
 *-------------------------------------------------------*
 
@@ -381,11 +337,9 @@
 .emxc_update_prestore1:
 	lea		$1234(a5),a5
 	move.l		a5,usp	
-	.endif
-	.endif
+	.endif		;(use_sprite_saverestore|use_sprite_pagerestore)
+	.endif		;(enable_restore)
 		
-	.endif		;0
-
 
 	move.l		a0,.emxyc_cmp_src
 	move.l		a1,.emxyc_cmp_dst
@@ -600,23 +554,20 @@
 .BLiT_EMXCSpr_NoClip_4BPL:
 *-------------------------------------------------------*
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.emxc2_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.emxc2_no_dfm:
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
+	sprite_spf	a0,d0,d3,a0
+
+;	moveq		#1,d3
+;	and.b		sps_flags(a0),d3		; 1 = double index
+;	beq.s		.emxc2_no_dfm
+;	add.w		d0,d0				;	
+;	and.w		.sp_mfield(sp),d3		; 1 = field offset
+;	add.w		d3,d0	
+;.emxc2_no_dfm:
+;	add.w		d0,d0				; todo: game layer can prescale this
+;	add.w		d0,d0
+;	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
 			
 	; frame fields
-
-;	movem.l		d1-d2,.emxc_pos
-;	move.l		a0,.emxc_frame_header
-;	move.l		a1,.emxc_frame_buffer
-;	clr.w		.emxc_maskoff
 
 	move.w		(a0)+,d3			; w
 	move.w		(a0)+,d4			; h
@@ -650,11 +601,15 @@
 
 	bra		.BLiT_EMXCSpr_4BPL_end
 	
-	.endif
+
+	.endif		;(enable_clipping)
 	
+
 *-------------------------------------------------------*
 .BLiT_EMXCSpr_NoClip_4BPL_go:
 *-------------------------------------------------------*
+
+	setraster	#$262
 
 	; skew
 	moveq		#16-1,d6
@@ -696,7 +651,6 @@
 	; dst pixelword xoffset
 	moveq		#-16,d0
 	and.w		d1,d0
-;	lsr.w		#1,d0
 	asr.w		#1,d0		; guardband allows -ve x!
 	add.w		d0,a1
 
@@ -708,7 +662,7 @@
 	move.w		d2,(a5)+			; liney
 	move.w		d0,(a5)+			; xoffbytes
 
-	.endif
+	.endif		;(enable_restore&use_sprite_pagerestore)
 
 	; address yline	
 	move.l		.sp_linetable(sp),a3
@@ -720,22 +674,15 @@
 
 	move.l		a1,(a5)+			; clear addr
 		
-;	move.w #$00a0,(a5)+	; dstskip
-;	move.w #$0006,(a5)+	; dstww2
-;	move.w d4,(a5)+	; lines
-;	move.l d5,(a5)+	; record link
-;	move.l a5,usp	; save ctx
-
 	move.w		a4,(a5)+
 	move.w		d6,(a5)+	
 	move.w		d4,(a5)+
 	move.l		d5,(a5)+	
-;	move.l		a5,usp
 .emxc_update_prestore2:
 	lea		$1234(a5),a5
 	move.l		a5,usp	
 
-	.endif
+	.endif		;(enable_restore&use_sprite_pagerestore)
 	
 	lea		$00ff8a38,a0
 	lea		$00ff8a28,a2

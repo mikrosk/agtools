@@ -106,7 +106,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				(data16 == (treg16 & 0xFF00))
 			)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					if (_opsize == OpSize_16)
 					{
 						printf("transform: move.w #$%04x,%s -> clr.b %s [$%04x&$FF00]\n",
@@ -139,7 +139,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				(data16 == ~(treg16))
 			)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					if (_opsize == OpSize_16)
 					{
 						printf("transform: move.w #$%04x,%s -> not.w %s [~$%04x]\n",
@@ -171,7 +171,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				(data16 == (treg16 ^ 0x00FF))
 			)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					if (_opsize == OpSize_16)
 					{
 						printf("transform: move.w #$%04x,%s -> not.b %s [$%02x][~$%02x]\n",
@@ -203,7 +203,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				(word_t(data16) == -(word_t(treg16)))
 			)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					if (_opsize == OpSize_16)
 					{
 						printf("transform: move.w #$%04x,%s -> neg.w %s [-$%04x]\n",
@@ -235,7 +235,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				(byte_t(data16) == -byte_t(treg16))
 			)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					if (_opsize == OpSize_16)
 					{
 						printf("transform: move.w #$%04x,%s -> neg.b %s [$%02x][-$%02x]\n",
@@ -267,7 +267,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				(data16 == (treg16 | 0x0080))
 			)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					if (_opsize == OpSize_16)
 					{
 						printf("transform: move.w #$%04x,%s -> tas.b %s [$%04x|$80]\n",
@@ -299,7 +299,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				(word_t(data16) == word_t(byte_t(treg16)))
 			)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					if (_opsize == OpSize_16)
 					{
 						printf("transform: move.w #$%04x,%s -> ext.w %s[$%04x] [$SS%02x]\n",
@@ -349,7 +349,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 				)
 				{
 
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					printf("transform: move.w #$%04x,%s -> swap %s [$%04x<:>$%04x]\n",
 						data16,
 						registers[_rold].name.c_str(),
@@ -372,7 +372,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					(long_t(data32) == long_t(word_t(treg16)))
 				)
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 					printf("transform: move.l #$%08x,%s -> ext.l %s [$SSSS][$%04x]\n",
 						data32,
 						registers[_rold].name.c_str(),
@@ -393,7 +393,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					(_dataH == it_treg->L)
 				)
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 					printf("transform: move.l #$%08x,%s -> swap %s [$%04x<:>$%04x]\n",
 						data32,
 						registers[_rold].name.c_str(),
@@ -425,7 +425,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					{
 						if (i > 0)
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								if (_opsize == OpSize_16)
 								{
 									printf("transform: move.w #$%04x,%s -> addq.w #%d,%s [$%04x+%d]\n",
@@ -449,7 +449,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						}
 						else
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								if (_opsize == OpSize_16)
 								{
 									printf("transform: move.w #$%04x,%s -> subq.w #%d,%s [$%04x-%d]\n",
@@ -490,7 +490,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					{
 						if (i > 0)
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								if (_opsize == OpSize_16)
 								{
 									printf("transform: move.w #$%04x,%s -> addq.b #%d,%s [$%02x][$%02x+%d]\n",
@@ -514,7 +514,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						}
 						else
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								if (_opsize == OpSize_16)
 								{
 									printf("transform: move.w #$%04x,%s -> subq.b #%d,%s [$%02x][$%02x-%d]\n",
@@ -549,7 +549,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(long_t(data32) == i + long_t(treg32))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 						if (i > 0)
 						{
 							printf("transform: move.l #$%08x,%s -> addq.l #%d,%s [$%08x+%d]\n",
@@ -601,7 +601,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(byte_t(data16) == byte_t(tsrc16))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> move.b %s,%s [$%02x][$%02x<-$%02x]\n",
@@ -638,7 +638,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(data16 == tsrc16)
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 						printf("transform: move.l #$%08x,%s -> move.w %s,%s [$%04x][$%04x<-$%04x]\n",
 							data32,
 							registers[_rold].name.c_str(),
@@ -661,7 +661,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(byte_t(data16) == byte_t(byte_t(treg16) + byte_t(tsrc16)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> add.b %s,%s [$%02x][$%02x+$%02x]\n",
@@ -699,7 +699,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(word_t(data16) == word_t(word_t(treg16) + word_t(tsrc16)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> add.w %s,%s [$%04x+$%04x]\n",
@@ -736,7 +736,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(byte_t(data16) == byte_t(byte_t(treg16) - byte_t(tsrc16)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> sub.b %s,%s [$%02x][$%02x-$%02x]\n",
@@ -774,7 +774,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(word_t(data16) == word_t(word_t(treg16) - word_t(tsrc16)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> sub.w %s,%s [$%04x-$%04x]\n",
@@ -811,7 +811,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(ubyte_t(data16) == (ubyte_t(treg16) & ubyte_t(tsrc16)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> and.b %s,%s [$%02x][$%02x^$%02x]\n",
@@ -848,7 +848,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(data16 == (treg16 & tsrc16))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> and.w %s,%s [$%04x&$%04x]\n",
@@ -885,7 +885,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(ubyte_t(data16) == (ubyte_t(treg16) | ubyte_t(tsrc16)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> or.b %s,%s [$%02x][$%02x^$%02x]\n",
@@ -922,7 +922,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(data16 == (treg16 | tsrc16))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> or.w %s,%s [$%04x|$%04x]\n",
@@ -959,7 +959,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(ubyte_t(data16) == (ubyte_t(treg16) ^ ubyte_t(tsrc16)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> eor.b %s,%s [$%02x][$%02x^$%02x]\n",
@@ -996,7 +996,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(data16 == (treg16 ^ tsrc16))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							if (_opsize == OpSize_16)
 							{
 								printf("transform: move.w #$%04x,%s -> eor.w %s,%s [$%04x^$%04x]\n",
@@ -1041,7 +1041,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					(data32 == ~(treg32))
 				)
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 					printf("transform: move.l #$%08x,%s -> not.l %s [~$%08x]\n",
 						data32,
 						registers[_rold].name.c_str(),
@@ -1062,7 +1062,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					(long_t(data32) == -(long_t(treg32)))
 				)
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 					printf("transform: move.l #$%08x,%s -> neg.l %s [~$%08x]\n",
 						data32,
 						registers[_rold].name.c_str(),
@@ -1083,7 +1083,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					(data16 == (treg16 | 0x00FF))
 				)
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						if (_opsize == OpSize_16)
 						{
 							printf("transform: move.w #$%04x,%s -> st %s [$%04x|$FF]\n",
@@ -1126,7 +1126,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(long_t(data32) == long_t(long_t(treg32) + long_t(tsrc32)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 						printf("transform: move.l #$%08x,%s -> add.l %s,%s [$%08x+$%08x]\n",
 							data32,
 							registers[_rold].name.c_str(),
@@ -1148,7 +1148,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(long_t(data32) == long_t(long_t(treg32) - long_t(tsrc32)))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 						printf("transform: move.l #$%08x,%s -> sub.l %s,%s [$%08x+$%08x]\n",
 							data32,
 							registers[_rold].name.c_str(),
@@ -1171,7 +1171,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(data32 == (treg32 & tsrc32))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 						printf("transform: move.l #$%08x,%s -> and.l %s,%s [$%08x&$%08x]\n",
 							data32,
 							registers[_rold].name.c_str(),
@@ -1194,7 +1194,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(data32 == (treg32 | tsrc32))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 						printf("transform: move.l #$%08x,%s -> or.l %s,%s [$%08x|$%08x]\n",
 							data32,
 							registers[_rold].name.c_str(),
@@ -1217,7 +1217,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						(data32 == (treg32 ^ tsrc32))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 						printf("transform: move.l #$%08x,%s -> eor.l %s,%s [$%08x^$%08x]\n",
 							data32,
 							registers[_rold].name.c_str(),
@@ -1254,7 +1254,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 //							(data16 == (it_treg->L ^ (1 << (registers[rs].L & 31))))
 //							)
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.w #$%04x,%s -> bchg %s,%s [$%04x^$%04x]\n",
 								data16,
 								registers[_rold].name.c_str(),
@@ -1280,7 +1280,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							(data32 == (((ulong_t(it_treg->H) << 16) | it_treg->L) ^ (1UL << (registers[rs].L & 31))))
 						)
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.l #$%04x%04x,%s -> bchg %s,%s [$%04x%04x^$%08x]\n",
 								_dataH, _dataL,
 								registers[_rold].name.c_str(),
@@ -1313,7 +1313,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							//it_treg->L = saveL;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  none %s\n",
 									it_treg->name.c_str()
 									);
@@ -1338,7 +1338,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							it_treg->L = saveL;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  clr.b %s\n",
 									it_treg->name.c_str()
 									);
@@ -1362,7 +1362,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							it_treg->L = saveL;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  clr.w %s\n",
 									it_treg->name.c_str()
 									);
@@ -1386,7 +1386,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							it_treg->L = saveL;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  ext.w %s\n",
 									it_treg->name.c_str()
 									);
@@ -1418,7 +1418,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							it_treg->L = saveL;
 							it_treg->stableH = saveSH;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  ext.l %s\n",
 									it_treg->name.c_str()
 									);
@@ -1453,7 +1453,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							it_treg->stableH = saveSH;
 							it_treg->stableL = saveSL;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  swap %s\n",
 									it_treg->name.c_str()
 									);
@@ -1480,7 +1480,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							it_treg->L = save;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  tas.b %s\n",
 									it_treg->name.c_str()
 									);
@@ -1504,7 +1504,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							it_treg->L = save;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  not.b %s\n",
 									it_treg->name.c_str()
 									);
@@ -1528,7 +1528,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							it_treg->L = save;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  not.w %s\n",
 									it_treg->name.c_str()
 									);
@@ -1552,7 +1552,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							it_treg->L = save;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  neg.b %s\n",
 									it_treg->name.c_str()
 									);
@@ -1575,7 +1575,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						{
 							it_treg->L = save;
 
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("preamble:  neg.w %s\n",
 									it_treg->name.c_str()
 									);
@@ -1607,7 +1607,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 									if (imm > 0)
 									{
-										if (g_allargs.verbose)
+										if (g_allargs.debug)
 											printf("preamble:  addq.w #%d,%s\n",
 												imm,
 												it_treg->name.c_str()
@@ -1615,7 +1615,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 									}
 									else
 									{
-										if (g_allargs.verbose)
+										if (g_allargs.debug)
 											printf("preamble:  subq.w #%d,%s\n",
 												-imm,
 												it_treg->name.c_str()
@@ -1648,7 +1648,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 									if (imm > 0)
 									{
-										if (g_allargs.verbose)
+										if (g_allargs.debug)
 											printf("preamble:  addq.l #%d,%s\n",
 												imm,
 												it_treg->name.c_str()
@@ -1656,7 +1656,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 									}
 									else
 									{
-										if (g_allargs.verbose)
+										if (g_allargs.debug)
 											printf("preamble:  subq.l #%d,%s\n",
 												-imm,
 												it_treg->name.c_str()
@@ -1699,7 +1699,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  move.b %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1729,7 +1729,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->pop();
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  move.w %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1763,7 +1763,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								it_treg->stableH = saveSH;
 								it_treg->stableL = saveSL;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  move.l %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1791,7 +1791,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  add.b %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1816,7 +1816,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  add.w %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1841,7 +1841,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  sub.b %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1866,7 +1866,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  sub.w %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1891,7 +1891,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  and.b %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1916,7 +1916,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  and.w %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1941,7 +1941,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  or.w %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1966,7 +1966,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  or.b %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -1991,7 +1991,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  eor.w %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -2016,7 +2016,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								it_treg->L = save;
 
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("preamble:  eor.b %s,%s\n",
 										registers[rs].name.c_str(),
 										it_treg->name.c_str()
@@ -2090,7 +2090,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  move.b %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2115,7 +2115,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  move.w %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2143,7 +2143,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  move.l %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2168,7 +2168,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  add.b %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2193,7 +2193,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  add.w %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2218,7 +2218,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  sub.b %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2243,7 +2243,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  sub.w %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2269,7 +2269,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  and.b %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2294,7 +2294,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  and.w %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2319,7 +2319,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  or.b %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2344,7 +2344,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  or.w %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2369,7 +2369,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  eor.b %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2394,7 +2394,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								{
 									it_sreg->pop();
 
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("preamble:  eor.w %s,%s\n",
 											it_preg->name.c_str(),
 											it_sreg->name.c_str()
@@ -2422,7 +2422,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					(_dataH == it_treg->H)
 				)
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("transform: move.l #$%08x,%s -> move.w #$%04x,%s [$%04x:%04x]\n",
 							data32,
 							registers[_rold].name.c_str(),
@@ -2449,7 +2449,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								if (safe_rename_H(curr, it_treg, _rold))
 								{
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("transform: move.w #$%04x,%s -> lsl.w #%d,%s [$%04x<<%d]\n",
 										data16,
 										registers[_rold].name.c_str(),
@@ -2467,7 +2467,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							}
 							else //(_opsize == OpSize_32)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("transform: move.l #$%04x%04x,%s -> lsl.w #%d,%s [$%04x<<%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -2490,7 +2490,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								if (safe_rename_H(curr, it_treg, _rold))
 								{
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("transform: move.w #$%04x,%s -> lsr.w #%d,%s [$%04x>>%d]\n",
 										data16,
 										registers[_rold].name.c_str(),
@@ -2508,7 +2508,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							}
 							else // (_opsize == OpSize_32)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("transform: move.l #$%04x%04x,%s -> lsr.w #%d,%s [$%04x>>%d]\n",
 										_dataH, _dataL,
 										registers[_rold].name.c_str(),
@@ -2531,7 +2531,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								if (safe_rename_H(curr, it_treg, _rold))
 								{
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("transform: move.w #$%04x,%s -> asl.w #%d,%s [$%04x<<%d]\n",
 											data16,
 											registers[_rold].name.c_str(),
@@ -2549,7 +2549,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							}
 							else
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("transform: move.l #$%04x%04x,%s -> asl.w #%d,%s [$%04x<<%d]\n",
 										_dataH, _dataL,
 										registers[_rold].name.c_str(),
@@ -2572,7 +2572,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								if (safe_rename_H(curr, it_treg, _rold))
 								{
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("transform: move.w #$%04x,%s -> asr.w #%d,%s [$%04x>>%d]\n",
 										data16,
 										registers[_rold].name.c_str(),
@@ -2590,7 +2590,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							}
 							else
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("transform: move.l #$%04x%04x,%s -> asr.w #%d,%s [$%04x>>%d]\n",
 										_dataH, _dataL,
 										registers[_rold].name.c_str(),
@@ -2613,7 +2613,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								if (safe_rename_H(curr, it_treg, _rold))
 								{
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("transform: move.w #$%04x,%s -> rol.w #%d,%s [$%04x<-<%d]\n",
 										data16,
 										registers[_rold].name.c_str(),
@@ -2631,7 +2631,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							}
 							else
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("transform: move.l #$%04x%04x,%s -> rol.w #%d,%s [$%04x<-<%d]\n",
 										_dataH, _dataL,
 										registers[_rold].name.c_str(),
@@ -2655,7 +2655,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							{
 								if (safe_rename_H(curr, it_treg, _rold))
 								{
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("transform: move.w #$%04x,%s -> ror.w #%d,%s [$%04x>->%d]\n",
 										data16,
 										registers[_rold].name.c_str(),
@@ -2673,7 +2673,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 							}
 							else
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> ror.w #%d,%s [$%04x>->%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -2701,7 +2701,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 					{						
 						if (data16 == uword_t(treg32 >> i))
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.w #$%04x,%s -> lsr.l #%d,%s [$%08x>>%d]\n",
 								data16,
 								registers[_rold].name.c_str(),
@@ -2719,7 +2719,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 						if (data32 == lofl32(treg32, i))
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.w #$%04x,%s -> rol.l #%d,%s [$%08x<-<%d]\n",
 								data16,
 								registers[_rold].name.c_str(),
@@ -2746,7 +2746,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 						
 						if (data32 == (reg32 << i))
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.l #$%04x%04x,%s -> lsl.l #%d,%s [$%08x<<%d]\n",
 								_dataH, _dataL,
 								registers[_rold].name.c_str(),
@@ -2764,7 +2764,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 						if (data32 == (reg32 >> i))
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.l #$%04x%04x,%s -> lsr.l #%d,%s [$%08x>>%d]\n",
 								_dataH, _dataL,
 								registers[_rold].name.c_str(),
@@ -2782,7 +2782,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 						if (long_t(data32) == (long_t(reg32) << i))
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.l #$%04x%04x,%s -> asl.l #%d,%s [$%08x<<%d]\n",
 								_dataH, _dataL,
 								registers[_rold].name.c_str(),
@@ -2800,7 +2800,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 						if (long_t(data32) == (long_t(reg32) >> i))
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.l #$%04x%04x,%s -> asr.l #%d,%s [$%08x>>%d]\n",
 								_dataH, _dataL,
 								registers[_rold].name.c_str(),
@@ -2818,7 +2818,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 						if (data32 == lofl32(reg32, i))
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.l #$%04x%04x,%s -> rol.l #%d,%s [$%08x<-<%d]\n",
 								_dataH, _dataL,
 								registers[_rold].name.c_str(),
@@ -2836,7 +2836,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 
 						if (data32 == rofl32(reg32, i))
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 							printf("transform: move.l #$%04x%04x,%s -> ror.l #%d,%s [$%08x>->%d]\n",
 								_dataH, _dataL,
 								registers[_rold].name.c_str(),
@@ -2891,7 +2891,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 //								(data16 == (result & 0x0000FFFF))
 //								)
 //							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.w #$%04x,%s -> mulu.w %s,%s [$%04x*$%04x]\n",
 									data16,
 									registers[_rold].name.c_str(),
@@ -2918,7 +2918,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								(data32 == result)
 								)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> mulu.w %s,%s [$%04x*$%04x]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -2958,7 +2958,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 //								(data16 == uword_t(result & 0x0000FFFF))
 //								)
 //							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.w #$%04x,%s -> muls.w %s,%s [$%04x*$%04x]\n",
 									data16,
 									registers[_rold].name.c_str(),
@@ -2985,7 +2985,7 @@ bool Context::try_reg_transforms(std::list<Operation*>::iterator &curr, std::vec
 								(data32 == ulong_t(result))
 								)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> muls.w %s,%s [$%04x*$%04x]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3052,7 +3052,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 								(data32 == v)
 							)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq.l #%d,%s + bchg %s,%s [$%08x^$%08x]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3079,7 +3079,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 								(data32 == v)
 							)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq.l #%d,%s + mulu.w %s,%s [$%08x*$%04x]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3106,7 +3106,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 								(data32 == v)
 							)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq.l #%d,%s + muls.w %s,%s [$%08x*$%04x]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3135,7 +3135,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + lsl.w #%d,%s [$%04x<<%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3158,7 +3158,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + lsr.w #%d,%s [$%04x>>%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3181,7 +3181,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + asl.w #%d,%s [$%04x<<%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3204,7 +3204,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + asr.w #%d,%s [$%04x>>%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3227,7 +3227,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + rol.w #%d,%s [$%04x<-<%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3250,7 +3250,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + ror.w #%d,%s [$%04x>->%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3273,7 +3273,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + lsl.l #%d,%s [$%08x<<%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3296,7 +3296,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + lsr.l #%d,%s [$%08x>>%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3319,7 +3319,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + asl.l #%d,%s [$%08x<<%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3342,7 +3342,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + asr.l #%d,%s [$%08x>>%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3365,7 +3365,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + rol.l #%d,%s [$%08x<-<%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3388,7 +3388,7 @@ bool Context::try_12c_init_transforms(std::list<Operation*>::iterator &curr, OpS
 
 							if (data32 == v)
 							{
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 								printf("transform: move.l #$%04x%04x,%s -> moveq #%d,%s + ror.l #%d,%s [$%08x>->%d]\n",
 									_dataH, _dataL,
 									registers[_rold].name.c_str(),
@@ -3448,7 +3448,7 @@ bool Context::try_8c_init_transforms(std::list<Operation*>::iterator &curr, OpSi
 				{
 					it_treg->pop();
 
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 					printf("preamble:  moveq.l #%d,%s\n",
 						imm,
 						it_treg->name.c_str()
@@ -3491,7 +3491,7 @@ bool Context::try_4c_init_transforms(std::list<Operation*>::iterator &curr, OpSi
 			((*curr)->alltagsH[_rold] < 0)
 		)
 		{
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 			printf("transform: move.w #$%04x,%s -> swap %s [$%04x<:>$%04x]\n",
 				data16,
 				registers[_rold].name.c_str(),
@@ -3523,7 +3523,7 @@ bool Context::try_4c_init_transforms(std::list<Operation*>::iterator &curr, OpSi
 					// don't permit rename if it affects a high word dependency - unless high words are stable and equal
 					safe_rename_H(curr, imm_hw, _rold))
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 					printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x:%04x]\n",
 						data16,
 						registers[_rold].name.c_str(),
@@ -3546,7 +3546,7 @@ bool Context::try_4c_init_transforms(std::list<Operation*>::iterator &curr, OpSi
 			(data16 == 0)
 		)
 		{
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 			printf("transform: move.w #$0000,%s -> clr.w %s [$%04x]\n",
 				registers[_rold].name.c_str(),
 				registers[_rold].name.c_str(),
@@ -3571,7 +3571,7 @@ bool Context::try_4c_init_transforms(std::list<Operation*>::iterator &curr, OpSi
 				// OPPORTUNITY: (MOVEQ.L #N,Rn.L == EXPECTED)
 				if (data32 == ulong_t(imm))
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 					printf("transform: move.l #$%08x,%s -> moveq.l #%d,%s [$%04x%04x]\n",
 						data32,
 						registers[_rold].name.c_str(),

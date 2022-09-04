@@ -116,12 +116,7 @@ _BLiT_EntityDrawVisibleYM_68k:
 
 	move.w		ent_frame(a0),d0
 
-	; decrement 'hitflash' counter on this object
-
-	;move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	;neg.b		d7
-	;subx.b		d7,d7				; $0000 / $FFFF
-	;add.b		d7,ent_draw_hitflash+1(a0)
+	; no sprite draw control on Q path
 
 	; asset/framebuffer
 
@@ -160,91 +155,6 @@ enable_clipping	set	1				; enable full xy clipping
 
 
 
-*=======================================================*
-*	dedicated iterator for [drawtype]=EMHSPR
-*-------------------------------------------------------*
-.STE_EntityDrawVisibleYM_EMHSPR_next:
-*-------------------------------------------------------*
-
-	move.w		ent_drawtype(a0),d0
-	cmp.w		.sp_drawtype(sp),d0
-	bne		.STE_EntityDrawVisibleYM_evaluate
-
-*-------------------------------------------------------*
-.STE_EntityDrawVisibleYM_EMHSPR_go:
-*-------------------------------------------------------*
-
-	; access coordinates
-
-	move.w		ent_frx(a0),d1
-;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
-
-	; compensate for loopback buffer
-
-	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
-	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
-
-	; access sprite frame
-
-	move.w		ent_frame(a0),d0
-
-	; handle hitflash & blinky fx
-	
-	moveq		#3,d3
-	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
-	neg.b		d7
-	beq.s		.STE_EntityDrawVisibleYM_EMHSPR_nhf
-; flash or blink
-	move.b		d7,d4
-	subx.b		d4,d4				; $zz00 / $zzFF
-	add.b		d4,ent_draw_hitflash+1(a0)
-	tst.w		d7
-	bpl.s		.STE_EntityDrawVisibleYM_EMHSPR_yhf
-; blink
-	btst		#1,d7
-	beq.s		.STE_EntityDrawVisibleYM_EMHSPR_nhf
-	bra		.STE_EntityDrawVisibleYM_EMHSPR_done		
-.STE_EntityDrawVisibleYM_EMHSPR_yhf:
-; flash
-	moveq		#15,d3	
-.STE_EntityDrawVisibleYM_EMHSPR_nhf:
-	move.b		d3,BLiTLOP.w
-
-	; asset/framebuffer
-
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-	move.l		a0,g_dbg_curr_entity
-	.endif
-
-	move.l		a0,.sp_savea0(sp)
-	move.l		ent_passet(a0),a0
-	move.l		.sp_framebuf(sp),a1
-
-	; include raw drawing function here (configure it first)
-
-enable_restore	set	1				; enable sprite-restore
-enable_clipping	set	1				; enable full xy clipping
-
-	include		"ste/b_emh_spr.s"		; body for EMH optimized blitter sprites (0<width<=32)
-
-	move.l		.sp_savea0(sp),a0
-
-*-------------------------------------------------------*
-.STE_EntityDrawVisibleYM_EMHSPR_done:
-*-------------------------------------------------------*
-	move.l		ent_pnext_y(a0),a0		; next visible entity
-	move.w		ent_fry(a0),d2
-	cmp.w		.sp_pxymax_(sp),d2
-	blt		.STE_EntityDrawVisibleYM_EMHSPR_next
-	bra		.STE_EntityDrawVisibleYM_complete
-*-------------------------------------------------------*
-*	[drawtype] has suddenly changed to EMHSPR
-*-------------------------------------------------------*
-.STE_EntityDrawVisibleYM_EMHSPR_setup:
-*-------------------------------------------------------*
-	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
-	bra		.STE_EntityDrawVisibleYM_EMHSPR_go
-
 
 *=======================================================*
 *	dedicated iterator for [drawtype]=EMXSPR
@@ -276,26 +186,7 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; handle hitflash & blinky fx
 	
-	moveq		#3,d3
-	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
-	neg.b		d7
-	beq.s		.STE_EntityDrawVisibleYM_EMXSPR_nhf
-; flash or blink
-	move.b		d7,d4
-	subx.b		d4,d4				; $zz00 / $zzFF
-	add.b		d4,ent_draw_hitflash+1(a0)
-	tst.w		d7
-	bpl.s		.STE_EntityDrawVisibleYM_EMXSPR_yhf
-; blink
-	btst		#1,d7
-	beq.s		.STE_EntityDrawVisibleYM_EMXSPR_nhf
-	bra		.STE_EntityDrawVisibleYM_EMXSPR_done		
-.STE_EntityDrawVisibleYM_EMXSPR_yhf:
-; flash
-	moveq		#15,d3	
-.STE_EntityDrawVisibleYM_EMXSPR_nhf:
-	move.b		d3,BLiTLOP.w
-
+	sprite_ctrl	a0,d3,d4,d7,.STE_EntityDrawVisibleYM_EMXSPR_done
 
 	; asset/framebuffer
 
@@ -332,6 +223,72 @@ enable_clipping	set	1				; enable full xy clipping
 	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
 	bra		.STE_EntityDrawVisibleYM_EMXSPR_go
 
+*=======================================================*
+*	dedicated iterator for [drawtype]=EMHSPR
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMHSPR_next:
+*-------------------------------------------------------*
+
+	move.w		ent_drawtype(a0),d0
+	cmp.w		.sp_drawtype(sp),d0
+	bne		.STE_EntityDrawVisibleYM_evaluate
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMHSPR_go:
+*-------------------------------------------------------*
+
+	; access coordinates
+
+	move.w		ent_frx(a0),d1
+;	move.w		ent_fry(a0),d2			; we already fetched this in preamble
+
+	; compensate for loopback buffer
+
+	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
+	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
+
+	; access sprite frame
+
+	move.w		ent_frame(a0),d0
+
+	; handle hitflash & blinky fx
+	
+	sprite_ctrl	a0,d3,d4,d7,.STE_EntityDrawVisibleYM_EMHSPR_done
+
+	; asset/framebuffer
+
+	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
+	move.l		a0,g_dbg_curr_entity
+	.endif
+
+	move.l		a0,.sp_savea0(sp)
+	move.l		ent_passet(a0),a0
+	move.l		.sp_framebuf(sp),a1
+
+	; include raw drawing function here (configure it first)
+
+enable_restore	set	1				; enable sprite-restore
+enable_clipping	set	1				; enable full xy clipping
+
+	include		"ste/b_emh_spr.s"		; body for EMH optimized blitter sprites (0<width<=32)
+
+	move.l		.sp_savea0(sp),a0
+
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMHSPR_done:
+*-------------------------------------------------------*
+	move.l		ent_pnext_y(a0),a0		; next visible entity
+	move.w		ent_fry(a0),d2
+	cmp.w		.sp_pxymax_(sp),d2
+	blt		.STE_EntityDrawVisibleYM_EMHSPR_next
+	bra		.STE_EntityDrawVisibleYM_complete
+*-------------------------------------------------------*
+*	[drawtype] has suddenly changed to EMHSPR
+*-------------------------------------------------------*
+.STE_EntityDrawVisibleYM_EMHSPR_setup:
+*-------------------------------------------------------*
+	jsr		_AGT_BLiT_EMSprInit			; todo: init type depends on platform & spr format
+	bra		.STE_EntityDrawVisibleYM_EMHSPR_go
 
 *=======================================================*
 *	dedicated iterator for [drawtype]=EMXSPRUR
@@ -363,25 +320,7 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; handle hitflash & blinky fx
 	
-	moveq		#3,d3
-	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
-	neg.b		d7
-	beq.s		.STE_EntityDrawVisibleYM_EMXSPRUR_nhf
-; flash or blink
-	move.b		d7,d4
-	subx.b		d4,d4				; $zz00 / $zzFF
-	add.b		d4,ent_draw_hitflash+1(a0)
-	tst.w		d7
-	bpl.s		.STE_EntityDrawVisibleYM_EMXSPRUR_yhf
-; blink
-	btst		#1,d7
-	beq.s		.STE_EntityDrawVisibleYM_EMXSPRUR_nhf
-	bra		.STE_EntityDrawVisibleYM_EMXSPRUR_done		
-.STE_EntityDrawVisibleYM_EMXSPRUR_yhf:
-; flash
-	moveq		#15,d3	
-.STE_EntityDrawVisibleYM_EMXSPRUR_nhf:
-	move.b		d3,BLiTLOP.w
+	sprite_ctrl	a0,d3,d4,d7,.STE_EntityDrawVisibleYM_EMXSPRUR_done
 
 
 	; asset/framebuffer
@@ -478,12 +417,7 @@ preserve_usp		set	0
 
 	move.w		ent_frame(a0),d0
 
-	; decrement 'hitflash' counter on this object
-
-	;move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	;neg.b		d7
-	;subx.b		d7,d7				; $0000 / $FFFF
-	;add.b		d7,ent_draw_hitflash+1(a0)
+	; no hitflash draw control on Q path
 
 	; asset/framebuffer
 
@@ -552,26 +486,7 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; handle hitflash & blinky fx
 	
-	moveq		#3,d3
-	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
-	neg.b		d7
-	beq.s		.STE_EntityDrawVisibleYM_EMSPR_nhf
-; flash or blink
-	move.b		d7,d4
-	subx.b		d4,d4				; $zz00 / $zzFF
-	add.b		d4,ent_draw_hitflash+1(a0)
-	tst.w		d7
-	bpl.s		.STE_EntityDrawVisibleYM_EMSPR_yhf
-; blink
-	btst		#1,d7
-	beq.s		.STE_EntityDrawVisibleYM_EMSPR_nhf
-	bra		.STE_EntityDrawVisibleYM_EMSPR_done		
-.STE_EntityDrawVisibleYM_EMSPR_yhf:
-; flash
-	moveq		#15,d3	
-.STE_EntityDrawVisibleYM_EMSPR_nhf:
-	move.b		d3,BLiTLOP.w
-
+	sprite_ctrl	a0,d3,d4,d7,.STE_EntityDrawVisibleYM_EMSPR_done
 
 	; asset/framebuffer
 
@@ -638,27 +553,9 @@ enable_clipping	set	1				; enable full xy clipping
 	
 	move.w		ent_frame(a0),d0
 
-	; handle hitflash & blinky fx
+	; handle blinky fx
 	
-	;moveq		#3,d3
-	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
-	neg.b		d7
-	beq.s		.STE_EntityDrawVisibleYM_SPRITE_nhf
-; flash or blink
-	move.b		d7,d4
-	subx.b		d4,d4				; $zz00 / $zzFF
-	add.b		d4,ent_draw_hitflash+1(a0)
-	tst.w		d7
-	bpl.s		.STE_EntityDrawVisibleYM_SPRITE_yhf
-; blink
-	btst		#1,d7
-	beq.s		.STE_EntityDrawVisibleYM_SPRITE_nhf
-	bra		.STE_EntityDrawVisibleYM_SPRITE_done		
-.STE_EntityDrawVisibleYM_SPRITE_yhf:
-; flash
-	;moveq		#15,d3	
-.STE_EntityDrawVisibleYM_SPRITE_nhf:
-	;move.b		d3,BLiTLOP.w
+	sprite_ctrl_nl	a0,d4,d7,.STE_EntityDrawVisibleYM_SPRITE_done
 
 	
 	; asset/framebuffer
@@ -726,26 +623,7 @@ enable_clipping	set	1				; enable full xy clipping
 
 	; handle hitflash & blinky fx
 	
-	moveq		#3,d3
-	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
-	neg.b		d7
-	beq.s		.STE_EntityDrawVisibleYM_SLAB_nhf
-; flash or blink
-	move.b		d7,d4
-	subx.b		d4,d4				; $zz00 / $zzFF
-	add.b		d4,ent_draw_hitflash+1(a0)
-	tst.w		d7
-	bpl.s		.STE_EntityDrawVisibleYM_SLAB_yhf
-; blink
-	btst		#1,d7
-	beq.s		.STE_EntityDrawVisibleYM_SLAB_nhf
-	bra		.STE_EntityDrawVisibleYM_SLAB_done		
-.STE_EntityDrawVisibleYM_SLAB_yhf:
-; flash
-	moveq		#15,d3	
-.STE_EntityDrawVisibleYM_SLAB_nhf:
-	move.b		d3,BLiTLOP.w
-
+	sprite_ctrl	a0,d3,d4,d7,.STE_EntityDrawVisibleYM_SLAB_done
 	
 	; asset/framebuffer
 
@@ -825,6 +703,10 @@ preserve_usp		set	0
 .STE_EntityDrawVisibleYM_CUSTOM_go:
 *-------------------------------------------------------*
 
+	; handle blinky fx
+
+	sprite_ctrl_nl	a0,d4,d7,.STE_EntityDrawVisibleYM_CUSTOM_done
+
 	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
 	move.l		a0,g_dbg_curr_entity
 	.endif
@@ -897,19 +779,16 @@ preserve_usp		set	0
 	sub.w		.sp_snapx(sp),d1		; not really needed unless LOOPBACK used on HSCROLL - kinda pointless
 	sub.w		.sp_snapy(sp),d2		; must be done if LOOPBACK used for VSCROLL - very likely
 
+	; handle blinky fx
+
+	sprite_ctrl_nl	a0,d4,d7,.STE_EntityDrawVisibleYM_RFILL_done
+
 	; use frame number as colour
 	
 	move.w		ent_frame(a0),d5
 	
 	move.w		ent_sx(a0),d3
 	move.w		ent_sy(a0),d4
-	
-	; decrement 'hitflash' counter on this object
-	
-	;move.w		ent_draw_hitflash(a0),d7	; $0000 / $FFxx
-	;neg.b		d7
-	;subx.b		d7,d7				; $0000 / $FFFF
-	;add.b		d7,ent_draw_hitflash+1(a0)
 	
 	; asset/framebuffer
 

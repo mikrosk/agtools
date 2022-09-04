@@ -275,6 +275,7 @@ enum OpKind
 	OpKind_BLITDYIMod,
 	OpKind_BLITSetup,
 	OpKind_BLITGo,
+	OpKind_BLITGoSkew,
 	OpKind_SRCSkip,
 	//
 	OpKind_Terminate
@@ -318,6 +319,7 @@ static const char* const as_str[] =
 	"OpKind_BLITDYIMod",
 	"OpKind_BLITSetup",
 	"OpKind_BLITGo",
+	"OpKind_BLITGoSkew",
 	"OpKind_SRCSkip",
 	//
 	"OpKind_Terminate"
@@ -704,7 +706,28 @@ public:
 		shared_mask_word_pos = 0;
 	}
 
-	int cycle_sum(int &r_program_size);
+	struct program_metrics
+	{
+		int words;
+		int cycles;
+		int spans;
+		int em_mods;
+		int em_modcycles;
+		int src_skips;
+		int src_skipcycles;
+		int dst_skips;
+		int dst_skipcycles;
+		int group_mods;
+		int group_modcycles;
+		int skew_mods;
+		int skew_modcycles;
+		int main_cycles;
+		int blit_expbuscycles;
+		int blit_simbuscycles;
+		int hidden_tailcycles;
+	};
+
+	int cycle_sum(program_metrics &r_program_metrics);
 
 	void dump_tags();
 	void register_rename(std::list<Operation*>::iterator curr, int _rold, int _rnew);
@@ -800,8 +823,8 @@ public:
 			// aout format
 			std::string tmpargs = "-fa +oall ";
 
-			// emit .lst files only in verbose mode
-			if (g_allargs.verbose)
+			// emit .lst files only when specified
+			if (g_allargs.mplist)
 			{
 				tmpargs += "-l";
 				tmpargs += tmp_lst;
@@ -1072,7 +1095,7 @@ DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _ge
 		{
 			if (_generate_program)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					printf("> referenced value [$%04x] in register [%s]L\n", _data, it->name.c_str());
 			}
 			r_reg_index = it->index;
@@ -1094,7 +1117,7 @@ DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _ge
 					{
 						if (_generate_program)
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("> assigned value [$%04x] to register [%s]L\n", _data, it->name.c_str());
 							operations.push_back(new DR_LoadI16(*this, it->index, _data));
 
@@ -1126,7 +1149,7 @@ DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _ge
 					{
 						if (_generate_program)
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("> assigned value [$%04x] to register [%s]L\n", _data, it->name.c_str());
 							operations.push_back(new DR_LoadI16(*this, it->index, _data));
 
@@ -1160,7 +1183,7 @@ DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _ge
 				dataregister &r = registers[best_reg];
 				if (_generate_program)
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("> replaced value [$%04x] with [$%04x] at register [%s]L\n", r.L, _data, r.name.c_str());
 					//				r.L = _data;
 					// allows future choices to acknowledge the reuse incidence looks different from now on
@@ -1184,7 +1207,7 @@ DataSource Context::sim_resolve_data16(uword_t _data, int &r_reg_index, bool _ge
 
 	// single-use, or last resort - just load immediate data
 	if (_generate_program)
-		if (g_allargs.verbose)
+		if (g_allargs.debug)
 			printf("> resolved value [$%04x] as immediate\n", _data);
 
 	return DataSource_Immediate16;
@@ -1203,7 +1226,7 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 		{
 			if (_generate_program)
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					printf("> referenced value [$%04x%04x] in register [%s]HL\n", _dataH, _dataL, it->name.c_str());
 			}
 			r_regH_index = it->index;
@@ -1227,7 +1250,7 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 					{
 						if (_generate_program)
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("> assigned value [$%04x%04x] to register [%s]HL\n", _dataH, _dataL, it->name.c_str());
 
 							operations.push_back(new DR_LoadI32(*this, it->index, _dataH, _dataL));
@@ -1268,7 +1291,7 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 					{
 						if (_generate_program)
 						{
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("> assigned value [$%04x%04x] to register [%s]HL\n", _dataH, _dataL, it->name.c_str());
 
 							operations.push_back(new DR_LoadI32(*this, it->index, _dataH, _dataL));
@@ -1325,7 +1348,7 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 			{
 				if (_generate_program)
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("> referenced value [$%04x] in register [%s]L\n", _dataL, it->name.c_str());
 				}
 				r_regL_index = it->index;
@@ -1336,7 +1359,7 @@ DataSource Context::sim_resolve_data32(uword_t _dataH, uword_t _dataL, int &r_re
 
 	// single-use, or last resort - just load immediate data
 	if (_generate_program)
-		if (g_allargs.verbose)
+		if (g_allargs.debug)
 			printf("> resolved value [$%04x%04x] as immediate\n", _dataH, _dataL);
 
 	return DataSource_Immediate32;
@@ -1404,11 +1427,13 @@ void Context::register_rename(std::list<Operation*>::iterator _start, int _regol
 		Operation *poper = *it; 
 
 		if ((poper->opdst == OpSource_Register) &&
-			((poper->dtagL >= 0 ) && ((poper->dtagL == tagoldL) || (poper->dtagL == tagoldH))) ||
-			((poper->dtagH >= 0 ) && (/*(poper->dtagH == tagoldL) ||*/ (poper->dtagH == tagoldH)))
+			(
+				((poper->dtagL >= 0 ) && ((poper->dtagL == tagoldL) || (poper->dtagL == tagoldH))) ||
+				((poper->dtagH >= 0 ) && (/*(poper->dtagH == tagoldL) ||*/ (poper->dtagH == tagoldH)))
+			)
 		)
 		{
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				printf("replacing D:%s with %s\n", registers[poper->dreg].name.c_str(), registers[_regnew].name.c_str());
 
 			if ((poper->opsrc == OpSource_None) && (poper->sreg == poper->dreg))
@@ -1420,11 +1445,13 @@ void Context::register_rename(std::list<Operation*>::iterator _start, int _regol
 		}
 
 		if ((poper->opsrc == OpSource_Register) &&
-			((poper->stagL >= 0 ) && ((poper->stagL == tagoldL) || (poper->stagL == tagoldH))) ||
-			((poper->stagH >= 0 ) && (/*(poper->stagH == tagoldL) ||*/ (poper->stagH == tagoldH)))
+			(
+				((poper->stagL >= 0 ) && ((poper->stagL == tagoldL) || (poper->stagL == tagoldH))) ||
+				((poper->stagH >= 0 ) && (/*(poper->stagH == tagoldL) ||*/ (poper->stagH == tagoldH)))
+			)
 		)
 		{
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				printf("replacing S:%s with %s\n", registers[poper->sreg].name.c_str(), registers[_regnew].name.c_str());
 			poper->sreg = _regnew;
 		}
@@ -1432,7 +1459,7 @@ void Context::register_rename(std::list<Operation*>::iterator _start, int _regol
 
 		if ((poper->atag >= 0) && (poper->atag == tagoldL))
 		{
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				printf("replacing A:%s with %s\n", registers[poper->areg].name.c_str(), registers[_regnew].name.c_str());
 			poper->areg = _regnew;
 		}
@@ -1820,7 +1847,7 @@ bool Context::try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsi
 					(/*!registers[_rold].stableH*/((*curr)->alltagsH[_rold] < 0) || (registers[_rold].H == imm_hw)))
 				{
 
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("transform: move.w #$%04x,%s -> moveq.l #%d,%s [$%04x:%04x]\n",
 							data16,
 							registers[_rold].name.c_str(),
@@ -1864,6 +1891,7 @@ bool Context::try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsi
 	}
 
 	// look for more expensive transforms of free register values
+	if (ALLOW_BTAIL_OPTIMIZATIONS)
 	{
 		// start with self
 		std::vector<dataregister>::iterator itself = registers.begin() + _rold;
@@ -1884,7 +1912,7 @@ bool Context::try_transforms(std::list<Operation*>::iterator &curr, OpSize _opsi
 	}
 
 	// look for most expensive transforms of free register values
-	if (srcww > 2)
+	if (ALLOW_BTAIL_OPTIMIZATIONS && (srcww > 2))
 	{
 		// start with self
 		std::vector<dataregister>::iterator itself = registers.begin() + _rold;
@@ -2002,7 +2030,7 @@ bool Context::cleanup_pass()
 				if (it->stableL &&
 					(word_t(pactual->delta(dstlinewid)) == word_t(it->L)))
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("transform: lea.w %d(%s),%s -> adda.w %s,%s [$%04x]\n",
 							pactual->delta(dstlinewid),
 							registers[SCRLINE_reg].name.c_str(), registers[SCRLINE_reg].name.c_str(),
@@ -2021,7 +2049,7 @@ bool Context::cleanup_pass()
 				if (it->stableL &&
 					(word_t(pactual->delta(dstlinewid)) == -word_t(it->L)))
 				{
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("transform: lea.w %d(%s),%s -> suba.w %s,%s [$%04x]\n",
 							pactual->delta(dstlinewid),
 							registers[SCRLINE_reg].name.c_str(), registers[SCRLINE_reg].name.c_str(),
@@ -2054,7 +2082,7 @@ bool Context::cleanup_pass()
 					if (registers[rnew].stableL &&
 						(pactual->data == (it->L)))
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							printf("transform: move.w #$%04x,%s -> move.w %s,%s [$%04x]\n", 
 								pactual->data, 
 								BLiTEM_names[emold].c_str(),
@@ -2087,7 +2115,7 @@ bool Context::cleanup_pass()
 						registers[rnew].stableH && (pactual->dataH == (it->H))
 					)
 					{
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							printf("transform: move.l #$%04x%04x,%s -> move.l %s,%s [$%04x%04x]\n", 
 								pactual->dataH, pactual->dataL, 
 								BLiTEM_names[emold].c_str(),
@@ -2364,7 +2392,7 @@ bool Context::reduce_pass()
 				)
 				{
 					if (!g_allargs.quickcut)
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							printf("reduce opportunity: reg %d [$%04x%04x]\n", reg, registers[reg].H, registers[reg].L);
 
 					int arold = pwrite->areg;
@@ -2485,7 +2513,7 @@ bool Context::promote_pass()
 						if (pop->kind == OpKind_StoreI16)
 						{
 							if (!g_allargs.quickcut)
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("promote opportunity: reg %d [$%04x]\n", freereg, iL);
 
 							curr = operations.erase(curr);
@@ -2496,7 +2524,7 @@ bool Context::promote_pass()
 						else
 						{
 							if (!g_allargs.quickcut)
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("promote opportunity: reg %d [$%04x%04x]\n", freereg, iH, iL);
 
 							curr = operations.erase(curr);
@@ -2570,7 +2598,7 @@ bool Context::promote_lea_pass()
 						// replace lea
 						{
 							if (!g_allargs.quickcut)
-								if (g_allargs.verbose)
+								if (g_allargs.debug)
 									printf("lea promote opportunity: reg %d [$%04x] (x:%d,y:%d)\n", freereg, delta, wordjump, linejump);
 
 							curr = operations.erase(curr);
@@ -2618,7 +2646,7 @@ void Context::tail_pass()
 		Operation *pop = *curr;
 
 		// encountered blit operation
-		if (pop->kind == OpKind_BLITGo)
+		if (pop->kind == OpKind_BLITGoSkew)
 		{
 			BLiT_GoSkew *pactual = reinterpret_cast<BLiT_GoSkew*>(pop);
 
@@ -2687,6 +2715,8 @@ void Context::tail_pass()
 					break;
 				if (kind == OpKind_BLITGo)
 					break;
+				if (kind == OpKind_BLITGoSkew)
+					break;
 				if (kind == OpKind_SRCSkip)
 					break;
 				if (kind == OpKind_SYSPageRestore)
@@ -2709,7 +2739,7 @@ void Context::tail_pass()
 			if ((best_tailop != curr) && 
 				(best_tailop != first))
 			{
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 				{
 					printf("relocating blit to hide tail=%d cycles [op:%s]\n", 
 						best_tailval, 
@@ -2761,10 +2791,10 @@ void run_sim
 //	context.dump_tags();
 
 	// debug the blit
-	//		if (g_allargs.verbose)
+	//		if (g_allargs.debug)
 	{
 		if (!g_allargs.quickcut)
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				printf("debug simulation... %dx%d words (%dx%d buffer)\n", 
 					context.srcww, context.srch,
 					context.dstww, context.srch
@@ -2798,7 +2828,7 @@ void run_sim
 				}
 
 				if (!g_allargs.quickcut)
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 					{
 						//if (m)
 						{
@@ -2815,7 +2845,7 @@ void run_sim
 					}
 			}
 			if (!g_allargs.quickcut)
-				if (g_allargs.verbose)
+				if (g_allargs.debug)
 					printf(" optsrc=%d\n", linemap_src_2_opt[v]);
 		}
 
@@ -2854,32 +2884,140 @@ static int word_re(uword_t w)
 	return re;
 }
 
-int Context::cycle_sum(int &r_program_size)
+int Context::cycle_sum(Context::program_metrics &r_program_metrics)
 {
+	int words = 0;
 	int cycles = 0;
+	int spans = 0;
+	int em_mods = 0;
+	int em_modcycles = 0;
+	int src_skips = 0;
+	int src_skipcycles = 0;
+	int dst_skips = 0;
+	int dst_skipcycles = 0;
+	int hidden_tailcycles = 0;
+	int group_mods = 0;
+	int group_modcycles = 0;
+	int skew_mods = 0;
+	int skew_modcycles = 0;
+	int blit_expbuscycles = 0;
+	int blit_simbuscycles = 0;
+	int main_cycles = 0;
+
 	int last_tail = 0;
 
-	r_program_size = 0;
+	int lastoper_isgroupmod = 0;
 
 	for (std::list<Operation*>::iterator it = operations.begin(); it != operations.end(); it++)
 	{
 		Operation *poper = *it;
 
+		// don't count the cost of non-emitted setup, used only by the sim
+		if (poper->hidden)
+		{
+			//poper->onEmit();
+			//printf("hidden: %s\n", buf);
+
+			continue;
+		}
+
+		if ((poper->kind == OpKind_BLITXCMod) || 
+			(poper->kind == OpKind_BLITDYIMod) || 
+			(poper->kind == OpKind_BLITSYIMod))
+		{
+			if (!lastoper_isgroupmod)
+				group_mods++;
+			lastoper_isgroupmod = 1;
+
+			group_modcycles += poper->cost;
+		}
+		else
+		{
+			lastoper_isgroupmod = 0;
+
+			if (poper->kind == OpKind_SRCSkip)
+			{
+				src_skips++;
+				src_skipcycles += poper->cost;
+			}
+			else
+			if ((poper->kind == OpKind_DSTLea) || 
+				(poper->kind == OpKind_DSTAddaIL))
+			{
+				dst_skips++;
+				dst_skipcycles += poper->cost - 8;
+
+				// all cycles from span-constant operations (every line has a dstaddr update cost of 8+ cycles)
+				main_cycles += poper->cost - 8;
+			}
+			else
+			if ((poper->kind == OpKind_StoreI16) || 
+				(poper->kind == OpKind_StoreI32) ||
+				(poper->kind == OpKind_StoreR16) ||
+				(poper->kind == OpKind_StoreR32) ||
+				(poper->kind == OpKind_StoreMPI16) ||
+				(poper->kind == OpKind_StoreMPI32))
+			{
+				em_mods++;
+				em_modcycles += poper->cost;
+			}
+			else
+			if (poper->kind == OpKind_SetSkew)
+			{
+				skew_mods++;
+				skew_modcycles += poper->cost;
+			}
+			else
+			if (poper->kind == OpKind_BLITGoSkew)
+			{
+				spans++;
+				// includes cost for 4 bitplanes
+				blit_expbuscycles += reinterpret_cast<BLiT_GoSkew*>(poper)->buscycles;
+				blit_simbuscycles += reinterpret_cast<BLiT_GoSkew*>(poper)->sim_buscycles;
+				// all cycles from span-constant operations
+				main_cycles += poper->cost;
+			}
+			else
+			{
+				// all cycles from span-constant operations
+				main_cycles += poper->cost;
+			}
+		}
+
 		// sum cycles
 		cycles += poper->cost;
 
 		// sum words
-		r_program_size += poper->words;
+		words += poper->words;
 
 		// only interested in tails overlapping blitter starts
-		int blitter_tail = (poper->kind == OpKind_BLITGo) ? last_tail : 0;
+		int blitter_tail = (poper->kind == OpKind_BLITGoSkew) ? last_tail : 0;
 
 		// only interested in tail time for 1-word ops
 		last_tail = (poper->words == 1) ? poper->tail : 0;
 
 		// account for tails
 		cycles -= blitter_tail;
+		hidden_tailcycles += blitter_tail;
 	}
+
+	r_program_metrics.words = words;
+	r_program_metrics.cycles = cycles;
+	r_program_metrics.spans = spans;
+	r_program_metrics.em_mods = em_mods;
+	r_program_metrics.em_modcycles = em_modcycles;
+	r_program_metrics.src_skips = src_skips;
+	r_program_metrics.src_skipcycles = src_skipcycles;
+	r_program_metrics.dst_skips = dst_skips;
+	r_program_metrics.dst_skipcycles = dst_skipcycles;
+	r_program_metrics.hidden_tailcycles = hidden_tailcycles;
+	r_program_metrics.group_mods = group_mods;
+	r_program_metrics.group_modcycles = group_modcycles;
+	r_program_metrics.skew_mods = skew_mods;
+	r_program_metrics.skew_modcycles = skew_modcycles;
+	r_program_metrics.blit_expbuscycles = blit_expbuscycles;
+	r_program_metrics.blit_simbuscycles = blit_simbuscycles;
+	r_program_metrics.main_cycles = main_cycles;
 
 	return cycles;
 }
@@ -2923,7 +3061,7 @@ void generate_mprog_emdata_metrics
 					if (!linechanges[x])
 					{
 						if (!g_allargs.quickcut)
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("----------------");
 						continue;
 					}
@@ -2934,7 +3072,7 @@ void generate_mprog_emdata_metrics
 					emx_metric_t &m = context.metrics[dataword];
 
 					if (!g_allargs.quickcut)
-						if (g_allargs.verbose)
+						if (g_allargs.debug)
 							print_dataword(dataword);
 
 					//if (m.name < 0)
@@ -2980,7 +3118,7 @@ void generate_mprog_emdata_metrics
 				//	active_lines.push_back(lineout(v, dsty));
 
 				if (!g_allargs.quickcut)
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("\n");
 			}
 		}
@@ -3335,7 +3473,7 @@ void generate_mprog_store_dependencies
 	}
 
 	if (!g_allargs.quickcut)
-		if (g_allargs.verbose)
+		if (g_allargs.debug)
 			printf("\n\ninitial data lifespans:\n");
 	//for (std::vector<storedependency>::iterator rit = deps.begin(); rit != deps.end(); rit++)
 	//{
@@ -3350,7 +3488,7 @@ void generate_mprog_store_dependencies
 
 	// report lifespan status for each state for each execution stage
 	if (!g_allargs.quickcut)
-		if (g_allargs.verbose)
+		if (g_allargs.debug)
 		{
 			std::vector<storedependency>::iterator dit = deps.begin();
 			for (std::vector<u64>::iterator lit = lifespans.begin(); lit != lifespans.end(); lit++, dit++)
@@ -3366,7 +3504,7 @@ void generate_mprog_store_dependencies
 int generate_mprog_emdata_scoring(Context &context)
 {
 	if (!g_allargs.quickcut)
-		if (g_allargs.verbose)
+		if (g_allargs.debug)
 			printf("\nscoring:\n");
 
 	// globally score each data word according to metrics
@@ -3376,7 +3514,7 @@ int generate_mprog_emdata_scoring(Context &context)
 		const uword_t &dataword = mit->first;
 
 		if (!g_allargs.quickcut)
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				print_dataword(dataword);
 
 		emx_metric_t &m = mit->second;
@@ -3398,7 +3536,7 @@ int generate_mprog_emdata_scoring(Context &context)
 		m.fincidence_score = fscore;
 
 		if (!g_allargs.quickcut)
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				printf(" incidence_score: %.2f\n", fscore);
 	}
 
@@ -3408,7 +3546,7 @@ int generate_mprog_emdata_scoring(Context &context)
 		const uword_t &dataword = mit->first;
 
 		if (!g_allargs.quickcut)
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				print_dataword(dataword);
 
 		emx_metric_t &m = mit->second;
@@ -3425,7 +3563,7 @@ int generate_mprog_emdata_scoring(Context &context)
 		m.fadjacency_score = fscore;
 
 		if (!g_allargs.quickcut)
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				printf(" adjacency_score: %.2f\n", fscore);
 	}
 
@@ -3453,7 +3591,7 @@ int generate_mprog_emdata_scoring(Context &context)
 			if (m.incidence >= 2)
 			{
 				if (!g_allargs.quickcut)
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("L preload: [$%04x] iscore: %.2f\n", dataword, uit->first);
 				context.preloads.push_back(preload(dataword));
 			}
@@ -3474,7 +3612,7 @@ int generate_mprog_emdata_scoring(Context &context)
 			//				if (m.incidence > 1)
 			{
 				if (!g_allargs.quickcut)
-					if (g_allargs.verbose)
+					if (g_allargs.debug)
 						printf("H preload: [$%04x] ascore: %.2f\n", dataword, h_score);
 
 
@@ -3502,7 +3640,7 @@ int generate_mprog_emdata_scoring(Context &context)
 						uword_t adjacent_low = relit->first;
 
 						if (!g_allargs.quickcut)
-							if (g_allargs.verbose)
+							if (g_allargs.debug)
 								printf("candidate adjacent low: [$%04x] hits: %d\n", adjacent_low, relit->second);
 
 						// try to locate it in the existing pool of L preloads
@@ -3516,7 +3654,7 @@ int generate_mprog_emdata_scoring(Context &context)
 								pit->validH = true;
 
 								if (!g_allargs.quickcut)
-									if (g_allargs.verbose)
+									if (g_allargs.debug)
 										printf("bound preload [$%04x]:[$%04x]\n", dataword, adjacent_low);
 
 								goto break_bind;
@@ -4156,12 +4294,12 @@ void generate_emx_emh_metaprogram
 										if (long_cost(srcdata[1], srcdata[2]) < long_cost(srcdata[0], srcdata[1]))
 										{
 											chosen = 1;
-											if (g_allargs.verbose)
+											if (g_allargs.debug)
 												printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[1], srcdata[2]);
 										}
 										else
 										{
-											if (g_allargs.verbose)
+											if (g_allargs.debug)
 												printf("preferred long immediate with optimal value [$%04x%04x]\n", srcdata[0], srcdata[1]);
 										}
 									}
@@ -4173,12 +4311,12 @@ void generate_emx_emh_metaprogram
 											if (context.metrics_sim[srcdata[2]].incidence < context.metrics_sim[srcdata[1]].incidence)
 											{
 												chosen = 1;
-												if (g_allargs.verbose)
+												if (g_allargs.debug)
 													printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[1], srcdata[2]);
 											}
 											else
 											{
-												if (g_allargs.verbose)
+												if (g_allargs.debug)
 													printf("preferred long register with optimal L value [$%04x%04x]\n", srcdata[0], srcdata[1]);
 											}
 										}
@@ -4459,9 +4597,9 @@ void generate_emx_emh_metaprogram
 					{
 						if (build_metaprogram)
 						{
-							context.operations.push_back(new BLiT_XCMod(context, span_ww_change));
+							context.operations.push_back(new BLiT_XCMod(context, /*rel=*/span_ww_change, /*abs=*/pspan->ww));
 							context.operations.back()->execute();
-							context.operations.push_back(new BLiT_DYIMod(context, -span_ww_change));
+							context.operations.push_back(new BLiT_DYIMod(context, /*rel=*/-span_ww_change, /*abs=*/(current_dyinc - span_ww_change*8)));
 							context.operations.back()->execute();
 						}
 
@@ -4482,7 +4620,7 @@ void generate_emx_emh_metaprogram
 						{
 							if (build_metaprogram)
 							{
-								context.operations.push_back(new BLiT_SYIMod(context, span_syi_change));
+								context.operations.push_back(new BLiT_SYIMod(context, /*rel=*/span_syi_change, /*abs=*/(current_syinc + span_syi_change*2)));
 								context.operations.back()->execute();
 							}
 
@@ -4535,8 +4673,16 @@ void generate_emx_emh_metaprogram
 						context.operations.push_back(new BLiT_SetDSTADDR(context, context.SCRLINE_reg));
 						context.operations.back()->execute();
 
-						// execute the blit for this line
-						context.operations.push_back(new BLiT_GoSkew(context, context.BHOG_reg, span_orig_sline, span_dline, span_draw_order));
+						// execute the blit for this line, multiplies span buscycle cost by bitplane count (YC)
+						context.operations.push_back
+						(
+							new BLiT_GoSkew
+							(
+								context, context.BHOG_reg, 
+								span_orig_sline, span_dline, span_draw_order, 
+								/*buscycles*/pspan->buscycle_count * /*planes*/4
+							)
+						);
 						context.operations.back()->execute();
 					}
 
@@ -4582,10 +4728,13 @@ void generate_emx_emh_metaprogram
 		}
 	}
 
-	int program_size = 0;
+//	int program_size = 0;
+	
+	Context::program_metrics metrics;
 
-	int metaprogram_cost_built = context.cycle_sum(program_size);
-	printf("metaprogram [built] cycles:%d, words:%d\n", metaprogram_cost_built, program_size);
+	context.cycle_sum(metrics);
+	if (g_allargs.verbose)
+		printf("metaprogram [built] cycles:%d, words:%d\n", metrics.cycles, metrics.words);
 
 #if (SIM_ALL_STAGES)
 	run_sim(context, component_livelines, _frame, pi, shift, linemap_src_2_opt, /*generate=*/false);
@@ -4629,8 +4778,9 @@ void generate_emx_emh_metaprogram
 		}
 	}
 
-	int metaprogram_cost_transforms = context.cycle_sum(program_size);
-	printf("metaprogram [xforms] cycles:%d, words:%d\n", metaprogram_cost_transforms, program_size);
+	context.cycle_sum(metrics);
+	if (g_allargs.verbose)
+		printf("metaprogram [xforms] cycles:%d, words:%d\n", metrics.cycles, metrics.words);
 
 #if 0
 // not working yet - should probably be performed as fallback case for a failed transform of LEA
@@ -4654,23 +4804,39 @@ void generate_emx_emh_metaprogram
 #endif
 	}
 
-	int metaprogram_cost_reduced = context.cycle_sum(program_size);
-	printf("metaprogram [reduced] cycles:%d, words:%d\n", metaprogram_cost_reduced, program_size);
+	context.cycle_sum(metrics);
+	if (g_allargs.verbose)
+		printf("metaprogram [reduced] cycles:%d, words:%d\n", metrics.cycles, metrics.words);
 
 	// optimize instruction tail / blitter overlaps
-	if (!g_allargs.quickcut)
+	if (ALLOW_BTAIL_OPTIMIZATIONS && !g_allargs.quickcut)
+	{
 		if (!_shared_mask)
+		{
 			context.tail_pass();
 
-	int metaprogram_cost_tails = context.cycle_sum(program_size);
-	printf("metaprogram [tails] cycles:%d, words:%d\n", metaprogram_cost_tails, program_size);
-
+			context.cycle_sum(metrics);
+			if (g_allargs.verbose)
+				printf("metaprogram [tails] cycles:%d, words:%d\n", metrics.cycles, metrics.words);
+		}
+	}
 #endif
-
 
 	if (!g_allargs.quickcut && g_allargs.verbose)
 		std::cout << "preshift " << pi << " codegen optimization transforms: " << xform_passes << std::endl;
-		
+
+	context.cycle_sum(metrics);
+	printf("\nmetaprogram [final]:\n");
+	printf("> all-cycles:%d\n", metrics.cycles + metrics.blit_simbuscycles*4);
+	printf("> spans:%d, blit-cycles:%d, exp-blit-cycles:%d, hidden-tailcycles:%d\n", metrics.spans, metrics.blit_simbuscycles*4, metrics.blit_expbuscycles*4, metrics.hidden_tailcycles);
+	printf("> prog-words:%d, prog-cycles:%d, prog-nonmod-cycles:%d\n", metrics.words, metrics.cycles, metrics.main_cycles);
+	printf(">  em-mods:%d, em-modcycles:%d \n", metrics.em_mods, metrics.em_modcycles);
+	printf(">  dst-skips:%d, dst-skipcycles:%d \n", metrics.dst_skips, metrics.dst_skipcycles);
+	printf(">  src-skips:%d, src-skipcycles:%d \n", metrics.src_skips, metrics.src_skipcycles);
+	printf(">  group-mods:%d, group-modcyles:%d \n", metrics.group_mods, metrics.group_modcycles);
+	printf(">  skew-mods:%d, skew-modcyles:%d \n", metrics.skew_mods, metrics.skew_modcycles);
+	printf("\n");
+
 	//
 
 	std::vector<int> *linemap;

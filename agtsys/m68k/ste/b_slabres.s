@@ -26,16 +26,37 @@
 
 	pushraster	#$367
 
-	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
+;	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
+
+
+	; need total width for guardband test
+	move.w		sls_srcwidth(a0),d3
+
+	; guardx reject test (no x clipping in SLAB)
+	lea		_g_spr_culltest,a2
+	move.w		spr_culltest_y(a2),.sp_yc(sp)
+	sprite_cullxr	a2,d1,d3,d4,d6,.slr_end
+	
+	
 	
 	; access sprite frame table
 	
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sls_frameindex(a0,d0.w),a0	; access sprite frame data
-			
-	move.w		d1,.sp_x(sp)
-	bmi		.slr_end			; slabs can't cope with -ve x even in guardband
+
+	; slab rendering can't cope with -ve x as-is, even for guardband
+	; deal with left guardband case - shift framebuffer left & nudge slab right	
+	moveq		#0,d6
+	tst.w		d1
+	bpl.s		.slr_lxok
+	add.w		#AGT_CONFIG_SYS_GUARDX,d1
+	move.w		#-(AGT_CONFIG_SYS_GUARDX/2),d6
+.slr_lxok:
+	move.w		d6,.sp_xadj(sp)
+
+	move.w		d1,.sp_x(sp)			
+;	bmi		.slr_end
 	move.w		d2,.sp_y(sp)
 
 	bra.s		.slr_begin
@@ -48,6 +69,9 @@
 	move.l		.sp_framebuf(sp),a1
 	
 .slr_begin:			
+
+	add.w		.sp_xadj(sp),a1
+
 	move.l		slf_nextcmp(a0),.sp_nextcmp(sp)
 
 ;	move.l		slf_nextcmp(a0),d0

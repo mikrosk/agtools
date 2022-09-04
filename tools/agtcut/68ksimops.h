@@ -87,7 +87,7 @@ public:
 		{
 			ctx.buf[0] = 0;
 			onEmit();
-			if (g_allargs.verbose)
+			if (g_allargs.debug)
 				printf("%s", ctx.buf);
 			ctx.genout << ctx.buf;
 		}
@@ -2307,18 +2307,26 @@ class BLiT_XCMod : public Operation
 {
 public:
 
-	BLiT_XCMod(Context &_ctx, int _changew)
+	BLiT_XCMod(Context &_ctx, int _changew, int _absw)
 		: Operation(_ctx, OpKind_BLITXCMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None,
 		    /*cycles=*/20, 
 			/*tail=*/0, 
 			/*words=*/3
 		  ),
-		  changew_(_changew)
+		  changew_(_changew),
+		  absw_(_absw)
 	{
 		if (abs(changew_) <= 8)
 		{
+			// addq.w/subq.w
 			cost = 16;
 			words = 2;
+		}
+		else
+		{
+			// move.w #
+			cost = 16;
+			words = 3;
 		}
 	}
 
@@ -2342,11 +2350,11 @@ public:
 			}
 			else
 			{
-				sprintf(ctx.buf, " add.w #%d,%s\t;%d (XC:+%d)\n",
-					changew_,
+				sprintf(ctx.buf, " move.w #%d,%s\t;%d (XC:%d)\n",
+					absw_,
 					ctx.BLiTXC_name.c_str(),
 					cost,
-					changew_
+					absw_
 				);
 			}
 		}
@@ -2364,11 +2372,11 @@ public:
 			}
 			else
 			{
-				sprintf(ctx.buf, " sub.w #%d,%s\t;%d (XC:-%d)\n",
-					-changew_,
+				sprintf(ctx.buf, " move.w #%d,%s\t;%d (XC:%d)\n",
+					absw_,
 					ctx.BLiTXC_name.c_str(),
 					cost,
-					-changew_
+					absw_
 				);
 			}
 		}
@@ -2380,24 +2388,33 @@ public:
 	}
 
 	int changew_;
+	int absw_;
 };
 
 class BLiT_DYIMod : public Operation
 {
 public:
 
-	BLiT_DYIMod(Context &_ctx, int _changew)
+	BLiT_DYIMod(Context &_ctx, int _changew, int _absw)
 		: Operation(_ctx, OpKind_BLITDYIMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None,
 		    /*cycles=*/20, 
 			/*tail=*/0, 
 			/*words=*/3
 		  ),
-		  changew_(_changew)
+		  changew_(_changew),
+		  absw_(_absw)
 	{
 		if (abs(changew_) <= 1)
 		{
+			// addq.w/subq.w
 			cost = 16;
 			words = 2;
+		}
+		else
+		{
+			// move.w #
+			cost = 16;
+			words = 3;
 		}
 	}
 
@@ -2418,11 +2435,11 @@ public:
 			}
 			else
 			{
-				sprintf(ctx.buf, " add.w #%d,%s\t;%d (DYI:+%d)\n",
-					changew_ * 8,
+				sprintf(ctx.buf, " move.w #%d,%s\t;%d (DYI:%d)\n",
+					absw_,
 					ctx.BLiTDYI_name.c_str(),
 					cost,
-					changew_
+					absw_
 				);
 			}
 		}
@@ -2440,11 +2457,11 @@ public:
 			}
 			else
 			{
-				sprintf(ctx.buf, " sub.w #%d,%s\t;%d (DYI:-%d)\n",
-					-changew_ * 8,
+				sprintf(ctx.buf, " move.w #%d,%s\t;%d (DYI:%d)\n",
+					absw_,
 					ctx.BLiTDYI_name.c_str(),
 					cost,
-					-changew_
+					absw_
 				);
 			}
 		}
@@ -2455,24 +2472,33 @@ public:
 	}
 
 	int changew_;
+	int absw_;
 };
 
 class BLiT_SYIMod : public Operation
 {
 public:
 
-	BLiT_SYIMod(Context &_ctx, int _changew)
+	BLiT_SYIMod(Context &_ctx, int _changew, int _absw)
 		: Operation(_ctx, OpKind_BLITSYIMod, OpSize_None, OpSource_None, OpSource_None, OpWrite_None,
 		    /*cycles=*/20, 
 			/*tail=*/0, 
 			/*words=*/3
 		  ),
-		  changew_(_changew)
+		  changew_(_changew),
+		  absw_(_absw)
 	{
 		if (abs(changew_) <= 4)
 		{
+			// addq.w/subq.w
 			cost = 16;
 			words = 2;
+		}
+		else
+		{
+			// move.w #
+			cost = 16;
+			words = 3;
 		}
 	}
 
@@ -2493,11 +2519,11 @@ public:
 			}
 			else
 			{
-				sprintf(ctx.buf, " add.w #%d,%s\t;%d (SYI:+%d)\n",
-					changew_ * 2,
+				sprintf(ctx.buf, " move.w #%d,%s\t;%d (SYI:%d)\n",
+					absw_,
 					ctx.BLiTSYI_name.c_str(),
 					cost,
-					changew_
+					absw_
 				);
 			}
 		}
@@ -2515,11 +2541,11 @@ public:
 			}
 			else
 			{
-				sprintf(ctx.buf, " sub.w #%d,%s\t;%d (SYI:-%d)\n",
-					-changew_ * 2,
+				sprintf(ctx.buf, " move.w #%d,%s\t;%d (SYI:%d)\n",
+					absw_,
 					ctx.BLiTSYI_name.c_str(),
 					cost,
-					-changew_
+					absw_
 				);
 			}
 		}
@@ -2530,6 +2556,7 @@ public:
 	}
 
 	int changew_;
+	int absw_;
 };
 
 class DR_SetSkew16 : public Operation
@@ -2673,6 +2700,7 @@ public:
 	}
 };
 
+#if (0)
 class BLiT_Go : public Operation
 {
 public:
@@ -2743,20 +2771,22 @@ public:
 	int dline;
 	int order;
 };
+#endif
 
 class BLiT_GoSkew : public Operation
 {
 public:
 
-	BLiT_GoSkew(Context &_ctx, int _sreg, int _sline, int _dline, int _order)
-		: Operation(_ctx, OpKind_BLITGo, OpSize_None, OpSource_None, OpSource_None, OpWrite_None,
+	BLiT_GoSkew(Context &_ctx, int _sreg, int _sline, int _dline, int _order, int _buscycles)
+		: Operation(_ctx, OpKind_BLITGoSkew, OpSize_None, OpSource_None, OpSource_None, OpWrite_None,
 		    /*cycles=*/8, 
 			/*tail=*/0, 
 			/*words=*/1
 		  ),
 		  sline(_sline),
 		  dline(_dline),
-		  order(_order)
+		  order(_order),
+		  buscycles(_buscycles)
 	{
 		sreg = _sreg;
 	}
@@ -2771,11 +2801,11 @@ public:
 		sprintf
 		(
 			ctx.buf,
-			" move.w %s,%s\t;%d BLiT(s=%d,d=%d,o=%d)\n",
+			" move.w %s,%s\t;%d BLiT(s=%d,d=%d,o=%d,bc=%d)\n",
 			ctx.registers[sreg].name.c_str(),
 			ctx.BLiTCTRL_name.c_str(),
 			cost,
-			sline, dline, order
+			sline, dline, order, sim_buscycles*4
 		);
 	}
 
@@ -2783,20 +2813,30 @@ public:
 	{
 		//if ((order == 0) || (order == 43))
 		//	__debugbreak();
+		sim_buscycles = 0;
 
 		int width = ctx.blitter.xcount + ctx.blitter.xcount_adj;
 
+		//print_dataword(ctx.blitter.em[0]); putchar(':');
 		ctx.memory[ctx.dstaddr + 0] = ctx.blitter.em[0];
+		sim_buscycles += 3 - ((ctx.blitter.em[0] == 0xFFFF) ? 1 : 0);
+
 
 		if (width == 2)
 		{
+			//print_dataword(ctx.blitter.em[2]); putchar(':');
 			ctx.memory[ctx.dstaddr + 1] = ctx.blitter.em[2];
+			sim_buscycles += 3 - ((ctx.blitter.em[2] == 0xFFFF) ? 1 : 0);
 		}
 		else
 			if (width == 3)
 			{
+				//print_dataword(ctx.blitter.em[1]); putchar(':');
+				//print_dataword(ctx.blitter.em[2]); putchar(':');
 				ctx.memory[ctx.dstaddr + 1] = ctx.blitter.em[1];
 				ctx.memory[ctx.dstaddr + 2] = ctx.blitter.em[2];
+				sim_buscycles += 3 - ((ctx.blitter.em[1] == 0xFFFF) ? 1 : 0);
+				sim_buscycles += 3 - ((ctx.blitter.em[2] == 0xFFFF) ? 1 : 0);
 			}
 			else
 				if (width > 3)
@@ -2804,15 +2844,30 @@ public:
 					// multi-word case
 					int m = 1;
 					for (; m < (width - 1); m++)
+					{
+						//print_dataword(ctx.blitter.em[1]); putchar(':');
 						ctx.memory[ctx.dstaddr + m] = ctx.blitter.em[1];
+						sim_buscycles += 3 - ((ctx.blitter.em[1] == 0xFFFF) ? 1 : 0);
+					}
+					//print_dataword(ctx.blitter.em[2]); putchar(':');
 					ctx.memory[ctx.dstaddr + m] = ctx.blitter.em[2];
+					sim_buscycles += 3 - ((ctx.blitter.em[2] == 0xFFFF) ? 1 : 0);
 				}
 
+		//putchar('\n');
+
+		sim_buscycles += (ctx.blitter.skew & 0x80) ? 1 : 0; // FISR
+		sim_buscycles -= (ctx.blitter.skew & 0x40) ? 1 : 0; // NFSR
+
+		sim_buscycles *= 4; // YC=4 (for 4 planes)
 	}
 
 	int sline;
 	int dline;
 	int order;
+	int buscycles;		// bus cycles expected when span was recorded
+
+	int sim_buscycles;	// bus cycles actually counted when simulated
 };
 
 class SRC_Skip : public Operation
@@ -2876,7 +2931,7 @@ public:
 				sprintf
 					(
 					ctx.buf,
-					" moveq #%d,%s;\n sub.l %s,%s\t;%d (sxi:%d,syi:%d)\n",
+					" moveq #%d,%s\t;\n sub.l %s,%s\t;%d (sxi:%d,syi:%d)\n",
 					-offset,
 					ctx.registers[ctx.SKIPTEMP_reg].name.c_str(),
 					ctx.registers[ctx.SKIPTEMP_reg].name.c_str(),
@@ -2918,7 +2973,7 @@ public:
 				sprintf
 					(
 					ctx.buf,
-					" moveq #%d,%s;\n add.l %s,%s\t;%d (sxi:%d,syi:%d)\n",
+					" moveq #%d,%s\t;\n add.l %s,%s\t;%d (sxi:%d,syi:%d)\n",
 					offset,
 					ctx.registers[ctx.SKIPTEMP_reg].name.c_str(),
 					ctx.registers[ctx.SKIPTEMP_reg].name.c_str(),
@@ -3164,7 +3219,7 @@ public:
 
 	Terminate(Context &_ctx)
 		: Operation(_ctx, OpKind_Terminate, OpSize_None, OpSource_None, OpSource_None, OpWrite_None, 
-			/*cycles=*/0, 
+			/*cycles=*/16, 
 			/*tail=*/0, 
 			/*words=*/1
 		  )

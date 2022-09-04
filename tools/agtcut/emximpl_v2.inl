@@ -96,11 +96,11 @@ void generate_emx_preshift_analysis
 			else
 			{
 				// count bus cycles
-				int word_bcycles = 2;
+				int word_bcycles = 2;	// +srcread +dstwrite
 				if (word != 0xFFFF)
-					word_bcycles++;
+					word_bcycles++;		// +dstread
 
-				if ((accumulated_bcycles + word_bcycles + (FISR ? 1 : 0)) > c_max_buscycles_per_blit)
+				if ((accumulated_bcycles + word_bcycles + (FISR ? 1 : 0)) > c_max_buscycles_per_plane)
 				{
 					//					printf("bus limit:\n");
 					//					printf("nonzero words:%d  acc words:%d\n", nonzero_words, accumulated_words);
@@ -223,17 +223,41 @@ void generate_emx_order_spans
 	std::vector<constrained_wordspan*> &_stacked_spans
 )
 {
-	// stack all spans for state change optimization
+	// stack all spans for state change optimization	
+
+	std::map<int, int> xmap;
 	std::map<uint32_t, std::vector<constrained_wordspan*>> ordered_spans;
+
+	int max_group = -1;
 	for (auto & spanlist : shift.sa.span_vpattern_)
 	{
-		int horizontal_index = 0;
+		int hgroup = 0;
 		for (auto &span : spanlist)
 		{
 			span.line_opt = spr.emx_.linemap_src_2_opt[span.line_orig];
 
 			// span index has priority so spans rendered vertically for edge coherence, never horizontally
 			// otherwise, frame common lineorder prevails
+
+			int key, group;
+			if (0)
+			{
+				group = key = hgroup;
+			}
+			else
+			{
+				key  = span.ws;
+				auto look = xmap.find(key);
+				if (look == xmap.end())
+				{
+					group = ++max_group;
+					xmap[key] = group;
+				}
+				else
+					group = look->second;
+			}
+
+			//int group = hgroup;
 
 			// reordered scan lines, within left->right ordered components,
 			// sub-grouped by width,offset
@@ -246,16 +270,18 @@ void generate_emx_order_spans
 //					(uint32_t(horizontal_index) << (32 - 10)) |	// 336
 //					(uint32_t(span.ww) << (32 - 15)) |
 //					(uint32_t(span.line_opt) << 0)
-				(uint32_t(span.ws) << (32 - 5)) |
+				(uint32_t(key) << (32 - 5)) |
 				(uint32_t(32-span.ww) << (32 - 10)) |
 				(uint32_t(span.cxs)&1 << (32 - 15)) |
 				(uint32_t(span.cxe)&1 << (32 - 16)) |
 				(uint32_t(span.line_opt) << 0)
 				;
 
+			span.group = group; // use this everywhere downstream
+
 			ordered_spans[ordering_key].push_back(&span);
 
-			horizontal_index++;
+			hgroup++;
 		}
 	}
 
@@ -267,6 +293,16 @@ void generate_emx_order_spans
 			pspan->draw_order = o++;
 			_stacked_spans.push_back(pspan);
 		}
+	}
+
+	// output image showing span pattern
+	if (g_allargs.debug || g_allargs.visual)
+	{
+		std::string diagnostic_name(g_allargs.explicit_sources.front());
+		remove_extension(diagnostic_name);
+		diagnostic_name.append("_spans_emx.png");
+		printf("writing span diagnostic: %s @ %dx%d\n", diagnostic_name.c_str(), spr.w_, spr.h_);
+		output_span_diagnostic(spr.w_, spr.h_, _stacked_spans, diagnostic_name);
 	}
 }
 

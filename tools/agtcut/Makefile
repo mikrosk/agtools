@@ -106,7 +106,7 @@ endif
 #	Final flags
 # -----------------------------------------------------------------------------
 
-SHAREDFLAGS = -Wall -Wno-unused-function -Wno-sign-compare -Wno-narrowing -Wno-unused-variable -Wno-unused-but-set-variable -Wno-multichar
+SHAREDFLAGS = -Wall -Wno-unused-function -Wno-sign-compare -Wno-narrowing -Wno-unused-variable -Wno-unused-but-set-variable -Wno-multichar -Wno-misleading-indentation -Wno-dangling-else
 
 CXXFLAGS = $(CODEGENFLAGS) $(COMPILERDEFS) $(SHAREDFLAGS) -Wno-reorder -fno-rtti 
 

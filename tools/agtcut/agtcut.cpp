@@ -42,6 +42,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../3rdparty/stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "../3rdparty/stb_image_write.h"
 #include "../3rdparty/ThreadPool.h"
 
 #include "../common/common.h"
@@ -59,10 +61,10 @@
 // --------------------------------------------------------------------
 
 // tool version
-static const char* const g_version_string = "v0.475";
+static const char* const g_version_string = "v0.475b";
 
 // SPS file format version
-static const int SPS_VERSION = 0x0206;
+static const int SPS_VERSION = 0x0207;
 
 static const int SLS_VERSION = 0x1202;
 
@@ -98,6 +100,9 @@ static const int USE_DSTSKIP_REG_FIXED_PRELOAD = 0;
 static const int USE_DSTSKIP_REG_OPTIMIZATION = 1;
 // fill spare EM registers (a4, a6) with popular constants
 static const int USE_DSTSKIP_REG_FIXED_PRELOAD_INCIDENCE = 1;
+
+// this only makes sense if blitter is started with RMW op - which is currently not the case, is started with move.w d1,(an)
+static const int ALLOW_BTAIL_OPTIMIZATIONS = 0;
 
 #define USE_NOISY_REORDERING (0)
 
@@ -277,6 +282,8 @@ enum
 	OPT_HELP, 
 	OPT_VERBOSE, 
 	OPT_QUIET, 
+	OPT_DEBUG,
+	OPT_MPLIST,
 	OPT_WAIT_KEY, 
 	// general
 	OPT_BITPLANES,
@@ -354,6 +361,12 @@ CSimpleOpt::SOption g_Options[] =
 	//
 	{ OPT_QUIET, 		_T("-q"),     			SO_NONE		},
 	{ OPT_QUIET,		_T("--quiet"), 			SO_NONE		},
+	//
+	{ OPT_DEBUG, 		_T("-d"),     			SO_NONE		},
+	{ OPT_DEBUG,		_T("--debug"), 			SO_NONE		},
+	//
+	{ OPT_MPLIST, 		_T("-mpl"),     		SO_NONE		},
+	{ OPT_MPLIST,		_T("--mproglist"), 		SO_NONE		},
 	//
 	{ OPT_WAIT_KEY,		_T("-wk"),    			SO_NONE		},
 	{ OPT_WAIT_KEY,		_T("--wait-key"), 		SO_NONE		},
@@ -559,6 +572,8 @@ static void usage(int level)
 	std::cout << " -?, -h, --help           > show help/usage" << std::endl;
 	std::cout << " -v, --verbose            > more output" << std::endl;
 	std::cout << " -q, --quiet              > less output" << std::endl;
+	std::cout << " -d, --debug              > all output, includes EMX/EMH metaprogram gen & listing" << std::endl;
+	std::cout << " -mpl, --mproglist        > emit EMX/EMH metaprogram listing" << std::endl;
 	std::cout << " -wk, --wait-key          > wait key on exit" << std::endl;
 	std::cout << std::endl;
 	std::cout << "general:" << std::endl;
@@ -738,6 +753,8 @@ public:
 	Arguments()
 		: verbose(false),
 		  quiet(false),
+		  debug(false),
+		  mplist(false),
 		  waitkey(false),
 		  spriteoptimize(true),
 		  preview(false),
@@ -819,6 +836,8 @@ public:
 
 	bool verbose;
 	bool quiet;
+	bool debug;
+	bool mplist;
 	bool waitkey;
 	bool spriteoptimize;
 	bool preview;
@@ -961,6 +980,17 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_QUIET) 
 			{
 				_args.quiet = true;
+			}
+			else if (args.OptionId() == OPT_MPLIST) 
+			{
+				_args.mplist = true;
+			}
+			else if (args.OptionId() == OPT_DEBUG) 
+			{
+				_args.debug = true;
+				_args.verbose = true;
+				_args.mplist = true;
+				_args.quiet = false;
 			}
 			else if (args.OptionId() == OPT_WAIT_KEY) 
 			{
@@ -1232,7 +1262,7 @@ static void GetArguments(int _argc, char **_argv, Arguments& _args)
 			else if (args.OptionId() == OPT_EMXOPT)
 			{
 				std::string s_arg = args.OptionArg();
-				int trials = 1;
+				int trials = 4;
 				int iters = 0;
 				if (s_arg.find(",") == std::string::npos)
 				{
@@ -5230,10 +5260,13 @@ public:
 		  line_orig(_line_orig),
 		  line_active_wordwidth(_line_aww),
 		  buscycle_count(_buscycle_count),
+		  //
 		  draw_order(0),
 		  sww(0),
 		  sws(0),
-		  span_src_wos(0)
+		  span_src_wos(0),
+		  //
+		  group(0)
 	{
 		reload[0] = false;
 		reload[1] = false;
@@ -5314,6 +5347,7 @@ public:
 	int span_src_wos;
 	int line_opt;	// order-optimized line index
 	int draw_order;
+	int group;
 };
 
 typedef std::list<constrained_wordspan> span_hseq_t;
@@ -6552,7 +6586,7 @@ bool emit_sprite_sequence(bool _storepixels)
 					}
 
 					//---------------------------------------------------------------------------------------
-					// EMS2 shared codegen
+					// EMH shared codegen
 
 					//#if defined(USE_EMS2)
 					std::map<ubyte_t*, int> mprog_fpos_map;
@@ -6800,6 +6834,20 @@ bool emit_sprite_sequence(bool _storepixels)
 
 								if (g_allargs.cutmode == Cutmode_EMHSPR)
 								{
+									// component wordoffset
+									wv = endianswap16(spshift->wordoffset_);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+									// dest line skip for pagerestore
+									int dstskip = ((20+1)+((g_allargs.emguardx+(16-1))>>4) - spshift->wordwidth_) << 3;
+									wv = endianswap16(dstskip);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
+									// dest wordsize for pagerestore
+									int dstwords = spshift->wordwidth_ << 2;
+									wv = endianswap16(dstwords);
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
 //#if defined(USE_EMS2)
 									//const auto & ss = *(spshift->scan_states.begin());
 //									int orig_y = it->ems_.linemap_opt_2_src[0];
@@ -6847,12 +6895,13 @@ bool emit_sprite_sequence(bool _storepixels)
 										printf("BLiTDYI:%04x\n", (u32)wv);
 									wv = endianswap16(wv);
 									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+
 									// BLiTXC
 									wv = u16(bs.XC);
 									if (g_allargs.verbose)
 										printf("BLiTXC:%04x\n", (int)wv);
 									wv = endianswap16(wv);
-									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;
+									fwrite(&wv, 1, 2, hout); tracked_filesize += 2;								
 //#else
 								}
 								else

@@ -3,48 +3,18 @@
 *=======================================================*
 * 	EMXSPR blitter codegen sprite implementation
 *-------------------------------------------------------*
-*	max source xsize: 32
+*	max source xsize: -
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
 ;	addq		#1,d0
-	
+
+; EMX by default embeds EMS (without the -nc flag) purely for viewport clipping purposes
+; this flag determines if x-clipping is enabled as part of that, or just y-clipping
+; since x-clipping only works for <=32 wide sprites and EMX can now exceed that, 
+; we disable this here
 enable_x_clipping	set	0
 	
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
-	cmp.w		sps_framecount(a0),d0
-	.if		(within_entitydraw)
-	bhs		_AGT_Exception_EMXFrame_68k
-	.else
-	blo.s		.emx_frameok
-.emx_framefault:
-	not.w		$ffff8240.w
-	bra.s		.emx_framefault
-.emx_frameok:
-	.endif
-	.endif
-
-
-	; todo: opt
-
-;	move.b		#3,BLiTLOP.w
-;	tst.w		d7
-;	beq.s		.emx_nohitflash
-;	bpl.s		.emx_hitflash
-;.emx_blinky:
-;	lsr.w		#1,d7
-;	bcs		.BLiT_EMXSpr_4BPL_end	
-;	bra.s		.emx_nohitflash
-;.emx_hitflash:
-;	move.b		#15,BLiTLOP.w	
-;.emx_nohitflash:
-	
-	
-
-;	move.w		#2,BLiTSYI.w
-	
-
-;	move.w		sps_flags(a0),.sp_flags(sp)
+	sprite_sc_frame	a0,d0,_AGT_Exception_EMXFrame_68k
 
 	pushraster	#$062
 
@@ -52,16 +22,7 @@ enable_x_clipping	set	0
 	.if		(enable_clipping)
 *-------------------------------------------------------*
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.emx_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.emx_no_dfm:
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
+	sprite_spf	a0,d0,d3,a0
 			
 	; frame fields
 
@@ -74,34 +35,45 @@ enable_x_clipping	set	0
 *	guardband test for optimized fastpath
 *-------------------------------------------------------*
 	
-	; sprite clipping window
-	lea		_g_spr_window,a2
-	
-	; todo: opt using carry window
+	lea		_g_spr_culltest,a2
 
-	cmp.w		(a2)+,d1
 	.if		(enable_x_clipping)
-	bmi.s		.BLiT_EMXSpr_GuardBand_4BPL
+	sprite_cullxr	a2,d1,d3,d0,d6,.BLiT_EMXSpr_GuardBand_4BPL
 	.else
-	bmi		.BLiT_EMXSpr_4BPL_end
-	.endif
-	
-	cmp.w		(a2)+,d2
-	bmi.s		.BLiT_EMXSpr_GuardBand_4BPL
+	sprite_cullxr	a2,d1,d3,d0,d6,.BLiT_EMXSpr_4BPL_end	
+	.endif	
+	sprite_cullya	a2,d2,d4,d0,d6,.BLiT_EMXSpr_NoClip_4BPL_go
+	; otherwise fallthrough to guardclip
 
-	move.w		d1,d0
-	add.w		d3,d0				; xr	
-	sub.w		(a2)+,d0			; xr - cx2
-	.if		(enable_x_clipping)
-	bgt.s		.BLiT_EMXSpr_GuardBand_4BPL
-	.else
-	bgt		.BLiT_EMXSpr_4BPL_end
-	.endif
 
-	move.w		d2,d0
-	add.w		d4,d0				; yr	
-	sub.w		(a2)+,d0			; yr - cy2
-	ble		.BLiT_EMXSpr_NoClip_4BPL_go
+;	; sprite clipping window
+;	lea		_g_spr_window,a2
+;	
+;	; todo: opt using carry window
+;
+;	cmp.w		(a2)+,d1
+;	.if		(enable_x_clipping)
+;	bmi.s		.BLiT_EMXSpr_GuardBand_4BPL
+;	.else		;(enable_x_clipping)
+;	bmi		.BLiT_EMXSpr_4BPL_end
+;	.endif		;(enable_x_clipping)
+;	
+;	cmp.w		(a2)+,d2
+;	bmi.s		.BLiT_EMXSpr_GuardBand_4BPL
+;
+;	move.w		d1,d0
+;	add.w		d3,d0				; xr	
+;	sub.w		(a2)+,d0			; xr - cx2
+;	.if		(enable_x_clipping)
+;	bgt.s		.BLiT_EMXSpr_GuardBand_4BPL
+;	.else		;(enable_x_clipping)
+;	bgt		.BLiT_EMXSpr_4BPL_end
+;	.endif		;(enable_x_clipping)
+;
+;	move.w		d2,d0
+;	add.w		d4,d0				; yr	
+;	sub.w		(a2)+,d0			; yr - cy2
+;	ble		.BLiT_EMXSpr_NoClip_4BPL_go
 	
 
 *-------------------------------------------------------*
@@ -350,8 +322,8 @@ enable_x_clipping	set	0
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		usp,a5
 	move.l		a5,d5
-	.endif
-	.endif
+	.endif		;(use_sprite_saverestore|use_sprite_pagerestore)
+	.endif		;(enable_restore)
 	
 	; dst pixelword xoffset
 	moveq		#-16,d0
@@ -362,8 +334,8 @@ enable_x_clipping	set	0
 	.if		(use_sprite_pagerestore)	
 	move.w		d2,(a5)+
 	move.w		d0,(a5)+
-	.endif	
-	.endif
+	.endif		;(use_sprite_pagerestore)	
+	.endif		;(enable_restore)
 
 	add.w		d0,a1
 	
@@ -482,8 +454,8 @@ enable_x_clipping	set	0
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		d5,(a5)+
 	move.l		a5,usp
-	.endif
-	.endif
+	.endif		;(use_sprite_saverestore|use_sprite_pagerestore)
+	.endif		;(enable_restore)
 
 
 *-------------------------------------------------------*
@@ -616,11 +588,8 @@ enable_x_clipping	set	0
 
 ;	bra		.BLiT_EMXSpr_4BPL_end
 
+;	.if		(0)	;yclip-path
 
-;	.if		(0)
-	
-	
-	
 
 	.if		(enable_restore)
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
@@ -639,8 +608,8 @@ enable_x_clipping	set	0
 	.if		(use_sprite_pagerestore)	
 	move.w		d2,(a5)+
 	move.w		d0,(a5)+
-	.endif	
-	.endif
+	.endif		;(use_sprite_pagerestore)
+	.endif		;(enable_restore)
 
 	add.w		d0,a1
 	
@@ -705,7 +674,7 @@ enable_x_clipping	set	0
 	move.w		d6,(a5)+			; word width*2
 	move.w		d4,(a5)+			; lines
 
-	.endif
+	.endif		;(use_sprite_pagerestore)
 	
 	.if		(use_sprite_saverestore)
 	
@@ -735,8 +704,8 @@ enable_x_clipping	set	0
 	add.w		a4,a3
 	dbra		d1,.emx_r_sylp2
 
-	.endif
-	.endif
+	.endif		;(use_sprite_saverestore)
+	.endif		;(enable_restore)
 
 *-------------------------------------------------------*
 
@@ -744,8 +713,8 @@ enable_x_clipping	set	0
 	.if		(use_sprite_saverestore|use_sprite_pagerestore)
 	move.l		d5,(a5)+
 	move.l		a5,usp
-	.endif
-	.endif
+	.endif		;(use_sprite_saverestore|use_sprite_pagerestore)
+	.endif		;(enable_restore)
 
 
 *-------------------------------------------------------*
@@ -879,7 +848,7 @@ enable_x_clipping	set	0
 
 
 
-;	.endif		;0
+;	.endif		;0	;yclip-path
 
 
 
@@ -893,16 +862,18 @@ enable_x_clipping	set	0
 .BLiT_EMXSpr_NoClip_4BPL:
 *-------------------------------------------------------*
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.emx2_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.emx2_no_dfm:
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
+	sprite_spf	a0,d0,d3,a0
+
+;	moveq		#1,d3
+;	and.b		sps_flags(a0),d3		; 1 = double index
+;	beq.s		.emx2_no_dfm
+;	add.w		d0,d0				;	
+;	and.w		.sp_mfield(sp),d3		; 1 = field offset
+;	add.w		d3,d0	
+;.emx2_no_dfm:
+;	add.w		d0,d0				; todo: game layer can prescale this
+;	add.w		d0,d0
+;	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
 			
 	; frame fields
 
@@ -938,11 +909,9 @@ enable_x_clipping	set	0
 	bra.s		.BLiT_EMXSpr_4BPL_end
 	
 
-
 	.endif		;(enable_clipping)
 
 
-	
 *-------------------------------------------------------*
 .BLiT_EMXSpr_NoClip_4BPL_go:
 *-------------------------------------------------------*
@@ -953,12 +922,10 @@ enable_x_clipping	set	0
 	moveq		#16-1,d6
 	and.w		d1,d6
 	
-;	moveq		#12,d6
-
 ;	access preshifted maskopt frame
 	add.w		d6,d6
 	add.w		d6,d6
-;	move.l		spf_data+(4*2)+(4*16)-8(a0,d6.w),a6
+
 	move.l		spf_emx_psmaskopt-8(a0,d6.w),a6
 
 	move.w		(a6),d6				; spf_emx_psm_wordwidth
@@ -968,19 +935,14 @@ enable_x_clipping	set	0
 	lea		spf_emx_psm_codegen(a6),a6		; baked sprite code
 	
 ;	access colouropt data
-;	move.l		spf_data+(4*1)-8(a0),a0
 	move.w		.sp_cfield4(sp),d0
 	move.l		spf_emx_colouropt-8(a0,d0.w),BLiTSRC.w
 
 
-;	move.l		a0,BLiTSRC.w
-;	move.w		#2,BLiTSYI.w
-
 	; dst pixelword xoffset
 	moveq		#-16,d0
 	and.w		d1,d0
-;	lsr.w		#1,d0
-	asr.w		#1,d0
+	asr.w		#1,d0		; guardband allows -ve x!
 	add.w		d0,a1
 
 	.if		(enable_restore&use_sprite_pagerestore)
@@ -991,7 +953,7 @@ enable_x_clipping	set	0
 	move.w		d2,(a5)+			; liney
 	move.w		d0,(a5)+			; xoffbytes
 
-	.endif
+	.endif		;(enable_restore&use_sprite_pagerestore)
 
 	; address yline	
 	move.l		.sp_linetable(sp),a3
@@ -1003,20 +965,6 @@ enable_x_clipping	set	0
 
 	move.l		a1,(a5)+			; clear addr
 
-
-	;move.w		.sp_maskwidth(sp),d6
-;	add.w		d6,d6
-;	move.w		d6,d0
-;	lsl.w		#2,d0
-;	neg.w		d0
-;	add.w		_g_linebytes,d0
-;	move.w		d0,a4
-
-;	move.w #$00a0,(a5)+	; dstskip
-;	move.w #$0006,(a5)+	; dstww2
-;	move.w		a4,(a5)+
-;	move.w		a4,(a5)+
-;	move.w		d6,(a5)+	
 	move.w		(a4)+,(a5)+	; dstskip
 	move.w		(a4)+,d0
 	lsr.w		d0		; hack: pagerestore still expects wordwidth*2, should really be *4
@@ -1025,13 +973,7 @@ enable_x_clipping	set	0
 	move.l		d5,(a5)+	
 	move.l		a5,usp	
 
-	.endif
-	
-;	move.w #$00a0,(a5)+	; dstskip
-;	move.w #$0006,(a5)+	; dstww2
-;	move.w d4,(a5)+	; lines
-;	move.l d5,(a5)+	; record link
-;	move.l a5,usp	; save ctx
+	.endif		;(enable_restore&use_sprite_pagerestore)
 	
 	lea		$00ff8a38,a0
 	lea		$00ff8a28,a2
@@ -1042,14 +984,11 @@ enable_x_clipping	set	0
 	move.l		#$ff000004,d2
 	move.l		#$00ffc000,d1
 	
-		
-;	not.w		$ffff8240.w
 	jsr		(a6)
-;	not.w		$ffff8240.w
-
 		
 *-------------------------------------------------------*
 .BLiT_EMXSpr_4BPL_end:
 *-------------------------------------------------------*
 
 	popraster
+

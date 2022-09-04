@@ -7,57 +7,14 @@
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
 
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
-	cmp.w		sps_framecount(a0),d0
-	.if		(within_entitydraw)
-	bhs		_AGT_Exception_EMSFrame_68k
-	.else
-	blo.s		.emsc_frameok
-.emsc_framefault:
-	not.w		$ffff8240.w
-	bra.s		.emsc_framefault
-.emsc_frameok:
-	.endif
-	.endif
+	sprite_sc_frame	a0,d0,_AGT_Exception_EMSFrame_68k
 
 	pushraster	#$062
 
-	; todo: opt
-
-;	move.b		#3,BLiTLOP.w
-;	tst.w		d7
-;	beq.s		.emsc_nohitflash
-;	bpl.s		.emsc_hitflash
-;.emsc_blinky:
-;	lsr.w		#1,d7
-;	bcs		.BLiT_EMCSpr_4BPL_end_all	
-;	bra.s		.emsc_nohitflash
-;.emsc_hitflash:
-;	move.b		#15,BLiTLOP.w	
-;.emsc_nohitflash:
-
-
-;	move.w		#2,BLiTSYI.w
-
-
-;	move.w		sps_flags(a0),.sp_flags(sp)
-
-
-
 *-------------------------------------------------------*
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.emsc_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.emsc_no_dfm:
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
-
+	sprite_spf	a0,d0,d3,a0
+	
 	; frame fields
 
 	move.w		(a0)+,d3			; w
@@ -65,6 +22,16 @@
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
 
+*-------------------------------------------------------*
+
+	.if		(enable_clipping)
+	
+	; guardx reject test (no x clipping in compound EMS)
+	lea		_g_spr_culltest,a2
+	sprite_cullxr	a2,d1,d3,d0,d6,.BLiT_EMCSpr_4BPL_end_all
+
+	.endif
+	
 *-------------------------------------------------------*
 *	EntityDrawFlag_NORESTORE
 *-------------------------------------------------------*
@@ -155,7 +122,7 @@
 *	initial source skip (unclipped case)
 *-------------------------------------------------------*
 	lea		2.w,a3
-
+	
 
 	.if		(enable_clipping)
 

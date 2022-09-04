@@ -11,18 +11,8 @@
 *	entrypoint
 *=======================================================*
 
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
-	cmp.w		sps_framecount(a0),d0
-;	bhs		AGT_Exception_SlabFrame
-
-	blo.s		.slb_frameok
-.slb_framefault:
-	not.w		$ffff8240.w
-	bra.s		.slb_framefault
-.slb_frameok:
-	.endif
-	
+	sprite_sc_frame	a0,d0,_AGT_Exception_SLSFrame_68k
+		
 	pushraster	#$404
 
 	

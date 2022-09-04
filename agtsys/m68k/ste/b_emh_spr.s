@@ -1,44 +1,33 @@
+
+	; use single-component EMH for speed
+
+	include		"ste/b_emhq_spr.s"
+
+
+
+
+	.if		(0)
+
+********* MULTI-COMPONENT VERSION DEPRECATED *********
+* multi-component version offers no advantage, until components are emitted as horizontal slices
+* for guardy size reduction. for now, guardy must be at least the size of the tallest EMH
+* NOTE: this version does not implement clipping/guarding properly, unfinished/reference code only
+********* MULTI-COMPONENT VERSION DEPRECATED *********
+
 *=======================================================*
 *	[A]tari [G]ame [T]ools / dml 2016
 *=======================================================*
-* 	EMHSPR compound blitter sprite implementation
+* 	EMHSPR blitter shared-codegen sprite implementation (multi-component version)
 *-------------------------------------------------------*
 *	max source xsize: -
 *	max source ysize: viewport clipper ysize
+*	x-clipping: guardband reject only
+*	y-clipping: NOT IMPLEMENTED/UNFINISHED
 *-------------------------------------------------------*
 
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
-	cmp.w		sps_framecount(a0),d0
-	.if		(within_entitydraw)
-	bhs		_AGT_Exception_EMHFrame_68k
-	.else
-	blo.s		.emh_frameok
-.emh_framefault:
-	not.w		$ffff8240.w
-	bra.s		.emh_framefault
-.emh_frameok:
-	.endif
-	.endif
+	sprite_sc_frame	a0,d0,_AGT_Exception_EMHFrame_68k
 
 	pushraster	#$062
-
-	; todo: opt
-	
-	;bra		*
-
-;	move.b		#3,BLiTLOP.w
-;	tst.w		d7
-;	beq.s		.emh_nohitflash
-;	bpl.s		.emh_hitflash
-;.emh_blinky:
-;	lsr.w		#1,d7
-;	bcs		.emh_4BPL_end_all	
-;	bra.s		.emh_nohitflash
-;.emh_hitflash:
-;	move.b		#15,BLiTLOP.w	
-;.emh_nohitflash:
-
 
 ;	move.w		#2,BLiTSYI.w
 
@@ -49,17 +38,8 @@
 
 *-------------------------------------------------------*
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.emh_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.emh_no_dfm:
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
-	
+	sprite_spf	a0,d0,d3,a0
+
 	; frame fields
 
 	move.w		(a0)+,d3			; w
@@ -131,27 +111,23 @@
 .emh_firstcmp:
 	move.l		a6,d6
 ;	wordwidth of source mask
-	move.w		(a6)+,d5			; spf_emh_psm_wordwidth
-	move.w		d5,.sp_maskwidth(sp)
+;	move.w		(a6)+,d5			; spf_emh_psm_wordwidth
+;	move.w		d5,.sp_maskwidth(sp)
 ;	move.w		d5,BLiTXC.w
 	
+	lea		spf_emh_psm_bskew(a6),a6
 	
-	move.w		(a6)+,d0
-;	move.b		d0,BLiTSKEW.w			; spf_emh_psm_bskew
+	move.w		(a6)+,d0			; spf_emh_psm_bskew
 	move.b		d0,.emh_skew_smc+3
 	
 	move.w		(a6)+,BLiTSYI.w			; spf_emh_psm_bsyi
 	move.w		(a6)+,BLiTDYI.w			; spf_emh_psm_bdyi	
 	move.w		(a6)+,BLiTXC.w			; spf_emh_psm_bxc
-;	addq		#2,a6				; spf_emh_psm_wordoffset
-;	move.w		(a6)+,d0
 
 	move.w		(a6)+,d0			; spf_emh_psm_emdata
 	move.l		d6,a3
 	add.w		d0,a3				; psmask+spf_emh_psm_emdata	
 	move.l		a3,.emh_psm2_emdata
-
-;	bra		*
 
 	move.l		(a6)+,d0			; spf_emh_psm_code
 	move.l		d6,a3
@@ -373,7 +349,6 @@
 	; dst pixelword xoffset
 	moveq		#-16,d0
 	and.w		d1,d0
-;	lsr.w		#1,d0
 	asr.w		#1,d0		; guardband allows -ve x!
 
 	tst.b		.emh_is_first_cmp
@@ -486,7 +461,7 @@
 	move.l		a1,.emh_cmp_dst
 	move.w		d4,.emh_cmp_h
 	
-	move.w		.sp_maskwidth(sp),d6
+;	move.w		.sp_maskwidth(sp),d6
 
 *-------------------------------------------------------*
 .emh_Clip_4BPL_unclipped_blit:
@@ -576,14 +551,19 @@
 	move.l		.emh_cmp_cplanes,a0		; colour planes
 	
 	move.l		a6,d6
+
 ;	wordwidth of source mask
-	move.w		(a6)+,d5		; spf_psm_wordwidth
-	move.w		d5,.sp_maskwidth(sp)
-	move.w		d5,BLiTXC.w		; xcount
+;	move.w		(a6)+,d5		; spf_psm_wordwidth
+;	move.w		d5,.sp_maskwidth(sp)
+;	move.w		d5,BLiTXC.w		; xcount
+
+	lea		spf_emh_psm_bskew(a6),a6
+
 	move.w		(a6)+,d0		; skew
 	move.b		d0,BLiTSKEW.w
 	move.w		(a6)+,BLiTSYI.w		; syinc
 	move.w		(a6)+,BLiTDYI.w		; dyinc
+	move.w		(a6)+,BLiTXC.w		; xcount
 
 	move.l		.emh_cmp_src,a0
 	move.l		.emh_cmp_dst,a1
@@ -610,7 +590,7 @@
 *-------------------------------------------------------*
 
 	move.w		.emh_cmp_h,d4
-	move.w		.sp_maskwidth(sp),d6
+;	move.w		.sp_maskwidth(sp),d6
 
 	altraster	#$021
 			
@@ -665,3 +645,4 @@
 	
 	popraster
 	
+		.endif

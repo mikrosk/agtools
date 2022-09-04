@@ -6,34 +6,13 @@
 *	max source xsize: viewport clipper xsize
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
-	
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
-	cmp.w		sps_framecount(a0),d0
-	.if		(within_entitydraw)
-	bhs		_AGT_Exception_IMSFrame_68k
-	.else
-	blo.s		.ims_frameok
-.ims_framefault:
-	not.w		$ffff8240.w
-	bra.s		.ims_framefault
-.ims_frameok:
-	.endif
-	.endif
-	
+
+	sprite_sc_frame	a0,d0,_AGT_Exception_IMSFrame_68k
+			
 	pushraster	#$227
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.ims_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.ims_no_dfm:		
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
-		
+	sprite_spf	a0,d0,d3,a0
+			
 	; frame fields
 	
 	move.w		spf_w(a0),d3			; w

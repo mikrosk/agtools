@@ -73,9 +73,22 @@ bgrframe_backlink:	ds.l	1
 bgrframe_size:		; frame size, if page-restore mode
 *-------------------------------------------------------*
 
+
+*-------------------------------------------------------*
+			.abs
+*-------------------------------------------------------*
+spr_culltest:	
+spr_culltest_x:		ds.w	1
+spr_culltest_xs:	ds.w	1
+spr_culltest_y:		ds.w	1
+spr_culltest_ys:	ds.w	1
+*-------------------------------------------------------*
+
 *-------------------------------------------------------*
 	.text
 *-------------------------------------------------------*
+
+
 
 
 *-------------------------------------------------------*
@@ -92,7 +105,7 @@ bgrframe_size:		; frame size, if page-restore mode
 .sp_yrem:		ds.w	1
 .sp_cfield4:		ds.w	1
 .sp_mfield:		ds.w	1
-.sp__:			ds.w	1
+.sp_xadj:		ds.w	1
 .sp_save_usp:		ds.l	1
 .sp_linetable:		ds.l	1
 .sp_nextcmp:		ds.l	1
@@ -115,3 +128,6 @@ bgrframe_size:		; frame size, if page-restore mode
 *-------------------------------------------------------*
 	.endm
 *-------------------------------------------------------*
+
+
+	

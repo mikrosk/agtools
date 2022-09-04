@@ -6,60 +6,22 @@
 *	max source xsize: -
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
-		
-	.if		^^defined AGT_CONFIG_SAFETY_CHECKS
-;	sanity check on frame index!
-	cmp.w		sps_framecount(a0),d0
-	.if		(within_entitydraw)
-	bhs		_AGT_Exception_EMXFrame_68k
-	.else
-	blo.s		.emxnr_frameok
-.emxnr_framefault:
-	not.w		$ffff8240.w
-	bra.s		.emxnr_framefault
-.emxnr_frameok:
-	.endif
-	.endif
-
+	
+	sprite_sc_frame	a0,d0,_AGT_Exception_EMXFrame_68k
+			
 	pushraster	#$062
 
-
-	; todo: opt
-	
-;	move.b		#3,BLiTLOP.w
-;	tst.w		d7
-;	beq.s		.emxnr_nohitflash
-;	bpl.s		.emxnr_hitflash
-;.emxnr_blinky:
-;	lsr.w		#1,d7
-;	bcs		.BLiT_EMXNR_4BPL_end	
-;	bra.s		.emxnr_nohitflash
-;.emxnr_hitflash:
-;	move.b		#15,BLiTLOP.w	
-;.emxnr_nohitflash:
-	
 *-------------------------------------------------------*
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.emxnr_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.emxnr_no_dfm:
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
-			
+	sprite_spf	a0,d0,d3,a0
+				
 	; frame fields
 
 	move.w		(a0)+,d3			; w
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
-	
-	;and.w		#-16,d1
-	;add.w		#10,d1
+
 		
 *-------------------------------------------------------*
 *	guardband test for optimized fastpath
@@ -70,6 +32,7 @@
 	; sprite clipping window
 	lea		_g_spr_window,a2
 	
+
 	; todo: opt using carry window
 
 	cmp.w		(a2)+,d1

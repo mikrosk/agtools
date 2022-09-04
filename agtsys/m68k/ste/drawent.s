@@ -17,6 +17,8 @@
 
 	include		"drawctx.inc"
 
+	include		"ste/b_drawsup.inc"
+
 	include		"prf.inc"
 	
 	;.opt		"~oall"
@@ -84,6 +86,7 @@ within_entitydraw	set	1
 	.globl		_OCM_occlusion_sub_O
 
 	.globl		_g_spr_window
+	.globl		_g_spr_culltest
 
 	.globl		_g_linebytes
 
@@ -434,28 +437,9 @@ _FNEntityDraw_EMXSlabRestore:
 
 
 	; handle hitflash & blinky fx
-	
-	moveq		#3,d3
-	move.w		ent_draw_hitflash(a0),d7	; $zz00 / $zzxx
-	neg.b		d7
-	beq.s		.nhf
-; flash or blink
-	move.b		d7,d4
-	subx.b		d4,d4				; $zz00 / $zzFF
-	add.b		d4,ent_draw_hitflash+1(a0)
-	tst.w		d7
-	bpl.s		.yhf
-; blink
-	btst		#1,d7
-	beq.s		.nhf
-	bra		.done		
-.yhf:
-; flash
-	moveq		#15,d3	
-.nhf:
-	move.b		d3,BLiTLOP.w
-	
 
+	sprite_ctrl	a0,d3,d4,d7,.done
+		
 	; asset/framebuffer
 
 	move.l		ent_passet(a0),a0

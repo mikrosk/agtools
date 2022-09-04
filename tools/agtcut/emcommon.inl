@@ -4,7 +4,7 @@
 //	common code, shared between EMX/EMH/EMS generators
 //---------------------------------------------------------------------------------------------------------------------
 
-static const int c_max_buscycles_per_blit = 64;
+static const int c_max_buscycles_per_plane = 256 / 4;
 
 #include <thread>
 
@@ -13,7 +13,7 @@ static const int c_max_buscycles_per_blit = 64;
 void dump_ordered_pattern
 (
 	const spriteframe_t &spr, 
-	int max_ci,
+	int max_group,
 	int shiftcount,
 	const uword_t *buffer,
 	const ubyte_t *livelines
@@ -27,9 +27,9 @@ void dump_ordered_pattern
 	{
 		int dsty = v;
 		printf("s:%02d ", dsty);
-		for (int ci = 0; ci <= max_ci; ci++)
+		for (int group = 0; group <= max_group; group++)
 		{
-			int page = ((ci * shiftcount) + 0) * pagesize;
+			int page = ((group * shiftcount) + 0) * pagesize;
 			const uword_t *sbuffer = &buffer[page];
 
 			print_dataword(sbuffer[(dsty * 3) + 0]);
@@ -50,7 +50,7 @@ void dump_reordered_pattern
 	const spriteframe_t &spr, 
 	const std::vector<int> &ordering,
 	int ordered_lines,
-	int max_ci,
+	int max_group,
 	int shiftcount,
 	const uword_t *buffer,
 	const ubyte_t *livelines
@@ -61,9 +61,9 @@ void dump_reordered_pattern
 	{
 		int srcy = ordering[v];
 		printf("s:%02d ", srcy);
-		for (int ci = 0; ci <= max_ci; ci++)
+		for (int group = 0; group <= max_group; group++)
 		{
-			int page = ((ci * shiftcount) + 0) * pagesize;
+			int page = ((group * shiftcount) + 0) * pagesize;
 			const uword_t *sbuffer = &buffer[page];
 
 			print_dataword(sbuffer[(srcy * 3) + 0]);
@@ -281,9 +281,11 @@ struct anneal_in
 	const std::vector<int> &linemap_opt_2_src;
 	const spriteframe_t &spr;
 	const spriteframe_t::generated_data_t &gen;
-	int max_ci;
+	const preshift_t * pshared_shift;
+	int max_group;
 	int shiftcount;
 	const uword_t *buffer;
+	//const uword_t *sgbuffer;
 	const ubyte_t *livelines;
 	int live_line_count;
 };
@@ -295,6 +297,137 @@ struct anneal_result
 	int best_loadcost;
 };
 
+struct anneal_costs
+{
+	double total;
+	double lineadj;
+	int loads;
+	int pairbonus;
+};
+
+double measure_psm_fragmentation
+(
+	const std::vector<int> &trial_pattern,
+	const spriteframe_t::generated_data_t &gen
+)
+{
+	double fragcost = 0.0;
+
+	int live_line_count = trial_pattern.size();
+
+	int si = 0;
+	auto pmit = gen.psmask_frames_.begin();
+	for (; pmit != gen.psmask_frames_.end(); pmit++, si++)
+	{
+		auto cit = pmit->begin();
+		{
+			auto & spshift = *cit;
+			auto &shift = *spshift;
+
+			// iterate word columns
+			int w = 0;
+			while (w < shift.wordwidth_)
+			{
+				// iterate lines
+				for (int ov = 1; ov < live_line_count; ++ov)
+				{
+					int opi = ov - 1;
+					int oni = ov - 0;
+
+					int spi = trial_pattern[opi];
+					int sni = trial_pattern[oni];
+
+					// access maskline
+					u16 *plinep = &shift.data_[(spi * shift.wordwidth_)];
+					u16 *plinen = &shift.data_[(sni * shift.wordwidth_)];
+
+					// fetch words
+					u16 wordp = plinep[w];
+					u16 wordn = plinen[w];
+
+					//if (w == 0)
+					//{ print_dataword(wordp); putchar(':'); }
+
+					if (wordp == wordn)
+					{
+						// no cost for transition between equal masks (or empty masks)
+					}
+					else 
+					if ((wordp == 0) || (wordn == 0)) 
+					{
+						// special cost for transition to/from empty mask (no mask state change but potentially a srcskip or new group)
+						fragcost += 1.0;
+					}
+				}
+
+				// next word column
+				++w;
+			}
+
+		}
+	}
+
+	return fragcost;
+}
+
+double measure_psm_fragmentation
+(
+	const std::vector<int> &trial_pattern,
+	const preshift_t * pshared_shift,
+	int shiftcount
+)
+{
+	double fragcost = 0.0;
+
+	int live_line_count = trial_pattern.size();
+
+	{		
+		auto &shift = *pshared_shift;
+		// iterate word columns
+		int w = 0;
+		while (w < shift.wordwidth_)
+		{
+			// iterate lines
+			for (int ov = 1; ov < live_line_count; ++ov)
+			{
+				int opi = ov - 1;
+				int oni = ov - 0;
+
+				int spi = trial_pattern[opi];
+				int sni = trial_pattern[oni];
+
+				// access maskline
+				u16 *plinep = &shift.data_[(spi * shift.wordwidth_)];
+				u16 *plinen = &shift.data_[(sni * shift.wordwidth_)];
+
+				// fetch words
+				u16 wordp = plinep[w];
+				u16 wordn = plinen[w];
+
+				//if (w == 0)
+				//{ print_dataword(wordp); putchar(':'); }
+
+				if (wordp == wordn)
+				{
+					// no cost for transition between equal masks (or empty masks)
+				}
+				else 
+				if ((wordp == 0) || (wordn == 0)) 
+				{
+					// special cost for transition to/from empty mask (no mask state change but potentially a srcskip or new group)
+					fragcost += 1.0;
+				}
+			}
+
+			// next word column
+			++w;
+		}
+
+	}
+
+	return fragcost * shiftcount;
+}
+
 void measure
 (
 	double &dtotalcost, int &loadcost,
@@ -302,34 +435,42 @@ void measure
 	const std::vector<int> &trial_pattern,
 	const spriteframe_t &spr,
 	const spriteframe_t::generated_data_t &gen,
-	int max_ci,
-	const uword_t * __restrict buffer,
+	const preshift_t * __restrict pshared_shift,
+	int max_group, int shiftcount,
+	const uword_t * __restrict buffer, //const uword_t * __restrict sgbuffer,
 	const ubyte_t *__restrict livelines, int live_line_count
 )
 {
 	//int totalcost = 0;
-	dtotalcost = 0;
-	loadcost = 0;
+	
+	//double srcadjcost = 0.0;
+	double dstlineadjcost = 0.0;
+
+	int loadcount = 0;
+	int loadpairs = 0;
 
 	int pagesize = (3 * spr.h_);
 
-	int shiftcount = gen.psmask_frames_.size();
+	//int shiftcount = gen.psmask_frames_.size();
 	for (int si = 0; si < shiftcount; si++)
 	{
-		for (int ci = 0; ci <= max_ci; ci++)
+		for (int group = 0; group <= max_group; group++)
 		{
-			int page = ((ci * shiftcount) + si) * pagesize;
+			int page = ((group * shiftcount) + si) * pagesize;
 			const uword_t *sbuffer = &buffer[page];
+
+			//int gpage = ((group * shiftcount) + si) * spr.h_;
+			//const uword_t *ssgbuffer = &sgbuffer[gpage];
+
 
 			//						uword_t *sbuffer = &buffer[3 * spr.h_ * si * ci];
 			//						uword_t *sbuffer = buffer;
 			for (int v = 0; v < (live_line_count - 1); v++)
 			{
-				int width_change = 0;
-				
-
 				int v0 = trial_pattern[v + 0];
 				int v1 = trial_pattern[v + 1];
+
+
 				int yp = v0 * 3;
 				int yn = v1 * 3;
 
@@ -340,75 +481,82 @@ void measure
 				word_t wn0 = sbuffer[yn + 0];
 				word_t wn1 = sbuffer[yn + 1];
 				word_t wn2 = sbuffer[yn + 2];
-/*
-				// get widths
-				int widp = 0;
-				int widn = 0;
 
-				{
-					int sp = 0;
-					int ep = 3;
-					if (!wp0)
-					{
-						++sp;
-						if (!wp1) 
-							++sp;
-					}
-					if (!wp2)
-					{
-						--ep;
-						if (!wp1)
-							--ep;
-					}
-					widp = ep - sp;
-
-					int sn = 0;
-					int en = 3;
-					if (!wn0)
-					{
-						++sn;
-						if (!wn1) 
-							++sn;
-					}
-					if (!wn2)
-					{
-						--en;
-						if (!wn1)
-							--en;
-					}
-					widn = en - sn;
-				}
-				// reasonable penalty for change in active width
-				//int wid_error = (widn != widp) ? 2 : 0;
-				// try to move wider lines to top
-				int wid_error = (widn > widp) ? 2 : 0;
-
-				loadcost += wid_error;
-				dtotalcost += wid_error * 256.0;
-*/
 				// get deltas
 				int lc1 = (wp0 != wn0) ? 1 : 0;
 				int lc2 = (wp1 != wn1) ? 1 : 0;
 				int lc3 = (wp2 != wn2) ? 1 : 0;
+
+
+				// load costs
+
+				int loadseq = (lc1 + lc2 + lc3);
+				loadcount += loadseq;
+
+				if ((lc1 & lc2) || (lc2 & lc3))
+					loadpairs++;
+				
+				// dst skip costs
+
+				//dstlineadjcost *= 0.9;
+
+				int dstlineskips = (v1 - v0);
+				if (dstlineskips < 0)
+					dstlineskips = -dstlineskips;
+				if (dstlineskips > 0)
+					dstlineskips--;	// no cost for adjacents
+
+				// higher penality for larger jumps, reduces src skips caused by line reordering
+				dstlineadjcost += sqrt(1.0 + dstlineskips);
 /*
-				// extra cost for transition to special masks which may affect width
-				if (lc1)
-					if ((wp0 == 0) || (wn0 == 0) || (wp0 == 0xffff) || (wn0== 0xffff))
-						lc1 = 2;
-				if (lc2)
-					if ((wp1 == 0) || (wn1 == 0) || (wp1 == 0xffff) || (wn1== 0xffff))
-						lc2 = 2;
-				if (lc3)
-					if ((wp2 == 0) || (wn2 == 0) || (wp2 == 0xffff) || (wn2 == 0xffff))
-						lc3 = 2;
+				if (dstlineskips > 128)
+					dstlineadjcost += 3.0;
+				else
+				if (dstlineskips > 2)
+					dstlineadjcost += 2.0;
+				else
+				if (dstlineskips > 0)
+					dstlineadjcost += 1.0;
 */
+				// src skip costs
+
+/*				word_t gp = ssgbuffer[yp];
+				word_t gn = ssgbuffer[yn];
+
+				if (gp != gn)
+				{
+					// group switch penalty?
+					//if ((gp != 0) && (gn != 0))
+					{
+						groupswitchcost += 1.0;
+					}
+				}
+*/
+//				word_t gp = ssgbuffer[yp];
+//				word_t gn = ssgbuffer[yn];
+
+//				word_t gp = wp0; //| wp1 | wp2;
+//				word_t gn = wn0; //| wn1 | wn2;
+
+				//printf("s:%d g:%d l:%d ", si, group, v); print_dataword(gp); putchar(':'); print_dataword(gn); putchar('\n');
+				//printf("s:%d g:%d l:%d ", si, group, v); print_dataword(wp0); putchar(':'); print_dataword(wp1); putchar(':'); print_dataword(wp2); putchar('\n');
+
+				//if ((gn != 0) && (gp == 0))
+//				if (gp == 0)
+//					exit(1);//srcadjcost += 1000.0;
+
+#if 0
 				int error = (lc1 + lc2 + lc3);
 				loadcost += error;
 				dtotalcost += error * 256.0;
 
-				// incur a slight penalty for split longs
-				if (lc1 == 1 && lc3 == 1 && lc2 == 0)
-					dtotalcost += 1.0;
+				// incur penalty for split longs
+				//if (lc1 == 1 && lc3 == 1 && lc2 == 0)
+				//	dtotalcost += 32.0;
+
+				// small bonus for combined longs
+				if ((lc1 & lc2) | (lc2 & lc3))
+					dtotalcost -= 16.0;
 
 				// attempt to keep lines roughly in top-bottom order by including small cost for 'pointless' reordering
 				// this provides more opportunity to use a fixed increment between lines (save space with register add vs lea)
@@ -426,9 +574,27 @@ void measure
 					}
 					dycost--;	// no cost for adjacents
 
-					double dypenalty = log(1.0 + dycost);
+/*
+					// adjacent lines cost nothing
+					// skip 1  lines = cost 1
+					// skip 2+ lines = cost 2
+					// skip 3+ lines = cost 3
+					// gives a chance to optimize for short skips, reusing register values. otherwise constant cost for any skip.
+
+					// 32768/208 = approx 157 lines for signed 16bit hop
+					if (dycost > 128)
+						dycost = 4;
+					else
+					if (dycost > 3)
+						dycost = 3;
+					
+					dtotalcost += dycost;
+*/
+
+					double dypenalty = sqrt(1.0 + dycost); //log(1.0 + dycost);
 					if (v1 < v0)
-						dypenalty *= 1.1;
+						dypenalty += 4;
+//						dypenalty *= 1.1;
 
 //										if (dycost > 8)
 //											dycost = 8;
@@ -436,9 +602,28 @@ void measure
 
 					dtotalcost += dypenalty;
 				}
+#endif
 			}
 		}
 	}
+
+	loadcost = loadcount - loadpairs;
+
+	// dst line skips primarily a memory overhead, not cycle overhead
+	if (g_allargs.cutmode == Cutmode_EMXSPR)
+		dstlineadjcost *= 0.5;
+
+	double fragcost = 0.0;
+
+	if (pshared_shift)
+		fragcost = measure_psm_fragmentation(trial_pattern, pshared_shift, shiftcount);
+	else
+		fragcost = measure_psm_fragmentation(trial_pattern, gen);
+
+	dtotalcost = 
+		((double)loadcount * 8.0) - ((double)loadpairs * 4.0)
+		+ (dstlineadjcost * 1.0)
+		+ (fragcost * 10.0);
 }
 
 void anneal_lineorder
@@ -450,8 +635,9 @@ void anneal_lineorder
 	const std::vector<int> &linemap_opt_2_src,
 	const spriteframe_t &spr,
 	const spriteframe_t::generated_data_t &gen,
-	int max_ci, int shiftcount,
-	const uword_t * __restrict buffer,
+	const preshift_t * __restrict pshared_shift,
+	int max_group, int shiftcount,
+	const uword_t * __restrict buffer, //const uword_t * __restrict sgbuffer,
 	const ubyte_t *__restrict livelines, int live_line_count
 )
 {
@@ -469,8 +655,9 @@ void anneal_lineorder
 		best_pattern,
 		spr,
 		gen,
-		max_ci,
-		buffer,
+		pshared_shift,
+		max_group, shiftcount,
+		buffer, //sgbuffer,
 		livelines, live_line_count
 	);
 
@@ -520,9 +707,15 @@ void anneal_lineorder
 		// skips mutation
 		if (trial > 0)
 		{
+			static const float c_max_portion = 1.0f / 2.0f;
 
-			int mutrate = 1 + ((twist.genS32() >> 4) % 8);
-			mutrate = 1 + ((mutrate * mutrate) >> 3);
+			float funitrand = twist.genFloat();
+			float fproportion = funitrand * funitrand;
+
+			int mutrate = std::ceil(0.001f + ((float)live_line_count * c_max_portion * fproportion));
+
+			//int mutrate = 1 + ((twist.genS32() >> 4) % 8);
+			//mutrate = 1 + ((mutrate * mutrate) >> 3);
 
 			//mutrate = ceil((float)alpha * mutrate);
 
@@ -573,11 +766,13 @@ void anneal_lineorder
 
 				//if (choice1 < choice2)
 				{
+					/*
 					// A		A
 					// B <c1	D \
 												// C		B | o
 					// D <c2	C / o+1  tmp
 					// E		E
+					*/
 
 					// push choice2 int choice1, moving all downwards
 					int tmp = trial_pattern[choice2];
@@ -622,8 +817,9 @@ void anneal_lineorder
 				trial_pattern,
 				spr,
 				gen,
-				max_ci,
-				buffer,
+				pshared_shift,
+				max_group, shiftcount,
+				buffer, //sgbuffer,
 				livelines, live_line_count
 			);
 
@@ -746,8 +942,10 @@ void anneal_worker(uint32_t _seed, const anneal_in* _in, anneal_result *_result)
 		//
 		_in->linemap_opt_2_src, 
 		_in->spr, _in->gen,
-		_in->max_ci, _in->shiftcount,
-		_in->buffer, _in->livelines, _in->live_line_count
+		_in->pshared_shift,
+		_in->max_group, _in->shiftcount,
+		_in->buffer, //_in->sgbuffer,
+		_in->livelines, _in->live_line_count
 	);
 }
 
@@ -781,55 +979,71 @@ void generate_emx_emh_common_lineorder
 		if (g_allargs.verbose)
 			std::cout << "optimizing common line order across all preshifts..." << std::endl << std::flush;
 
-		int shiftcount = gen.psmask_frames_.size();
-
 		int pagesize = (3 * spr.h_);
 
+		int shiftcount = gen.psmask_frames_.size();
+		//if (pshared_shift)
+		//	shiftcount = 1;
+
+		int groups = c_max_line_spans;
+
 		// make copy of data in terms of 3*y EM words
-		uword_t *buffer = new uword_t[pagesize * shiftcount * c_max_line_spans];
-		memset(buffer, 0, sizeof(uword_t) * pagesize * shiftcount * c_max_line_spans);
+		uword_t *buffer = new uword_t[pagesize * shiftcount * groups];
+		memset(buffer, 0, sizeof(uword_t) * pagesize * shiftcount * groups);
 
-		std::map<int, int> cimap;
+		// spangroup association buffer
+		//uword_t *sgbuffer = new uword_t[spr.h_ * shiftcount * groups];
+		//memset(sgbuffer, 0, sizeof(uword_t) * spr.h_ * shiftcount * groups);
 
-		int max_ci = -1;
+		//std::map<int, int> groupmap;
 
-		if (pshared_shift)
+		//int max_ci = -1;
+		int max_group = -1;
+
+		if (0) //(pshared_shift)
 		{
+			assert(false); // deprecated for now
+
 			preshift_t &shift = *pshared_shift;
 
-			int si = 0;
+			//int si = 0;
 			for (int v = 0; v < spr.h_; v++)
 			{
 				span_hseq_t &spanlist = shift.sa.span_vpattern_[v];
 
-				int ci = -1;
+				int group = -1;
 				for (auto & span : spanlist)
 				{
 					//printf("span: ws=%d\n", span.ws);
 
-					auto look = cimap.find(span.ws);
-					if (look != cimap.end())
+					group = span.group;
+					assert(group >= 0);
+					if (group > max_group)
+						max_group = group;
+/*
+					auto look = groupmap.find(span.ws);
+					if (look != groupmap.end())
 					{
-						ci = look->second;
+						group = look->second;
 
 						//printf("reused x=%d, ci=%d\n", span.ws, ci);
 					}
 					else
 					{
-						ci = ++max_ci;
+						group = ++max_group;
 
 						if (g_allargs.verbose)
-							printf("allocated x=%d, ci=%d\n", span.ws, ci);
+							printf("allocated x=%d, g=%d\n", span.ws, group);
 
-						cimap[span.ws] = ci;
+						groupmap[span.ws] = group;
 
-						if (max_ci >= c_max_line_spans)
+						if (max_group >= c_max_line_spans)
 						{
-							printf("error - too many span offsets (%d)\n", max_ci);
+							printf("error - too many span offsets (%d)\n", max_group);
 							exit(1);
 						}
 					}
-
+*/
 					/*
 												ci++;
 												if (ci > max_ci)
@@ -837,7 +1051,13 @@ void generate_emx_emh_common_lineorder
 					*/
 					//constrained_wordspan & span = e;
 
-					int page = ((ci * shiftcount) + si) * pagesize;
+					// record group ID in sgbuffer to detect group switches during line reordering
+					//int gpage = ((group * shiftcount) + 0) * spr.h_;
+					//uword_t *ssgbuffer = &sgbuffer[gpage];
+					//ssgbuffer[v] = 1+group; // nonzero = span present
+
+
+					int page = ((group * shiftcount) + 0) * pagesize;
 					uword_t *sbuffer = &buffer[page];
 
 					sbuffer[(v * 3) + 0] = span.em[0];
@@ -852,9 +1072,6 @@ void generate_emx_emh_common_lineorder
 							livelines[v] = 1;
 							emptylines[v] = 0;
 						}
-						//									livelines[v] = 1;
-						//								else
-						//									emptylines[v] = 1;
 					}
 					else
 					{
@@ -877,39 +1094,50 @@ void generate_emx_emh_common_lineorder
 				preshiftlist_t::iterator cit = pmit->begin();
 				{
 					auto & spshift = *cit;
-					preshift_t &shift = *spshift;
+
+					// select span pattern from EMH shared or EMX unique preshift
+					preshift_t *pshift = pshared_shift;
+					if (!pshift)
+						pshift = spshift.get();
+
+					auto &shift = *pshift;
 
 					for (int v = 0; v < spr.h_; v++)
 					{
 						span_hseq_t &spanlist = shift.sa.span_vpattern_[v];
 
-						int ci = -1;
+						int group = -1;
 						for (auto & span : spanlist)
 						{
 							//printf("span: ws=%d\n", span.ws);
-							
-							auto look = cimap.find(span.ws);
-							if (look != cimap.end())
+							group = span.group;
+							assert(group >= 0);
+							if (group > max_group)
+								max_group = group;
+/*
+							auto look = groupmap.find(span.ws);
+							if (look != groupmap.end())
 							{
-								ci = look->second;
+								group = look->second;
 
 								//printf("reused x=%d, ci=%d\n", span.ws, ci);
 							}
 							else
 							{
-								ci = ++max_ci;
+								group = ++max_group;
 
 								if (g_allargs.verbose)
-									printf("allocated x=%d, ci=%d\n", span.ws, ci);
+									printf("allocated x=%d, g=%d\n", span.ws, group);
 
-								cimap[span.ws] = ci;
+								groupmap[span.ws] = group;
 
-								if (max_ci >= c_max_line_spans)
+								if (max_group >= c_max_line_spans)
 								{
-									printf("error - too many span offsets (%d)\n", max_ci);
+									printf("error - too many span offsets (%d)\n", max_group);
 									exit(1);
 								}
 							}
+*/							
 							
 /*
 							ci++;
@@ -918,7 +1146,13 @@ void generate_emx_emh_common_lineorder
 */
 							//constrained_wordspan & span = e;
 
-							int page = ((ci * shiftcount) + si) * pagesize;
+							// record group ID in sgbuffer to detect group switches during line reordering
+							//int gpage = ((group * shiftcount) + si) * spr.h_;
+							//uword_t *ssgbuffer = &sgbuffer[gpage];
+							//ssgbuffer[v] = 1; // nonzero = span present
+
+
+							int page = ((group * shiftcount) + si) * pagesize;
 							uword_t *sbuffer = &buffer[page];
 
 							sbuffer[(v * 3) + 0] = span.em[0];
@@ -933,9 +1167,6 @@ void generate_emx_emh_common_lineorder
 									livelines[v] = 1;
 									emptylines[v] = 0;
 								}
-//									livelines[v] = 1;
-//								else
-//									emptylines[v] = 1;
 							}
 							else
 							{
@@ -948,9 +1179,9 @@ void generate_emx_emh_common_lineorder
 			}
 		}
 
-		if (max_ci < 0)
+		if (max_group < 0)
 		{
-			printf("error: bad max_ci\n");
+			printf("error: bad max_group\n");
 			exit(1);
 		}
 
@@ -1016,14 +1247,14 @@ void generate_emx_emh_common_lineorder
 			dump_ordered_pattern
 			(
 				spr, 
-				max_ci, shiftcount,
+				max_group, shiftcount,
 				buffer, livelines
 			);
 		}
 
 
 		// initial sort of mask edges
-		if (USE_INITIAL_EDGE_SORT && (live_line_count > 2))
+		if (USE_INITIAL_EDGE_SORT && (g_allargs.emxoptlevel > 0) && (live_line_count > 2))
 		{
 			if (g_allargs.verbose)
 				std::cout << "initial edge sort for > 2 live scans..." << std::endl << std::flush;
@@ -1105,7 +1336,6 @@ void generate_emx_emh_common_lineorder
 			{
 				linemap_opt_2_src[vnew] = sorting[vnew].second;
 			}
-		}
 
 		if (g_allargs.verbose)
 		{
@@ -1115,9 +1345,10 @@ void generate_emx_emh_common_lineorder
 			(
 				spr, 
 				linemap_opt_2_src, linemap_opt_2_src.size(),
-				max_ci, shiftcount,
+					max_group, shiftcount,
 				buffer, livelines
 			);
+		}
 		}
 
 
@@ -1140,8 +1371,9 @@ void generate_emx_emh_common_lineorder
 				linemap_opt_2_src,
 				spr,
 				gen,
-				max_ci,
-				buffer,
+				pshared_shift,
+				max_group, shiftcount,
+				buffer, //sgbuffer,
 				livelines, live_line_count
 			);
 
@@ -1150,8 +1382,10 @@ void generate_emx_emh_common_lineorder
 			{
 				linemap_opt_2_src, 
 				spr, gen,
-				max_ci, shiftcount,
-				buffer, livelines, live_line_count
+				pshared_shift,
+				max_group, shiftcount,
+				buffer, //sgbuffer, 
+				livelines, live_line_count
 			};
 
 #define USE_THREADPOOL
@@ -1241,7 +1475,7 @@ void generate_emx_emh_common_lineorder
 				(
 					spr, 
 					linemap_opt_2_src, linemap_opt_2_src.size(),
-					max_ci, shiftcount,
+					max_group, shiftcount,
 					buffer, livelines
 				);
 			}
@@ -1282,6 +1516,8 @@ void generate_emx_emh_common_lineorder
 		// show reordering
 		if (!g_allargs.quiet)
 		{
+			printf("\nannealed:\n");
+
 			int full_src_wordwidth = ((spr.w_ + 15) & -16) >> 4;
 			int src_pixwidth = full_src_wordwidth << 4;
 
@@ -1338,6 +1574,7 @@ void generate_emx_emh_common_lineorder
 		// reconstruct order
 		if (!g_allargs.quiet)
 		{
+			printf("\nreconstruction:\n");
 			int full_src_wordwidth = ((spr.w_ + 15) & -16) >> 4;
 			int src_pixwidth = full_src_wordwidth << 4;
 
@@ -1400,7 +1637,7 @@ void generate_emx_emh_common_lineorder
 			dump_ordered_pattern
 			(
 				spr, 
-				max_ci, shiftcount,
+				max_group, shiftcount,
 				buffer, livelines
 			);
 
@@ -1429,7 +1666,7 @@ void generate_emx_emh_common_lineorder
 			(
 				spr,
 				linemap_opt_2_src, linemap_opt_2_src.size(),
-				max_ci, shiftcount,
+				max_group, shiftcount,
 				buffer, livelines
 			);
 /*
@@ -1466,6 +1703,37 @@ void generate_emx_emh_common_lineorder
 		lineorder_reverse_mapping(spr, linemap_opt_2_src, linemap_src_2_opt);
 	}
 //	exit(1);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+
+void output_span_diagnostic(int pw, int ph, std::vector<constrained_wordspan*> &_stacked_spans, const std::string _name)
+{
+	int dbw = ((pw + 15) & -16) + 16;;
+	int dbh = ph;
+	auto data = new RGB[dbw * dbh];
+	memset(data, 0, sizeof(RGB) * (dbw * dbh));
+
+	for (constrained_wordspan *pspan : _stacked_spans)
+	{
+		auto & span = *pspan;
+
+		uint8_t r = ((span.group+1) * 1923987498324787 >> 4) & 255;
+		uint8_t g = ((span.group+1) * 1923987498324787 >> 12) & 255;
+		uint8_t b = ((span.group+1) * 1923987498324787 >> 20) & 255;
+
+		for (int x = (span.ws<<4); x < (span.ws + span.ww) << 4; ++x)
+		{
+			RGB & p = data[(dbw * span.line_orig) + x];
+			p.red = r;
+			p.green = g;
+			p.blue = b;
+		}
+	}
+
+	stbi_write_png(_name.c_str(), dbw, dbh, 3, data, 0);
+
+	delete[] data;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
