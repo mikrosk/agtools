@@ -339,8 +339,6 @@ displayservice_ste272_lowerconsole_b:
 	move.l		#$00340fff,$ffff8240.w
 	clr.w		$ffff8244.w
 
-	clr.b		tbcr.w				; TimerB CTRL: halt
-
 	.if		^^defined AGT_CONFIG_ENABLE_DISPLAYTIMER
 
 	move.w		#displayservice_ste272_d1_tb+1,_g_display_timer_counted
@@ -348,12 +346,17 @@ displayservice_ste272_lowerconsole_b:
 	move.l		(a0),_g_display_timer_begin
 	
 	.endif
-	
-	move.l		(sp)+,a0
-	move.l		(sp)+,d0
-	
+
 	clr.b		_g_seek
 	
+	move.b		tbdr.w,d0
+.wt2:	cmp.b		tbdr.w,d0
+	beq.s		.wt2
+
+	clr.b		tbcr.w				; TimerB CTRL: halt
+
+	move.l		(sp)+,a0
+	move.l		(sp)+,d0
 
 	.if		(use_blitter_compatibility)
 	bliton
