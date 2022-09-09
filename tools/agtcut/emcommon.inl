@@ -712,7 +712,7 @@ void anneal_lineorder
 			float funitrand = twist.genFloat();
 			float fproportion = funitrand * funitrand;
 
-			int mutrate = std::ceil(0.001f + ((float)live_line_count * c_max_portion * fproportion));
+			int mutrate = ceil(0.001f + ((float)live_line_count * c_max_portion * fproportion));
 
 			//int mutrate = 1 + ((twist.genS32() >> 4) % 8);
 			//mutrate = 1 + ((mutrate * mutrate) >> 3);
