@@ -59,10 +59,7 @@ _BLiT_EntityDeferVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
-;	add.w		#320+(32*2),d0			; todo: hardcoded visibility margin - make configurable
-	add.w		dctx_clipwindow_x2p(a4),d0
-	sub.w		dctx_clipwindow_x1p(a4),d0
-	add.w		dctx_guardx(a4),d0
+	add.w		dctx_guardwindow_xs(a4),d0
 	move.w		d0,.sp_pxymax_(sp)
 *-------------------------------------------------------*
 *	initial conditions

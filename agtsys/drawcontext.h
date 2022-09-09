@@ -58,21 +58,26 @@ typedef struct drawcontext_s
 	//void *pspriteclear_stack_tide;
 	//void *pspriteclear_stack_prvtide;
 
-	// vpage-adjusted clipping window
-	s16 clip_window_x1;
-	s16 clip_window_y1;
-	s16 clip_window_x2;
-	s16 clip_window_y2;
-	// physical clip area for IMS and some other stuff
-	s16 clip_window_x1p;
-	s16 clip_window_x2p;
-	// guard clip area for y axis (todo: swap for physical y clip above)
-	//s16 clip_window_y1g;
-	//s16 clip_window_y2g;
+	// vpage-adjusted guard rejection window
+	s16 guard_window_x1;
+	s16 guard_window_xs;
+	s16 guard_window_y1;
+	s16 guard_window_ys;
+	s16 guard_window_x2;
+	s16 guard_window_y2;
+
+	// physical clip region for IMS and some other stuff
+	s16 scissor_window_x1p;
+	s16 scissor_window_xs;
+	s16 scissor_window_y1;
+	s16 scissor_window_ys;
+	s16 scissor_window_x2p;
+	s16 scissor_window_y2;
 
 } drawcontext_t;
 
-extern "C" drawcontext_t drawcontext;
+extern "C" drawcontext_t g_drawcontext;
+extern "C" drawcontext_t *g_pactivedctx;
 
 //----------------------------------------------------------------------------------------------------------------------
 

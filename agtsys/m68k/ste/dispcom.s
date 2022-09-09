@@ -4,6 +4,11 @@ displayservice_full_lower_d1_tb	=	229
 
 *-----------------------------------------------------------------------------*
 
+;	336 pixel mode: maybe useful for vscroll-only cases but incompatible with hscroll
+;	would then need to replace shift loader to avoid touching these every vbl
+;	move.b		#1,$ffff8265.w
+;	clr.b		$ffff8264.w
+
 *-----------------------------------------------------------------------------*
 displayservice_common_full_setlower:
 *-----------------------------------------------------------------------------*

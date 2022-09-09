@@ -679,10 +679,10 @@ void anneal_lineorder
 
 
 	int sh = ((live_line_count + 2) / 3);
-	if (g_allargs.emxoptlevel)
+	if (g_allargs.emxoptlevel > 1)
 		sh = g_allargs.emxoptlevel;
 
-	if (g_allargs.verbose || g_allargs.emxoptlevel)
+	if (g_allargs.verbose || (g_allargs.emxoptlevel > 0))
 	{
 		printf("[%s] anneal pass begin @ 2^%d iters:\n", g_allargs.outfile.c_str(), sh); 
 		fflush(stdout);

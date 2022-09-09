@@ -110,7 +110,7 @@ enum EntityType : int
 //#define SCREEN_YSIZE (240)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 //#define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 
@@ -353,9 +353,6 @@ int AGT_EntryPoint()
 
 		object.load("object.ems");
 
-		//printf("press space...\n");
-		//Crawcin();
-
 		// ---------------------------------------------------------------------------------------------------------------------
 
 		machinestate.save();
@@ -513,11 +510,10 @@ int AGT_EntryPoint()
 
 		EntityDefAsset_Sprite(EntityType_OBJECT, &object);
 
-
 		// ---------------------------------------------------------------------------------------------------------------------
 
-//		printf("ready... (press key)\n");
-//		Crawcin();
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over machine resources - display, timers, input etc.

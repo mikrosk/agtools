@@ -47,6 +47,11 @@ _BLiT_EntityDrawVisibleYM_68k:
 *	load C args to local frame
 *-------------------------------------------------------*
 	move.l		.pctx(a6),a4
+	move.l		a4,.sp_dctx(sp)
+	lea		dctx_guardwindow(a4),a5
+	move.l		a5,.sp_guardwin(sp)
+	lea		dctx_scissorwindow(a4),a5
+	move.l		a5,.sp_scissorwin(sp)
 	move.l		dctx_framebuffer(a4),.sp_framebuf(sp)
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
@@ -55,7 +60,8 @@ _BLiT_EntityDrawVisibleYM_68k:
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_cfield4(sp)		
+	move.w		d0,.sp_cfield4(sp)
+	move.w		_g_linebytes,.sp_linebytes(sp)
 ;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
 ;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
 ;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto
@@ -65,9 +71,10 @@ _BLiT_EntityDrawVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_fry(a0),d0
-	add.w		dctx_clipwindow_y2(a4),d0
-	sub.w		dctx_clipwindow_y1(a4),d0
-	add.w		dctx_guardy(a4),d0
+	add.w		dctx_guardwindow_ys(a4),d0
+;	add.w		dctx_scissorwin_y2(a4),d0
+;	sub.w		dctx_scissorwin_y1(a4),d0
+;	add.w		dctx_guardy(a4),d0
 	move.w		d0,.sp_pxymax_(sp)
 *-------------------------------------------------------*
 *	initial conditions
@@ -854,7 +861,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 
 ;	move.l		usp,a5
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
+;	move.l		a5,_g_drawcontext+dctx_clearstack_tide
 
 *-------------------------------------------------------*
 

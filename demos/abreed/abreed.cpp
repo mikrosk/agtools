@@ -107,7 +107,7 @@ enum EntityType : int
 #define SCREEN_YSIZE (240)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 #define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -198,6 +198,8 @@ mersenne_twister prng;
 
 // viewport entity is global and part of the entity drawing system
 static entity_t *s_pe_viewport = nullptr;
+
+static drawcontext_t drawcontext;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -461,8 +463,6 @@ int AGT_EntryPoint()
 			printf("machine: unknown, so assuming STE (?!)...\n");
 			bSTE = true;
 		}
-		printf("press space...\n");
-		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
@@ -519,14 +519,14 @@ int AGT_EntryPoint()
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
 		g_map_fxlimit = (map_xsize-VIEWPORT_XSIZE-c_scroll_safety_margin)<<16;
-		g_map_fylimit = (map_ysize-VIEWPORT_YSIZE-c_scroll_safety_margin)<<16;
+		g_map_fylimit = (map_ysize-VIEWPORT_YSIZE-0)<<16;
 
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
 
 		printf("creating world...\n");
-		arena_t myworld(shift, SCREEN_XSIZE, SCREEN_YSIZE);
+		arena_t myworld(shift, VIEWPORT_XSIZE, VIEWPORT_YSIZE);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	associate map & tiles with the world buffers.
@@ -634,8 +634,8 @@ int AGT_EntryPoint()
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
-//		printf("ready... (press key)\n");
-//		Crawcin();
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over machine resources - display, timers, input etc.
@@ -780,7 +780,7 @@ restart_game:
 				reg16(FFFF8240) += 0x315;
 			}
 			while ((x < c_scroll_safety_margin) || (fx > g_map_fxlimit) || 
-				   (y < c_scroll_safety_margin) || (fy > g_map_fylimit) ||
+				   (y < 0) || (fy > g_map_fylimit) ||
 				   is_solidarea32_base(x, y)
 			);
 

@@ -58,9 +58,10 @@ _BLiT_EntityDeferVisibleYM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_fry(a0),d0
-	add.w		dctx_clipwindow_y2(a4),d0
-	sub.w		dctx_clipwindow_y1(a4),d0
-	add.w		dctx_guardy(a4),d0
+	add.w		dctx_guardwindow_ys(a4),d0
+;	add.w		dctx_scissorwin_y2(a4),d0
+;	sub.w		dctx_scissorwin_y1(a4),d0
+;	add.w		dctx_guardy(a4),d0
 	move.w		d0,.sp_pxymax_(sp)
 *-------------------------------------------------------*
 *	initial conditions

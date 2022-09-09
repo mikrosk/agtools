@@ -65,7 +65,7 @@ SPR_DEFAULTS="-emgx 64 -crn 224 -bld ${GENTEMP}"
 
 # default optimization level (lower value for faster cutting, quicker turnaround)
 # note: 21 is probably highest practical value to use here, crunch time is very long. leave empty for a quick test.
-DEFAULT_OPTI="-emxopt 20"
+DEFAULT_OPTI="-emxopt 18,12"
 
 #------------------------------------------------------------------------------
 # composite cutting commands for most cases
@@ -84,16 +84,16 @@ SPR="${AGTBIN}/agtcut ${SPR_DEFAULTS} -p ${COLMAP} ${KEYCFG} ${DEBUG} ${DEFAULT_
 ${SPR} -o ${OUT}/b32w.emx -s ${SRC}/b32w.png		-cm emxspr            	-sxp 0 -syp 0 -sxs 32 -sys 31 -sc 1
 
 #
-# two big compound sprites (>32 wide) (-emc)
+# two large, compound sprites (>32 wide)
 #
-${SPR} -o ${OUT}/b48w.emx -s ${SRC}/b48w.png		-cm emxspr -emc 	-sxp 0 -syp 0 -sxs 48 -sys 54 -sc 1
-${SPR} -o ${OUT}/b64w.emx -s ${SRC}/bug64w.png		-cm emxspr -emc 	-sxp 0 -syp 0 -sxs 64 -sys 72 -sc 1
+${SPR} -o ${OUT}/b48w.emx -s ${SRC}/b48w.png		-cm emxspr	 	-sxp 0 -syp 0 -sxs 48 -sys 54 -sc 1
+${SPR} -o ${OUT}/b64w.emx -s ${SRC}/bug64w.png		-cm emxspr	 	-sxp 0 -syp 0 -sxs 64 -sys 72 -sc 1
 
 #
-# two giant compound sprites, with occlusion maps (-emc -ocm)
+# two giant compound sprites, with embedded occlusion maps (-ocm)
 #
-${SPR} -o ${OUT}/b80w.emx -s ${SRC}/bug80w.png		-cm emxspr -emc -ocm 	-sxp 0 -syp 0 -sxs 80 -sys 105 -sc 1
-${SPR} -o ${OUT}/b144w.emx -s ${SRC}/xenboss.png	-cm emxspr -emc -ocm 	-sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
+${SPR} -o ${OUT}/b80w.emx -s ${SRC}/bug80w.png		-cm emxspr -ocm 	-sxp 0 -syp 0 -sxs 80 -sys 105 -sc 1
+${SPR} -o ${OUT}/b144w.emx -s ${SRC}/xenboss.png	-cm emxspr -ocm 	-sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
 
 
 # compress assets with lz77

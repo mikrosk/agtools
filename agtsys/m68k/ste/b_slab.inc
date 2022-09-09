@@ -26,7 +26,8 @@
 *-------------------------------------------------------*
 
 ;	todo: data setup pass
-	mulu.w		_g_linebytes,d4
+;	mulu.w		_g_linebytes,d4
+	mulu.w		.sp_linebytes(sp),d4
 	add.l		d4,a1
 	moveq		#0,d4
 	
@@ -88,7 +89,8 @@
 *-------------------------------------------------------*
 
 ;	todo: data setup pass
-	mulu.w		_g_linebytes,d4
+;	mulu.w		_g_linebytes,d4
+	mulu.w		.sp_linebytes(sp),d4
 	add.l		d4,a1
 	moveq		#0,d4
 	
@@ -255,7 +257,8 @@ _enable_slabrestore_	set	(use_sprite_saverestore|use_sprite_pagerestore)
 *-------------------------------------------------------*
 
 ;	todo: data setup pass
-	mulu.w		_g_linebytes,d4
+;	mulu.w		_g_linebytes,d4
+	mulu.w		.sp_linebytes(sp),d4
 	add.l		d4,a1
 	moveq		#0,d4
 	
@@ -306,7 +309,8 @@ _enable_slabrestore_	set	(use_sprite_saverestore|use_sprite_pagerestore)
 *-------------------------------------------------------*
 
 ;	todo: data setup pass
-	mulu.w		_g_linebytes,d4
+;	mulu.w		_g_linebytes,d4
+	mulu.w		.sp_linebytes(sp),d4
 	add.l		d4,a1
 	moveq		#0,d4
 	
@@ -523,7 +527,8 @@ _enable_slabrestore_	set	(enable_slabrestore&(use_sprite_saverestore|use_sprite_
 *-------------------------------------------------------*
 
 ;	todo: data setup pass
-	mulu.w		_g_linebytes,d4
+;	mulu.w		_g_linebytes,d4
+	mulu.w		.sp_linebytes(sp),d4
 	add.l		d4,a1
 	moveq		#0,d4
 	
@@ -585,7 +590,8 @@ _enable_slabrestore_	set	(enable_slabrestore&(use_sprite_saverestore|use_sprite_
 *-------------------------------------------------------*
 
 ;	todo: data setup pass
-	mulu.w		_g_linebytes,d4
+;	mulu.w		_g_linebytes,d4
+	mulu.w		.sp_linebytes(sp),d4
 	add.l		d4,a1
 	moveq		#0,d4
 	

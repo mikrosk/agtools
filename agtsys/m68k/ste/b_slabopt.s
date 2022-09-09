@@ -15,15 +15,22 @@
 	
 	pushraster	#$515	
 		
-;	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
-
 	; need total width for guardband test
 	move.w		sls_srcwidth(a0),d3
 
 	; guardx reject test (no x clipping in SLAB)
-	lea		_g_spr_culltest,a2
-	move.w		spr_culltest_y(a2),.sp_yc(sp)
-	sprite_cullxr	a2,d1,d3,d4,d6,.slb_end
+	
+
+	move.l		.sp_scissorwin(sp),a4				; scissor window
+	lea		dctx_guardwindow-dctx_scissorwindow(a4),a2	; guard window	
+	sprite_guardxr	a2,d1,d3,d4,d6,.slb_end
+
+	; passed L/R guard test
+
+	; copy top/bottom scissor points for yclip
+		
+	move.w		clip_win_y(a4),.sp_yc(sp)
+	move.w		clip_win_y2(a4),.sp_yc2(sp)
 
 	; access slab frame table
 	
@@ -42,7 +49,6 @@
 	move.w		d6,.sp_xadj(sp)
 
 	move.w		d1,.sp_x(sp)
-;	bmi		.slb_end	
 	move.w		d2,.sp_y(sp)
 
 	bra.s		.slb_begin
@@ -222,7 +228,7 @@
 ;	test window bottom
 
 	add.w		d2,d4
-	cmp.w		_drawcontext+dctx_clipwindow_y2,d4
+	cmp.w		.sp_yc2(sp),d4
 	ble		.slb_clip_safebot
 
 *-------------------------------------------------------*
@@ -235,7 +241,8 @@
 
 ;	test for fully clipped out
 
-	cmp.w		_drawcontext+dctx_clipwindow_y2,d2
+	;cmp.w		_g_drawcontext+dctx_guardwindow_y2,d2
+	cmp.w		.sp_yc2(sp),d2
 	bge		.slb_degen
 
 ;	ys: recover slab ysize
@@ -249,7 +256,8 @@
 
 ;	byc: amount to crop from full slab height (up to max of slab height)
 	
-	sub.w		_drawcontext+dctx_clipwindow_y2,d4
+;	sub.w		_g_drawcontext+dctx_guardwindow_y2,d4
+	sub.w		.sp_yc2(sp),d4
 
 ;	d4		+ve crop
 
@@ -271,10 +279,9 @@
 
 	move.l		a3,BLiTSRC.w
 
-;	address initial line
-
-	mulu.w		_g_linebytes,d2
-	add.l		d2,a1	
+	; address yline: can't use linetable because -yoff might exceed guardy	
+	muls.w		.sp_linebytes(sp),d2
+	add.l		d2,a1
 
 ;	usp tends to be used by engine for context/object/sprite-restore,
 ;	but here its more valuable for an inner loop so we need to save it first
@@ -289,7 +296,8 @@
 	lea		BLiTCTRL.w,a3
 	lea		slab_precalcs,a4
 	move.l		a4,usp
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 
 	moveq		#7,d0
 	moveq		#$80,d2
@@ -344,9 +352,13 @@
 
 ;	address initial line
 
-	muls.w		_g_linebytes,d2
-	add.l		d2,a1
+;	muls.w		_g_linebytes,d2
+;	add.l		d2,a1
 
+	; address yline: can't use linetable because -yoff might exceed guardy	
+	muls.w		.sp_linebytes(sp),d2
+	add.l		d2,a1
+	
 ;	setup
 
 ;	usp tends to be used by engine for context/object/sprite-restore,
@@ -362,7 +374,8 @@
 	lea		BLiTCTRL.w,a3
 	lea		slab_precalcs,a4
 	move.l		a4,usp
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 
 	moveq		#7,d0
 	moveq		#$80,d2

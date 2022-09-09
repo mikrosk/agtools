@@ -119,12 +119,12 @@ extern "C" int AGT_BLiT_EMXSprInit();
 // ---------------------------------------------------------------------------------------------------------------------
 // sprite clipping window (world coordinates)
 
-extern "C" s16 g_spr_window_x1;
-extern "C" s16 g_spr_window_y1;
-extern "C" s16 g_spr_window_x2;
-extern "C" s16 g_spr_window_y2;
-extern "C" s16 g_spr_window_x1p;
-extern "C" s16 g_spr_window_x2p;
+extern "C" s16 g_clipwin_gpp_x1;
+extern "C" s16 g_clipwin_gpp_y1p;
+extern "C" s16 g_clipwin_gpp_x2;
+extern "C" s16 g_clipwin_gpp_y2p;
+extern "C" s16 g_clipwin_gpp_x1p;
+extern "C" s16 g_clipwin_gpp_x2p;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // some internal stuff: todo: clean this up

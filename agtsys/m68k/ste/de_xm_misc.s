@@ -15,33 +15,35 @@ _BLiT_EntityDebugVisibleXM_68k:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
+			emitframe_draw_vars
+*-------------------------------------------------------*
 *	locals: used by sprite routines
 *-------------------------------------------------------*
-.sp_skew:		ds.w	1			; don't move this one
-.sp_maskwidth:		ds.w	1
-.sp_yoff:		ds.w	1
-.sp_yc:			ds.w	1
-.sp_yrem:		ds.w	1
-.sp_field4:		ds.w	1
-.sp_save_usp:		ds.l	1
-.sp_linetable:		ds.l	1
-.sp_nextcmp:		ds.l	1
-.sp_x:			ds.w	1
-.sp_y:			ds.w	1
+;.sp_skew:		ds.w	1			; don't move this one
+;.sp_maskwidth:		ds.w	1
+;.sp_yoff:		ds.w	1
+;.sp_yc:			ds.w	1
+;.sp_yrem:		ds.w	1
+;.sp_field4:		ds.w	1
+;.sp_save_usp:		ds.l	1
+;.sp_linetable:		ds.l	1
+;.sp_nextcmp:		ds.l	1
+;.sp_x:			ds.w	1
+;.sp_y:			ds.w	1
 *-------------------------------------------------------*
 *	locals: shadow function arguments
 *-------------------------------------------------------*
-.sp_framebuf:		ds.l	1
-.sp_snapx:		ds.w	1
-.sp_snapy:		ds.w	1
+;.sp_framebuf:		ds.l	1
+;.sp_snapx:		ds.w	1
+;.sp_snapy:		ds.w	1
 *-------------------------------------------------------*
 *	locals: used by algorithm
 *-------------------------------------------------------*
-.sp_asset:		ds.l	1
-.sp_pxymax_:		ds.l	1
-.sp_savea0:		ds.l	1
-.sp_layers:		ds.l	1
-.sp_drawtype:		ds.l	1
+;.sp_asset:		ds.l	1
+;.sp_pxymax_:		ds.l	1
+;.sp_savea0:		ds.l	1
+;.sp_layers:		ds.l	1
+;.sp_drawtype:		ds.l	1
 *-------------------------------------------------------*
 .sp_frame_:		
 *-------------------------------------------------------*
@@ -56,6 +58,11 @@ _BLiT_EntityDebugVisibleXM_68k:
 *	load C args to local frame
 *-------------------------------------------------------*
 	move.l		.pctx(a6),a4
+	move.l		a4,.sp_dctx(sp)
+	lea		dctx_guardwindow(a4),a5
+	move.l		a5,.sp_guardwin(sp)
+	lea		dctx_scissorwindow(a4),a5
+	move.l		a5,.sp_scissorwin(sp)
 	move.l		dctx_framebuffer(a4),.sp_framebuf(sp)
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
@@ -63,7 +70,8 @@ _BLiT_EntityDebugVisibleXM_68k:
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_field4(sp)			
+	move.w		d0,.sp_field4(sp)
+	move.w		_g_linebytes,.sp_linebytes(sp)		
 ;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
 ;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
 ;	move.w		.snapy+2(a6),.sp_snapy(sp)	; todo: ditto
@@ -73,9 +81,10 @@ _BLiT_EntityDebugVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
-	add.w		dctx_clipwindow_x2p(a4),d0
-	sub.w		dctx_clipwindow_x1p(a4),d0
-	add.w		dctx_guardx(a4),d0
+	add.w		dctx_guardwindow_xs(a4),d0
+;	add.w		dctx_scissorwin_x2p(a4),d0
+;	sub.w		dctx_scissorwin_x1p(a4),d0
+;	add.w		dctx_guardx(a4),d0
 	move.w		d0,.sp_pxymax_(sp)
 *-------------------------------------------------------*
 *	initial conditions
@@ -168,7 +177,7 @@ enable_clipping	set	1				; enable full xy clipping
 *-------------------------------------------------------*
 
 ;	move.l		usp,a5
-;	move.l		a5,_drawcontext+dctx_clearstack_tide
+;	move.l		a5,_g_drawcontext+dctx_clearstack_tide
 
 *-------------------------------------------------------*
 
@@ -231,8 +240,8 @@ _EntityInteractVisibleXM_68k:
 
 	move.l		_g_pe_viewport,a2
 	move.w		ent_frx(a2),d1
-;	add.w		dctx_clipwindow_x2(a4),d1
-;	sub.w		dctx_clipwindow_x1(a4),d1	
+;	add.w		dctx_scissorwin_x2(a4),d1
+;	sub.w		dctx_scissorwin_x1(a4),d1	
 	add.w		.vxs+2(a6),d1
 	add.w		.vxg+2(a6),d1
 	add.w		.vxg+2(a6),d1
@@ -240,8 +249,8 @@ _EntityInteractVisibleXM_68k:
 
 	move.w		ent_fry(a2),d2
 ;	add.w		#240+(32*2),d2
-;	add.w		dctx_clipwindow_y2(a4),d2
-;	sub.w		dctx_clipwindow_y1(a4),d2
+;	add.w		dctx_scissorwin_y2(a4),d2
+;	sub.w		dctx_scissorwin_y1(a4),d2
 ;	add.w		dctx_guardy(a4),d2	
 ;	add.w		dctx_guardy(a4),d2	
 	add.w		.vys+2(a6),d2
@@ -638,7 +647,7 @@ _BLiT_EntityOccludeVisibleXM_68k:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-	emitframe_draw_vars
+			emitframe_draw_vars
 *-------------------------------------------------------*
 .sp_frame_:		
 *-------------------------------------------------------*
@@ -655,6 +664,12 @@ _BLiT_EntityOccludeVisibleXM_68k:
 *	load C args to local frame
 *-------------------------------------------------------*
 	move.l		.pctx(a6),a4
+	move.l		a4,.sp_dctx(sp)
+	lea		dctx_guardwindow(a4),a5
+	move.l		a5,.sp_guardwin(sp)
+	lea		dctx_scissorwindow(a4),a5
+	move.l		a5,.sp_scissorwin(sp)
+	;
 	move.l		dctx_framebuffer(a4),.sp_framebuf(sp)
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
@@ -663,7 +678,8 @@ _BLiT_EntityOccludeVisibleXM_68k:
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_cfield4(sp)			
+	move.w		d0,.sp_cfield4(sp)
+	move.w		_g_linebytes,.sp_linebytes(sp)		
 ;	move.w		dctx_guardx(a4),.sp_guardx(sp)
 ;	move.l		.pdst(a6),.sp_framebuf(sp)	; todo: should be part of a framebuffer context, not separate arg
 ;	move.w		.snapx+2(a6),.sp_snapx(sp)	; todo: ditto
@@ -674,9 +690,10 @@ _BLiT_EntityOccludeVisibleXM_68k:
 *-------------------------------------------------------*
 	move.l		_g_pe_viewport,a0
 	move.w		ent_frx(a0),d0
-	add.w		dctx_guardx(a4),d0
-	add.w		dctx_clipwindow_x2p(a4),d0
-	sub.w		dctx_clipwindow_x1p(a4),d0
+	add.w		dctx_guardwindow_xs(a4),d0
+;	add.w		dctx_guardx(a4),d0
+;	add.w		dctx_scissorwin_x2p(a4),d0
+;	sub.w		dctx_scissorwin_x1p(a4),d0
 	move.w		d0,.sp_pxymax_(sp)
 *-------------------------------------------------------*
 *	initial conditions
@@ -756,9 +773,12 @@ _BLiT_EntityOccludeVisibleXM_68k:
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
 
+	move.l		.sp_guardwin(sp),a2
+	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.STE_EntityOccludeVisibleXM_EMXSPR_no	
+
 	move.w		(a0),d0
 	beq.s		.STE_EntityOccludeVisibleXM_EMXSPR_no
-	
+
 	setraster	#$ff0
 	
 	lea		(a0,d0.w),a0		
@@ -842,6 +862,9 @@ _BLiT_EntityOccludeVisibleXM_68k:
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
+
+	move.l		.sp_guardwin(sp),a2
+	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.STE_EntityOccludeVisibleXM_EMSPR_no	
 
 	move.w		(a0),d0
 	beq.s		.STE_EntityOccludeVisibleXM_EMSPR_no

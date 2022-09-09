@@ -12,6 +12,8 @@
 
 #include "common_cpp.h"
 
+#include "system.h"
+
 #include "compress.h"
 
 #include "worldmap.h"
@@ -238,28 +240,102 @@ bool worldmap::load_csv(const char* const _filename, s16 _w, s16 _h, MapFormat _
 	return success;
 }	
 
-s32 worldmap::allocate(MapFormat _format)
+s16 worldmap::row_datawords(MapFormat _format, s16 _rowsize)
 {
-	// allocate space (+overrun padding)
-	s32 mapspace = header_.width * header_.height;
-	s32 allocspace = mapspace;
+	s16 datawords = _rowsize;
+
 	switch (_format)
 	{
+	default:
 	case MapFormat_PLAYFIELD:
-		allocspace = allocspace << 1;
-		break;
 	case MapFormat_32:
 		break;
 	case MapFormat_16:
-		allocspace = (allocspace+1) >> 1;
+		datawords = (datawords+1) >> 1;
 		break;
 	case MapFormat_8:
-		allocspace = (allocspace+3) >> 2;
+		datawords = (datawords+3) >> 2;
 		break;
 	};
 
-	map_ = mapalloc_ = new s32[allocspace];
+	return datawords;
+}
 
+s32 worldmap::allocate(MapFormat _format)
+{
+	int tilestep = header_.tilestep;
+	if (tilestep == 0)
+		tilestep = 4;
+
+	// allocate space (+overrun padding)
+	s16 rowsize = row_datawords(_format, header_.width);
+
+	s16 alloc_height = header_.height;
+	padrows_pre_ = 0;
+
+	// special case for playfields - overrun padding required before/after active window
+	if (_format == MapFormat_PLAYFIELD)
+	{
+		// if vscroll specified...
+		if (hvsf_ & 2)
+		{
+			// scroll safety margin (tilesize*2)
+			padrows_pre_ += 2;
+			// add guardband
+			padrows_pre_ += (guardy_ + (1<<tilestep)-1) >> tilestep;
+			// can't pad by more than the size of the map itself
+			padrows_pre_ = xmin(padrows_pre_, header_.height);
+		}
+		else
+		{
+			// +1 rows enough for hscroll padding
+			padrows_pre_ += 1;
+		}
+		//
+		alloc_height += padrows_pre_;
+		//
+		// world map area
+		//
+		// viewport copy
+		if (hvsf_ & 2)
+		{
+			switch (tilestep)
+			{
+			case 3:
+				padrows_post_ += (272 + guardy_) >> 3;
+				break;
+			case 4:
+				padrows_post_ += (272 + guardy_) >> 4;
+				break;
+			default:
+				// error
+				eprintf("error: unsupported tilesize\n");
+				break;
+			}
+		}
+		else
+		{
+			// +2 rows enough for hscroll padding
+			padrows_post_ += 2;
+		}
+
+		// can't pad by more than the size of the map itself
+		padrows_post_ = xmin(padrows_post_, header_.height);
+
+		alloc_height += padrows_post_;
+	}
+
+	// alloc space for map, pre + post padding
+	s32 allocspace = rowsize * alloc_height;
+	mapalloc_ = new s32[allocspace];
+
+	// map begins after pre padding
+	map_ = mapalloc_ + (rowsize * padrows_pre_);
+
+	// return just the loaded map size, without pre/post padding
+	s32 mapspace = rowsize * header_.height;
+
+	// failure to alloc should return error
 	if (!mapalloc_)
 		mapspace = 0;
 
@@ -268,13 +344,13 @@ s32 worldmap::allocate(MapFormat _format)
 
 void worldmap::prepare_playfield(s32 _mapspace)
 {
+	s16 rowsize = header_.width;
+
 	int tilestep = header_.tilestep;
 	if (tilestep == 0)
 		tilestep = 4;
 
-	int overlay = 0;
-	if (header_.flags & 8)
-		overlay = 1;
+	int overlay = (header_.flags >> 3) & 1;
 
 	int preshift = (tilestep + tilestep + 2) - 3 + overlay;
 
@@ -284,9 +360,23 @@ void worldmap::prepare_playfield(s32 _mapspace)
 		map_[m] <<= preshift;
 	}
 
+	// fill rows before active map area, to catch map indexing overruns when scroll position is
+	// near 0 or guardband is active
+	{
+		s16 rs = header_.height - padrows_pre_;
+		s16 rowcount = padrows_pre_;
+		qmemcpy(&mapalloc_[0], &map_[rowsize * rs], rowcount*rowsize*sizeof(s32));
+	}
+
 	// fill additional rows with copy of map data, to catch map indexing overruns when 
 	// VScroll is enabled but map is smaller than virtual page size + vscroll margin
-	qmemcpy(&map_[_mapspace], &map_[0], _mapspace*sizeof(s32));
+	{
+		s16 rd = header_.height;
+		s16 rowcount = padrows_post_;
+		qmemcpy(&map_[rowsize * rd], &map_[0], rowcount*rowsize*sizeof(s32));
+	}
+
+	//qmemcpy(&map_[_mapspace], &map_[0], _mapspace*sizeof(s32));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -8,6 +8,16 @@
 #define system_h_
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+#if !defined(AGT_CONFIG_SYS_GUARDX)
+#define AGT_CONFIG_SYS_GUARDX (32)
+#endif
+
+#if !defined(AGT_CONFIG_SYS_GUARDY)
+#define AGT_CONFIG_SYS_GUARDY (32)
+#endif
+
+// ---------------------------------------------------------------------------------------------------------------------
 //	Include shared console code if any of the supported consoles is enabled
 
 #if defined(AGT_CONFIG_DEBUG_CONSOLE_NATIVE) || defined(AGT_CONFIG_DEBUG_CONSOLE_UDEV)

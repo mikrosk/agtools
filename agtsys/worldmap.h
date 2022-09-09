@@ -21,6 +21,22 @@ enum MapFormat
 	MapFormat_8
 };
 
+enum HScrollMode
+{
+	HScrollMode_NONE,
+	HScrollMode_MARGIN,		// note: not yet supported
+	HScrollMode_LOOPBACK,	// note: likely to be deprecated - scanwalk is cheaper
+	HScrollMode_SCANWALK
+};
+
+enum VScrollMode
+{
+	VScrollMode_NONE,
+	VScrollMode_MARGIN,		// note: not yet supported
+	VScrollMode_LOOPBACK
+};
+
+
 class agt_tilepos
 {
 public:
@@ -57,6 +73,11 @@ public:
 
 	s32* map_;
 	s32* mapalloc_;
+	s16 guardx_;
+	s16 guardy_;
+	s16 hvsf_;
+	s16 padrows_pre_;
+	s16 padrows_post_;
 
 	// ---------------------------------------------------------------------------------------------------------------------
 	// internal stuff
@@ -72,6 +93,8 @@ private:
 		header_.height = 0;
 	}
 
+	s16 row_datawords(MapFormat _format, s16 _rowsize);
+
 	s32 allocate(MapFormat _format);
 
 	// specific step to prepare map for playfield tile engine. not required for collision maps etc.
@@ -82,9 +105,18 @@ private:
 
 public:
 
-	worldmap()
+	worldmap
+	(
+		int _guardx = AGT_CONFIG_SYS_GUARDX, 
+		int _guardy = AGT_CONFIG_SYS_GUARDY,
+		HScrollMode _hsm = HScrollMode_SCANWALK, 
+		VScrollMode _vsm = VScrollMode_LOOPBACK
+	)
 		: map_(0), 
-		  mapalloc_(0)
+		  mapalloc_(0),
+		  //
+		  guardx_(0), guardy_(0),
+		  hvsf_(((_hsm != HScrollMode_NONE) ? 1 : 0) | ((_vsm != VScrollMode_NONE) ? 2 : 0))
 	{
 	}
 

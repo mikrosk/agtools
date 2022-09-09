@@ -35,19 +35,23 @@ enable_x_clipping	set	0
 *	guardband test for optimized fastpath
 *-------------------------------------------------------*
 	
-	lea		_g_spr_culltest,a2
+	;lea		_g_clipwinq_gg,a2
 
 	.if		(enable_x_clipping)
-	sprite_cullxr	a2,d1,d3,d0,d6,.BLiT_EMXSpr_GuardBand_4BPL
+	move.l		.sp_scissorwin(sp),a2
+	sprite_guardxr	a2,d1,d3,d0,d6,.BLiT_EMXSpr_GuardBand_4BPL
 	.else
-	sprite_cullxr	a2,d1,d3,d0,d6,.BLiT_EMXSpr_4BPL_end	
+	move.l		.sp_guardwin(sp),a2
+	sprite_guardxr	a2,d1,d3,d0,d6,.BLiT_EMXSpr_4BPL_end	
+	lea		dctx_scissorwindow-dctx_guardwindow(a2),a2
 	.endif	
-	sprite_cullya	a2,d2,d4,d0,d6,.BLiT_EMXSpr_NoClip_4BPL_go
+
+	sprite_guardya	a2,d2,d4,d0,d6,.BLiT_EMXSpr_NoClip_4BPL_go
 	; otherwise fallthrough to guardclip
 
 
 ;	; sprite clipping window
-;	lea		_g_spr_window,a2
+;	lea		_g_clipwin_gpp,a2
 ;	
 ;	; todo: opt using carry window
 ;
@@ -127,7 +131,8 @@ enable_x_clipping	set	0
 
 	.if		(enable_clipping)
 	
-	lea		_g_spr_window,a2
+;	lea		_g_clipwin_gpp,a2
+	move.l		.sp_scissorwin(sp),a2
 	
 ;	cmp.w		clip_y1(a2),d2
 ;	bmi.s		.emx_clip_unsafe_top
@@ -150,14 +155,14 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 *	top edge
 *-------------------------------------------------------*
-	cmp.w		clip_y1(a2),d2
+	cmp.w		clip_win_y(a2),d2
 	bpl.s		.emx_clip_safe_top
 *-------------------------------------------------------*
 *	top clipped
 *-------------------------------------------------------*
 .emx_clip_unsafe_top:
 *-------------------------------------------------------*
-	move.w		clip_y1(a2),d5
+	move.w		clip_win_y(a2),d5
 	; relative to clipwindow
 	sub.w		d5,d2
 	; crop lines
@@ -180,7 +185,7 @@ enable_x_clipping	set	0
 	add.w		d5,a6
 		
 	; relative to world
-	move.w		clip_y1(a2),d2
+	move.w		clip_win_y(a2),d2
 	; ASSUMPTION: sprite is not big enough to cross top+bottom
 	bra.s		.emx_clip_safe_bot
 
@@ -193,7 +198,7 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 	move.w		d2,d0
 	add.w		d4,d0				; xr	
-	sub.w		clip_y2(a2),d0			; xr - cx2
+	sub.w		clip_win_y2(a2),d0		; xr - cx2
 	ble.s		.emx_clip_safe_bot
 *-------------------------------------------------------*
 *	bottom clipped	
@@ -210,7 +215,7 @@ enable_x_clipping	set	0
 *	left edge
 *-------------------------------------------------------*
 	; NISR: no initial source read (i.e. shiftregisters preloaded with 0)
-	cmp.w		clip_x1(a2),d1
+	cmp.w		clip_win_x(a2),d1
 	bpl.s		.emx_clip_safe_left
 *-------------------------------------------------------*
 *	left clipped
@@ -222,7 +227,7 @@ enable_x_clipping	set	0
 	or.b		#$80,.sp_skew(sp)
 	
 	; relative to clipwindow
-	sub.w		clip_x1(a2),d1
+	sub.w		clip_win_x(a2),d1
 
 	; adjust dest width (ignore FISR part)
 	
@@ -254,7 +259,7 @@ enable_x_clipping	set	0
 	lea		-2(a3,d5.w),a3			; adjust (+ FISR)
 
 	; relative to world
-	move.w		clip_x1(a2),d1	
+	move.w		clip_win_x(a2),d1	
 	; ASSUMPTION: sprite is not big enough to cross left+right
 	bra		.BLiT_EMXSpr_Clip_4BPL_xclipped_go
 	
@@ -268,7 +273,7 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 	move.w		d1,d0
 	add.w		d3,d0				; xr	
-	sub.w		clip_x2(a2),d0			; xr - cx2
+	sub.w		clip_win_x2(a2),d0		; xr - cx2
 	ble		.emx_clip_safe_right
 *-------------------------------------------------------*
 *	right clipped
@@ -345,12 +350,10 @@ enable_x_clipping	set	0
 ;	add.l		d2,a1
 
 	; address yline	
-	; todo: worth the overhead? table pointer needs refetched...
 	move.l		.sp_linetable(sp),a4
 	add.w		d2,d2
 	add.w		d2,d2
-	add.l		(a4,d2.w),a1
-	
+	add.l		(a4,d2.w),a1	; 38c vs 56c for muls (28c excl. linetable fetch)
 	
 	; find destination word width of shifted sprite
 ;	moveq		#16-1,d6
@@ -384,7 +387,8 @@ enable_x_clipping	set	0
 
 
 	; dst skip adjust by dst width	
-	move.w		_g_linebytes,a4
+;	move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 	lsr.w		#1,d6				; *8
 	sub.w		d6,a4
 
@@ -484,7 +488,8 @@ enable_x_clipping	set	0
 	lea		BLiTEM1.w,a2
 	moveq		#$c0,d1
 	moveq		#4,d2
-	move.w		_g_linebytes,d3
+	;move.w		_g_linebytes,d3
+	move.w		.sp_linebytes(sp),d3
 
 *-------------------------------------------------------*
 
@@ -616,9 +621,14 @@ enable_x_clipping	set	0
 	; dst yoffset (line)
 	; todo: just use playfield linetable here
 ;	mulu.w		#linebytes,d2
-	mulu.w		_g_linebytes,d2
-	add.l		d2,a1
+;	mulu.w		_g_linebytes,d2
+;	add.l		d2,a1
 	
+	; address yline	
+	move.l		.sp_linetable(sp),a4
+	add.w		d2,d2
+	add.w		d2,d2
+	add.l		(a4,d2.w),a1	; 38c vs 56c for muls (28c excl. linetable fetch)
 	
 	; find destination word width of shifted sprite
 
@@ -643,7 +653,8 @@ enable_x_clipping	set	0
 .emx_EFSR1:
 
 	; dst skip adjust by dst width	
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 	lsr.w		#1,d6
 	sub.w		d6,a4
 
@@ -886,27 +897,29 @@ enable_x_clipping	set	0
 *	initial source skip (unclipped case)
 *-------------------------------------------------------*
 
+	move.l		.sp_guardwin(sp),a2
+	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.BLiT_EMXSpr_4BPL_end
 	
 	; sprite clipping window
-	lea		_g_spr_window,a2
-
-	cmp.w		(a2)+,d1
-	bmi.s		.BLiT_EMXSpr_4BPL_end
-
-	cmp.w		(a2)+,d2
-	bmi.s		.BLiT_EMXSpr_4BPL_end
-
-	move.w		d1,d0
-	add.w		d3,d0				; xr	
-	sub.w		(a2)+,d0			; xr - cx2
-	bgt.s		.BLiT_EMXSpr_4BPL_end
-
-	move.w		d2,d0
-	add.w		d4,d0				; yr	
-	sub.w		(a2)+,d0			; yr - cy2
-	ble.s		.BLiT_EMXSpr_NoClip_4BPL_go
-
-	bra.s		.BLiT_EMXSpr_4BPL_end
+;	lea		_g_clipwin_gpp,a2
+;
+;	cmp.w		(a2)+,d1
+;	bmi.s		.BLiT_EMXSpr_4BPL_end
+;
+;	cmp.w		(a2)+,d2
+;	bmi.s		.BLiT_EMXSpr_4BPL_end
+;
+;	move.w		d1,d0
+;	add.w		d3,d0				; xr	
+;	sub.w		(a2)+,d0			; xr - cx2
+;	bgt.s		.BLiT_EMXSpr_4BPL_end
+;
+;	move.w		d2,d0
+;	add.w		d4,d0				; yr	
+;	sub.w		(a2)+,d0			; yr - cy2
+;	ble.s		.BLiT_EMXSpr_NoClip_4BPL_go
+;
+;	bra.s		.BLiT_EMXSpr_4BPL_end
 	
 
 	.endif		;(enable_clipping)

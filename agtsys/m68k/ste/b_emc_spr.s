@@ -3,6 +3,8 @@
 *=======================================================*
 * 	EMSPR compound blitter sprite implementation
 *-------------------------------------------------------*
+*	paths: EntityDraw_EMSPR
+*-------------------------------------------------------*
 *	max source xsize: -
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
@@ -27,8 +29,9 @@
 	.if		(enable_clipping)
 	
 	; guardx reject test (no x clipping in compound EMS)
-	lea		_g_spr_culltest,a2
-	sprite_cullxr	a2,d1,d3,d0,d6,.BLiT_EMCSpr_4BPL_end_all
+	;lea		_g_clipwinq_gg,a2
+	move.l		.sp_guardwin(sp),a2
+	sprite_guardxr	a2,d1,d3,d0,d6,.BLiT_EMCSpr_4BPL_end_all
 
 	.endif
 	
@@ -126,19 +129,20 @@
 
 	.if		(enable_clipping)
 
-	lea		_g_spr_window,a2
+;	lea		_g_clipwin_gpp,a2
+	move.l		.sp_scissorwin(sp),a2
 
 *-------------------------------------------------------*
 *	top edge
 *-------------------------------------------------------*
-	cmp.w		clip_y1(a2),d2
+	cmp.w		clip_win_y(a2),d2
 	bpl.s		.BLiT_EMCSpr_safetop
 *-------------------------------------------------------*
 *	top clipped
 *-------------------------------------------------------*
 .BLiT_EMCSpr_unsafetop:
 *-------------------------------------------------------*
-	move.w		clip_y1(a2),d5
+	move.w		clip_win_y(a2),d5
 	; relative to clipwindow
 	sub.w		d5,d2
 	; crop lines
@@ -157,7 +161,7 @@
 	move.w		d2,.emsc_cmp_masklineoff
 
 	; relative to world
-	move.w		clip_y1(a2),d2
+	move.w		clip_win_y(a2),d2
 	; ASSUMPTION: sprite is not big enough to cross top+bottom
 ;	bra.s		.BLiT_EMCSpr_safebot
 
@@ -170,7 +174,7 @@
 *-------------------------------------------------------*
 	move.w		d2,d0
 	add.w		d4,d0				; xr
-	sub.w		clip_y2(a2),d0			; xr - cx2
+	sub.w		clip_win_y2(a2),d0			; xr - cx2
 	ble.s		.BLiT_EMCSpr_safebot
 *-------------------------------------------------------*
 *	bottom clipped
@@ -217,9 +221,14 @@
 
 	; dst yoffset (line)
 	; todo: just use playfield linetable here
-;	mulu.w		#linebytes,d2
-	mulu.w		_g_linebytes,d2
-	add.l		d2,a1
+;	mulu.w		_g_linebytes,d2
+;	add.l		d2,a1
+
+	; address yline	
+	move.l		.sp_linetable(sp),a4
+	add.w		d2,d2
+	add.w		d2,d2
+	add.l		(a4,d2.w),a1			; 38c vs 56c for muls (28c excl. linetable fetch)
 
 
 	; find destination word width of whole sprite, all composites
@@ -233,7 +242,8 @@
 	and.w		d0,d6				; wceil(rshift+w)
 
 	; dst skip adjust by dst width
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 	lsr.w		#1,d6
 	sub.w		d6,a4
 	lsr.w		#(4-1),d6		; >>4 *2
@@ -327,7 +337,8 @@
 	lea		BLiTEM1.w,a2
 	moveq		#$c0,d1
 	moveq		#4,d2
-	move.w		_g_linebytes,d3
+	;move.w		_g_linebytes,d3
+	move.w		.sp_linebytes(sp),d3
 
 *-------------------------------------------------------*
 

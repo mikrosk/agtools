@@ -1,11 +1,12 @@
 *=======================================================*
 *	[A]tari [G]ame [T]ools / dml 2016
 *=======================================================*
-* 	EMXSPR compound blitter gensprite implementation
+* 	EMXSPRUR compound blitter gensprite implementation
 *-------------------------------------------------------*
 *	max source xsize: -
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
+
 	
 	sprite_sc_frame	a0,d0,_AGT_Exception_EMXFrame_68k
 			
@@ -21,35 +22,40 @@
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
-
 		
 *-------------------------------------------------------*
 *	guardband test for optimized fastpath
 *-------------------------------------------------------*
 
 	.if		(enable_clipping)
-	
+
+	move.l		.sp_guardwin(sp),a2
+	sprite_guardxr	a2,d1,d3,d0,d6,.BLiT_EMXNR_4BPL_end
+
+	;lea		dctx_scissorwindow-dctx_guardwindow(a2),a2
+	move.l		.sp_scissorwin(sp),a2
+	sprite_guardya	a2,d2,d4,d0,d6,.BLiT_EMXNR_NoClip_4BPL_go
+			
 	; sprite clipping window
-	lea		_g_spr_window,a2
-	
-
-	; todo: opt using carry window
-
-	cmp.w		(a2)+,d1
-	bmi		.BLiT_EMXNR_4BPL_end
-
-	cmp.w		(a2)+,d2
-	bmi.s		.BLiT_EMXNR_GuardBand_4BPL
-
-	move.w		d1,d0
-	add.w		d3,d0				; xr	
-	sub.w		(a2)+,d0			; xr - cx2
-	bgt		.BLiT_EMXNR_4BPL_end
-
-	move.w		d2,d0
-	add.w		d4,d0				; yr	
-	sub.w		(a2)+,d0			; yr - cy2
-	ble		.BLiT_EMXNR_NoClip_4BPL_go
+;	lea		_g_clipwin_gpp,a2
+;	
+;	; todo: opt using carry window
+;
+;	cmp.w		(a2)+,d1
+;	bmi		.BLiT_EMXNR_4BPL_end
+;
+;	cmp.w		(a2)+,d2
+;	bmi.s		.BLiT_EMXNR_GuardBand_4BPL
+;
+;	move.w		d1,d0
+;	add.w		d3,d0				; xr	
+;	sub.w		(a2)+,d0			; xr - cx2
+;	bgt		.BLiT_EMXNR_4BPL_end
+;
+;	move.w		d2,d0
+;	add.w		d4,d0				; yr	
+;	sub.w		(a2)+,d0			; yr - cy2
+;	ble		.BLiT_EMXNR_NoClip_4BPL_go
 	
 	.endif
 
@@ -127,19 +133,20 @@
 
 	.if		(enable_clipping)
 
-	lea		_g_spr_window,a2
+;	lea		_g_clipwin_gpp,a2
+	move.l		.sp_scissorwin(sp),a2
 
 *-------------------------------------------------------*
 *	top edge
 *-------------------------------------------------------*
-	cmp.w		clip_y1(a2),d2
+	cmp.w		clip_win_y(a2),d2
 	bpl.s		.BLiT_EMXNR_YC_safetop
 *-------------------------------------------------------*
 *	top clipped
 *-------------------------------------------------------*
 .BLiT_EMXNR_YC_unsafetop:
 *-------------------------------------------------------*
-	move.w		clip_y1(a2),d5
+	move.w		clip_win_y(a2),d5
 	; relative to clipwindow
 	sub.w		d5,d2
 	; crop lines
@@ -158,7 +165,7 @@
 	move.w		d2,.emxnryc_cmp_masklineoff
 
 	; relative to world
-	move.w		clip_y1(a2),d2
+	move.w		clip_win_y(a2),d2
 	; ASSUMPTION: sprite is not big enough to cross top+bottom
 ;	bra.s		.BLiT_EMXNR_YC_safebot
 
@@ -171,7 +178,7 @@
 *-------------------------------------------------------*
 	move.w		d2,d0
 	add.w		d4,d0				; xr
-	sub.w		clip_y2(a2),d0			; xr - cx2
+	sub.w		clip_win_y2(a2),d0		; xr - cx2
 	ble.s		.BLiT_EMXNR_YC_safebot
 *-------------------------------------------------------*
 *	bottom clipped
@@ -204,9 +211,15 @@
 	; dst yoffset (line)
 	; todo: just use playfield linetable here
 ;	mulu.w		#linebytes,d2
-	mulu.w		_g_linebytes,d2
-	add.l		d2,a1
+;	mulu.w		_g_linebytes,d2
+;	add.l		d2,a1
 
+	; address yline	
+	move.l		.sp_linetable(sp),a4
+	add.w		d2,d2
+	add.w		d2,d2
+	add.l		(a4,d2.w),a1	; 38c vs 56c for muls (28c excl. linetable fetch)
+	
 	; find destination word width of whole sprite, all composites
 	; to produce a single sprite restore rectangle
 	
@@ -218,7 +231,8 @@
 	and.w		d0,d6				; wceil(rshift+w)
 
 	; dst skip adjust by dst width
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 	lsr.w		#1,d6
 	sub.w		d6,a4
 	lsr.w		#(4-1),d6		; >>4 *2
@@ -252,7 +266,8 @@
 	lea		BLiTEM1.w,a2
 	moveq		#$c0,d1
 	moveq		#4,d2
-	move.w		_g_linebytes,d3
+	;move.w		_g_linebytes,d3
+	move.w		.sp_linebytes(sp),d3
 
 *-------------------------------------------------------*
 
@@ -461,26 +476,29 @@
 
 	.if		(enable_clipping)
 	
+	move.l		.sp_guardwin(sp),a2
+	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.BLiT_EMXNR_4BPL_end
+		
 	; sprite clipping window
-	lea		_g_spr_window,a2
-
-	cmp.w		(a2)+,d1
-	bmi		.BLiT_EMXNR_4BPL_end
-
-	cmp.w		(a2)+,d2
-	bmi		.BLiT_EMXNR_4BPL_end
-
-	move.w		d1,d0
-	add.w		d3,d0				; xr	
-	sub.w		(a2)+,d0			; xr - cx2
-	bgt		.BLiT_EMXNR_4BPL_end
-
-	move.w		d2,d0
-	add.w		d4,d0				; yr	
-	sub.w		(a2)+,d0			; yr - cy2
-	ble.s		.BLiT_EMXNR_NoClip_4BPL_go
-
-	bra		.BLiT_EMXNR_4BPL_end
+;	lea		_g_clipwin_gpp,a2
+;
+;	cmp.w		(a2)+,d1
+;	bmi		.BLiT_EMXNR_4BPL_end
+;
+;	cmp.w		(a2)+,d2
+;	bmi		.BLiT_EMXNR_4BPL_end
+;
+;	move.w		d1,d0
+;	add.w		d3,d0				; xr	
+;	sub.w		(a2)+,d0			; xr - cx2
+;	bgt		.BLiT_EMXNR_4BPL_end
+;
+;	move.w		d2,d0
+;	add.w		d4,d0				; yr	
+;	sub.w		(a2)+,d0			; yr - cy2
+;	ble.s		.BLiT_EMXNR_NoClip_4BPL_go
+;
+;	bra		.BLiT_EMXNR_4BPL_end
 	
 	.endif
 	
@@ -519,7 +537,8 @@
 	and.w		d0,d6				; wceil(rshift+w)
 
 	; dst skip adjust by dst width
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 	lsr.w		#1,d6
 	sub.w		d6,a4
 	lsr.w		#(4-1),d6		; >>4 *2
@@ -536,7 +555,7 @@
 	move.l		.sp_linetable(sp),a3
 	add.w		d2,d2
 	add.w		d2,d2
-	add.l		(a3,d2.w),a1
+	add.l		(a3,d2.w),a1	; 38c vs 56c for muls (28c excl. linetable fetch)
 	
 	lea		$00ff8a38,a0
 	lea		$00ff8a28,a2

@@ -76,7 +76,8 @@ inline T xabs(T x) { return x >= T(0) ? x : -x; }
 template <class T>
 inline T xsign(const T& _v) { return (_v > T(0)) ? T(1) : ((_v < T(0)) ? T(-1) : T(0)); }
 
-// sign-safe modulo(x)
+// sign-safe modulo (a % b)
+// note: (0 < b < 2^<bits>)
 template<class T> inline T tmod(T a, T b)
 {
 	T r = a % b;
@@ -85,8 +86,8 @@ template<class T> inline T tmod(T a, T b)
 	return r;
 }
 
-// fast 16bit modulo(x)
-// note: only works with (b > 0)
+// sign-safe 16bit modulo (a % b)
+// note: (0 < b < 2^16)
 static inline s16 tmod16(s32 a, s16 b)
 {
 /*

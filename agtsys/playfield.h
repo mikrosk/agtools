@@ -7,6 +7,8 @@
 #ifndef playfield_h_
 #define playfield_h_
 
+//#define AGT_CONFIG_PRINT_PLAYFIELD_METRICS
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #include "drawcontext.h"
@@ -107,21 +109,6 @@ enum PFLayer
 	PFLayer_Overlay = 2,
 };
 
-enum HScrollMode
-{
-	HScrollMode_NONE,
-	HScrollMode_MARGIN,		// note: not yet supported
-	HScrollMode_LOOPBACK,	// note: likely to be deprecated - scanwalk is cheaper
-	HScrollMode_SCANWALK
-};
-
-enum VScrollMode
-{
-	VScrollMode_NONE,
-	VScrollMode_MARGIN,		// note: not yet supported
-	VScrollMode_LOOPBACK
-};
-
 enum RestoreMode
 {
 	RestoreMode_NONE,
@@ -136,6 +123,123 @@ extern "C" s16 g_xpreshift;
 //extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
 //extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 //extern "C" int STF_RestoreEdges(int _xoff);
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+class occlusionmap_t
+{
+public:
+
+	occlusionmap_t()
+		: oct_alloc_(nullptr),
+		  oct_(nullptr), 
+		  oco_(nullptr),
+		  stride_(0)
+	{
+	}
+
+	void release()
+	{
+		delete[] oct_alloc_; oct_alloc_ = nullptr;
+		oct_ = oco_ = nullptr;
+	}
+
+	void allocate(s16 _xt, s16 _yt, s16 _gxt, s16 _gyt)
+	{
+		// 1 word per 16 tiles, rounded up to 32 tiles (1 longword, 32 bits)
+
+		s16 guardx_tiles = ((_gxt + 31) & -32);
+		s16 guardx_words = (guardx_tiles >> 4);
+		//
+		s16 stride_tiles = ((_xt + 31) & -32) + guardx_tiles;
+		s16 stride_words = (stride_tiles >> 4);
+		//
+		s16 guardy_words = stride_words * _gyt;
+		s16 guard_words = guardx_words + guardy_words;
+
+		stride_ = stride_words << 1;
+
+		s32 size_words = stride_words * (_yt + (_gyt<<1));
+
+		oct_alloc_ = new s16[size_words << 1];
+		for (int w = 0; w < size_words; w++)
+			oct_alloc_[w] = -1;
+
+		oct_ = &oct_alloc_[0 + guard_words];
+		oco_ = &oct_[size_words];
+
+#if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
+		printf("ocm.stride_tiles: %d\n", (int)stride_tiles); 
+		printf("ocm.stride_words: %d\n", (int)stride_words); 
+		printf("ocm.size_words: %d\n", (int)size_words); 
+#endif
+	}
+
+	~occlusionmap_t()
+	{
+		release();
+	}
+
+	s16 *oct_alloc_;
+	s16 *oct_;
+	s16 *oco_;
+	s16 stride_;
+};
+
+class dirtytilemap_t
+{
+public:
+
+	dirtytilemap_t()
+		: dirtymask_(nullptr),
+			dirtymasklines_(nullptr),
+			dirtymaskwidth_(0),
+			dirtymaskstride_(0)
+	{
+	}
+
+	void release()
+	{
+		delete[] dirtymask_; dirtymask_ = nullptr;
+		delete[] dirtymasklines_; dirtymasklines_ = nullptr;
+	}
+
+	void allocate(s16 _xt, s16 _yt)
+	{
+		// stride-rounding needs to match OCM system (32 tile bits) for integration step
+//			int stride_blocks = ((_xt + 7) >> 3);
+		int stride_blocks = ((_xt + 31) & -32) >> 3;
+
+		dirtymaskwidth_ = stride_blocks;
+		dirtymaskstride_ = dirtymaskwidth_ << 1;
+
+		// 1 word per 8 bits of mask (8 unused bits)
+		s32 size_words = dirtymaskwidth_ * _yt;
+
+		dirtymask_ = new s16[size_words];
+		//qmemclr(dirtymask_, size_words << 1);
+
+		dirtymasklines_ = new s16*[_yt];
+		for (s16 n = 0; n < _yt; ++n)
+			dirtymasklines_[n] = &dirtymask_[n * dirtymaskwidth_];
+
+#if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
+		printf("dtm.stride_blocks: %d\n", (int)stride_blocks); 
+		printf("dtm.stride: %d\n", (int)dirtymaskstride_); 
+		printf("dtm.size_words: %d\n", (int)size_words); 
+#endif
+	}
+
+	~dirtytilemap_t()
+	{
+		release();
+	}
+
+	s16* dirtymask_;
+	s16** dirtymasklines_;
+	s16 dirtymaskwidth_;
+	s16 dirtymaskstride_;
+};
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -237,7 +341,10 @@ enum PlayfieldAttributes
 	PFA_TileAnimation	= 1<<0,		// allow map to be edited on-the-fly, with only the modified tiles refreshed on the next update
 	PFA_OcclusionMaps	= 1<<1,		// use a different mechanism to restore very large sprites with embedded occlusion maps
 	PFA_DualLayer		= 1<<2,		// [W.I.P] draw a second transparent/masked map on top of the main opaque map, for detail variation
-	PFA_DualFieldSpr	= 1<<3		// draw dual-field sprites on single-field backgrounds
+	PFA_DualFieldSpr	= 1<<3,		// draw dual-field sprites even on single-field backgrounds
+	PFA_UpdateFullTiles	= 1<<4,		// draw whole tiles in scrollmargin, (i.e. don't use the direction-speculative incremental update algorithm)
+	//
+	PFA_Defaults = PFA_None
 };
 
 // all of this might be deprecated in favour of STE-only support. maintaining STF support amid STE upgrades is a *lot* of hassle.
@@ -245,7 +352,9 @@ enum PlayfieldHardware
 {
 	PFH_STE				= 1<<0,		// use STE hardware scrolling, virtual linewidth
 	PFH_Blitter			= 1<<1,		// [TODO] has no effect, needs to be tied to blitter code which is assumed always true on STE
-	PFH_STF_SyncShift	= 1<<2		// use LJBK shifter trickery to simulate STE hardscroll on STF
+	PFH_STF_SyncShift	= 1<<2,		// use LJBK shifter trickery to simulate STE hardscroll on STF
+	//
+	PFH_Defaults = PFH_STE|PFH_Blitter
 };
 
 template 
@@ -263,12 +372,12 @@ template
 	// enable speculative tile optimization (more complicated logic, less tile drawing)
 	UpdateMode _updatemode = UpdateMode_NORMAL,
 	// enable support for various features
-	PlayfieldHardware _hwattr = PlayfieldHardware(PFH_STE|PFH_Blitter),
+	PlayfieldHardware _hwattr = PFH_Defaults,
 	// enable support for various features
-	PlayfieldAttributes _attr = PFA_None,
+	PlayfieldAttributes _attr = PFA_Defaults,
 	// guardband regions
-	int _h_guardband = 32,
-	int _v_guardband = 32, // not yet supported in hardware, uses software clipping or cull clipping
+	int _h_guardband = AGT_CONFIG_SYS_GUARDX,
+	int _v_guardband = AGT_CONFIG_SYS_GUARDY,
 	//
 	class mapmul_t = s16
 >
@@ -284,9 +393,11 @@ public:
 	static_assert(!((_attr & PFA_OcclusionMaps) && (_tilestep == 3)), "playfield config error: cannot combine occlusion maps with 8x8 tilemap! 16x16 only...");
 	static_assert(!((_attr & PFA_OcclusionMaps) && (_hscroll == HScrollMode_LOOPBACK)), "playfield config error: cannot combine occlusion maps with H_LOOPBACK");
 
-	static const int c_guardx = _h_guardband;
-	static const int c_guardy = _v_guardband;
+	static const int c_guardx = _h_guardband; //(_hscroll != HScrollMode_NONE) ? _h_guardband : 32;
+	static const int c_guardy = _v_guardband; //(_vscroll != VScrollMode_NONE) ? _v_guardband : 32;
 	static const int c_dst_linewid = (20+1+((c_guardx+15)>>4)) << 3;
+
+	static const bool c_speculative_updates = !(_attr & PFA_UpdateFullTiles);
 
 	// todo: remove
 	//static const bool _blitter = false;
@@ -336,15 +447,15 @@ public:
 	static const bool c_vdynamic_ = c_dynamic_ && c_updaterows_;
 
 	// only speculate on H axis if there is offscreen margin (only possible on STE with hscroll+linewid)
-	static const bool c_hspeculative_ = c_updatecols_ && (c_ste_ || (c_updatemode_ == UpdateMode_STF_AHEAD_MARGIN));
+	static const bool c_hspeculative_ = c_updatecols_ && ((c_ste_ && c_speculative_updates) || (c_updatemode_ == UpdateMode_STF_AHEAD_MARGIN));
 	// only speculate via buffers if we're using them (STF preshifted framebuffers)
 //	static const bool c_hbufferspeculative_ = _speculative && c_updatecols && (!_ste);
 	// always possible to speculate on V axis
-	static const bool c_vspeculative_ = /*_speculative &&*/ c_updaterows_;
+	static const bool c_vspeculative_ = /*_speculative &&*/ c_updaterows_ && c_speculative_updates;
 	static const bool c_stf_maskedspeculation_ = (c_updatemode_ == UpdateMode_STF_AHEAD_MARGIN) && !c_ste_ && c_hspeculative_/* && !c_hbufferspeculation_*/;
 
-	static const s16 c_hmargin_ = (s16)(int)c_hspeculative_;
-	static const s16 c_vmargin_ = (s16)(int)c_vspeculative_;
+	static const s16 c_hmargin_ = (s16)(int)c_hspeculative_; // 0 or 1
+	static const s16 c_vmargin_ = (s16)(int)c_vspeculative_; // 0 or 1
 
 	static const bool c_hloop_ = (_hscroll == HScrollMode_LOOPBACK);
 	static const bool c_vloop_ = (_vscroll == VScrollMode_LOOPBACK);
@@ -590,8 +701,8 @@ public:
 			  quant_vpage_y_(nullptr),
 			  modulo_vpage_x_(nullptr),
 			  modulo_vpage_y_(nullptr),
-			  lineindex_(nullptr),
-			  linemod_(nullptr)
+			  lineindex_alloc_(nullptr), lineindex_(nullptr),
+			  linemod_alloc_(nullptr), linemod_(nullptr)
 		{
 		}
 
@@ -600,66 +711,56 @@ public:
 		s16* quant_vpage_y_;
 		s16* modulo_vpage_x_;
 		s16* modulo_vpage_y_;
+		s32 *lineindex_alloc_;
+		s16 *linemod_alloc_;
 		s32 *lineindex_;
 		s16 *linemod_;
 
 		bool initialized_;
 
-		void prepare(s16 vpage_tiles_x_, s16 vpage_tiles_y_)
+		void prepare(s16 _vpage_tiles_x, s16 _vpage_tiles_y)
 		{
 			if (!initialized_)
 			{
-				s16 xo = c_max_vt_ / vpage_tiles_x_;
-				s16 yo = c_max_vt_ / vpage_tiles_y_;
-				s16 maxlines = vpage_tiles_y_ * c_tilesize_ * (c_updateR_ ? 2 : 1);
+				s16 xo = c_max_vt_ / _vpage_tiles_x;
+				s16 yo = c_max_vt_ / _vpage_tiles_y;
+				s16 maxlines = c_guardy + (_vpage_tiles_y * c_tilesize_ * (c_updateR_ ? 2 : 1));
 				
 				delete[] quant_vpage_x_; 
 				delete[] quant_vpage_y_; 
 				delete[] modulo_vpage_x_; 
 				delete[] modulo_vpage_y_; 
-				delete[] lineindex_;
-				delete[] linemod_;
+				delete[] lineindex_alloc_;
+				delete[] linemod_alloc_;
 
 				quant_vpage_x_ = new s16[c_max_vt_<<1];
 				quant_vpage_y_ = new s16[c_max_vt_<<1];
 				modulo_vpage_x_ = new s16[c_max_vt_<<1];
 				modulo_vpage_y_ = new s16[c_max_vt_<<1];
-				lineindex_ = new s32[maxlines];
-				linemod_ = new s16[maxlines];
+				lineindex_alloc_ = new s32[maxlines];
+				linemod_alloc_ = new s16[maxlines];
 
 				for (s16 n = 0; n < c_max_vt_<<1; ++n)
 				{
 					s16 v = n-c_max_vt_;
-					quant_vpage_x_[n] = ((v + (xo * vpage_tiles_x_)) / vpage_tiles_x_) - xo;
-					quant_vpage_y_[n] = ((v + (yo * vpage_tiles_y_)) / vpage_tiles_y_) - yo;
-					modulo_vpage_x_[n] = tmod16(v, vpage_tiles_x_);
-					modulo_vpage_y_[n] = tmod16(v, vpage_tiles_y_);
+					quant_vpage_x_[n] = ((v + (xo * _vpage_tiles_x)) / _vpage_tiles_x) - xo;
+					quant_vpage_y_[n] = ((v + (yo * _vpage_tiles_y)) / _vpage_tiles_y) - yo;
+					modulo_vpage_x_[n] = tmod16(v, _vpage_tiles_x);
+					modulo_vpage_y_[n] = tmod16(v, _vpage_tiles_y);
 				}
 			
 				// generate playfield workbuffer scanline modulo & index
 				// todo: 8x8 mode
-				s16 linewidth = (vpage_tiles_x_ * (c_updateQ_ ? 2 : 1)) * (c_tilelinewords_<<1);
+				s16 linewidth = (_vpage_tiles_x * (c_updateQ_ ? 2 : 1)) * (c_tilelinewords_<<1);
 				for (s16 n = 0; n < maxlines; ++n)
 				{
-					lineindex_[n] = s32(n * linewidth);
-					linemod_[n] = tmod16(n, (vpage_tiles_y_ * c_tilesize_));
+					s16 v = n-c_guardy;
+					lineindex_alloc_[n] = s32(v * linewidth);
+					linemod_alloc_[n] = tmod16(v, (_vpage_tiles_y * c_tilesize_));
 				}
 
-/*				for (s16 n = 0; n < c_max_vt_<<1; ++n)
-				{
-					s16 v = n-c_max_vt_;
-				}
-				
-				for (s16 n = 0; n < c_max_vt_<<1; ++n)
-				{
-					s16 v = n-c_max_vt_;
-				}
-				
-				for (s16 n = 0; n < c_max_vt_<<1; ++n)
-				{
-					s16 v = n-c_max_vt_;
-				}
-*/
+				lineindex_ = &lineindex_alloc_[c_guardy];
+				linemod_ = &linemod_alloc_[c_guardy];
 
 				pprintf("playfield context initialized...\n");
 				initialized_ = true;
@@ -682,17 +783,20 @@ public:
 	s16 virtual_width_;
 	s16 virtual_height_;
 	
-	s16 visible_tiles_x_;
-	s16 visible_tiles_y_;
+	s16 visible_tiles_x_;			// tiles potentially visible, including HW scroll margin but excluding scroll update margin
+	s16 visible_tiles_y_;			// tiles potentially visible, including HW scroll margin but excluding scroll update margin
 
-	s16 vpage_tiles_x_;
-	s16 vpage_tiles_y_;
+	s16 vpage_tiles_xg_;			// tiles for a single virtual page, including scroll update margin & guardband regions
+	s16 vpage_tiles_yg_;			// tiles for a single virtual page, including scroll update margin & guardband regions
 
-	s16 scrollmargin_tiles_x_;
-	s16 scrollmargin_tiles_y_;
+	s16 vpage_tiles_xu_;			// tiles for a single virtual page, including scroll update margin
+	s16 vpage_tiles_yu_;			// tiles for a single virtual page, including scroll update margin
+
+//	s16 scrollmargin_tiles_x_;		// visible tiles, extended to include any speculative scrollmargin
+//	s16 scrollmargin_tiles_y_;		// visible tiles, extended to include any speculative scrollmargin
 	
-	s16 virtual_tiles_x_;
-	s16 virtual_tiles_y_;
+	s16 virtual_tiles_x_;			// total allocated tiles for all vpages, including any loopback, if used
+	s16 virtual_tiles_y_;			// total allocated tiles for all vpages, including any loopback/pagerestore
 	
 	s16 wrap_width_;
 	s16 wrap_height_;
@@ -764,61 +868,6 @@ public:
 	s16 dtx2_;
 	s16 dty2_;
 
-	class dirtytilemap_t
-	{
-	public:
-
-		dirtytilemap_t()
-			: dirtymask_(nullptr),
-			  dirtymasklines_(nullptr),
-			  dirtymaskwidth_(0),
-			  dirtymaskstride_(0)
-		{
-		}
-
-		void release()
-		{
-			delete[] dirtymask_; dirtymask_ = nullptr;
-			delete[] dirtymasklines_; dirtymasklines_ = nullptr;
-		}
-
-		void allocate(s16 _xt, s16 _yt)
-		{
-			// stride-rounding needs to match OCM system (32 tile bits) for integration step
-//			int stride_blocks = ((_xt + 7) >> 3);
-			int stride_blocks = ((_xt + 31) & -32) >> 3;
-
-			dirtymaskwidth_ = stride_blocks;
-			dirtymaskstride_ = dirtymaskwidth_ << 1;
-
-			// 1 word per 8 bits of mask (8 unused bits)
-			s32 size_words = dirtymaskwidth_ * _yt;
-
-			dirtymask_ = new s16[size_words];
-			//qmemclr(dirtymask_, size_words << 1);
-
-			dirtymasklines_ = new s16*[_yt];
-			for (s16 n = 0; n < _yt; ++n)
-				dirtymasklines_[n] = &dirtymask_[n * dirtymaskwidth_];
-
-#if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
-			printf("dtm.stride_blocks: %d\n", (int)stride_blocks); 
-			printf("dtm.stride: %d\n", (int)dirtymaskstride_); 
-			printf("dtm.size_words: %d\n", (int)size_words); 
-#endif
-		}
-
-		~dirtytilemap_t()
-		{
-			release();
-		}
-
-		s16* dirtymask_;
-		s16** dirtymasklines_;
-		s16 dirtymaskwidth_;
-		s16 dirtymaskstride_;
-	};
-
 	dirtytilemap_t dtm_animation_;
 	dirtytilemap_t dtm_bgrestore_;
 
@@ -826,54 +875,6 @@ public:
 //	s16* layermask_;
 //	s16 dirtynum_;
 	//s16** layermasklines_;
-
-	class occlusionmap_t
-	{
-	public:
-
-		occlusionmap_t()
-			: oct_(nullptr), 
-			  oco_(nullptr), 
-			  stride_(0)
-		{
-		}
-
-		void release()
-		{
-			delete[] oct_; oct_ = nullptr;
-			/*delete[] oco_;*/ oco_ = nullptr;
-		}
-
-		void allocate(s16 _xt, s16 _yt)
-		{
-			// 1 word per 16 tiles, rounded up to 32 tiles (1 longword, 32 bits)
-			s16 stride_tiles = ((_xt + 31) & -32);
-			s16 stride_words = (stride_tiles >> 4);
-			stride_ = stride_words << 1;
-
-			s32 size_words = stride_words * _yt;
-
-			oct_ = new s16[size_words << 1];
-			oco_ = &oct_[size_words];
-			for (int w = 0; w < size_words; w++)
-				oco_[w] = -1;
-
-#if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
-			printf("ocm.stride_tiles: %d\n", (int)stride_tiles); 
-			printf("ocm.stride_words: %d\n", (int)stride_words); 
-			printf("ocm.size_words: %d\n", (int)size_words); 
-#endif
-		}
-
-		~occlusionmap_t()
-		{
-			release();
-		}
-
-		s16* oct_;
-		s16* oco_;
-		s16 stride_;
-	};
 
 	occlusionmap_t ocm_;
 
@@ -1318,16 +1319,16 @@ public:
 			if (pj2 <= pj)
 			{
 				// block straddles virtual y-wrap, so split in two										
-				s16 o = vpage_tiles_y_ - pj;
+				s16 o = vpage_tiles_yg_ - pj;
 				if (c_updateQ_)
 				{
 					PQRS_fill_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
-					PQRS_fill_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
+					PQRS_fill_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_yg_);
 				}
 				else
 				{
 					PR_fill_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
-					PR_fill_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
+					PR_fill_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_yg_);
 				}
 			}
 			else		
@@ -1381,16 +1382,16 @@ public:
 			if (pj2 <= pj)
 			{
 				// block straddles virtual y-wrap, so split in two										
-				s16 o = vpage_tiles_y_ - pj;
+				s16 o = vpage_tiles_yg_ - pj;
 				if (c_updateQ_)
 				{
 					PQRS_dirty_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
-					PQRS_dirty_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
+					PQRS_dirty_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_yg_);
 				}
 				else
 				{
 					PR_dirty_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
-					PR_dirty_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
+					PR_dirty_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_yg_);
 				}
 			}
 			else		
@@ -1458,9 +1459,9 @@ public:
 			if (pj2 <= pj)
 			{
 				// block straddles virtual y-wrap, so split in two										
-				s16 o = vpage_tiles_y_ - pj;
+				s16 o = vpage_tiles_yg_ - pj;
 				PR_shift_block_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
-				PR_shift_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
+				PR_shift_block_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_yg_);
 			}
 			else		
 			{
@@ -1505,10 +1506,10 @@ public:
 			if (pj2 <= pj)
 			{
 				// block straddles virtual y-wrap, so split in two										
-				s16 o = vpage_tiles_y_ - pj;
+				s16 o = vpage_tiles_yg_ - pj;
 				{
 					PR_shift_column_direct(_mi, _mj+o, pi,  0, pi2, pj2);	
-					PR_shift_column_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_y_);
+					PR_shift_column_direct(_mi, _mj,	pi, pj, pi2, vpage_tiles_yg_);
 				}
 			}
 			else		
@@ -1551,8 +1552,8 @@ public:
 			
 			if (di2 > di1)
 			{
-				s16 vxR = (di1+1) * vpage_tiles_x_;
-				s16 pi2 = vpage_tiles_x_;//modulo_vpage_x(vxR-1)+1;
+				s16 vxR = (di1+1) * vpage_tiles_xg_;
+				s16 pi2 = vpage_tiles_xg_;//modulo_vpage_x(vxR-1)+1;
 				
 				// split row at first partition
 				//fill_specrow_virtual(_mi, _mj, _vx1, _vy1, vxR, pjy1, pjy2);
@@ -1596,8 +1597,8 @@ public:
 					
 			if (di2 > di1)
 			{
-				s16 vyR = (s16(di1)+1) * vpage_tiles_y_;
-				s16 pj2 = vpage_tiles_y_;//modulo_vpage_y(vyR-1)+1;
+				s16 vyR = (s16(di1)+1) * vpage_tiles_yg_;
+				s16 pj2 = vpage_tiles_yg_;//modulo_vpage_y(vyR-1)+1;
 							
 				// split row at first partition
 				//fill_speccolumn_virtual(_mi, _mj, _vx1, _vy1, vyR, pjy1, pjy2);
@@ -1632,8 +1633,8 @@ public:
 					
 			if (di2 > di1)
 			{
-				s16 vyR = (s16(di1)+1) * vpage_tiles_y_;
-				s16 pj2 = vpage_tiles_y_;//modulo_vpage_y(vyR-1)+1;
+				s16 vyR = (s16(di1)+1) * vpage_tiles_yg_;
+				s16 pj2 = vpage_tiles_yg_;//modulo_vpage_y(vyR-1)+1;
 							
 				// split row at first partition
 				//fill_speccolumn_virtual(_mi, _mj, _vx1, _vy1, vyR, pjy1, pjy2);
@@ -1673,9 +1674,9 @@ public:
 			if (pi2 <= pi)
 			{				
 				// block straddles virtual x-wrap, so split in two
-				s16 o = vpage_tiles_x_ - pi;				
+				s16 o = vpage_tiles_xg_ - pi;				
 				fill_block_vx_sane(_mi+o, _mj,  0, _vy1, pi2, 		   _vy2);
-				fill_block_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_x_, _vy2);
+				fill_block_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_xg_, _vy2);
 			}
 			else
 			{
@@ -1710,9 +1711,9 @@ public:
 			if (pi2 <= pi)
 			{				
 				// block straddles virtual x-wrap, so split in two
-				s16 o = vpage_tiles_x_ - pi;				
+				s16 o = vpage_tiles_xg_ - pi;				
 				dirty_block_vx_sane(_mi+o, _mj,  0, _vy1, pi2, 		   _vy2);
-				dirty_block_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_x_, _vy2);
+				dirty_block_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_xg_, _vy2);
 			}
 			else
 			{
@@ -1748,9 +1749,9 @@ public:
 			if (pi2 <= pi)
 			{				
 				// block straddles virtual x-wrap, so split in two
-				s16 o = vpage_tiles_x_ - pi;				
+				s16 o = vpage_tiles_xg_ - pi;				
 				shift_block_vx_sane(_mi+o, _mj,  0, _vy1, pi2, 		   _vy2);
-				shift_block_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_x_, _vy2);
+				shift_block_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_xg_, _vy2);
 			}
 			else
 			{
@@ -1785,9 +1786,9 @@ public:
 			if (pi2 <= pi)
 			{				
 				// block straddles virtual x-wrap, so split in two
-				s16 o = vpage_tiles_x_ - pi;				
+				s16 o = vpage_tiles_xg_ - pi;				
 				shift_column_vx_sane(_mi+o, _mj,  0, _vy1, pi2, 		   _vy2);
-				shift_column_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_x_, _vy2);
+				shift_column_vx_sane(_mi,   _mj, pi, _vy1, vpage_tiles_xg_, _vy2);
 			}
 			else
 			{
@@ -1809,8 +1810,9 @@ playfield_template()
 	  virtual_width_(0), virtual_height_(0),
 	  visible_tiles_x_(0), visible_tiles_y_(0),
 	  virtual_tiles_x_(0), virtual_tiles_y_(0),
-	  vpage_tiles_x_(0), vpage_tiles_y_(0),
-	  scrollmargin_tiles_x_(0), scrollmargin_tiles_y_(0),
+	  vpage_tiles_xu_(0), vpage_tiles_yu_(0),
+	  vpage_tiles_xg_(0), vpage_tiles_yg_(0),
+	  //scrollmargin_tiles_x_(0), scrollmargin_tiles_y_(0),
 	  wrap_width_(0), wrap_height_(0),
 	  bufferwords_(0),
 	  display_alloc_(0), display_(0),
@@ -1928,7 +1930,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 
 	if (c_ste_)
 	{
-		vpage_tiles_x_ = visible_tiles_x_ + c_tiles_per_word_ * 2;
+		vpage_tiles_xu_ = visible_tiles_x_ + c_tiles_per_word_ * 2;
 
 /*		if (c_tilesize_ == 16)
 			vpage_tiles_x_ = visible_tiles_x_ + 2;//(c_hspeculative_ ? 2 : 0);
@@ -1941,38 +1943,64 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	}
 	else
 	{
-		vpage_tiles_x_ = visible_tiles_x_ + (c_stf_maskedspeculation_ ? 2 : 0);
+		vpage_tiles_xu_ = visible_tiles_x_ + (c_stf_maskedspeculation_ ? 2 : 0);
 	}
 
-	vpage_tiles_y_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
+	vpage_tiles_yu_ = visible_tiles_y_ + (c_vspeculative_ ? 2 : 0);
 
-	// incorporate x-guardband in virtual playfield
-	vpage_tiles_x_ += ((c_guardx - 32) >> 4) * c_tiles_per_word_;
+	// determine size of margin *before* guardband expansion
+	s16 margin_tiles_x = vpage_tiles_xu_ - visible_tiles_x_;
+	s16 margin_tiles_y = vpage_tiles_yu_ - visible_tiles_y_;
+	s16 margin_pixels_x = margin_tiles_x << c_tilestep_;
+	s16 margin_pixels_y = margin_tiles_y << c_tilestep_;
 
-	pfieldcontext_->prepare(vpage_tiles_x_, vpage_tiles_y_);
+
+	// incorporate x-guardband in virtual page (absorbing any existing margin)
+	//vpage_tiles_xg_ = vpage_tiles_xu_ + ((xmax(0, c_guardx - margin_pixels_x)) >> 4) * c_tiles_per_word_;
+	vpage_tiles_xg_ = visible_tiles_x_ + ((xmax<s16>(c_guardx, margin_pixels_x)) >> 4) * c_tiles_per_word_;
+
+	// incorporate y-guardband in virtual page (absorbing any existing margin)
+	//vpage_tiles_yg_ = vpage_tiles_yu_ + ((xmax(0, c_guardy - margin_pixels_y)) >> 4) * c_tiles_per_word_;
+	vpage_tiles_yg_ = visible_tiles_y_ + ((xmax<s16>(c_guardy, margin_pixels_y)) >> 4) * c_tiles_per_word_;
+
+
+// reference window
+//visible_tiles_x_ = 12;
+//visible_tiles_y_ = 8;
+
+// correct for initial-fill
+//vpage_tiles_xu_ = visible_tiles_x_ + 2;
+//vpage_tiles_yu_ = visible_tiles_y_ + 2;
+
+	// cached calculation for end of update area, for incremental tile filling
+//	scrollmargin_tiles_x_ = 4 + ((c_hspeculative_ /*&& !c_hbufferspeculation_*/) ? visible_tiles_x_ : vpage_tiles_xu_);
+//	scrollmargin_tiles_y_ = 4 + (c_vspeculative_ ? visible_tiles_y_ : vpage_tiles_yu_);
+
+//	scrollmargin_tiles_x_ = visible_tiles_x_; //vpage_tiles_xu_;
+//	scrollmargin_tiles_y_ = visible_tiles_y_; //vpage_tiles_yu_;
+
+	// allocate & prepare tables for final page dimensions
+	pfieldcontext_->prepare(vpage_tiles_xg_, vpage_tiles_yg_);
 	quant_vpage_x_ = pfieldcontext_->quant_vpage_x_;
 	quant_vpage_y_ = pfieldcontext_->quant_vpage_y_;
 	modulo_vpage_x_ = pfieldcontext_->modulo_vpage_x_; 
 	modulo_vpage_y_ = pfieldcontext_->modulo_vpage_y_; 
 
-	scrollmargin_tiles_x_ = (c_hspeculative_ /*&& !c_hbufferspeculation_*/) ? visible_tiles_x_ : vpage_tiles_x_;
-	scrollmargin_tiles_y_ = c_vspeculative_ ? visible_tiles_y_ : vpage_tiles_y_;
-	
 	// dimensions for virtual playfield  (not same as map dimensions)
 	// visible plus row/column update margin, x2 for circular loop
 	if (!c_updateQ_)
-		virtual_tiles_x_ = vpage_tiles_x_;
+		virtual_tiles_x_ = vpage_tiles_xg_;
 	else
-		virtual_tiles_x_ = vpage_tiles_x_ * 2;
+		virtual_tiles_x_ = vpage_tiles_xg_ * 2;
 
 	if (!c_updateR_)	
-		virtual_tiles_y_ = vpage_tiles_y_;
+		virtual_tiles_y_ = vpage_tiles_yg_;
 	else
-		virtual_tiles_y_ = vpage_tiles_y_ * 2;
+		virtual_tiles_y_ = vpage_tiles_yg_ * 2;
 	
 	// todo: ?
-	wrap_width_ = vpage_tiles_x_ * c_tilesize_;
-	wrap_height_ = vpage_tiles_y_ * c_tilesize_;
+	wrap_width_ = vpage_tiles_xg_ * c_tilesize_;
+	wrap_height_ = vpage_tiles_yg_ * c_tilesize_;
 			
 	// pixel dimensions of virtual playfield (not same as map dimensions)
 	virtual_width_ = virtual_tiles_x_ * c_tilesize_;
@@ -1981,7 +2009,7 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	// words per virtual playfield 'scanline'
 	virtual_linewords_ = virtual_tiles_x_ * c_tilelinewords_;
 	//visible_linewords_ = visible_tiles_x_ * c_tilelinewords_;
-	vpage_linewords_ = vpage_tiles_x_ * c_tilelinewords_;
+	vpage_linewords_ = vpage_tiles_xg_ * c_tilelinewords_;
 		
 	rowskipwords_ = (c_tilesize_ * virtual_linewords_);
 	virtual_linebytes_ = virtual_linewords_ << 1;
@@ -1999,17 +2027,27 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	}
 
 	int guardx_safety_words = ((c_guardx + (16-1)) >> 4) << 2;
+	int guardy1_safety_words = ((16 + (16-1)) & -16) * virtual_linewords_;
+	//int guardy2_safety_words = guardy1_safety_words;
 
 	// pad for left guardband
 	bufferwords_ += guardx_safety_words;
+	// pad for top guardband
+	bufferwords_ += guardy1_safety_words;
+	// pad for bottom guardband
+	//bufferwords_ += guardy2_safety_words;
 
 //	bufferwords_ += 10000;
 
 	pprintf("init playfield:\n");
 #if defined(AGT_CONFIG_PRINT_PLAYFIELD_METRICS)
-	printf("dw:%d, vw:%d, dtw:%d, vtw:%d\n", (int)display_width_, (int)virtual_width_, (int)visible_tiles_x_, (int)virtual_tiles_x_);
-	printf("dh:%d, vh:%d, dth:%d, vth:%d\n", (int)display_height_, (int)virtual_height_, (int)visible_tiles_y_, (int)virtual_tiles_y_);
+	printf("dw:%d, vrw:%d, vrtw:%d\n", (int)display_width_, (int)virtual_width_, (int)virtual_tiles_x_);
+	printf("dh:%d, vrh:%d, vrth:%d\n", (int)display_height_, (int)virtual_height_, (int)virtual_tiles_y_);
+	printf("vstx:%d, vpgxu:%d, vpgxg:%d\n", (int)visible_tiles_x_, (int)vpage_tiles_xu_, (int)vpage_tiles_xg_);
+	printf("vsty:%d, vpgyu:%d, vpgyg:%d\n", (int)visible_tiles_y_, (int)vpage_tiles_yu_, (int)vpage_tiles_yg_);
 	printf("wrw:%d, wrh:%d\n", (int)wrap_width_, (int)wrap_height_);
+	printf("c_hmargin_:%d c_guardx:%d\n", (int)c_hmargin_, (int)c_guardx);
+	printf("c_vmargin_:%d c_guardy:%d\n", (int)c_vmargin_, (int)c_guardy);
 	printf("c_tilesize_:%d\n", (int)c_tilesize_);
 //	printf("c_tileplanewords_:%d\n", (int)c_tileplanewords_);
 	printf("c_tilelinewords_:%d\n", (int)c_tilelinewords_);
@@ -2018,8 +2056,6 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	printf("virtual_pagebytes_ = %d\n", (int)virtual_pagebytes_);
 	printf("bufferwords_:%d\n", (int)bufferwords_);
 	if (c_scanwalk_) printf("scanwalk padding words = %d\n", (int)(c_max_vt_ * c_tilelinewords_));
-	printf("c_hmargin_:%d\n", (int)c_hmargin_);
-	printf("c_vmargin_:%d\n", (int)c_vmargin_);
 	printf("preshift: %d\n", (int)xpreshift_); 
 #endif
 
@@ -2097,8 +2133,12 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 		dtm_bgrestore_.release();
 		dtm_bgrestore_.allocate(map_tiles_x_, map_tiles_y_);
 
+		// OCM allocator requires guardband (in tiles) for occlusion masks drawn with -ve coords
+		static const s16 guard_tiles_x = c_guardx >> c_tilestep_;
+		static const s16 guard_tiles_y = c_guardy >> c_tilestep_;
+
 		ocm_.release();
-		ocm_.allocate(map_tiles_x_, map_tiles_y_);
+		ocm_.allocate(map_tiles_x_, map_tiles_y_, guard_tiles_x, guard_tiles_y);
 
 		//// test: checker pattern for mask
 		//for (s16 y = 0; y < map_tiles_y_; y++)
@@ -2157,18 +2197,31 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	printf("consumed_words:%d\n", (int)displaysvc_consumed_words);
 #endif
 
+
+	// display_:			**************** <display base may have -ve offset from allocation e.g. STF syncscroll dead lines>
+	//
+	// display_alloc_:		guardx+guardy1	<allocated, writable area begins here - includes x & y guardband safety zones>
+	// framebuffer_int_:	guardy1			<internal line addressing begins here, includes y guardband safety zone, no -ve y permitted>
+	// framebuffer_ext_:	visible			<external line addressing begins here, excludes guardband safety zones, -ve y permitted
+
 	display_ = (u16*)
 	(
 		(
 			(
 				(u32)(display_alloc_) - (displaysvc_consumed_words<<1)
 			) 
-			+ (guardx_safety_words<<1)
+			+ (guardx_safety_words<<1)		// left guard padding
+			+ (guardy1_safety_words<<1)		// upper guard padding
 			+ 255
 		) 
 		& -256
 	);
 	framebuffer_ = display_ + displaysvc_consumed_words;
+
+	// HACK: to view guard region vs sprite clipping activity
+	//display_ -= guardy1_safety_words;
+	//display_ -= guardx_safety_words;
+	//display_ -= virtual_linewords_ * 64;
 
 //	qmemclr(display_, bufferwords_<<1);
 //	clear(display_, bufferwords_);
@@ -2272,7 +2325,7 @@ void fill_abs()
 		(
 			txp, typ,
 			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+			txpos_-c_hmargin_ + vpage_tiles_xu_, typos_-c_vmargin_ + vpage_tiles_yu_
 		);
 	}
 	else
@@ -2281,7 +2334,7 @@ void fill_abs()
 		(
 			txp, typ,
 			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, typos_-c_vmargin_ + vpage_tiles_y_
+			txpos_-c_hmargin_ + vpage_tiles_xu_, typos_-c_vmargin_ + vpage_tiles_yu_
 		);
 	}
 
@@ -2307,8 +2360,8 @@ agt_outline void warp_catchup()
 		s16 txp = txpos_-c_hmargin_;
 		s16 typ = typos_-c_vmargin_;
 
-		if (c_scanwalk_ && txp < 0)
-			txp = 0;
+		//if (c_scanwalk_ && txp < 0)
+		//	txp = 0;
 
 	//	int qqq = 200000; while (qqq--) { };
 	
@@ -2318,16 +2371,16 @@ agt_outline void warp_catchup()
 		(
 			txp, typ,
 			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, 
-			typos_-c_vmargin_ + vpage_tiles_y_
+			txpos_-c_hmargin_ + vpage_tiles_xu_, 
+			typos_-c_vmargin_ + vpage_tiles_yu_
 		);	
 		else
 		shift_block_virtual
 		(
 			txp, typ,
 			txp, typ, 
-			txpos_-c_hmargin_ + vpage_tiles_x_, 
-			typos_-c_vmargin_ + vpage_tiles_y_
+			txpos_-c_hmargin_ + vpage_tiles_xu_, 
+			typos_-c_vmargin_ + vpage_tiles_yu_
 		);	
 		//dbg_validate_restorestack(0x050);
 
@@ -2403,12 +2456,13 @@ void hybrid_fill()
 			// find the viewport rectangle
 			s16 tx1 = txpos_-c_hmargin_;
 			s16 ty1 = typos_-c_vmargin_;
-			// never refresh across map left edge
+
+/*			// never refresh across map left edge
 			if (c_scanwalk_ && (tx1 < 0))
 				tx1 = 0;
-
-			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
-			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
+*/
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_xu_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_yu_;
 
 			//printf("tx1:%d ty1:%d\n", (int)tx1, (int)ty1);
 
@@ -2418,7 +2472,7 @@ void hybrid_fill()
 			s16 pi1 = txpos_;
 			if (c_hloop_)
 				pi1 = modulo_vpage_x(txpos_);
-			s16 pi2 = pi1+vpage_tiles_x_;
+			s16 pi2 = pi1+vpage_tiles_xg_;
 
 /*			{
 	//			s16 pj1 = modulo_vpage_y(typos_);
@@ -2432,6 +2486,7 @@ void hybrid_fill()
 */
 			if (1)
 			{
+			// TODO: check this against tilerestore sample
 
 			// update page fragments one at a time with correct map coords
 			{
@@ -2439,7 +2494,7 @@ void hybrid_fill()
 				s16 pj1 = typos_;
 				if (c_vloop_)
 					pj1 = modulo_vpage_y(pj1);
-				s16 pj2 = pj1+vpage_tiles_y_;
+				s16 pj2 = pj1+vpage_tiles_yu_;
 				OCM_integrate_window(pi1, pj1, pi2, pj2);
 				OCM16_refresh_window(txpos_, typos_, pi1, pj1, pi2, pj2);
 			}
@@ -2452,20 +2507,20 @@ void hybrid_fill()
 			{
 				// upper fragment (one page ahead)
 				s16 pj1 = 0;
-				s16 pj2 = (typos_-vpage_tiles_y_);
+				s16 pj2 = (typos_-vpage_tiles_yg_);
 				if (c_vloop_)
 					pj2 = modulo_vpage_y(pj2);
 				OCM_integrate_window(pi1, pj1, pi2, pj2);
-				OCM16_refresh_window(txpos_, typos_+vpage_tiles_y_-(pj2-pj1), pi1, pj1, pi2, pj2);
+				OCM16_refresh_window(txpos_, typos_+vpage_tiles_yg_-(pj2-pj1), pi1, pj1, pi2, pj2);
 			}
 
 			if (dy > 0)
 			{
 				// lower fragment (one page behind)
-				s16 pj1 = modulo_vpage_y(typos_+vpage_tiles_y_);
+				s16 pj1 = modulo_vpage_y(typos_+vpage_tiles_yg_);
 				s16 pj2 = virtual_tiles_y_ - pj1;
 				OCM_integrate_window(pi1, pj1, pi2, pj2);
-				OCM16_refresh_window(txpos_, typos_-vpage_tiles_y_, pi1, pj1, pi2, pj2);
+				OCM16_refresh_window(txpos_, typos_-vpage_tiles_yg_, pi1, pj1, pi2, pj2);
 			}
 
 			}
@@ -2485,7 +2540,7 @@ void hybrid_fill()
 		static const s16 speed = AGT_CONFIG_MAPMOD_SWEEP_SPEED;
 
 		s16 ymin = (typos_ - c_vmargin_) & -AGT_CONFIG_MAPMOD_SWEEP_SPEED;
-		s16 ymax = (ymin + vpage_tiles_y_) & -AGT_CONFIG_MAPMOD_SWEEP_SPEED;
+		s16 ymax = (ymin + vpage_tiles_yu_) & -AGT_CONFIG_MAPMOD_SWEEP_SPEED;
 
 		dty2_ = dty1_ + speed;
 		{
@@ -2496,8 +2551,8 @@ void hybrid_fill()
 			if (c_scanwalk_ && (tx1 < 0))
 				tx1 = 0;
 
-			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
-			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_xu_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_yu_;
 
 			// find intersection of 2 rectangles (viewport, edited region)
 			ty1 = xmax(ty1, dty1_);
@@ -2529,8 +2584,8 @@ void hybrid_fill()
 			if (c_scanwalk_ && (tx1 < 0))
 				tx1 = 0;
 
-			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
-			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_xu_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_yu_;
 
 			// find intersection of 2 rectangles (viewport, edited region)
 			tx1 = xmax(tx1, dtx1_);
@@ -2565,8 +2620,8 @@ void hybrid_fill()
 			if (c_scanwalk_ && (tx1 < 0))
 				tx1 = 0;
 
-			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_x_;
-			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_y_;
+			s16 tx2 = txpos_-(c_hmargin_) + vpage_tiles_xu_;
+			s16 ty2 = typos_-(c_vmargin_) + vpage_tiles_yu_;
 
 			{
 				dirty_block_virtual
@@ -2618,8 +2673,11 @@ void hybrid_fill()
 	const s16 atdx = xabs(tdx);
 	const s16 atdy = xabs(tdy);
 
-	if ((atdx >= visible_tiles_x_) || 
-		(atdy >= visible_tiles_y_))
+	bool warp = 
+		((atdx >= visible_tiles_x_) || 
+		 (atdy >= visible_tiles_y_));
+
+	if (warp)
 	{
 		warp_catchup();
 	}
@@ -2628,8 +2686,8 @@ void hybrid_fill()
 
 	s16 x1 = tx;
 	s16 y1 = ty;
-	s16 x2 = tx + scrollmargin_tiles_x_;
-	s16 y2 = ty + scrollmargin_tiles_y_;
+	s16 x2 = tx + visible_tiles_x_; //scrollmargin_tiles_x_;
+	s16 y2 = ty + visible_tiles_y_; //scrollmargin_tiles_y_;
 
 //	printf("x1:%d, x2:%d\n", x1, x2);
 //	printf("y1:%d, y2:%d\n", y1, y2);
@@ -2802,7 +2860,7 @@ void hybrid_fill()
 		{
 			// no change on other axis - speculation should be correct
 		}
-#endif
+#endif // SPECULATIVE_FILL_METHOD 1
 					
 		// 00000000
 		// 00000000
@@ -2943,7 +3001,7 @@ void hybrid_fill()
 		{
 			// no change on other axis - speculation should be correct
 		}	
-#endif
+#endif // SPECULATIVE_FILL_METHOD 1
 		
 		// XXXXXXXX
 		// 00000000
@@ -2962,7 +3020,8 @@ void hybrid_fill()
 		if (yf == lyf)
 		{
 		}									
-		else if (yf < lyf)
+		else 
+		if (yf < lyf)
 		{
 			if (c_ste_)
 			fill_specrow_virtual(
@@ -2979,65 +3038,69 @@ void hybrid_fill()
 				yf, lyf	//yf-dy
 			);	
 		}
-		else
+		else // (yf < lyf)
 		{		
-			if (lyf > 0)	
-				{
-			if (c_ste_)
-			fill_specrow_virtual(
-				vs_fill_x1, y1,
-				vs_fill_x1, y1, 
-				vs_fill_x2, 
-				0, lyf
-			);
-			else
-			shift_specrow_virtual(
-				vs_fill_x1, y1,
-				vs_fill_x1, y1, 
-				vs_fill_x2, 
-				0, lyf
-			);
-				}
+			if (lyf > 0)
+			{
+				if (c_ste_)
+				fill_specrow_virtual(
+					vs_fill_x1, y1,
+					vs_fill_x1, y1, 
+					vs_fill_x2, 
+					0, lyf
+				);
+				else
+				shift_specrow_virtual(
+					vs_fill_x1, y1,
+					vs_fill_x1, y1, 
+					vs_fill_x2, 
+					0, lyf
+				);
+			} // (lyf > 0)
 
-			if (yf < c_tilesize_)	
-				{
-			if (c_ste_)
-			fill_specrow_virtual(
-				vs_fill_x1, y1 - 1,
-				vs_fill_x1, y1 - 1, 
-				vs_fill_x2,
-				yf, c_tilesize_
-			);		
-			else
-			shift_specrow_virtual(
-				vs_fill_x1, y1 - 1,
-				vs_fill_x1, y1 - 1, 
-				vs_fill_x2,
-				yf, c_tilesize_
-			);		
-		}		
-	}
-	}
-	}
-	else if (c_updaterows_)
+			if (yf < c_tilesize_)
+			{
+				if (c_ste_)
+				fill_specrow_virtual(
+					vs_fill_x1, y1 - 1,
+					vs_fill_x1, y1 - 1, 
+					vs_fill_x2,
+					yf, c_tilesize_
+				);		
+				else
+				shift_specrow_virtual(
+					vs_fill_x1, y1 - 1,
+					vs_fill_x1, y1 - 1, 
+					vs_fill_x2,
+					yf, c_tilesize_
+				);		
+			} // (yf < c_tilesize_)
+		} // !(yf < lyf)
+	} // (dy < 0)
+	} // (c_updaterows_ && c_vspeculative_ && (c_ste_ || drawshift_))
+	else // !c_vspeculative_
+	if (c_updaterows_)
 	{
+		s16 vpage_tiles_h = visible_tiles_y_;
+
 		if (tdy > 0)
 		{	
 			// fill bottom edge
 			if (c_ste_)
 			fill_rows_virtual(
-				vs_fill_x1, (tyl + vpage_tiles_y_),
-				vs_fill_x1, (tyl + vpage_tiles_y_), 
-				vs_fill_x2, (ty + vpage_tiles_y_)
+				vs_fill_x1, (tyl + vpage_tiles_h),
+				vs_fill_x1, (tyl + vpage_tiles_h), 
+				vs_fill_x2, (ty + vpage_tiles_h)
 			);			
 			else
 			shift_rows_virtual(
-				vs_fill_x1, (tyl + vpage_tiles_y_),
-				vs_fill_x1, (tyl + vpage_tiles_y_), 
-				vs_fill_x2, (ty + vpage_tiles_y_)
+				vs_fill_x1, (tyl + vpage_tiles_h),
+				vs_fill_x1, (tyl + vpage_tiles_h), 
+				vs_fill_x2, (ty + vpage_tiles_h)
 			);
 		}
-		else if (tdy < 0)
+		else // (tdy > 0)
+		if (tdy < 0)
 		{
 			// fill top edge
 			if (c_ste_)
@@ -3052,8 +3115,8 @@ void hybrid_fill()
 				vs_fill_x1, ty, 
 				vs_fill_x2, tyl
 			);			
-		}
-	}
+		} // (tdy < 0)
+	} // (c_updaterows_)
 
 	if (1)
 	{
@@ -3123,7 +3186,7 @@ void hybrid_fill()
 		{
 			// no change on other axis - speculation should be correct
 		}
-#endif
+#endif // SPECULATIVE_FILL_METHOD
 		
 		// 00000000X
 		// 00000000X
@@ -3279,7 +3342,7 @@ void hybrid_fill()
 		{
 			// no change on other axis - speculation should be correct
 		}	
-#endif
+#endif // SPECULATIVE_FILL_METHOD
 	
 		// X00000000
 		// X00000000
@@ -3377,9 +3440,11 @@ void hybrid_fill()
 		}			
 	}
 	}
-	//else // c_hspecultive_
-	else if (c_updatecols_)
+	else // c_hspecultive_
+	if (c_updatecols_)
 	{
+		s16 vpage_tiles_w = visible_tiles_x_;
+
 //		printf("xxxx\n");
 		if (tdx > 0)
 		{
@@ -3387,9 +3452,9 @@ void hybrid_fill()
 			// fill right edge
 			if (c_ste_)
 			fill_columns_virtual(
-				(txl + vpage_tiles_x_), hs_fill_y1, 
-				(txl + vpage_tiles_x_), hs_fill_y1, 
-				(tx  + vpage_tiles_x_), hs_fill_y2
+				(txl + vpage_tiles_w), hs_fill_y1, 
+				(txl + vpage_tiles_w), hs_fill_y1, 
+				(tx  + vpage_tiles_w), hs_fill_y2
 			);
 			else
 			{
@@ -3414,43 +3479,44 @@ void hybrid_fill()
 					{
 //						printf("p-n: %d %d\n", p, n);
 						// single
-				shift_speccolumn_virtual(
-					(txl + vpage_tiles_x_), hs_fill_y1, 
-					(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
-							p, n
-				);		
-					}
-				else
+						shift_speccolumn_virtual(
+							(txl + vpage_tiles_w), hs_fill_y1, 
+							(txl + vpage_tiles_w), hs_fill_y1, hs_fill_y2,
+									p, n
+						);		
+					} // (n > p)
+					else
 					{
 						// split
 //						printf("p-ts: %d %d\n", p, c_tilesize_);
 						shift_speccolumn_virtual(
-							(txl + vpage_tiles_x_), hs_fill_y1, 
-							(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
+							(txl + vpage_tiles_w), hs_fill_y1, 
+							(txl + vpage_tiles_w), hs_fill_y1, hs_fill_y2,
 							p, c_tilesize_
 						);	
 //						printf("0-n: %d %d\n", 0, n);
 						shift_speccolumn_virtual(
-							(txl + vpage_tiles_x_), hs_fill_y1, 
-							(txl + vpage_tiles_x_), hs_fill_y1, hs_fill_y2,
+							(txl + vpage_tiles_w), hs_fill_y1, 
+							(txl + vpage_tiles_w), hs_fill_y1, hs_fill_y2,
 							0, n
 						);	
-					}
-				}
+					} // !(n > p)
+				} // (c_hbufferspeculation_)
 				else
 				shift_columns_virtual(
-					(txl + vpage_tiles_x_), hs_fill_y1, 
-					(txl + vpage_tiles_x_), hs_fill_y1, 
-					(tx  + vpage_tiles_x_), hs_fill_y2
+					(txl + vpage_tiles_w), hs_fill_y1, 
+					(txl + vpage_tiles_w), hs_fill_y1, 
+					(tx  + vpage_tiles_w), hs_fill_y2
 				);
 #if !defined(AGT_CONFIG_STF_NOEDGEMASKING)
 				if (c_hsyncshift_)
 					maskedges_ |= 1;
 					//STF_MaskEdgeR(framebuffer_, xpos_, ypos_, display_height_);
 #endif
-			}
+			} // !(c_ste_)
 		}
-		else if (tdx < 0)
+		else 
+		if (tdx < 0)
 		{
 //			printf("xneg!\n");
 			// fill left edge
@@ -3473,16 +3539,16 @@ void hybrid_fill()
 					maskedges_ |= 2;
 					//STF_MaskEdgeL(framebuffer_, xpos_, ypos_, display_height_);
 #endif
-			}
-			}
+			} //!(c_ste_)
+		} // (tdx < 0)
 		else
 		{
 //			printf("l-s: %d %d\n", last_slice_, slice_);
 //			printf("no xdelta!\n");
-		}
-	}
+		} // !(tdx < 0)
+	} // (c_updatecols_)
 
-	} //0
+	} //1
 
 #if !defined(AGT_CONFIG_STF_NOEDGEMASKING)
 	// erase trailing edge
@@ -3514,14 +3580,14 @@ void hybrid_fill()
 	{
 		ty_last_dx_ = ty;
 	}
-#endif
+#endif // SPECULATIVE_FILL_METHOD 1
 
 	last_txpos_ = txpos_;
 	last_typos_ = typos_;	
 	last_xpos_ = xpos_;
 	last_ypos_ = ypos_;
 	last_slice_ = slice_;//(slice_+c_preshift_step_) & 15;
-	}
+	} // !warp
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

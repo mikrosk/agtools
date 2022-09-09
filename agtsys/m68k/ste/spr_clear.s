@@ -172,7 +172,7 @@ _AGT_CPU_PlayfieldRestore:
 
 	add.w		d7,d7
 	add.w		d7,d7
-	add.l		(a3,d7.w),a1
+	add.l		(a3,d7.w),a1			; 28c vs 56c for muls
 
 ;	set size of lower fragment
 
@@ -813,9 +813,11 @@ _AGT_BLiT_PlayfieldRestore:
 	.bss
 *-------------------------------------------------------*
 	
-	.globl		_drawcontext
-
-_drawcontext:		ds.b		dctx_size
+	.globl		_g_drawcontext
+	.globl		_g_pactivedctx
+	
+_g_drawcontext:		ds.b		dctx_size
+_g_pactivedctx:		ds.l		1
 
 *-------------------------------------------------------*
 	.data

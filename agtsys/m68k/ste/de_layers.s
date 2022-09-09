@@ -46,6 +46,11 @@ _BLiT_EntityDrawLayers_68k:
 *	load C args to local frame
 *-------------------------------------------------------*
 	move.l		.pctx(a6),a4
+	move.l		a4,.sp_dctx(sp)
+	lea		dctx_guardwindow(a4),a5
+	move.l		a5,.sp_guardwin(sp)
+	lea		dctx_scissorwindow(a4),a5
+	move.l		a5,.sp_scissorwin(sp)
 	move.l		dctx_framebuffer(a4),.sp_framebuf(sp)
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 	move.w		dctx_snapadjx(a4),.sp_snapx(sp)
@@ -54,7 +59,8 @@ _BLiT_EntityDrawLayers_68k:
 	move.w		dctx_field(a4),d0
 	add.w		d0,d0
 	add.w		d0,d0
-	move.w		d0,.sp_cfield4(sp)	
+	move.w		d0,.sp_cfield4(sp)
+	move.w		_g_linebytes,.sp_linebytes(sp)
 *-------------------------------------------------------*
 *	initial conditions
 *-------------------------------------------------------*

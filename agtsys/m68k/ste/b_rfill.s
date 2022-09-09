@@ -12,11 +12,13 @@
 ;	use provided rectangle dimensions, ignore sprite frame info
 	
 	; sprite clipping window
-	lea		_g_spr_window,a2
+	;lea		_g_clipwin_gpp,a2
+	move.l		.sp_scissorwin(sp),a2
 	
 	; initial dst skip
 	
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 		
 	; constants
 	moveq		#16-1,d6
@@ -27,19 +29,19 @@
 *-------------------------------------------------------*
 *	top edge
 *-------------------------------------------------------*
-	cmp.w		clip_y1(a2),d2
+	cmp.w		clip_win_y(a2),d2
 	bpl.s		.rfill_clip_safe_top
 *-------------------------------------------------------*
 *	top clipped
 *-------------------------------------------------------*
 	; relative to clipwindow
-	sub.w		clip_y1(a2),d2
+	sub.w		clip_win_y(a2),d2
 	; crop lines
 	add.w		d2,d4
 	ble		.AGT_BLiT_RFillDrawUnClipped_end
 		
 	; relative to world
-	move.w		clip_y1(a2),d2
+	move.w		clip_win_y(a2),d2
 	; ASSUMPTION: sprite is not big enough to cross top+bottom
 	bra.s		.rfill_clip_safe_bot
 *-------------------------------------------------------*
@@ -51,7 +53,7 @@
 *-------------------------------------------------------*
 	move.w		d2,d0
 	add.w		d4,d0				; xr	
-	sub.w		clip_y2(a2),d0			; xr - cx2
+	sub.w		clip_win_y2(a2),d0		; xr - cx2
 	ble.s		.rfill_clip_safe_bot
 *-------------------------------------------------------*
 *	bottom clipped	
@@ -66,20 +68,20 @@
 *	left edge
 *-------------------------------------------------------*
 	; NISR: no initial source read (i.e. shiftregisters preloaded with 0)
-	cmp.w		clip_x1p(a2),d1
+	cmp.w		clip_win_x(a2),d1
 	bpl.s		.rfill_clip_safe_left
 *-------------------------------------------------------*
 *	left clipped
 *-------------------------------------------------------*
 
 	; relative to clipwindow
-	sub.w		clip_x1p(a2),d1
+	sub.w		clip_win_x(a2),d1
 
 	add.w		d1,d3
 	ble		.AGT_BLiT_RFillDrawUnClipped_end
 	
 	; relative to world
-	move.w		clip_x1p(a2),d1	
+	move.w		clip_win_x(a2),d1	
 	; ASSUMPTION: sprite is not big enough to cross left+right
 ;	bra		.rfill_clip_safe_right
 	bra		.rfill_clip_unsafe_left
@@ -94,7 +96,7 @@
 *-------------------------------------------------------*
 	move.w		d1,d0
 	add.w		d3,d0				; xr	
-	sub.w		clip_x2p(a2),d0			; xr - cx2
+	sub.w		clip_win_x2(a2),d0		; xr - cx2
 	ble		.AGT_BLiT_RFillDrawUnClipped_go	;.rfill_clip_safe_right
 *-------------------------------------------------------*
 *	right clipped
@@ -152,9 +154,15 @@
 	
 	; dst yoffset (line)
 ;	mulu.w		#linebytes,d2
-	mulu.w		_g_linebytes,d2
-	add.l		d2,a1
-	
+;	mulu.w		_g_linebytes,d2
+;	add.l		d2,a1
+
+	; address yline	
+	move.l		.sp_linetable(sp),a3
+	add.w		d2,d2
+	add.w		d2,d2
+	add.l		(a3,d2.w),a1			; 38c vs 56c for muls (28c excl. linetable fetch)
+		
 	; find destination word width of shifted sprite
 ;	moveq		#16-1,d6
 	move.w		d6,d7

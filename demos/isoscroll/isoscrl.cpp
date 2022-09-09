@@ -91,7 +91,7 @@ enum EntityType : int
 #define SCREEN_YSIZE (240)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 #define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 
@@ -114,7 +114,10 @@ typedef playfield_template
 	/*max_scroll=*/4096,						// maximum scroll distance in pixels (reduce to save a little ram on tables)
 	/*vscroll=*/VScrollMode_LOOPBACK,			// enable full vscroll
 	/*hscroll=*/HScrollMode_SCANWALK,			// enable full hscroll
-	/*restore=*/RestoreMode_PAGERESTORE			// restore from virtual page (verus save/restore for individual objects)
+	/*restore=*/RestoreMode_PAGERESTORE,		// restore from virtual page (verus save/restore for individual objects)
+	/*update=*/UpdateMode_NORMAL,
+	/*hardware=*/PFH_Defaults,
+	/*attributes=*/PFA_UpdateFullTiles			// use normal tile repainting, not direction-speculative. safely supports (x,y)==(0,0)
 
 > playfield_t;									// new name for our playfield definition
 
@@ -186,6 +189,8 @@ mersenne_twister prng;
 
 // viewport entity is global and part of the entity drawing system
 entity_t *s_pe_viewport = NULL;
+
+drawcontext_t drawcontext;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -281,8 +286,6 @@ int AGT_EntryPoint()
 			printf("machine: unknown, so assuming STE (?!)...\n");
 			bSTE = true;
 		}
-		printf("press space...\n");
-		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
@@ -325,7 +328,7 @@ int AGT_EntryPoint()
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
 		g_map_fxlimit = (map_xsize-VIEWPORT_XSIZE-c_scroll_safety_margin)<<16;
-		g_map_fylimit = (map_ysize-VIEWPORT_YSIZE-c_scroll_safety_margin)<<16;
+		g_map_fylimit = (map_ysize-VIEWPORT_YSIZE-0)<<16;
 
 		// find the 3D world coords representing the middle of the 2D screenspace map
 		Iso3DFrom2D
@@ -424,8 +427,8 @@ int AGT_EntryPoint()
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
-//		printf("ready... (press key)\n");
-//		Crawcin();
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over machine resources - display, timers, input etc.
@@ -753,7 +756,7 @@ mainloop:
 					g_fscrollydir = tmp;
 				}
 
-				if (ftesty < ((s32)c_scroll_safety_margin<<16))
+				if (ftesty < ((s32)0<<16))
 				{
 					// bounce off the top side of the map
 					g_fscrollydir = -g_fscrollydir;

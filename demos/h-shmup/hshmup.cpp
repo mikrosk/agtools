@@ -154,7 +154,7 @@ enum EntityType : int
 #define SCREEN_YSIZE (240)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 #define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -279,6 +279,8 @@ static s16 g_frame_prng = 0;
 // viewport entity is global and part of the entity drawing system
 static entity_t *s_pe_viewport = NULL;
 
+static drawcontext_t drawcontext;
+
 // useful to have direct/global access to player-related entities 
 static entity_t *g_pe_player = NULL;
 static entity_t *g_pe_options[c_max_multiples] = { NULL, NULL, NULL, NULL };
@@ -387,8 +389,6 @@ int AGT_EntryPoint()
 			printf("machine: unknown, so assuming STE (?!)...\n");
 			bSTE = true;
 		}
-		printf("press space...\n");
-		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
@@ -578,8 +578,8 @@ int AGT_EntryPoint()
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
-//		printf("ready... (press key)\n");
-//		Crawcin();
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over machine resources - display, timers, input etc.

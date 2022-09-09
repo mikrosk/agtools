@@ -16,7 +16,7 @@
 	pushraster	#$404
 
 	
-	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
+	move.w		_g_drawcontext+dctx_guardwindow_y1,.sp_yc(sp)
 
 	; 'hitflash' for strobing shape to single colour on damage etc.
 	; todo: opt
@@ -217,7 +217,7 @@
 ;	test window bottom
 
 	add.w		d2,d4
-	cmp.w		_drawcontext+dctx_clipwindow_y2,d4
+	cmp.w		_g_drawcontext+dctx_guardwindow_y2,d4
 	ble		.slb_clip_safebot
 
 *-------------------------------------------------------*
@@ -230,7 +230,7 @@
 
 ;	test for fully clipped out
 
-	cmp.w		_drawcontext+dctx_clipwindow_y2,d2
+	cmp.w		_g_drawcontext+dctx_guardwindow_y2,d2
 	bge		.slb_degen
 
 ;	ys: recover slab ysize
@@ -244,7 +244,7 @@
 
 ;	byc: amount to crop from full slab height (up to max of slab height)
 	
-	sub.w		_drawcontext+dctx_clipwindow_y2,d4
+	sub.w		_g_drawcontext+dctx_guardwindow_y2,d4
 
 ;	d4		+ve crop
 
@@ -268,8 +268,14 @@
 
 ;	address initial line
 
-	mulu.w		_g_linebytes,d2
-	add.l		d2,a1	
+;	mulu.w		_g_linebytes,d2
+;	add.l		d2,a1	
+
+	; address yline	
+	move.l		.sp_linetable(sp),a3
+	add.w		d2,d2
+	add.w		d2,d2
+	add.l		(a3,d2.w),a1			; 38c vs 56c for muls (28c excl. linetable fetch)
 
 ;	usp tends to be used by engine for context/object/sprite-restore,
 ;	but here its more valuable for an inner loop so we need to save it first
@@ -286,7 +292,8 @@
 	lea		BLiTCTRL.w,a3
 	lea		slab_precalcs,a4
 	move.l		a4,usp
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 
 	moveq		#7,d0
 	moveq		#$80,d2
@@ -341,9 +348,15 @@
 
 ;	address initial line
 
-	muls.w		_g_linebytes,d2
-	add.l		d2,a1
+;	muls.w		_g_linebytes,d2
+;	add.l		d2,a1
 
+	; address yline	
+	move.l		.sp_linetable(sp),a5
+	add.w		d2,d2
+	add.w		d2,d2
+	add.l		(a5,d2.w),a1			; 38c vs 56c for muls (28c excl. linetable fetch)
+	
 ;	setup
 
 ;	usp tends to be used by engine for context/object/sprite-restore,
@@ -361,7 +374,8 @@
 	lea		BLiTCTRL.w,a3
 	lea		slab_precalcs,a4
 	move.l		a4,usp
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 
 	moveq		#7,d0
 	moveq		#$80,d2

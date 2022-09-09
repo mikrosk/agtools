@@ -7,8 +7,12 @@
 *	max source ysize: viewport clipper ysize
 *-------------------------------------------------------*
 
+	.if		^^defined AGT_CONFIG_SYS_EMS_XCLIP
+enable_x_clipping	set	1
+	.else
 enable_x_clipping	set	0
-
+	.endif
+	
 	sprite_sc_frame	a0,d0,_AGT_Exception_EMSFrame_68k
 	
 	pushraster	#$062
@@ -86,35 +90,40 @@ enable_x_clipping	set	0
 *	initial source skip (unclipped case)
 *-------------------------------------------------------*
 
-	lea		_g_spr_window,a2
+;	lea		_g_clipwin_gpp,a2
 
 	.if		(enable_x_clipping)
 
+	move.l		.sp_scissorwin(sp),a2
 	lea		2.w,a3
 
 	.else ; (enable_x_clipping)
 
-	cmp.w		(a2),d1
+	move.l		.sp_guardwin(sp),a2
+	
+	cmp.w		clip_win_x(a2),d1
 	bmi		.BLiT_EMSpr_4BPL_end
 
 	move.w		d1,d0
 	add.w		d3,d0				; xr	
-	sub.w		4(a2),d0			; xr - cx2
+	sub.w		clip_win_x2(a2),d0		; xr - cx2
 	bgt		.BLiT_EMSpr_4BPL_end
 
+	lea		dctx_scissorwindow-dctx_guardwindow(a2),a2
+	
 	.endif ; (enable_x_clipping)
 
 *-------------------------------------------------------*
 *	top edge
 *-------------------------------------------------------*
-	cmp.w		clip_y1(a2),d2
+	cmp.w		clip_win_y(a2),d2
 	bpl.s		.clip_safe_top
 *-------------------------------------------------------*
 *	top clipped
 *-------------------------------------------------------*
 .clip_unsafe_top:
 *-------------------------------------------------------*
-	move.w		clip_y1(a2),d5
+	move.w		clip_win_y(a2),d5
 	; relative to clipwindow
 	sub.w		d5,d2
 	; crop lines
@@ -137,7 +146,7 @@ enable_x_clipping	set	0
 	add.w		d5,a6
 
 	; relative to world
-	move.w		clip_y1(a2),d2
+	move.w		clip_win_y(a2),d2
 	; ASSUMPTION: sprite is not big enough to cross top+bottom
 	bra.s		.clip_safe_bot
 
@@ -150,7 +159,7 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 	move.w		d2,d0
 	add.w		d4,d0				; xr
-	sub.w		clip_y2(a2),d0			; xr - cx2
+	sub.w		clip_win_y2(a2),d0			; xr - cx2
 	ble.s		.clip_safe_bot
 *-------------------------------------------------------*
 *	bottom clipped
@@ -169,7 +178,7 @@ enable_x_clipping	set	0
 *	left edge
 *-------------------------------------------------------*
 	; NISR: no initial source read (i.e. shiftregisters preloaded with 0)
-	cmp.w		clip_x1(a2),d1
+	cmp.w		clip_win_x(a2),d1
 	bpl.s		.clip_safe_left
 *-------------------------------------------------------*
 *	left clipped
@@ -181,7 +190,7 @@ enable_x_clipping	set	0
 	or.b		#$80,.sp_skew(sp)
 
 	; relative to clipwindow
-	sub.w		clip_x1(a2),d1
+	sub.w		clip_win_x(a2),d1
 
 	; adjust dest width (ignore FISR part)
 
@@ -213,7 +222,7 @@ enable_x_clipping	set	0
 	lea		-2(a3,d5.w),a3			; adjust (+ FISR)
 
 	; relative to world
-	move.w		clip_x1(a2),d1
+	move.w		clip_win_x(a2),d1
 	; ASSUMPTION: sprite is not big enough to cross left+right
 	bra		.BLiT_EMSpr_Clip_4BPL_xclipped_go
 
@@ -227,7 +236,7 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 	move.w		d1,d0
 	add.w		d3,d0				; xr
-	sub.w		clip_x2(a2),d0			; xr - cx2
+	sub.w		clip_win_x2(a2),d0			; xr - cx2
 	ble		.clip_safe_right
 *-------------------------------------------------------*
 *	right clipped
@@ -346,7 +355,8 @@ enable_x_clipping	set	0
 
 
 	; dst skip adjust by dst width
-	move.w		_g_linebytes,a4
+;	move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 	lsr.w		#1,d6				; *8
 	sub.w		d6,a4
 
@@ -445,7 +455,8 @@ enable_x_clipping	set	0
 	lea		BLiTEM1.w,a2
 	moveq		#$c0,d1
 	moveq		#4,d2
-	move.w		_g_linebytes,d3
+;	move.w		_g_linebytes,d3
+	move.w		.sp_linebytes(sp),d3
 
 *-------------------------------------------------------*
 
@@ -568,9 +579,13 @@ enable_x_clipping	set	0
 	; dst yoffset (line)
 	; todo: just use playfield linetable here
 ;	mulu.w		#linebytes,d2
-	mulu.w		_g_linebytes,d2
-	add.l		d2,a1
+;	mulu.w		_g_linebytes,d2
+;	add.l		d2,a1
 
+	move.l		.sp_linetable(sp),a4
+	add.w		d2,d2
+	add.w		d2,d2
+	add.l		(a4,d2.w),a1
 
 	; find destination word width of shifted sprite
 
@@ -595,7 +610,8 @@ enable_x_clipping	set	0
 .EFSR:
 
 	; dst skip adjust by dst width
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 	lsr.w		#1,d6
 	sub.w		d6,a4
 
@@ -682,7 +698,8 @@ enable_x_clipping	set	0
 	lea		BLiTEM1.w,a2
 	moveq		#$c0,d1
 	moveq		#4,d2
-	move.w		_g_linebytes,d3
+	;move.w		_g_linebytes,d3
+	move.w		.sp_linebytes(sp),d3
 
 *-------------------------------------------------------*
 

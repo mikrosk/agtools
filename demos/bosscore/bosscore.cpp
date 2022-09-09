@@ -105,7 +105,7 @@ enum EntityType : int
 #define SCREEN_YSIZE (240)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 #define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -214,6 +214,8 @@ entity_t *g_pe_boss = NULL;
 
 // useful to have direct access to player-related entities 
 static entity_t *g_pe_player = NULL;
+
+static drawcontext_t drawcontext;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -467,8 +469,6 @@ int AGT_EntryPoint()
 			printf("machine: unknown, so assuming STE (?!)...\n");
 			bSTE = true;
 		}
-		printf("press space...\n");
-		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
@@ -638,8 +638,8 @@ int AGT_EntryPoint()
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
-//		pprintf("ready... (press key)\n");
-//		Crawcin();
+		pprintf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over machine resources - display, timers, input etc.
@@ -991,9 +991,11 @@ void boss_state0_enter_fntick(entity_t *_pself)
 			c_bosseye_xoff,c_bosseye_yoff
 		);
 
-		// strobe mode
-		self.draw_hitflash |= 0x80ff;
 	}
+	// strobe mode: 0x8000 = flash/blink mode, 0x0010 = reset flash counter to >=16 every tick but leave lower bits to count down
+	// this allows continuous blinking, otherwise we can only blink for 0xfe frames countdown, maximum (approx 4 seconds)
+	// 0x80ff == permanent invisibility, no countdown
+	self.draw_hitflash |= 0x8010;
 
 
 	// generate world coords from viewport-relative coords

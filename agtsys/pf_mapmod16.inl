@@ -332,7 +332,8 @@ inline void dbg_vis_occlusion()
 	dm_map_tiles_y = map_tiles_y_;
 	dm_dstlinewid = c_dst_linewid;
 
-	dm_vth = vpage_tiles_y_ * (c_vloop_ ? 2 : 1);//virtual_tiles_y_;
+	// todo: need to include guardband area for vis? probably not...
+	dm_vth = vpage_tiles_yg_ * (c_vloop_ ? 2 : 1);//virtual_tiles_y_;
 
 	int pi = xpos_>>4;
 	if (c_hloop_)
@@ -345,7 +346,7 @@ inline void dbg_vis_occlusion()
 	dm_pi = xpos_;
 
 	dm_pj = pj;
-	dm_pj2 = pj + vpage_tiles_y_;
+	dm_pj2 = pj + vpage_tiles_yg_;	// include guardband area to access next page
 
 //	u16* dstaddr = &framebuffer_[(((pj<<4)+(ypos_&15))*c_dst_linewid) + (pi << 2)];
 	u16* dstaddr = &framebuffer_[(((pj<<4)+(ypos_&15))*(c_dst_linewid>>1)) + (pi << 2)];

@@ -35,8 +35,8 @@
 *	initial source skip (unclipped case)
 *-------------------------------------------------------*
 
-;	sprite_cliptest	a2,d1,d2,d3,d4,d0,.BLiT_EMHSpr_4BPL_end,.BLiT_EMHSpr_NoClip_4BPL_go
-	sprite_culltest	a2,d1,d2,d3,d4,d0,d6,.BLiT_EMHSpr_4BPL_end
+	move.l		.sp_guardwin(sp),a2
+	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.BLiT_EMHSpr_4BPL_end
 
 *-------------------------------------------------------*
 .BLiT_EMHSpr_NoClip_4BPL_go:
@@ -101,13 +101,13 @@
 	add.w		d0,a1
 
 	; address yline	
-;	move.l		.sp_linetable(sp),a3
-;	add.w		d2,d2
-;	add.w		d2,d2
-;	add.l		(a3,d2.w),a1
+	move.l		.sp_linetable(sp),a3
+	add.w		d2,d2
+	add.w		d2,d2
+	add.l		(a3,d2.w),a1	; 38c vs 56c for muls (28c excl. linetable fetch)
 
-	muls.w		_g_linebytes,d2
-	add.l		d2,a1
+;	muls.w		_g_linebytes,d2
+;	add.l		d2,a1
 	
 	.if		(enable_restore&use_sprite_pagerestore)
 
@@ -135,7 +135,8 @@
 ;	lea		$123456,a6
 	move.l		.sp_nextcmp(sp),a6
 
-	move.w		_g_linebytes,d0
+;	move.w		_g_linebytes,d0
+	move.w		.sp_linebytes(sp),d0
 
 	move.l		#$00ffc000,d1
 ;.emh_skew_smc:

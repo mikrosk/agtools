@@ -121,7 +121,7 @@
 
 .macro	sprite_cliptest	win,x_,y_,w_,h_,temp,reject,accept
 	
-	lea		_g_spr_window,\win
+;	lea		_g_clipwin_gpp,\win
 	
 	cmp.w		(\win)+,\x_
 	bmi		\reject
@@ -145,9 +145,9 @@
 
 ; faster, requires 2 temp regs
 
-.macro	sprite_culltest	win,x_,y_,w_,h_,temp1,temp2,reject	
+.macro	sprite_guard	win,x_,y_,w_,h_,temp1,temp2,reject	
 
-	lea		_g_spr_culltest,\win
+;	lea		_g_clipwinq_gg,\win
 
 	move.w		\x_,\temp1			; x
 	sub.w		(\win)+,\temp1			; x-cx
@@ -165,7 +165,7 @@
 
 	.endm
 	
-.macro	sprite_cullxr	win,x_,w_,temp1,temp2,reject	
+.macro	sprite_guardxr	win,x_,w_,temp1,temp2,reject	
 
 	move.w		\x_,\temp1			; x
 	sub.w		(\win)+,\temp1			; x-cx
@@ -176,7 +176,7 @@
 
 	.endm
 
-.macro	sprite_cullyr	win,y_,h_,temp1,temp2,reject	
+.macro	sprite_guardyr	win,y_,h_,temp1,temp2,reject	
 
 	move.w		\y_,\temp1			; y
 	sub.w		(\win)+,\temp1			; y-cy
@@ -188,7 +188,7 @@
 	.endm
 	
 	
-.macro	sprite_cullxa	win,x_,w_,temp1,temp2,accept	
+.macro	sprite_guardxa	win,x_,w_,temp1,temp2,accept	
 
 	move.w		\x_,\temp1			; x
 	sub.w		(\win)+,\temp1			; x-cx
@@ -199,7 +199,7 @@
 
 	.endm
 
-.macro	sprite_cullya	win,y_,h_,temp1,temp2,accept	
+.macro	sprite_guardya	win,y_,h_,temp1,temp2,accept	
 
 	move.w		\y_,\temp1			; y
 	sub.w		(\win)+,\temp1			; y-cy

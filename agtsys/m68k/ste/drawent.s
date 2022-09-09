@@ -85,14 +85,14 @@ within_entitydraw	set	1
 	.globl		_OCM_occlusion_add_T
 	.globl		_OCM_occlusion_sub_O
 
-	.globl		_g_spr_window
-	.globl		_g_spr_culltest
+;	.globl		_g_clipwin_gpp
+;	.globl		_g_clipwinq_gg
 
 	.globl		_g_linebytes
 
 	.globl		_g_pe_viewport
 
-	.globl		_drawcontext
+	.globl		_g_drawcontext
 
 	.globl		slab_precalcs
 		

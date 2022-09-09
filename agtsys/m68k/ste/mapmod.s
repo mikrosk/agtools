@@ -9,7 +9,7 @@
 ;	.globl		_do_mapmod_occlusion
 	.globl		_vis_mapmod_occlusion
 
-	.globl		_drawcontext
+	.globl		_g_drawcontext
 
 
 	include		"drawctx.inc"
@@ -82,6 +82,13 @@ _OCM_occlusion_add_T:
 *------------------------------------------------------------------------------*
 	movem.l		d0-a6,-(sp)
 *------------------------------------------------------------------------------*
+
+	; todo: optimize this stuff
+	cmp.w		_g_drawcontext+dctx_guardwindow_x1,d1
+	bmi.s		.nocm
+	cmp.w		_g_drawcontext+dctx_guardwindow_y1,d2
+	bmi.s		.nocm
+
 	move.w		d1,d3			; fx
 	lsr.w		#2,d3
 	and.w		#4-1,d3			; qx
@@ -100,14 +107,14 @@ _OCM_occlusion_add_T:
 	subq.w		#1,d7
 	bmi.s		.nocm
 	
-	move.l		_drawcontext+dctx_pocm_t,a1		;_dm_dirty_oct,a1
+	move.l		_g_drawcontext+dctx_pocm_t,a1		;_dm_dirty_oct,a1
 
 ;	todo: clipping
 
-	tst.w		d1
-	bmi.s		.nocm
-	tst.w		d2
-	bmi.s		.nocm
+;	tst.w		d1
+;	bmi.s		.nocm
+;	tst.w		d2
+;	bmi.s		.nocm
 
 ;	x offset & shift into ocm buffers
 
@@ -125,7 +132,7 @@ _OCM_occlusion_add_T:
 
 ;	y offset into ocm buffers
 
-	move.w		_drawcontext+dctx_ocm_stride,d4		;_dm_ocmstride,d4
+	move.w		_g_drawcontext+dctx_ocm_stride,d4		;_dm_ocmstride,d4
 	mulu.w		d4,d2
 	add.l		d2,a1
 	
@@ -148,12 +155,19 @@ _OCM_occlusion_sub_O:
 *------------------------------------------------------------------------------*
 	movem.l		d0-a6,-(sp)
 *------------------------------------------------------------------------------*
+
+	; todo: optimize this stuff
+	cmp.w		_g_drawcontext+dctx_guardwindow_x1,d1
+	bmi.s		.nocm
+	cmp.w		_g_drawcontext+dctx_guardwindow_y1,d2
+	bmi.s		.nocm
+	
 	move.w		d1,d3			; fx
-	lsr.w		#2,d3
+	asr.w		#2,d3
 	and.w		#4-1,d3			; qx
 	
 	move.w		d2,d4			; fy
-	lsr.w		#2,d4
+	asr.w		#2,d4
 	and.w		#4-1,d4			; qy
 	
 	lsl.w		#2,d4
@@ -168,14 +182,14 @@ _OCM_occlusion_sub_O:
 
 	addq		#2,a0
 	
-	move.l		_drawcontext+dctx_pocm_o,a1		;_dm_dirty_oct,a1
+	move.l		_g_drawcontext+dctx_pocm_o,a1		;_dm_dirty_oct,a1
 
 ;	todo: clipping
-
-	tst.w		d1
-	bmi.s		.nocm
-	tst.w		d2
-	bmi.s		.nocm
+;
+;	tst.w		d1
+;	bmi.s		.nocm
+;	tst.w		d2
+;	bmi.s		.nocm
 
 ;	x offset & shift into ocm buffers
 
@@ -193,7 +207,7 @@ _OCM_occlusion_sub_O:
 
 ;	y offset into ocm buffers
 
-	move.w		_drawcontext+dctx_ocm_stride,d4		;_dm_ocmstride,d4
+	move.w		_g_drawcontext+dctx_ocm_stride,d4		;_dm_ocmstride,d4
 	mulu.w		d4,d2
 	add.w		d2,a1
 	
@@ -301,7 +315,6 @@ _OCM_integrate_68k:
 	move.w		_dm_pj2,d4		
 	sub.w		d2,d4
 	ble		.nooc
-	
 	
 	move.w		d2,d0
 	mulu.w		d5,d0

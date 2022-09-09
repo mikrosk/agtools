@@ -22,7 +22,8 @@
 			
 	
 	; sprite clipping window
-	lea		_g_spr_window,a2
+	;lea		_g_clipwin_gpp,a2
+	move.l		.sp_scissorwin(sp),a2
 	
 	; initial dst skip
 	
@@ -73,12 +74,12 @@
 *-------------------------------------------------------*
 *	top edge
 *-------------------------------------------------------*
-	cmp.w		clip_y1(a2),d2
+	cmp.w		clip_win_y(a2),d2
 	bpl.s		.ims_clip_safe_top
 *-------------------------------------------------------*
 *	top clipped
 *-------------------------------------------------------*
-	move.w		clip_y1(a2),d5
+	move.w		clip_win_y(a2),d5
 	; relative to clipwindow
 	sub.w		d5,d2
 	; crop lines
@@ -99,7 +100,7 @@
 	add.l		d0,a0
 		
 	; relative to world
-	move.w		clip_y1(a2),d2
+	move.w		clip_win_y(a2),d2
 	; ASSUMPTION: sprite is not big enough to cross top+bottom
 	bra.s		.ims_clip_safe_bot
 *-------------------------------------------------------*
@@ -111,7 +112,7 @@
 *-------------------------------------------------------*
 	move.w		d2,d0
 	add.w		d4,d0				; xr	
-	sub.w		clip_y2(a2),d0			; xr - cx2
+	sub.w		clip_win_y2(a2),d0			; xr - cx2
 	ble.s		.ims_clip_safe_bot
 *-------------------------------------------------------*
 *	bottom clipped	
@@ -126,7 +127,8 @@
 *	left edge
 *-------------------------------------------------------*
 	; NISR: no initial source read (i.e. shiftregisters preloaded with 0)
-	cmp.w		clip_x1p(a2),d1
+	;cmp.w		clip_x1p(a2),d1
+	cmp.w		clip_win_x(a2),d1
 	bpl.s		.ims_clip_safe_left
 *-------------------------------------------------------*
 *	left clipped
@@ -137,7 +139,8 @@
 	or.b		#$80,.sp_skew(sp)
 
 	; relative to clipwindow
-	sub.w		clip_x1p(a2),d1
+	;sub.w		clip_x1p(a2),d1
+	sub.w		clip_win_x(a2),d1
 	; find minimum pixelwords off left edge
 ;	move.w		d1,d0
 ;	neg.w		d0				; pixels off left
@@ -189,7 +192,8 @@
 	lea		-10(a3,d0.w),a3
 	
 	; relative to world
-	move.w		clip_x1p(a2),d1	
+;	move.w		clip_x1p(a2),d1	
+	move.w		clip_win_x(a2),d1
 	; ASSUMPTION: sprite is not big enough to cross left+right
 ;	bra		.ims_clip_safe_right
 	bra		.ims_clip_unsafe_left
@@ -206,7 +210,8 @@
 *-------------------------------------------------------*
 	move.w		d1,d0
 	add.w		d3,d0				; xr	
-	sub.w		clip_x2p(a2),d0			; xr - cx2
+;	sub.w		clip_x2p(a2),d0			; xr - cx2
+	sub.w		clip_win_x2(a2),d0
 	ble		.AGT_BLiT_IMSprDrawUnClipped_go	;.ims_clip_safe_right
 *-------------------------------------------------------*
 *	right clipped

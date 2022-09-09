@@ -35,14 +35,21 @@ dctx_ocm_stride:	ds.w	1
 dctx_field:		ds.w	1
 ;dctx_mfield:		ds.w	1
 *-------------------------------------------------------*
-dctx_clipwindow_x1:	ds.w	1
-dctx_clipwindow_y1:	ds.w	1
-dctx_clipwindow_x2:	ds.w	1
-dctx_clipwindow_y2:	ds.w	1
-dctx_clipwindow_x1p:	ds.w	1
-dctx_clipwindow_x2p:	ds.w	1
-;dctx_clipwindow_y1g:	ds.w	1
-;dctx_clipwindow_y2g:	ds.w	1
+dctx_guardwindow:
+dctx_guardwindow_x1:	ds.w	1
+dctx_guardwindow_xs:	ds.w	1
+dctx_guardwindow_y1:	ds.w	1
+dctx_guardwindow_ys:	ds.w	1
+dctx_guardwindow_x2:	ds.w	1
+dctx_guardwindow_y2:	ds.w	1
+*-------------------------------------------------------*
+dctx_scissorwindow:
+dctx_scissorwin_x1p:	ds.w	1
+dctx_scissorwin_xs:	ds.w	1
+dctx_scissorwin_y1:	ds.w	1
+dctx_scissorwin_ys:	ds.w	1
+dctx_scissorwin_x2p:	ds.w	1
+dctx_scissorwin_y2:	ds.w	1
 *-------------------------------------------------------*
 dctx_size:		
 *-------------------------------------------------------*
@@ -77,11 +84,17 @@ bgrframe_size:		; frame size, if page-restore mode
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-spr_culltest:	
-spr_culltest_x:		ds.w	1
-spr_culltest_xs:	ds.w	1
-spr_culltest_y:		ds.w	1
-spr_culltest_ys:	ds.w	1
+clip_win:	
+;
+clip_win_x:		ds.w	1
+clip_win_xs:		ds.w	1
+clip_win_y:		ds.w	1
+clip_win_ys:		ds.w	1
+;
+clip_win_x2:		ds.w	1
+clip_win_y2:		ds.w	1
+;
+clip_win_size_:
 *-------------------------------------------------------*
 
 *-------------------------------------------------------*
@@ -96,35 +109,44 @@ spr_culltest_ys:	ds.w	1
 *-------------------------------------------------------*
 .macro	emitframe_draw_vars
 *-------------------------------------------------------*
-*	locals: used by sprite routines
+*	r/w fields used by sprite routines
 *-------------------------------------------------------*
-.sp_skew:		ds.w	1			; don't move this one
-.sp_maskwidth:		ds.w	1
-.sp_yoff:		ds.w	1
-.sp_yc:			ds.w	1
-.sp_yrem:		ds.w	1
-.sp_cfield4:		ds.w	1
-.sp_mfield:		ds.w	1
-.sp_xadj:		ds.w	1
-.sp_save_usp:		ds.l	1
-.sp_linetable:		ds.l	1
-.sp_nextcmp:		ds.l	1
-.sp_x:			ds.w	1
-.sp_y:			ds.w	1
+.sp_skew:		ds.w	1	; fragile optimization: don't move this one
+.sp_maskwidth:		ds.w	1	; width of EM? mask, in words
+.sp_yoff:		ds.w	1	; cached yoffset
+.sp_yc:			ds.w	1	; cached yclip (top)
+.sp_yc2:		ds.w	1	; cached yclip (bot)
+.sp_yrem:		ds.w	1	; y remainder, sprite clearing rectangle split
+.sp_mfield:		ds.w	1	; colour field index offset (dualfield sprites)
+.sp_cfield4:		ds.w	1	; mfield<<2
+.sp_xadj:		ds.w	1	; guardx adjust, to keep sls/slr xcoords +ve
+.sp_save_usp:		ds.l	1	; temp store
+.sp_nextcmp:		ds.l	1	; next 32w component in a multi-component EMS
+.sp_x:			ds.w	1	; cached x,y coords
+.sp_y:			ds.w	1	;
+.sp_pad_:		ds.w	1	; <long align>
 *-------------------------------------------------------*
-*	locals: shadow function arguments
+*	r/o fields, frequently used, shadowed for speed
 *-------------------------------------------------------*
-.sp_framebuf:		ds.l	1
-.sp_snapx:		ds.w	1
-.sp_snapy:		ds.w	1
+.sp_framebuf:		ds.l	1	; active framebuffer base @ playfield (0,0) - ignoring guard region
+.sp_guardwin:		ds.l	1	; guardband reject window
+.sp_scissorwin:		ds.l	1	; scissor/clip window
+.sp_linetable:		ds.l	1	; cached lineoffset index
+.sp_snapx:		ds.w	1	; pf vpage snapping offsets
+.sp_snapy:		ds.w	1	;
 *-------------------------------------------------------*
-*	locals: used by algorithm
+*	r/w fields, used by entity iterator
 *-------------------------------------------------------*
-.sp_asset:		ds.l	1
-.sp_pxymax_:		ds.l	1
-.sp_savea0:		ds.l	1
-.sp_layers:		ds.l	1
-.sp_drawtype:		ds.l	1
+.sp_savea0:		ds.l	1	; scratch
+.sp_drawtype:		ds.l	1	; active drawtype
+.sp_asset:		ds.l	1	; asset data
+*-------------------------------------------------------*
+*	const fields, set before entity iteration 
+*-------------------------------------------------------*
+.sp_pxymax_:		ds.w	1	; viewport iteration x or y limit
+.sp_linebytes:		ds.w	1	; cached scanline stride in bytes
+.sp_layers:		ds.l	1	; layer array
+.sp_dctx:		ds.l	1	; drawcontext
 *-------------------------------------------------------*
 	.endm
 *-------------------------------------------------------*

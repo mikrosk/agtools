@@ -3,12 +3,15 @@
 //======================================================================================================================
 
 //----------------------------------------------------------------------------------------------------------------------
-//	example: 16x16 2-layer tilemap with tile animation on both layers
+//	example: 16x16 2-layer tilemap with tile animation on 2nd layer
+//			 
 //----------------------------------------------------------------------------------------------------------------------
 //	controls: none
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
-//		- same as map8x8x2layer example, but with 16x16 tiles
+//		- map scrolls diagonally, trees grow slowly on 2nd tilemap
+//		- tree animations are stored on map assets with transparent tilesets
+//		- tilesets can be shared between map assets (multi-cut)
 //----------------------------------------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -102,7 +105,7 @@ enum EntityType : int
 #define SCREEN_YSIZE (240)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 #define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -165,7 +168,7 @@ AGT_MAIN;
 // in 8-way scrolling mode we need to keep a 16 1-tile safety margin between the viewport and the map edges
 // otherwise the tile update speculation algorithm will cause draw glitches on scroll direction changes. it renders
 // slightly ahead of the scroll and won't wrap on the left or top edges. this safety margin avoids any issues.
-static const int c_scroll_safety_margin = 16;
+static const int c_scroll_safety_margin = 16;//16;
 
 static const s16 c_direction_change_timer = 1024;
 
@@ -189,7 +192,7 @@ static s16 g_player_worldy = 0;
 
 // viewport (scroll) starting position in world map
 static s16 g_viewport_worldx = c_scroll_safety_margin; 
-static s16 g_viewport_worldy = c_scroll_safety_margin;
+static s16 g_viewport_worldy = 0;//c_scroll_safety_margin;
 
 // clipping margin outside of the scrolling viewport, to accommodate the largest typical sprite before deletion etc.
 static const s16 c_viewport_xmargin = playfield_t::c_guardx;
@@ -203,6 +206,8 @@ mersenne_twister prng;
 
 // viewport entity is global and part of the entity drawing system
 static entity_t *s_pe_viewport = NULL;
+
+drawcontext_t drawcontext;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -276,8 +281,6 @@ int AGT_EntryPoint()
 			printf("machine: unknown, so assuming STE (?!)...\n");
 			bSTE = true;
 		}
-		printf("press space...\n");
-		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
@@ -323,11 +326,11 @@ int AGT_EntryPoint()
 
 		// scroll starting point (fixedpoint)
 		g_fscrollx = 16<<16;
-		g_fscrolly = c_scroll_safety_margin<<16;
+		g_fscrolly = 0;//c_scroll_safety_margin<<16;
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
-		g_map_fxlimit = 192<<16;
-		g_map_fylimit = ((map_ysize/1)-VIEWPORT_YSIZE-c_scroll_safety_margin)<<16;
+		g_map_fxlimit = ((map_xsize/1)-VIEWPORT_XSIZE/*-c_scroll_safety_margin*/)<<16;//256<<16;//192<<16;
+		g_map_fylimit = ((map_ysize/1)-VIEWPORT_YSIZE/*-c_scroll_safety_margin*/)<<16;
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
@@ -405,6 +408,11 @@ int AGT_EntryPoint()
 
 		printf("init world viewport...\n");
 		myworld.init(g_viewport_worldx, g_viewport_worldy);
+
+		// ---------------------------------------------------------------------------------------------------------------------
+
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over machine resources - display, timers, input etc.
@@ -630,7 +638,7 @@ mainloop:
 				g_fscrollx += g_fscrollxdir << 1;
 			}
 
-			if ((g_fscrolly < ((s32)c_scroll_safety_margin<<16)))
+			if ((g_fscrolly < 0/*((s32)c_scroll_safety_margin<<16)*/))
 			{
 				// bounce off the left side of the map
 				g_fscrollydir = -g_fscrollydir;

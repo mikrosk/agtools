@@ -93,6 +93,8 @@ enum EntityType : int
 
 static entity_t *s_pe_viewport = NULL;
 
+drawcontext_t drawcontext;
+
 // ---------------------------------------------------------------------------------------------------------------------
 //	hardware interfaces
 
@@ -118,7 +120,7 @@ AGT_MAIN;
 #define SCREEN_YSIZE (240)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 #define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -190,7 +192,7 @@ static const int c_scroll_safety_margin = 16;
 
 // viewport (scroll) starting position in world map
 static s16 g_viewport_worldx = 0; 
-static s16 g_viewport_worldy = c_scroll_safety_margin;
+static s16 g_viewport_worldy = 0;//c_scroll_safety_margin;
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	sincos table
@@ -234,10 +236,6 @@ int AGT_EntryPoint()
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	...otherwise continue with program
 
-		printf("press space to start...\n");
-		// wait for key using BIOS (we haven't installed our AGT input services - TOS still in charge)
-		Crawcin();
-
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	save machine state for a clean exit
@@ -278,7 +276,7 @@ int AGT_EntryPoint()
 
 		// max scroll is map size minus screen dimensions (plus safety margin for the scrolling axes)
 		s16 map_xlimit = (map_xpixels-VIEWPORT_XSIZE);
-		s16 map_ylimit = (map_ypixels-VIEWPORT_YSIZE-c_scroll_safety_margin);
+		s16 map_ylimit = (map_ypixels-VIEWPORT_YSIZE/*-c_scroll_safety_margin*/);
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create an instance of the arena (our game world), connected to the shifter interface
@@ -324,6 +322,11 @@ int AGT_EntryPoint()
 
 		printf("init world viewport...\n");
 		myworld.init(g_viewport_worldx, g_viewport_worldy);
+
+		// ---------------------------------------------------------------------------------------------------------------------
+
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over all machine resources - display, timers, input etc.
@@ -419,13 +422,14 @@ int AGT_EntryPoint()
 		pe->wy = 5768+300; 
 		pe->vx = 9; 
 		pe->vy = 17;
-
+	
 		// 80-wide
 		pe = EntitySpawn(EntityType_80,  160,120);
 		pe->wx = 3000+200; 
 		pe->wx = 1024+250; 
 		pe->vx = 15; 
 		pe->vy = 12;
+
 /*		pe = EntitySpawn(EntityType_80,  160,120);
 		pe->wx = 1024+200; 
 		pe->wy = 7000+250; 
@@ -512,6 +516,8 @@ int AGT_EntryPoint()
 
 			EntityDrawVisible(&drawcontext);
 
+			//myworld.dbg_vis_occlusion();
+
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	present the current workbuffer as the new frontbuffer
 
@@ -529,7 +535,7 @@ int AGT_EntryPoint()
 
 			// if we hit the end of the map, turn around
 			if ((g_viewport_worldy >= map_ylimit) ||
-				(g_viewport_worldy < c_scroll_safety_margin))
+				(g_viewport_worldy < 0/*c_scroll_safety_margin*/))
 			{
 				// change scroll direction
 				g_viewport_worldy -= scroll_speed;
@@ -595,7 +601,7 @@ void shared_fntick_big(entity_t *_pself)
 	self.wy += self.vy;
 
 	// assign position, relative to viewport
-	self.rx = g_viewport_worldx + 160 - self.ox + (x >> 25);
+	self.rx = g_viewport_worldx + 160 - self.ox + (x >> 24);
 	self.ry = g_viewport_worldy + 120 - self.oy + (y >> 25);
 }
 

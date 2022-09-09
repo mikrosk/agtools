@@ -103,7 +103,7 @@ AGT_MAIN;
 #define SCREEN_YSIZE (272)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 #define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -322,11 +322,14 @@ int AGT_EntryPoint()
 		lastframe = xmin(lastframe, slab_draw_asset.get()->framecount - 1);
 #endif
 
-		printf("press space to start...\n");
-		// wait for key using BIOS (we haven't installed our AGT input services - TOS still in charge)
-		Crawcin();
+		// ---------------------------------------------------------------------------------------------------------------------
 
 		AGT_Sys_ConsoleMode(AGTConsole_MINIMISED);
+
+		// ---------------------------------------------------------------------------------------------------------------------
+
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over all machine resources - display, timers, input etc.

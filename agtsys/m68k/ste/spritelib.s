@@ -70,19 +70,19 @@ within_entitydraw	set	0
 	.endif
 	
 ;	clipping window
-	.globl		_g_spr_window
-	.globl		_g_spr_window_x1
-	.globl		_g_spr_window_y1
-	.globl		_g_spr_window_x2
-	.globl		_g_spr_window_y2
-	.globl		_g_spr_window_x1p
-	.globl		_g_spr_window_x2p
+;	.globl		_g_clipwin_gpp
+;	.globl		_g_clipwin_gpp_x1
+;	.globl		_g_clipwin_gpp_y1p
+;	.globl		_g_clipwin_gpp_x2
+;	.globl		_g_clipwin_gpp_y2p
+;	.globl		_g_clipwin_gpp_x1p
+;	.globl		_g_clipwin_gpp_x2p
 
-	.globl		_g_spr_culltest
-	.globl		_g_spr_culltest_x
-	.globl		_g_spr_culltest_xs
-	.globl		_g_spr_culltest_y
-	.globl		_g_spr_culltest_ys
+;	.globl		_g_clipwinq_gg
+;	.globl		_g_clipwinq_gg_x
+;	.globl		_g_clipwinq_gg_xs
+;	.globl		_g_clipwinq_gg_y
+;	.globl		_g_clipwinq_gg_ys
 	
 	.globl		_OCM_occlusion_add_T
 	
@@ -134,7 +134,7 @@ _AGT_BLiT_IMSprDrawUnClipped:
 *-------------------------------------------------------*
 			.abs
 *-------------------------------------------------------*
-	emitframe_draw_vars
+			emitframe_draw_vars
 ;.sp_skew:		ds.w	1
 ;.sp_maskwidth:		ds.w	1
 ;.sp_flags:		ds.w	1
@@ -149,6 +149,13 @@ _AGT_BLiT_IMSprDrawUnClipped:
 	lea		-.sp_frame_(sp),sp
 *-------------------------------------------------------*
 	move.l		.pctx(a6),a4
+	
+	move.l		a4,.sp_dctx(sp)
+	lea		dctx_guardwindow(a4),a5
+	move.l		a5,.sp_guardwin(sp)
+	lea		dctx_scissorwindow(a4),a5
+	move.l		a5,.sp_scissorwin(sp)
+	
 	move.l		dctx_framebuffer(a4),a1
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 
@@ -157,6 +164,7 @@ _AGT_BLiT_IMSprDrawUnClipped:
 	add.w		d0,d0
 	add.w		d0,d0
 	move.w		d0,.sp_cfield4(sp)
+	move.w		_g_linebytes,.sp_linebytes(sp)
 	
 	move.l		.psps(a6),a0
 	move.w		.xpos+2(a6),d1
@@ -271,6 +279,13 @@ _AGT_BLiT_EMSprDrawUnClipped:
 	lea		-.sp_frame_(sp),sp
 *-------------------------------------------------------*
 	move.l		.pctx(a6),a4
+	
+	move.l		a4,.sp_dctx(sp)
+	lea		dctx_guardwindow(a4),a5
+	move.l		a5,.sp_guardwin(sp)
+	lea		dctx_scissorwindow(a4),a5
+	move.l		a5,.sp_scissorwin(sp)
+	
 	move.l		dctx_framebuffer(a4),a1
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 
@@ -279,6 +294,7 @@ _AGT_BLiT_EMSprDrawUnClipped:
 	add.w		d0,d0
 	add.w		d0,d0
 	move.w		d0,.sp_cfield4(sp)
+	move.w		_g_linebytes,.sp_linebytes(sp)
 	
 	move.l		.psps(a6),a0
 	move.w		.xpos+2(a6),d1
@@ -352,6 +368,13 @@ _AGT_BLiT_EMXSprDrawUnClipped:
 	lea		-.sp_frame_(sp),sp
 *-------------------------------------------------------*
 	move.l		.pctx(a6),a4
+	
+	move.l		a4,.sp_dctx(sp)
+	lea		dctx_guardwindow(a4),a5
+	move.l		a5,.sp_guardwin(sp)
+	lea		dctx_scissorwindow(a4),a5
+	move.l		a5,.sp_scissorwin(sp)
+	
 	move.l		dctx_framebuffer(a4),a1
 	move.l		dctx_lineidx(a4),.sp_linetable(sp)
 
@@ -360,6 +383,7 @@ _AGT_BLiT_EMXSprDrawUnClipped:
 	add.w		d0,d0
 	add.w		d0,d0
 	move.w		d0,.sp_cfield4(sp)
+	move.w		_g_linebytes,.sp_linebytes(sp)
 	
 	move.l		.psps(a6),a0
 	move.w		.xpos+2(a6),d1
@@ -403,7 +427,7 @@ enable_clipping	set	1
 
 
 
-
+	.if	(0);	disabled, until made to work with dctx
 *-------------------------------------------------------*
 _AGT_BLiT_EMSprDrawString:
 *-------------------------------------------------------*
@@ -456,6 +480,7 @@ _AGT_BLiT_EMSprDrawString:
 	add.w		d0,d0
 	add.w		d0,d0
 	move.w		d0,.sp_cfield4(sp)
+	move.w		_g_linebytes,.sp_linebytes(sp)
 		
 *-------------------------------------------------------*
 	moveq		#0,d0
@@ -524,11 +549,14 @@ enable_clipping	set	1
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts
+	
+	.endif
 
 
 ;	include		"rmac/ste/spr2bpl.s"
 
 
+	.if		(0)	; disabled, until made to work with dctx
 *-------------------------------------------------------*
 *
 *-------------------------------------------------------*
@@ -588,8 +616,11 @@ preserve_usp		set	0
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts
+	
+	.endif
 
 
+	.if	(0)	; disabled, until made to work with dctx
 *-------------------------------------------------------*
 *
 *-------------------------------------------------------*
@@ -631,7 +662,7 @@ _AGT_SlabDirtyRegion:
 *-------------------------------------------------------*
 	jsr		_AGT_BLiT_SlabInit
 	
-	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		_g_drawcontext+dctx_prestorestate,a4
 	move.l		rstr_ptide(a4),a5
 	move.l		a5,usp
 
@@ -646,7 +677,7 @@ preserve_usp		set	0
 	include		"ste/b_slabres.s"
 
 
-	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		_g_drawcontext+dctx_prestorestate,a4
 	move.l		usp,a5
 	move.l		a5,rstr_ptide(a4)
 
@@ -657,6 +688,10 @@ preserve_usp		set	0
 	movem.l		(sp)+,d2-d7/a2-a5
 *-------------------------------------------------------*
 	rts
+	
+	.endif
+	
+	
 
 *-------------------------------------------------------*
 *
@@ -881,7 +916,7 @@ _AGT_MarkDirtyRectangle:
 	lsr.w		#1,d1
 	
 	.if		(enable_restore&(use_sprite_saverestore|use_sprite_pagerestore))
-	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		_g_drawcontext+dctx_prestorestate,a4
 	move.l		rstr_ptide(a4),a5
 	move.l		a5,d5
 	.endif
@@ -898,7 +933,7 @@ _AGT_MarkDirtyRectangle:
 	add.w		d1,a1
 	
 	move.w		d2,d7
-	mulu.w		_g_linebytes,d7
+	muls.w		_g_linebytes,d7
 	add.l		d7,a1
 	
 	.if		(enable_restore&use_sprite_pagerestore)	
@@ -914,7 +949,7 @@ _AGT_MarkDirtyRectangle:
 
 	.if		(enable_restore&(use_sprite_saverestore|use_sprite_pagerestore))
 	move.l		d5,(a5)+
-	move.l		_drawcontext+dctx_prestorestate,a4
+	move.l		_g_drawcontext+dctx_prestorestate,a4
 	move.l		a5,rstr_ptide(a4)
 	.endif
 
@@ -935,20 +970,24 @@ _AGT_MarkDirtyRectangle:
 
 _ascii2font:		ds.b		256
 	
-_g_spr_window:
-_g_spr_window_x1:	ds.w		1
-_g_spr_window_y1:	ds.w		1
-_g_spr_window_x2:	ds.w		1
-_g_spr_window_y2:	ds.w		1
-_g_spr_window_x1p:	ds.w		1
-_g_spr_window_x2p:	ds.w		1
+; clipping window: x:guard/pixel y:pixel
+;_g_clipwin_gpp:
+;_g_clipwin_gpp_x1:	ds.w		1
+;_g_clipwin_gpp_y1p:	ds.w		1
+;_g_clipwin_gpp_x2:	ds.w		1
+;_g_clipwin_gpp_y2p:	ds.w		1
+;_g_clipwin_gpp_x1p:	ds.w		1
+;_g_clipwin_gpp_x2p:	ds.w		1
 
-_g_spr_culltest:
-_g_spr_culltest_x:	ds.w		1
-_g_spr_culltest_xs:	ds.w		1
-_g_spr_culltest_y:	ds.w		1
-_g_spr_culltest_ys:	ds.w		1
-	
+; clipping window (quick guard reject): x:guard y:guard
+;_g_clipwinq_gg:
+;_g_clipwinq_gg_x:	ds.w		1
+;_g_clipwinq_gg_xs:	ds.w		1
+;_g_clipwinq_gg_y:	ds.w		1
+;_g_clipwinq_gg_ys:	ds.w		1
+
+*-------------------------------------------------------*
+
 spandata_skew:		ds.b		1
 spandata_wordwidth:	ds.b		1
 spandata_em1:		ds.w		1

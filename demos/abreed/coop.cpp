@@ -104,11 +104,11 @@ enum EntityType : int
 
 // physical display size
 #define SCREEN_XSIZE (320)
-#define SCREEN_YSIZE (128)
+#define SCREEN_YSIZE (264)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
-#define VIEWPORT_YSIZE (SCREEN_YSIZE)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
+#define VIEWPORT_YSIZE (SCREEN_YSIZE/2)
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	configure our scrolling playfield system
@@ -199,6 +199,9 @@ mersenne_twister prng;
 // viewport entity is global and part of the entity drawing system
 static entity_t *s_pe_viewport1 = nullptr;
 static entity_t *s_pe_viewport2 = nullptr;
+
+static drawcontext_t drawcontext1;
+static drawcontext_t drawcontext2;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -403,7 +406,7 @@ void prepare_solidmap(s32 *_pmap, s16 _mw, s16 _mh)
 	}
 }
 
-static void update_viewport(entity_t *_pviewport, arena_t &_arena, int _buffer_index, int _field_index/*, int _viewbind*/)
+static void update_viewport(entity_t *_pviewport, arena_t &_arena, drawcontext_t &_drawcontext, int _buffer_index, int _field_index/*, int _viewbind*/)
 {
 	EntitySelectViewport(_pviewport);
 
@@ -434,7 +437,7 @@ static void update_viewport(entity_t *_pviewport, arena_t &_arena, int _buffer_i
 	// - other devious details used to synchronize drawing with playfields
 	// todo: this has not been properly adopted yet by some of the draw functions - changes are ongoing
 
-	_arena.get_context(drawcontext, working_field, VIEWPORT_XSIZE, _arena.display_height_);
+	_arena.get_context(_drawcontext, working_field, VIEWPORT_XSIZE, _arena.display_height_);
 
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	draw occlusion maps for objects using them
@@ -447,7 +450,7 @@ static void update_viewport(entity_t *_pviewport, arena_t &_arena, int _buffer_i
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	draw 'all the things'
 
-	EntityDrawVisible(&drawcontext);
+	EntityDrawVisible(&_drawcontext);
 		
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	activate the new workbuffer as the next shifter state so it will be presented on the next VBLank
@@ -514,8 +517,6 @@ int AGT_EntryPoint()
 			printf("machine: unknown, so assuming STE (?!)...\n");
 			bSTE = true;
 		}
-		printf("press space...\n");
-		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
@@ -566,16 +567,15 @@ int AGT_EntryPoint()
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
 		g_map_fxlimit = (map_xsize-VIEWPORT_XSIZE-c_scroll_safety_margin)<<16;
-		g_map_fylimit = (map_ysize-VIEWPORT_YSIZE-c_scroll_safety_margin)<<16;
+		g_map_fylimit = (map_ysize-VIEWPORT_YSIZE-0)<<16;
 
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	create the double-buffered 'world', set the viewport dimensions and connect it to the shifter interface
 
 		printf("creating world...\n");
-//		arena_t myworld(shift, 320, SCREEN_LINES, /*dualfield=*/(c_dualfield && !c_singlevbl));
-		arena_t arena_view_1(shift, SCREEN_XSIZE, SCREEN_YSIZE);
-		arena_t arena_view_2(shift, SCREEN_XSIZE, SCREEN_YSIZE);
+		arena_t arena_view_1(shift, VIEWPORT_XSIZE, VIEWPORT_YSIZE);
+		arena_t arena_view_2(shift, VIEWPORT_XSIZE, VIEWPORT_YSIZE);
 
 		arena_view_1.bind_displayport(0);
 		arena_view_2.bind_displayport(1);
@@ -665,8 +665,8 @@ int AGT_EntryPoint()
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
-//		printf("ready... (press key)\n");
-//		Crawcin();
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over machine resources - display, timers, input etc.
@@ -691,9 +691,10 @@ int AGT_EntryPoint()
 
 		nickel_op_t nickel_commands[] =
 		{
-			{ NE_PortSelect,	0+8,	NickelPort0	},
-			{ NE_PortSelect,	128+8,	NickelPort1	},
-			{ NE_Stop,			256+8	}
+			// note: currently first valid line to schedule with Nickel is line #5 but this should be fixed in future
+			{ NE_PortSelect,	0+5,					NickelPort0	},
+			{ NE_PortSelect,	(VIEWPORT_YSIZE*1)+5,	NickelPort1	},
+			{ NE_Stop,			(VIEWPORT_YSIZE*2)+5	}
 		};
 
 		shift.load_nickel(nickel_commands);
@@ -859,7 +860,7 @@ restart_game:
 				reg16(FFFF8240) += 0x315;
 			}
 			while ((x < c_scroll_safety_margin) || (fx > g_map_fxlimit) || 
-				   (y < c_scroll_safety_margin) || (fy > g_map_fylimit) ||
+				   (y < 0) || (fy > g_map_fylimit) ||
 				   is_solidarea32_base(x, y)
 			);
 
@@ -900,7 +901,6 @@ mainloop:
 			s16 field_index = g_vbl;
 			static s16 s_vbl_counter = g_vbl;
 			shift.wait_vbl_minbound(s_vbl_counter, 1);
-
 
 			TIMING_MAIN(0x077);
 
@@ -961,8 +961,8 @@ mainloop:
 			// ---------------------------------------------------------------------------------------------------------------------
 			//	update the background & scroll
 
-			update_viewport(s_pe_viewport1, arena_view_1, buffer_index, field_index);
-			update_viewport(s_pe_viewport2, arena_view_2, buffer_index, field_index);
+			update_viewport(s_pe_viewport1, arena_view_1, drawcontext1, buffer_index, field_index);
+			update_viewport(s_pe_viewport2, arena_view_2, drawcontext2, buffer_index, field_index);
 	
 			arena_view_1.activate_buffer();
 			arena_view_2.activate_buffer();

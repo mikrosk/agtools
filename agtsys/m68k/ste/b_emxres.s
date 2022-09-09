@@ -14,20 +14,54 @@
 *	entrypoint
 *=======================================================*
 
-	sprite_sc_frame	a0,d0,_AGT_Exception_SLRFrame_68k
+	; SLR is a special case - it may be used to clear other
+	; assets and there may be only a single clearing frame
+	; defined to account for multiple animation frames.
+	; so we just fix the index to 0 on an overflow.
+	
+	cmp.w		sps_framecount(a0),d0
+	blo.s		.emxur_frameok
+	moveq		#0,d0
+.emxur_frameok:
 
 	pushraster	#$367
 
-	move.w		_drawcontext+dctx_clipwindow_y1,.sp_yc(sp)
+;	move.w		_g_drawcontext+dctx_guardwindow_y1,.sp_yc(sp)
+
+	; need total width for guardband test
+	move.w		sls_srcwidth(a0),d3
+
+	; guardx reject test (no x clipping in SLAB)
 	
+	move.l		.sp_guardwin(sp),a2				; guard window	
+
+	sprite_guardxr	a2,d1,d3,d4,d6,.emxur_end
+	
+	; passed L/R guard test
+
+	; copy top/bottom scissor points for yclip
+		
+	move.l		.sp_scissorwin(sp),a4
+	move.w		clip_win_y(a4),.sp_yc(sp)
+	move.w		clip_win_y2(a4),.sp_yc2(sp)
+
 	; access sprite frame table
-	
+		
 	add.w		d0,d0				; todo: game layer can prescale this
 	add.w		d0,d0
 	move.l		sls_frameindex(a0,d0.w),a0	; access sprite frame data
-			
-	move.w		d1,.sp_x(sp)
-	bmi		.emxur_end			; slabs can't cope with -ve x even in guardband
+
+	; slab rendering can't cope with -ve x as-is, even for guardband
+	; deal with left guardband case - shift framebuffer left & nudge slab right	
+	moveq		#0,d6
+	tst.w		d1
+	bpl.s		.emxur_lxok
+	add.w		#AGT_CONFIG_SYS_GUARDX,d1
+	move.w		#-(AGT_CONFIG_SYS_GUARDX/2),d6
+.emxur_lxok:
+	move.w		d6,.sp_xadj(sp)
+
+	move.w		d1,.sp_x(sp)			
 	move.w		d2,.sp_y(sp)
 
 	bra.s		.emxur_begin
@@ -40,6 +74,9 @@
 	move.l		.sp_framebuf(sp),a1
 	
 .emxur_begin:			
+
+	add.w		.sp_xadj(sp),a1
+
 	move.l		slf_nextcmp(a0),.sp_nextcmp(sp)
 
 ;	move.l		slf_nextcmp(a0),d0
@@ -204,7 +241,7 @@
 ;	test window bottom
 
 	add.w		d2,d4
-	cmp.w		_drawcontext+dctx_clipwindow_y2,d4
+	cmp.w		.sp_yc2(sp),d4
 	ble		.emxur_clip_safebot
 
 *-------------------------------------------------------*
@@ -217,7 +254,8 @@
 
 ;	test for fully clipped out
 
-	cmp.w		_drawcontext+dctx_clipwindow_y2,d2
+	;cmp.w		_g_drawcontext+dctx_guardwindow_y2,d2
+	cmp.w		.sp_yc2(sp),d2
 	bge		.emxur_degen
 
 ;	ys: recover slab ysize
@@ -231,7 +269,8 @@
 
 ;	byc: amount to crop from full slab height (up to max of slab height)
 	
-	sub.w		_drawcontext+dctx_clipwindow_y2,d4
+	;sub.w		_g_drawcontext+dctx_guardwindow_y2,d4
+	sub.w		.sp_yc2(sp),d4
 
 ;	d4		+ve crop
 
@@ -253,10 +292,9 @@
 
 ;	move.l		a3,BLiTSRC.w
 
-;	address initial line
-
-	mulu.w		_g_linebytes,d2
-	add.l		d2,a1	
+	; address yline: can't use linetable because -yoff might exceed guardy	
+	muls.w		.sp_linebytes(sp),d2
+	add.l		d2,a1
 
 ;	usp tends to be used by engine for context/object/sprite-restore,
 ;	but here its more valuable for an inner loop so we need to save it first
@@ -273,7 +311,8 @@
 ;	move.l		a4,usp
 	lea		slab_precalcs,a3
 
-	move.w		_g_linebytes,a4
+	;move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 
 	moveq		#0,d3
 	moveq		#0,d4
@@ -317,9 +356,13 @@
 
 ;	address initial line
 
-	muls.w		_g_linebytes,d2
-	add.l		d2,a1
+;	muls.w		_g_linebytes,d2
+;	add.l		d2,a1
 
+	; address yline: can't use linetable because -yoff might exceed guardy	
+	muls.w		.sp_linebytes(sp),d2
+	add.l		d2,a1
+		
 ;	setup
 
 ;	usp tends to be used by engine for context/object/sprite-restore,
@@ -336,7 +379,8 @@
 	lea		slab_precalcs,a3
 ;	lea		slab_precalcs,a4
 ;	move.l		a4,usp
-	move.w		_g_linebytes,a4
+;	move.w		_g_linebytes,a4
+	move.w		.sp_linebytes(sp),a4
 
 	moveq		#0,d3
 	moveq		#0,d4

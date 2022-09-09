@@ -9,8 +9,12 @@
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
 //		- same as map8x8 example, but with 2 playfield layers
-//		- involves loading 2 maps and 2 tilesets
-//		- different animation edits applied to both layers
+//		- involves loading 2 maps and 2 tilesets into same playfield arena, 
+//		  the top layer being masked (cut with -layer option)
+//		- dual-layer playfield enabled with PFA_DualLayer attribute (must assign both map/tile layers!)
+//		- tile animation enabled with PFA_TileAnimation attribute
+//		- different animation edits/updates applied to each layer (& overlapping same position)
+//		- see notes for examples/map8x8 for more details on 8x8 tilemaps
 //----------------------------------------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -101,7 +105,7 @@ enum EntityType : int
 #define SCREEN_YSIZE (240)
 
 // virtual display size including h-scroll margin
-#define VIEWPORT_XSIZE (SCREEN_XSIZE+16)
+#define VIEWPORT_XSIZE (SCREEN_XSIZE)
 #define VIEWPORT_YSIZE (SCREEN_YSIZE)
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -191,7 +195,7 @@ static s16 g_player_worldy = 0;
 
 // viewport (scroll) starting position in world map
 static s16 g_viewport_worldx = c_scroll_safety_margin; 
-static s16 g_viewport_worldy = c_scroll_safety_margin;
+static s16 g_viewport_worldy = 0;
 
 // clipping margin outside of the scrolling viewport, to accommodate the largest typical sprite before deletion etc.
 static const s16 c_viewport_xmargin = playfield_t::c_guardx;
@@ -205,6 +209,8 @@ mersenne_twister prng;
 
 // viewport entity is global and part of the entity drawing system
 static entity_t *s_pe_viewport = NULL;
+
+static drawcontext_t drawcontext;
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -277,8 +283,6 @@ int AGT_EntryPoint()
 			printf("machine: unknown, so assuming STE (?!)...\n");
 			bSTE = true;
 		}
-		printf("press space...\n");
-		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
@@ -322,12 +326,12 @@ int AGT_EntryPoint()
 		// start in middle of map (fixedpoint)
 		//g_fscrollx = map_xsize<<(16-1);
 		//g_fscrolly = map_ysize<<(16-1);
-		g_fscrollx = 16<<16;//c_scroll_safety_margin<<16;//(map_xsize<<(16-1)) - (160<<16);
-		g_fscrolly = c_scroll_safety_margin<<16;//(map_ysize<<(16-1)) - (120<<16);
+		g_fscrollx = c_scroll_safety_margin<<16;
+		g_fscrolly = 0<<16;
 
 		// max scroll is map size minus screen dimensions (plus safety margin)
 		g_map_fxlimit = ((map_xsize/2)-VIEWPORT_XSIZE-c_scroll_safety_margin)<<16;
-		g_map_fylimit = ((map_ysize/2)-VIEWPORT_YSIZE-c_scroll_safety_margin)<<16;
+		g_map_fylimit = ((map_ysize/2)-VIEWPORT_YSIZE-0)<<16;
 
 
 		// ---------------------------------------------------------------------------------------------------------------------
@@ -367,8 +371,8 @@ int AGT_EntryPoint()
 
 		// ---------------------------------------------------------------------------------------------------------------------
 
-//		printf("ready... (press key)\n");
-//		Crawcin();
+		printf("ready... (press key)\n");
+		Crawcin();
 
 		// ---------------------------------------------------------------------------------------------------------------------
 		//	now claim control over machine resources - display, timers, input etc.
@@ -669,7 +673,7 @@ mainloop:
 				g_fscrollx += g_fscrollxdir << 1;
 			}
 
-			if ((g_fscrolly < ((s32)c_scroll_safety_margin<<16)))
+			if ((g_fscrolly < ((s32)0<<16)))
 			{
 				// bounce off the left side of the map
 				g_fscrollydir = -g_fscrollydir;

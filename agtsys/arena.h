@@ -16,18 +16,6 @@ extern "C" s16 g_xpreshift;
 // sprite clipping window (world coordinates)
 // todo: this is now part of drawcontext struct and will soon be deprecated
 
-extern "C" s16 g_spr_window_x1;
-extern "C" s16 g_spr_window_y1;
-extern "C" s16 g_spr_window_x2;
-extern "C" s16 g_spr_window_y2;
-extern "C" s16 g_spr_window_x1p;
-extern "C" s16 g_spr_window_x2p;
-
-extern "C" s16 g_spr_culltest_x;
-extern "C" s16 g_spr_culltest_xs;
-extern "C" s16 g_spr_culltest_y;
-extern "C" s16 g_spr_culltest_ys;
-
 extern "C" int STF_MaskEdgeL(u16* _pfb, int _xoff, int _yoff, int _height);
 extern "C" int STF_MaskEdgeR(u16* _pfb, int _xoff, int _yoff, int _height);
 
@@ -218,34 +206,26 @@ public:
 		r_ctx.pfsnapadjy = snapadjy + _vpyo;
 
 		// generate clipping window
-		s16 guardx = playfield_type::c_guardx;
-		s16 guardy = playfield_type::c_guardy;
+		const s16 guardx = playfield_type::c_guardx;
+		const s16 guardy = playfield_type::c_guardy;
 		r_ctx.guardx = guardx;
 		r_ctx.guardy = guardy;
-		// physical clipping (IMS,RFILL)
-		r_ctx.clip_window_x1p = (r_ctx.vpagex & -16);
-		r_ctx.clip_window_x2p = (r_ctx.clip_window_x1p + _vpw);
-		// general clipping
-		r_ctx.clip_window_x1 =  (r_ctx.vpagex & -16) - guardx;
-		r_ctx.clip_window_y1 =  r_ctx.vpagey;
-		r_ctx.clip_window_x2 =  (r_ctx.clip_window_x1 + _vpw) + (guardx*2);
-		r_ctx.clip_window_y2 =  r_ctx.vpagey + _vph;
-		// guard clipping (viewport processing)
-//		r_ctx.clip_window_y1g = r_ctx.vpagey - guardy;
-//		r_ctx.clip_window_y2g = r_ctx.vpagey + _vph + guardy;
 
-		// todo: remove
-		g_spr_window_x1 = r_ctx.clip_window_x1;
-		g_spr_window_x1p = r_ctx.clip_window_x1p;
-		g_spr_window_y1 = r_ctx.clip_window_y1;
-		g_spr_window_x2 = r_ctx.clip_window_x2;
-		g_spr_window_x2p = r_ctx.clip_window_x2p;
-		g_spr_window_y2 = r_ctx.clip_window_y2;
+		// physical scissor/clip (IMS,EMS,RFILL)
+		r_ctx.scissor_window_x1p = (r_ctx.vpagex & -16);
+		r_ctx.scissor_window_x2p = (r_ctx.scissor_window_x1p + _vpw + 16);
+		r_ctx.scissor_window_y1 =   r_ctx.vpagey;
+		r_ctx.scissor_window_y2 =   r_ctx.vpagey + _vph;
+		r_ctx.scissor_window_xs =   r_ctx.scissor_window_x2p - r_ctx.scissor_window_x1p;
+		r_ctx.scissor_window_ys =   r_ctx.scissor_window_y2  - r_ctx.scissor_window_y1;
 
-		g_spr_culltest_x = r_ctx.clip_window_x1;
-		g_spr_culltest_y = r_ctx.clip_window_y1;
-		g_spr_culltest_xs = r_ctx.clip_window_x2 - r_ctx.clip_window_x1;
-		g_spr_culltest_ys = r_ctx.clip_window_y2 - r_ctx.clip_window_y1;
+		// guardband rejection
+		r_ctx.guard_window_x1 = r_ctx.vpagex - guardx; //(r_ctx.vpagex & -16) - guardx;
+		r_ctx.guard_window_y1 =  r_ctx.vpagey - guardy;
+		r_ctx.guard_window_x2 = (r_ctx.guard_window_x1 + _vpw) + (guardx*2);
+		r_ctx.guard_window_y2 =  r_ctx.vpagey + _vph + guardy;
+		r_ctx.guard_window_xs =  r_ctx.guard_window_x2 - r_ctx.guard_window_x1;
+		r_ctx.guard_window_ys =  r_ctx.guard_window_y2 - r_ctx.guard_window_y1;
 	}
 
 	// retrieve digest of draw context fields for low level graphics functions
@@ -282,7 +262,8 @@ public:
 
 		snapview(r_ctx, _vpw, _vph, viewport_xoffset_, viewport_yoffset_);
 
-		drawcontext = r_ctx;
+		// TODO: get rid of this shared global
+		g_drawcontext = r_ctx;
 
 		prf_pop();
 	}
@@ -434,16 +415,16 @@ public:
 		if (!playfield_type::c_hscroll_)
 			_x = 0;
 		else
-		if (playfield_type::c_hspeculative_)
-			if (_x < playfield_type::c_hspeculative_margin_)
-				_x = playfield_type::c_hspeculative_margin_;
+		if (_x < playfield_type::c_hspeculative_margin_)
+			_x = playfield_type::c_hspeculative_margin_;
 
 		if (!playfield_type::c_vscroll_)
 			_y = 0;
 		else
-		if (playfield_type::c_vspeculative_)
-			if (_y < playfield_type::c_vspeculative_margin_)
-				_y = playfield_type::c_vspeculative_margin_;
+		if (_y < 0)
+			_y = 0;
+//		if (_y < playfield_type::c_vspeculative_margin_)
+//			_y = playfield_type::c_vspeculative_margin_;
 
 		buffer& b = *pactive_; //buffers_[buffer_index_];
 

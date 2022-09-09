@@ -110,7 +110,7 @@ static const int ALLOW_BTAIL_OPTIMIZATIONS = 0;
 //static const int USE_PERSHIFT_LINEORDER_OPTIMIZATION = 0;
 
 //static const int DARWIN_DEPTH = 20;
-static const int DEFAULT_EMX_OPTLEVEL = 0;//16;
+static const int DEFAULT_EMX_OPTLEVEL = 1;
 
 #define USE_NOP_BINARY_VALIDATION (0)
 
