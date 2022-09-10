@@ -3,7 +3,7 @@
 //======================================================================================================================
 
 //----------------------------------------------------------------------------------------------------------------------
-//	example: use of slabs for end-of-level boss
+//	example: use of EMH for end-of-level boss
 //----------------------------------------------------------------------------------------------------------------------
 //	controls:
 //		- WSAD keys to move around
@@ -11,6 +11,9 @@
 //----------------------------------------------------------------------------------------------------------------------
 //	notes:
 //----------------------------------------------------------------------------------------------------------------------
+
+// enable this to switch to older SLAB method: uses a lot less memory, slower drawing.
+//#define BOSS_USE_SLAB_VS_EMX
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	system headers
@@ -225,7 +228,11 @@ static drawcontext_t drawcontext;
 spritesheet player_asset;
 spritesheet bullet_asset;
 
+#if defined(BOSS_USE_SLAB_VS_EMX)
 slabsheet bossdraw_asset;
+#else
+spritesheet bossdraw_asset;
+#endif
 slabsheet bossclear_asset;
 spritesheet bossbeam_asset;
 spritesheet bosseye_asset;
@@ -436,6 +443,7 @@ int AGT_EntryPoint()
 
 	// ---------------------------------------------------------------------------------------------------------------------
 	//	using BLiTTER slabs requires a one-time precalc during startup
+	//	IMORTANT: required for both .sls slabs and .slr clearing primitives, even if used as a custom clear for EMXUR!
 
 	AGT_BLiT_SlabSetupOnce();
 
@@ -586,7 +594,11 @@ int AGT_EntryPoint()
 		player_asset.load("vicviper.emx");
 
 		// boss
+	#if defined(BOSS_USE_SLAB_VS_EMX)
 		bossdraw_asset.load_sls("bosscore.sls");
+	#else
+		bossdraw_asset.load("bosscore.emx");
+	#endif
 		bossclear_asset.load_sls("bosscore.slr");
 
 		// boss parts
@@ -609,10 +621,15 @@ int AGT_EntryPoint()
 		EntityDefAsset_Sprite(EntityType_PLAYER, &player_asset);
 		EntityDefAsset_Sprite(EntityType_BULLET, &bullet_asset);
 
+#if defined(BOSS_USE_SLAB_VS_EMX)
 		sls_pair boss_assetpair;
 		boss_assetpair.assign(bossdraw_asset.get(), bossclear_asset.get());
 		EntityDefAsset_Slab(EntityType_BOSS, &boss_assetpair);
-
+#else
+		sps_pair boss_assetpair;
+		boss_assetpair.assign(bossdraw_asset.get(), bossclear_asset.get());
+		EntityDefAsset_SpriteProxy(EntityType_BOSS, &boss_assetpair);
+#endif
 		EntityDefAsset_Sprite(EntityType_BOSSBEAM, &bossbeam_asset);
 		EntityDefAsset_Sprite(EntityType_BOSSBALL, &bossball_asset);
 		EntityDefAsset_Sprite(EntityType_BOSSEYE, &bosseye_asset);
@@ -1797,7 +1814,11 @@ entitydef_t entity_dictionary[EntityType_MAX_] =
 
 	// boss
 	//	- moves around slowly, takes no damage, shoots huge guns with crappy aim
+#if defined(BOSS_USE_SLAB_VS_EMX)
 	{ &boss_state0_enter_fntick,0,0,0,			{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_SLAB,0,		EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+#else
+	{ &boss_state0_enter_fntick,0,0,0,			{0},{0},{0},{0},0,0,0,0,		0,0,			30,0,0,0,			EntityDraw_EMXSPRUR,0,	EntityFlag_INERT|EntityFlag_TICKED|EntityFlag_SPATIAL,	0 },
+#endif
 	// boss eye
 	//	- attached to boss, takes damage, kills boss when health hits zero
 	{ &bosseye_fntick,bosseye_fncol,0,0,		{0},{0},{0},{0},0,0,0,0,		1,0,			100,0,0,0,			EntityDraw_EMXSPRQ,0,	EntityFlag_NME|EntityFlag_TICKED|EntityFlag_SPATIAL,	EntityFlag_BULLET },

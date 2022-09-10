@@ -33,14 +33,14 @@
 
 	; guardx reject test (no x clipping in SLAB)
 	
-	move.l		.sp_guardwin(sp),a2				; guard window	
-	sprite_guardxr	a2,d1,d3,d4,d6,.slr_end
+	move.l		.sp_scissorwin(sp),a4				; scissor window
+	lea		dctx_guardwindow-dctx_scissorwindow(a4),a2	; guard window	
+	guard_reject	a2,d1,d3,d4,d6,.slr_end
 	
 	; passed L/R guard test
 
 	; copy top/bottom scissor points for yclip
 		
-	move.l		.sp_scissorwin(sp),a4
 	move.w		clip_win_y(a4),.sp_yc(sp)
 	move.w		clip_win_y2(a4),.sp_yc2(sp)	
 	
@@ -55,6 +55,7 @@
 	moveq		#0,d6
 	tst.w		d1
 	bpl.s		.slr_lxok
+	; TODO: local guardx from stackframe, remove global
 	add.w		#AGT_CONFIG_SYS_GUARDX,d1
 	move.w		#-(AGT_CONFIG_SYS_GUARDX/2),d6
 .slr_lxok:

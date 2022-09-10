@@ -1,12 +1,15 @@
 *=======================================================*
 *	[A]tari [G]ame [T]ools / dml 2016
 *=======================================================*
-* 	EMSPR compound blitter sprite implementation
-*-------------------------------------------------------*
-*	paths: EntityDraw_EMSPR
+*	compound blitter gensprite implementation
+* 	paths: EMSPR
 *-------------------------------------------------------*
 *	max source xsize: -
 *	max source ysize: viewport clipper ysize
+*	x-clipping: guardband reject only
+*	y-clipping: yes
+*	clearing: yes/automatic
+*	occlusionmaps: yes
 *-------------------------------------------------------*
 
 	sprite_sc_frame	a0,d0,_AGT_Exception_EMSFrame_68k
@@ -25,16 +28,14 @@
 	add.w		(a0)+,d2			; +yo
 
 *-------------------------------------------------------*
-
-	.if		(enable_clipping)
-	
-	; guardx reject test (no x clipping in compound EMS)
-	;lea		_g_clipwinq_gg,a2
+*	early rejection, pre-OCM (OCM cannot clip)
+*-------------------------------------------------------*
+	;
+	; early x-reject if crossing x-guard
+	;
 	move.l		.sp_guardwin(sp),a2
-	sprite_guardxr	a2,d1,d3,d0,d6,.BLiT_EMCSpr_4BPL_end_all
+	guard_reject	a2,d1,d3,d0,d6,.BLiT_EMCSpr_4BPL_end
 
-	.endif
-	
 *-------------------------------------------------------*
 *	EntityDrawFlag_NORESTORE
 *-------------------------------------------------------*
@@ -51,6 +52,13 @@
 	.endif
 	beq.s		.emc_no_occlusion
 *-------------------------------------------------------*
+
+	;
+	; early y-reject if crossing y-guard (shortcuts OCM)
+	;
+	guard_reject	a2,d2,d4,d5,d6,.BLiT_EMCSpr_4BPL_end
+
+*-------------------------------------------------------*
 	move.l		a0,-(sp)
 	lea		(a0,d0.w),a0		
 	jsr		_OCM_occlusion_add_T			
@@ -64,7 +72,12 @@
 	move.w		d0,.emc_update_prestore1+2
 	.endif
 	.endif
-	
+*-------------------------------------------------------*
+	;
+	; OCM means no guard cross, but we lose nothing
+	; and save some time by allowing y-clip to follow
+	;
+
 *-------------------------------------------------------*
 .emc_no_occlusion:
 *-------------------------------------------------------*
@@ -129,7 +142,6 @@
 
 	.if		(enable_clipping)
 
-;	lea		_g_clipwin_gpp,a2
 	move.l		.sp_scissorwin(sp),a2
 
 *-------------------------------------------------------*
@@ -142,6 +154,11 @@
 *-------------------------------------------------------*
 .BLiT_EMCSpr_unsafetop:
 *-------------------------------------------------------*
+
+	.if		^^defined AGT_CONFIG_DEBUG_SHOWCLIPS
+	move.b		#15,BLiTLOP.w
+	.endif
+
 	move.w		clip_win_y(a2),d5
 	; relative to clipwindow
 	sub.w		d5,d2
@@ -181,6 +198,11 @@
 *-------------------------------------------------------*
 .BLiT_EMCSpr_unsafebot:
 *-------------------------------------------------------*
+
+	.if		^^defined AGT_CONFIG_DEBUG_SHOWCLIPS
+	move.b		#15,BLiTLOP.w
+	.endif
+	
 	sub.w		d0,d4
 	ble		.BLiT_EMCSpr_4BPL_end_all
 *-------------------------------------------------------*
@@ -213,23 +235,16 @@
 	.if		(use_sprite_pagerestore)
 	move.w		d2,(a5)+
 	move.w		d0,(a5)+
-	.endif
-	.endif
-
+	.endif		;(use_sprite_pagerestore)
+	.endif		;(enable_restore)
 
 	add.w		d0,a1
-
-	; dst yoffset (line)
-	; todo: just use playfield linetable here
-;	mulu.w		_g_linebytes,d2
-;	add.l		d2,a1
 
 	; address yline	
 	move.l		.sp_linetable(sp),a4
 	add.w		d2,d2
 	add.w		d2,d2
 	add.l		(a4,d2.w),a1			; 38c vs 56c for muls (28c excl. linetable fetch)
-
 
 	; find destination word width of whole sprite, all composites
 	; to produce a single sprite restore rectangle
@@ -262,7 +277,7 @@
 	move.w		d6,(a5)+			; word width*2
 	move.w		d4,(a5)+			; lines
 
-	.endif
+	.endif		;(use_sprite_pagerestore)
 
 	.if		(use_sprite_saverestore)
 
@@ -292,8 +307,8 @@
 	add.w		a4,a3
 	dbra		d1,.BLiT_EMCSpr_sylp
 
-	.endif
-	.endif
+	.endif		;(use_sprite_saverestore)
+	.endif		;(enable_restore)
 
 *-------------------------------------------------------*
 
@@ -303,10 +318,10 @@
 .emc_update_prestore1:
 	lea		$1234(a5),a5
 	move.l		a5,usp	
-	.endif
-	.endif
+	.endif		;(use_sprite_saverestore|use_sprite_pagerestore)
+	.endif		;(enable_restore)
 	
-	.endif		;0
+	.endif		;1
 
 
 	move.l		a0,.emsc_cmp_src

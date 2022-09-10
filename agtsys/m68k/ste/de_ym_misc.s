@@ -770,7 +770,8 @@ _BLiT_EntityOccludeVisibleYM_68k:
 	add.w		(a0)+,d2			; +yo
 
 	move.l		.sp_guardwin(sp),a2
-	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.STE_EntityOccludeVisibleYM_EMXSPR_no
+	guard_reject	a2,d1,d3,d0,d6,.STE_EntityOccludeVisibleYM_EMXSPR_no
+	guard_reject	a2,d2,d4,d0,d6,.STE_EntityOccludeVisibleYM_EMXSPR_no
 
 	move.w		(a0),d0
 	beq.s		.STE_EntityOccludeVisibleYM_EMXSPR_no
@@ -860,7 +861,8 @@ _BLiT_EntityOccludeVisibleYM_68k:
 	add.w		(a0)+,d2			; +yo
 
 	move.l		.sp_guardwin(sp),a2
-	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.STE_EntityOccludeVisibleYM_EMSPR_no
+	guard_reject	a2,d1,d3,d0,d6,.STE_EntityOccludeVisibleYM_EMSPR_no
+	guard_reject	a2,d2,d4,d0,d6,.STE_EntityOccludeVisibleYM_EMSPR_no
 
 	move.w		(a0),d0
 	beq.s		.STE_EntityOccludeVisibleYM_EMSPR_no

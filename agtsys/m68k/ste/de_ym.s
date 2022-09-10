@@ -277,7 +277,7 @@ enable_clipping	set	1				; enable full xy clipping
 enable_restore	set	1				; enable sprite-restore
 enable_clipping	set	1				; enable full xy clipping
 
-	include		"ste/b_emh_spr.s"		; body for EMH optimized blitter sprites (0<width<=32)
+	include		"ste/b_emhq_spr.s"		; body for EMH optimized blitter sprites (0<width<=32)
 
 	move.l		.sp_savea0(sp),a0
 

@@ -1,10 +1,15 @@
 *=======================================================*
 *	[A]tari [G]ame [T]ools / dml 2016
 *=======================================================*
-* 	EMSPR blitter sprite implementation
+* 	blitter sprite implementation
+*	paths: EMSPRQ
 *-------------------------------------------------------*
 *	max source xsize: 32
 *	max source ysize: viewport clipper ysize
+*	x-clipping: guardband reject only
+*	y-clipping: yes
+*	clearing: yes/automatic
+*	occlusionmaps: no
 *-------------------------------------------------------*
 
 	.if		^^defined AGT_CONFIG_SYS_EMS_XCLIP
@@ -17,29 +22,7 @@ enable_x_clipping	set	0
 	
 	pushraster	#$062
 
-	; todo: opt
-
-;	move.b		#3,BLiTLOP.w
-;	tst.w		d7
-;	beq.s		.ems_nohitflash
-;	bpl.s		.ems_hitflash
-;.ems_blinky:
-;	lsr.w		#1,d7
-;	bcs		.BLiT_EMSpr_4BPL_end	
-;	bra.s		.ems_nohitflash
-;.ems_hitflash:
-;	move.b		#15,BLiTLOP.w	
-;.ems_nohitflash:
-
 ;	move.w		#2,BLiTSYI.w
-
-
-;	move.w		sps_flags(a0),.sp_flags(sp)
-
-
-;	moveq		#1<<(8-8),d3
-;	and.b		sps_flags(a0),d3
-;	addq.w		#2,d3
 
 *-------------------------------------------------------*
 
@@ -51,6 +34,16 @@ enable_x_clipping	set	0
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
+
+*-------------------------------------------------------*
+*	early rejection
+*-------------------------------------------------------*
+	;
+	; early reject if outside viewport
+	;
+	move.l		.sp_scissorwin(sp),a2
+	vis_reject	a2,d1,d3,d0,d6,.BLiT_EMSpr_4BPL_end
+	vis_reject	a2,d2,d4,d0,d6,.BLiT_EMSpr_4BPL_end
 
 *-------------------------------------------------------*
 
@@ -90,28 +83,31 @@ enable_x_clipping	set	0
 *	initial source skip (unclipped case)
 *-------------------------------------------------------*
 
-;	lea		_g_clipwin_gpp,a2
-
 	.if		(enable_x_clipping)
 
 	move.l		.sp_scissorwin(sp),a2
 	lea		2.w,a3
 
-	.else ; (enable_x_clipping)
+	.else		; (enable_x_clipping)
 
 	move.l		.sp_guardwin(sp),a2
-	
-	cmp.w		clip_win_x(a2),d1
-	bmi		.BLiT_EMSpr_4BPL_end
+	guard_reject	a2,d1,d3,d0,d5,.BLiT_EMSpr_4BPL_end
+.rewind	set		(dctx_scissorwindow-dctx_guardwindow)-4
+	lea		.rewind(a2),a2
 
-	move.w		d1,d0
-	add.w		d3,d0				; xr	
-	sub.w		clip_win_x2(a2),d0		; xr - cx2
-	bgt		.BLiT_EMSpr_4BPL_end
-
-	lea		dctx_scissorwindow-dctx_guardwindow(a2),a2
+;	move.l		.sp_guardwin(sp),a2
+;	
+;	cmp.w		clip_win_x(a2),d1
+;	bmi		.BLiT_EMSpr_4BPL_end
+;
+;	move.w		d1,d0
+;	add.w		d3,d0				; xr	
+;	sub.w		clip_win_x2(a2),d0		; xr - cx2
+;	bgt		.BLiT_EMSpr_4BPL_end
+;
+;	lea		dctx_scissorwindow-dctx_guardwindow(a2),a2
 	
-	.endif ; (enable_x_clipping)
+	.endif		; (enable_x_clipping)
 
 *-------------------------------------------------------*
 *	top edge
@@ -123,6 +119,11 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 .clip_unsafe_top:
 *-------------------------------------------------------*
+
+	.if		^^defined AGT_CONFIG_DEBUG_SHOWCLIPS
+	move.b		#15,BLiTLOP.w
+	.endif
+	
 	move.w		clip_win_y(a2),d5
 	; relative to clipwindow
 	sub.w		d5,d2
@@ -166,6 +167,11 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 .clip_unsafe_bot:
 *-------------------------------------------------------*
+
+	.if		^^defined AGT_CONFIG_DEBUG_SHOWCLIPS
+	move.b		#15,BLiTLOP.w
+	.endif
+	
 	sub.w		d0,d4
 	ble		.BLiT_EMSpr_4BPL_end
 *-------------------------------------------------------*
@@ -186,6 +192,10 @@ enable_x_clipping	set	0
 .clip_unsafe_left:
 *-------------------------------------------------------*
 
+	.if		^^defined AGT_CONFIG_DEBUG_SHOWCLIPS
+	move.b		#15,BLiTLOP.w
+	.endif
+	
 	; FISR: force initial source read (i.e. shiftregisters preloaded with 1st data word)
 	or.b		#$80,.sp_skew(sp)
 
@@ -243,6 +253,11 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 .clip_unsafe_right:
 *-------------------------------------------------------*
+
+	.if		^^defined AGT_CONFIG_DEBUG_SHOWCLIPS
+	move.b		#15,BLiTLOP.w
+	.endif
+
 	move.w		d3,d5
 
 	; adjust pixel width

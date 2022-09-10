@@ -1,18 +1,13 @@
 *=======================================================*
 *	[A]tari [G]ame [T]ools / dml 2016
 *=======================================================*
-* 	EMXSPR blitter codegen sprite implementation
+* 	EMXSPRQ blitter codegen sprite implementation
 *-------------------------------------------------------*
-*	max source xsize: -
+*	max source xsize: 32
 *	max source ysize: viewport clipper ysize
+*	xclip: yes, if configured
+*	yclip: yes, if embedded EMS
 *-------------------------------------------------------*
-;	addq		#1,d0
-
-; EMX by default embeds EMS (without the -nc flag) purely for viewport clipping purposes
-; this flag determines if x-clipping is enabled as part of that, or just y-clipping
-; since x-clipping only works for <=32 wide sprites and EMX can now exceed that, 
-; we disable this here
-enable_x_clipping	set	0
 	
 	sprite_sc_frame	a0,d0,_AGT_Exception_EMXFrame_68k
 
@@ -30,70 +25,109 @@ enable_x_clipping	set	0
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
-			
-*-------------------------------------------------------*
-*	guardband test for optimized fastpath
-*-------------------------------------------------------*
-	
-	;lea		_g_clipwinq_gg,a2
 
-	.if		(enable_x_clipping)
+*-------------------------------------------------------*
+*	early rejection for small sprites in guard area
+*-------------------------------------------------------*
+	;
+	; early xy-reject if fully outside viewport
+	;
 	move.l		.sp_scissorwin(sp),a2
-	sprite_guardxr	a2,d1,d3,d0,d6,.BLiT_EMXSpr_GuardBand_4BPL
-	.else
-	move.l		.sp_guardwin(sp),a2
-	sprite_guardxr	a2,d1,d3,d0,d6,.BLiT_EMXSpr_4BPL_end	
-	lea		dctx_scissorwindow-dctx_guardwindow(a2),a2
-	.endif	
+	vis_reject	a2,d1,d3,d0,d6,.BLiT_EMXSpr_4BPL_end
+	vis_reject	a2,d2,d4,d0,d6,.BLiT_EMXSpr_4BPL_end
 
-	sprite_guardya	a2,d2,d4,d0,d6,.BLiT_EMXSpr_NoClip_4BPL_go
-	; otherwise fallthrough to guardclip
+*-------------------------------------------------------*
 
+*-------------------------------------------------------*
+	.if		^^defined AGT_CONFIG_SYS_EMXQ_PREFER_YCLIP
+*-------------------------------------------------------*
 
-;	; sprite clipping window
-;	lea		_g_clipwin_gpp,a2
-;	
-;	; todo: opt using carry window
-;
-;	cmp.w		(a2)+,d1
-;	.if		(enable_x_clipping)
-;	bmi.s		.BLiT_EMXSpr_GuardBand_4BPL
-;	.else		;(enable_x_clipping)
-;	bmi		.BLiT_EMXSpr_4BPL_end
-;	.endif		;(enable_x_clipping)
-;	
-;	cmp.w		(a2)+,d2
-;	bmi.s		.BLiT_EMXSpr_GuardBand_4BPL
-;
-;	move.w		d1,d0
-;	add.w		d3,d0				; xr	
-;	sub.w		(a2)+,d0			; xr - cx2
-;	.if		(enable_x_clipping)
-;	bgt.s		.BLiT_EMXSpr_GuardBand_4BPL
-;	.else		;(enable_x_clipping)
-;	bgt		.BLiT_EMXSpr_4BPL_end
-;	.endif		;(enable_x_clipping)
-;
-;	move.w		d2,d0
-;	add.w		d4,d0				; yr	
-;	sub.w		(a2)+,d0			; yr - cy2
-;	ble		.BLiT_EMXSpr_NoClip_4BPL_go
+	;
+	; early x-reject if touching guard
+	; REDUNDANT: EMXQ must be <=32 while guardx>=32 so vis_reject(x) covers this
+	;
+	;move.l		.sp_guardrwin(sp),a2
+	;guard_reject	a2,d1,d3,d0,d6,.BLiT_EMXSpr_4BPL_end
+
+*-------------------------------------------------------*
+*	y-clip (EMS) or y-guard
+*-------------------------------------------------------*
+
+	; if we have embedded EMS colour data...
 	
-
-*-------------------------------------------------------*
-*	sprite lies in guardband region or beyond
-*-------------------------------------------------------*
-.BLiT_EMXSpr_GuardBand_4BPL:
-*-------------------------------------------------------*
-
-	
-;	exit if we have no embedded EMS colour data
-
 	move.w		.sp_cfield4(sp),d6
 	move.l		spf_emx_colour-8(a0,d6.w),d0
+	beq.s		.BLiT_EMXSpr_NYC
+	
+	; ...trivial accept if fully inside viewport
+
+	move.l		.sp_scissorwin(sp),a2
+	lea		clip_win_y(a2),a2	
+	guard_accept	a2,d2,d4,d5,d6,.BLiT_EMXSpr_NoClip_4BPL_go
+	
+	; otherwise proceed with y-clip
+	
+	bra.s		.BLiT_EMXSpr_YC
+	
+.BLiT_EMXSpr_NYC:
+
+	; no EMS - accept/reject on y-guard
+
+	;
+	; accept/reject on y-guard
+	;
+	move.l		.sp_guardwin(sp),a2
+	lea		clip_win_y(a2),a2
+	guard_accept	a2,d2,d4,d5,d6,.BLiT_EMXSpr_NoClip_4BPL_go
+	bra		.BLiT_EMXSpr_4BPL_end
+
+*-------------------------------------------------------*
+	.else		; ^^defined AGT_CONFIG_SYS_EMXQ_PREFER_YCLIP
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+*	early accept/reject vs guardband
+*-------------------------------------------------------*
+	;
+	; early x-reject if crossing x-guard
+	; REDUNDANT: EMXQ must be <=32 while guardx>=32 so vis_reject(x) covers this
+	;
+	move.l		.sp_guardwin(sp),a2
+	;guard_reject	a2,d1,d3,d0,d6,.BLiT_EMXSpr_4BPL_end
+	;
+	; early y-accept if not crossing y-guard
+	;
+	lea		clip_win_y(a2),a2
+	guard_accept	a2,d2,d4,d5,d6,.BLiT_EMXSpr_NoClip_4BPL_go
+
+*-------------------------------------------------------*
+*	y-clip (EMS) or y-guard
+*-------------------------------------------------------*
+
+	; if we don't have embedded EMS colour data...
+	
+	move.w		.sp_cfield4(sp),d6
+	move.l		spf_emx_colour-8(a0,d6.w),d0
+	
+	; ...we can't y-clip and can't draw here so we bail
+	
 	beq		.BLiT_EMXSpr_4BPL_end
 		
+	; otherwise proceed with viewport y-clip
+	
 *-------------------------------------------------------*
+	.endif		; ^^defined AGT_CONFIG_SYS_EMXQ_PREFER_YCLIP
+*-------------------------------------------------------*
+
+*-------------------------------------------------------*
+*	sprite subject to y-clipping
+*-------------------------------------------------------*
+.BLiT_EMXSpr_YC:
+*-------------------------------------------------------*
+
+	.if		^^defined AGT_CONFIG_DEBUG_SHOWCLIPS
+	move.b		#15,BLiTLOP.w
+	.endif
 	
 	; skew
 	moveq		#16-1,d6
@@ -129,7 +163,7 @@ enable_x_clipping	set	0
 	lea		2.w,a3	
 
 
-	.if		(enable_clipping)
+;	.if		(enable_clipping)
 	
 ;	lea		_g_clipwin_gpp,a2
 	move.l		.sp_scissorwin(sp),a2
@@ -579,7 +613,7 @@ enable_x_clipping	set	0
 .emx_clip_safe_right:
 *-------------------------------------------------------*
 
-	.endif		; enable_clipping
+;	.endif		; enable_clipping
 
 	
 *-------------------------------------------------------*
@@ -874,18 +908,7 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 
 	sprite_spf	a0,d0,d3,a0
-
-;	moveq		#1,d3
-;	and.b		sps_flags(a0),d3		; 1 = double index
-;	beq.s		.emx2_no_dfm
-;	add.w		d0,d0				;	
-;	and.w		.sp_mfield(sp),d3		; 1 = field offset
-;	add.w		d3,d0	
-;.emx2_no_dfm:
-;	add.w		d0,d0				; todo: game layer can prescale this
-;	add.w		d0,d0
-;	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
-			
+	
 	; frame fields
 
 	move.w		(a0)+,d3			; w
@@ -898,29 +921,9 @@ enable_x_clipping	set	0
 *-------------------------------------------------------*
 
 	move.l		.sp_guardwin(sp),a2
-	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.BLiT_EMXSpr_4BPL_end
-	
-	; sprite clipping window
-;	lea		_g_clipwin_gpp,a2
-;
-;	cmp.w		(a2)+,d1
-;	bmi.s		.BLiT_EMXSpr_4BPL_end
-;
-;	cmp.w		(a2)+,d2
-;	bmi.s		.BLiT_EMXSpr_4BPL_end
-;
-;	move.w		d1,d0
-;	add.w		d3,d0				; xr	
-;	sub.w		(a2)+,d0			; xr - cx2
-;	bgt.s		.BLiT_EMXSpr_4BPL_end
-;
-;	move.w		d2,d0
-;	add.w		d4,d0				; yr	
-;	sub.w		(a2)+,d0			; yr - cy2
-;	ble.s		.BLiT_EMXSpr_NoClip_4BPL_go
-;
-;	bra.s		.BLiT_EMXSpr_4BPL_end
-	
+	vis_reject	a2,d1,d3,d0,d6,.BLiT_EMXSpr_4BPL_end
+	guard_reject	a2,d2,d4,d0,d6,.BLiT_EMXSpr_4BPL_end
+
 
 	.endif		;(enable_clipping)
 

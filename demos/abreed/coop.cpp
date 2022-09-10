@@ -130,7 +130,12 @@ typedef playfield_template
 	/*max_scroll=*/1920,						// maximum scroll distance in pixels (reduce to save a little ram on tables)
 	/*vscroll=*/VScrollMode_LOOPBACK,			// enable full vscroll
 	/*hscroll=*/HScrollMode_SCANWALK,			// enable full hscroll
-	/*restore=*/RestoreMode_PAGERESTORE			// restore from virtual page (verus save/restore for individual objects)
+	/*restore=*/RestoreMode_PAGERESTORE,		// restore from virtual page (verus save/restore for individual objects)
+	/*update=*/UpdateMode_NORMAL,
+	/*hwattr=*/PFH_Defaults,
+	/*pfattr=*/PFA_Defaults,
+	/*guardx=*/AGT_CONFIG_SYS_GUARDX,
+	/*guardy=*/0								// removes guardband from screen split = more efficient
 
 > playfield_t;									// new name for our playfield definition
 

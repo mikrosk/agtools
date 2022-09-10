@@ -78,6 +78,8 @@ enum EntityType : int
 
 static entity_t *s_pe_viewport = NULL;
 
+static drawcontext_t drawcontext;
+
 // ---------------------------------------------------------------------------------------------------------------------
 //	hardware interfaces
 
@@ -540,6 +542,24 @@ int AGT_EntryPoint()
 			// get the current draw context, needed for entity drawing
 			myworld.get_context(drawcontext, 0, VIEWPORT_XSIZE, VIEWPORT_YSIZE);
 
+/*
+			static const s16 c_guard_reduce = 0;
+
+			drawcontext.guard_window_x1 += c_guard_reduce;
+			drawcontext.guard_window_xs -= (c_guard_reduce*2);
+			drawcontext.guard_window_y1 += c_guard_reduce;
+			drawcontext.guard_window_ys -= (c_guard_reduce*2);
+			drawcontext.guard_window_x2 -= c_guard_reduce;
+			drawcontext.guard_window_y2 -= c_guard_reduce;
+
+			// physical clip region for IMS and some other stuff
+			drawcontext.scissor_window_x1p += c_guard_reduce;
+			drawcontext.scissor_window_xs -= (c_guard_reduce*2)+16;;
+			drawcontext.scissor_window_y1 += c_guard_reduce;
+			drawcontext.scissor_window_ys -= (c_guard_reduce*2);
+			drawcontext.scissor_window_x2p -= c_guard_reduce+16;
+			drawcontext.scissor_window_y2 -= c_guard_reduce;
+*/
 			// fill any background tiles required by this change in coordinates
 			myworld.hybrid_fill(false);
 
@@ -628,6 +648,8 @@ int AGT_EntryPoint()
 // =====================================================================================================================
 // tick function
 
+static const s32 c_movespeed = 1 << 16;
+
 // tick function for smaller objects with no occlusion maps - allow them to enter the guardband
 void ems_fntick(entity_t *_pself)
 {
@@ -636,19 +658,19 @@ void ems_fntick(entity_t *_pself)
 
 	if (key_states[ScanCode_W])
 	{
-		self.fry -= 0x00008000;
+		self.fry -= c_movespeed;
 	}
 	if (key_states[ScanCode_S])
 	{
-		self.fry += 0x00008000;
+		self.fry += c_movespeed;
 	}
 	if (key_states[ScanCode_A])
 	{
-		self.frx -= 0x00008000;
+		self.frx -= c_movespeed;
 	}
 	if (key_states[ScanCode_D])
 	{
-		self.frx += 0x00008000;
+		self.frx += c_movespeed;
 	}
 
 	if (debounced_key_releases[ScanCode_1])
@@ -666,25 +688,25 @@ void emx_fntick(entity_t *_pself)
 
 	if (key_states[ScanCode_T])
 	{
-		self.fry -= 0x00008000;
+		self.fry -= c_movespeed;
 	}
 	if (key_states[ScanCode_G])
 	{
-		self.fry += 0x00008000;
+		self.fry += c_movespeed;
 	}
 	if (key_states[ScanCode_F])
 	{
-		self.frx -= 0x00008000;
+		self.frx -= c_movespeed;
 	}
 	if (key_states[ScanCode_H])
 	{
-		self.frx += 0x00008000;
+		self.frx += c_movespeed;
 	}	
 
 	if (debounced_key_releases[ScanCode_2])
 	{
 		debounced_key_releases[ScanCode_2] = 0;
-		self.drawtype ^= EntityDraw_EMXSPRQ;
+		self.drawtype ^= EntityDraw_EMXSPR;
 		g_enabled ^= 1<<1;
 	}	
 }
@@ -696,19 +718,19 @@ void emh_fntick(entity_t *_pself)
 
 	if (key_states[ScanCode_I])
 	{
-		self.fry -= 0x00008000;
+		self.fry -= c_movespeed;
 	}
 	if (key_states[ScanCode_K])
 	{
-		self.fry += 0x00008000;
+		self.fry += c_movespeed;
 	}
 	if (key_states[ScanCode_J])
 	{
-		self.frx -= 0x00008000;
+		self.frx -= c_movespeed;
 	}
 	if (key_states[ScanCode_L])
 	{
-		self.frx += 0x00008000;
+		self.frx += c_movespeed;
 	}
 
 	if (debounced_key_releases[ScanCode_3])
@@ -726,19 +748,19 @@ void slb_fntick(entity_t *_pself)
 
 	if (key_states[ScanCode_UP])
 	{
-		self.fry -= 0x00008000;
+		self.fry -= c_movespeed;
 	}
 	if (key_states[ScanCode_DOWN])
 	{
-		self.fry += 0x00008000;
+		self.fry += c_movespeed;
 	}
 	if (key_states[ScanCode_LEFT])
 	{
-		self.frx -= 0x00008000;
+		self.frx -= c_movespeed;
 	}
 	if (key_states[ScanCode_RIGHT])
 	{
-		self.frx += 0x00008000;
+		self.frx += c_movespeed;
 	}	
 	if (debounced_key_releases[ScanCode_4])
 	{

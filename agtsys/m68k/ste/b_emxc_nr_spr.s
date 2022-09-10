@@ -1,13 +1,17 @@
 *=======================================================*
 *	[A]tari [G]ame [T]ools / dml 2016
 *=======================================================*
-* 	EMXSPRUR compound blitter gensprite implementation
+*	compound blitter gensprite implementation
+* 	path: EMXSPRUR
 *-------------------------------------------------------*
 *	max source xsize: -
 *	max source ysize: viewport clipper ysize
+*	x-clipping: guardband reject only
+*	y-clipping: guardband reject / embedded EMS
+*	clearing: no/custom/user-provided
+*	occlusionmaps: no
 *-------------------------------------------------------*
 
-	
 	sprite_sc_frame	a0,d0,_AGT_Exception_EMXFrame_68k
 			
 	pushraster	#$062
@@ -22,59 +26,44 @@
 	move.w		(a0)+,d4			; h
 	add.w		(a0)+,d1			; +xo
 	add.w		(a0)+,d2			; +yo
+			
+*-------------------------------------------------------*
+*	early accept/reject vs guardband
+*-------------------------------------------------------*
+	;
+	; early x-reject if crossing x-guard
+	;
+	move.l		.sp_guardwin(sp),a2
+	guard_reject	a2,d1,d3,d0,d6,.BLiT_EMXNR_4BPL_end
+	;
+	; early y-accept if not crossing y-guard
+	;
+	guard_accept	a2,d2,d4,d5,d6,.BLiT_EMXNR_NoClip_4BPL_go
 		
 *-------------------------------------------------------*
-*	guardband test for optimized fastpath
+*	y-clip (EMS) or y-guard
 *-------------------------------------------------------*
 
-	.if		(enable_clipping)
-
-	move.l		.sp_guardwin(sp),a2
-	sprite_guardxr	a2,d1,d3,d0,d6,.BLiT_EMXNR_4BPL_end
-
-	;lea		dctx_scissorwindow-dctx_guardwindow(a2),a2
-	move.l		.sp_scissorwin(sp),a2
-	sprite_guardya	a2,d2,d4,d0,d6,.BLiT_EMXNR_NoClip_4BPL_go
-			
-	; sprite clipping window
-;	lea		_g_clipwin_gpp,a2
-;	
-;	; todo: opt using carry window
-;
-;	cmp.w		(a2)+,d1
-;	bmi		.BLiT_EMXNR_4BPL_end
-;
-;	cmp.w		(a2)+,d2
-;	bmi.s		.BLiT_EMXNR_GuardBand_4BPL
-;
-;	move.w		d1,d0
-;	add.w		d3,d0				; xr	
-;	sub.w		(a2)+,d0			; xr - cx2
-;	bgt		.BLiT_EMXNR_4BPL_end
-;
-;	move.w		d2,d0
-;	add.w		d4,d0				; yr	
-;	sub.w		(a2)+,d0			; yr - cy2
-;	ble		.BLiT_EMXNR_NoClip_4BPL_go
+	; if we don't have embedded EMS colour data...
 	
-	.endif
-
-*-------------------------------------------------------*
-*	sprite lies in guardband region or beyond
-*-------------------------------------------------------*
-.BLiT_EMXNR_GuardBand_4BPL:
-*-------------------------------------------------------*
-
-;	access colour data
 	move.w		.sp_cfield4(sp),d6
 	move.l		spf_emx_colour-8(a0,d6.w),d0
-
-;	exit if we have no embedded EMS colour data
-	beq		.BLiT_EMXNR_4BPL_end
 	
+	; ...we can't y-clip and can't draw here so we bail
+	
+	beq		.BLiT_EMXNR_4BPL_end
+		
+	; otherwise proceed with viewport y-clip
+	
+*-------------------------------------------------------*
+*	sprite subject to y-clipping
 *-------------------------------------------------------*
 .BLiT_EMXNR_YC:
 *-------------------------------------------------------*
+
+	.if		^^defined AGT_CONFIG_DEBUG_SHOWCLIPS
+	move.b		#15,BLiTLOP.w
+	.endif
 
 	; skew
 	moveq		#16-1,d6
@@ -133,7 +122,6 @@
 
 	.if		(enable_clipping)
 
-;	lea		_g_clipwin_gpp,a2
 	move.l		.sp_scissorwin(sp),a2
 
 *-------------------------------------------------------*
@@ -445,6 +433,7 @@
 
 
 
+	.if		(0)
 
 *-------------------------------------------------------*
 *	Entrypoint for EMXSPR with cull-clipping only	
@@ -452,17 +441,8 @@
 .BLiT_EMXNR_NoClip_4BPL:
 *-------------------------------------------------------*
 
-	moveq		#1,d3
-	and.b		sps_flags(a0),d3		; 1 = double index
-	beq.s		.emxnr2_no_dfm
-	add.w		d0,d0				;	
-	and.w		.sp_mfield(sp),d3		; 1 = field offset
-	add.w		d3,d0	
-.emxnr2_no_dfm:
-	add.w		d0,d0				; todo: game layer can prescale this
-	add.w		d0,d0
-	move.l		sps_frameindex(a0,d0.w),a0	; access sprite frame data
-			
+	sprite_spf	a0,d0,d3,a0
+	
 	; frame fields
 
 	move.w		(a0)+,d3			; w
@@ -477,34 +457,18 @@
 	.if		(enable_clipping)
 	
 	move.l		.sp_guardwin(sp),a2
-	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.BLiT_EMXNR_4BPL_end
-		
-	; sprite clipping window
-;	lea		_g_clipwin_gpp,a2
-;
-;	cmp.w		(a2)+,d1
-;	bmi		.BLiT_EMXNR_4BPL_end
-;
-;	cmp.w		(a2)+,d2
-;	bmi		.BLiT_EMXNR_4BPL_end
-;
-;	move.w		d1,d0
-;	add.w		d3,d0				; xr	
-;	sub.w		(a2)+,d0			; xr - cx2
-;	bgt		.BLiT_EMXNR_4BPL_end
-;
-;	move.w		d2,d0
-;	add.w		d4,d0				; yr	
-;	sub.w		(a2)+,d0			; yr - cy2
-;	ble.s		.BLiT_EMXNR_NoClip_4BPL_go
-;
-;	bra		.BLiT_EMXNR_4BPL_end
+	guard_reject	a2,d1,d3,d0,d6,.BLiT_EMXNR_4BPL_end
+	guard_reject	a2,d2,d4,d0,d6,.BLiT_EMXNR_4BPL_end
 	
-	.endif
+	.endif		;(enable_clipping)
 	
+	.endif		; (0)
+
 *-------------------------------------------------------*
 .BLiT_EMXNR_NoClip_4BPL_go:
 *-------------------------------------------------------*
+
+	setraster	#$262
 
 	; skew
 	moveq		#16-1,d6
@@ -547,7 +511,6 @@
 	; dst pixelword xoffset
 	moveq		#-16,d0
 	and.w		d1,d0
-;	lsr.w		#1,d0
 	asr.w		#1,d0		; guardband allows -ve x!
 	add.w		d0,a1
 
@@ -565,6 +528,24 @@
 	lea		$ffff8a3c.w,a5
 	move.l		#$ff000004,d2
 	move.l		#$00ffc000,d1
+
+;	IN:
+;
+;	d0		-
+;	d1		$00ffc000
+;	d2		$FF000004
+;	d3		-
+;	d4		-
+;	d5		-
+;	d6		-
+;	d7		-
+;	a0		BLiTYC		: $00ff8a38
+;	a1		dst
+;	a2		BLiTEM1		; $00ff8a28
+;	a3		BLiTDST		; $ffff8a32
+;	a4		BLiTEM3		; $00ff8a2c
+;	a5		BLiTCTRL	; $ffff8a3c
+;	a6		-
 	
 	jsr		(a6)
 		

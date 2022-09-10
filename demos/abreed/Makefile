@@ -150,7 +150,7 @@ images: $(CACHE)/disk1.tag $(CACHE)/disk2.tag
 # define content of disk1
 # -----------------------------------------------------------------------------
 
-DISK1_BINARY = $(BUILD_DIR)/abreed.prg
+DISK1_BINARY = $(BUILD_DIR)/coop.prg
 DISK1_ASSETS = $(ASSETS_COMMON)
 
 disk1: $(CACHE)/disk1.tag
@@ -164,7 +164,7 @@ clean-disk1:
 # define content of disk2
 # -----------------------------------------------------------------------------
 
-DISK2_BINARY = $(BUILD_DIR)/coop.prg
+DISK2_BINARY = $(BUILD_DIR)/abreed.prg
 DISK2_ASSETS = $(ASSETS_COMMON)
 
 disk2: $(CACHE)/disk2.tag

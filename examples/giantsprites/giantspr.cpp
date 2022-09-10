@@ -422,7 +422,7 @@ int AGT_EntryPoint()
 		pe->wy = 5768+300; 
 		pe->vx = 9; 
 		pe->vy = 17;
-	
+
 		// 80-wide
 		pe = EntitySpawn(EntityType_80,  160,120);
 		pe->wx = 3000+200; 
@@ -430,24 +430,28 @@ int AGT_EntryPoint()
 		pe->vx = 15; 
 		pe->vy = 12;
 
+
 /*		pe = EntitySpawn(EntityType_80,  160,120);
 		pe->wx = 1024+200; 
 		pe->wy = 7000+250; 
 		pe->vx = -17; 
 		pe->vy = 10;
 */
+/*
 		// 144-wide
 		pe = EntitySpawn(EntityType_144, 160,120); 
 		pe->wx = 500+200; 
 		pe->wx = 1024+250; 
 		pe->vx = -9; 
 		pe->vy = 11;
-/*		pe = EntitySpawn(EntityType_144, 160,120); 
+*/
+
+		pe = EntitySpawn(EntityType_144, 160,120); 
 		pe->wx = 5000+200; 
 		pe->wy = 2500+250; 
 		pe->vx = 8; 
 		pe->vy = 9;
-*/
+
 		// =====================================================================================================================
 		//	must link any pending entities before starting mainloop (viewport is an entity and viewport scans rely on it)
 

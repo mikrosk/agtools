@@ -119,93 +119,87 @@
 
 ;	sprite window cliptest
 
-.macro	sprite_cliptest	win,x_,y_,w_,h_,temp,reject,accept
-	
+;.macro	sprite_cliptest	win,x_,y_,w_,h_,temp,reject,accept
+;	
 ;	lea		_g_clipwin_gpp,\win
+;	
+;	cmp.w		(\win)+,\x_
+;	bmi		\reject
+;
+;	cmp.w		(\win)+,\y_
+;	bmi		\reject
+;
+;	move.w		\x_,\temp
+;	add.w		\w_,\temp			; xr	
+;	sub.w		(\win)+,\temp			; xr - cx2
+;	bgt		\reject
+;
+;	move.w		\y_,\temp
+;	add.w		\h_,\temp			; yr	
+;	sub.w		(\win)+,\temp			; yr - cy2
+;	ble		\accept
+;
+;	bra		\reject
+;	
+;	.endm
+
+
+
+	; accept if range [A] fully within window [B]
 	
-	cmp.w		(\win)+,\x_
-	bmi		\reject
+.macro	guard_accept	win,p_,s_,temp1,temp2,accept	
 
-	cmp.w		(\win)+,\y_
-	bmi		\reject
-
-	move.w		\x_,\temp
-	add.w		\w_,\temp			; xr	
-	sub.w		(\win)+,\temp			; xr - cx2
-	bgt		\reject
-
-	move.w		\y_,\temp
-	add.w		\h_,\temp			; yr	
-	sub.w		(\win)+,\temp			; yr - cy2
-	ble		\accept
-
-	bra		\reject
-	
-	.endm
-
-; faster, requires 2 temp regs
-
-.macro	sprite_guard	win,x_,y_,w_,h_,temp1,temp2,reject	
-
-;	lea		_g_clipwinq_gg,\win
-
-	move.w		\x_,\temp1			; x
+	move.w		\p_,\temp1			; x
 	sub.w		(\win)+,\temp1			; x-cx
 	move.w		(\win)+,\temp2			; cw
-	sub.w		\w_,\temp2			; cw-w
-	cmp.w		\temp2,\temp1
-	bcc		\reject
-
-	move.w		\y_,\temp1			; y
-	sub.w		(\win)+,\temp1			; y-cy
-	move.w		(\win)+,\temp2			; ch
-	sub.w		\h_,\temp2			; ch-h
-	cmp.w		\temp2,\temp1
-	bcc		\reject
-
-	.endm
-	
-.macro	sprite_guardxr	win,x_,w_,temp1,temp2,reject	
-
-	move.w		\x_,\temp1			; x
-	sub.w		(\win)+,\temp1			; x-cx
-	move.w		(\win)+,\temp2			; cw
-	sub.w		\w_,\temp2			; cw-w
-	cmp.w		\temp2,\temp1
-	bcc		\reject
-
-	.endm
-
-.macro	sprite_guardyr	win,y_,h_,temp1,temp2,reject	
-
-	move.w		\y_,\temp1			; y
-	sub.w		(\win)+,\temp1			; y-cy
-	move.w		(\win)+,\temp2			; ch
-	sub.w		\h_,\temp2			; ch-h
-	cmp.w		\temp2,\temp1
-	bcc		\reject
-
-	.endm
-	
-	
-.macro	sprite_guardxa	win,x_,w_,temp1,temp2,accept	
-
-	move.w		\x_,\temp1			; x
-	sub.w		(\win)+,\temp1			; x-cx
-	move.w		(\win)+,\temp2			; cw
-	sub.w		\w_,\temp2			; cw-w
+	sub.w		\s_,\temp2			; cw-w
 	cmp.w		\temp2,\temp1
 	bcs		\accept
 
 	.endm
+	
+	; reject if range [A] partly outside window [B]
+	
+.macro	guard_reject	win,p_,s_,temp1,temp2,reject	
 
-.macro	sprite_guardya	win,y_,h_,temp1,temp2,accept	
+	move.w		\p_,\temp1			; x
+	sub.w		(\win)+,\temp1			; x-cx
+	move.w		(\win)+,\temp2			; cw
+	sub.w		\s_,\temp2			; cw-w
+	cmp.w		\temp2,\temp1
+	bcc		\reject
 
-	move.w		\y_,\temp1			; y
-	sub.w		(\win)+,\temp1			; y-cy
-	move.w		(\win)+,\temp2			; ch
-	sub.w		\h_,\temp2			; ch-h
+	.endm
+
+
+	; accept if range [A] partly within window [B]
+	
+.macro	vis_accept	win,p_,s_,temp1,temp2,accept	
+
+	move.w		\p_,\temp1			; x
+	add.w		\s_,\temp1			; x+w
+	sub.w		(\win)+,\temp1			; -cx
+	move.w		(\win)+,\temp2			; cw
+	add.w		\s_,\temp2			; cw+w
 	cmp.w		\temp2,\temp1
 	bcs		\accept
 
 	.endm
+	
+	; accept if range [A] fully outside window [B]
+	
+.macro	vis_reject	win,p_,s_,temp1,temp2,reject	
+
+	move.w		\p_,\temp1			; x
+	add.w		\s_,\temp1			; x+w
+	sub.w		(\win)+,\temp1			; -cx
+	move.w		(\win)+,\temp2			; cw
+	add.w		\s_,\temp2			; cw+w
+	cmp.w		\temp2,\temp1
+	bcc		\reject
+
+	.endm
+	
+
+
+	

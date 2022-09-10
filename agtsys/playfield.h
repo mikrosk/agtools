@@ -2027,8 +2027,11 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	}
 
 	int guardx_safety_words = ((c_guardx + (16-1)) >> 4) << 2;
-	int guardy1_safety_words = ((16 + (16-1)) & -16) * virtual_linewords_;
-	//int guardy2_safety_words = guardy1_safety_words;
+
+	// artificial padding for y guardband should absorb the speculative update margin, if active
+	// careful: don't -ve pad!
+	s16 guardy1_pad = xmax(0, (c_guardy - c_vspeculative_margin_));
+	int guardy1_safety_words = ((guardy1_pad + (16-1)) & -16) * virtual_linewords_;
 
 	// pad for left guardband
 	bufferwords_ += guardx_safety_words;
@@ -2176,7 +2179,8 @@ void init(s16 _buffer, s16 _field, s16 _display_width, s16 _display_height, s16 
 	delete[] display_alloc_;
 	int display_alloc_bytes = (bufferwords_<<1) + 256;
 	display_alloc_ = new u8[display_alloc_bytes];
-	qmemclr(display_alloc_, display_alloc_bytes);
+	//qmemclr(display_alloc_, display_alloc_bytes);
+	qmemset(display_alloc_, 0xFF, display_alloc_bytes);
 
 //	display_ = (u16*)(((u32)(display_alloc_) + (160*14) + 255) & -256);
 //	framebuffer_ = display_ + (160*7);

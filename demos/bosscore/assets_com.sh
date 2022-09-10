@@ -61,9 +61,8 @@ KEYCFG="-keyrgb ff:00:ff -kg -kt 0.01"
 # we can pass these to all tasks
 SPR_DEFAULTS="-crn 224 -gm -bld ${GENTEMP}"
 
-# default optimization level (lower value for faster cutting, quicker turnaround)
-DEFAULT_OPTI=""
-OPTI="-emxopt 20"
+# default optimization level (lower values for faster cutting, quicker turnaround)
+DEFAULT_OPTI="-emxopt 18,12"
 
 #------------------------------------------------------------------------------
 # composite cutting commands for most cases
@@ -80,6 +79,7 @@ SLR="${AGTBIN}/agtcut -cm slabrestore -p ${COLMAP} ${KEYCFG} ${DEBUG}"
 # -nc = no clipping (saves memory)
 
 # boss
+${SPR} -o ${OUT}/bosscore.emx -s ${SRC}/xenboss.png -sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1		-cm emxspr
 ${SLS} -o ${OUT}/bosscore.sls -s ${SRC}/xenboss.png -sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
 ${SLR} -o ${OUT}/bosscore.slr -s ${SRC}/xenboss.png -sxp 0 -syp 0 -sxs 144 -sys 96 -sc 1
 
@@ -97,6 +97,7 @@ ${SPR} -o ${OUT}/bullet.emx -s ${SRC}/sprites.png -sxp 172 -syp 28 -sxs 9 -sys 2
 
 # compress assets with lz77
 #
+${PACK} ${OUT}/bosscore.emx lz77
 ${PACK} ${OUT}/bosscore.sls lz77
 ${PACK} ${OUT}/bosscore.slr lz77
 ${PACK} ${OUT}/bosseye.emx lz77

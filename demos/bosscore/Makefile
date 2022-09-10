@@ -121,6 +121,7 @@ ASSETS_COMMON = \
 	$(ASSETS)/bosscore.ccm \
 	$(ASSETS)/bosscore.cct \
 	\
+	$(ASSETS)/bosscore.emx \
 	$(ASSETS)/bosscore.sls \
 	$(ASSETS)/bosscore.slr \
 	\

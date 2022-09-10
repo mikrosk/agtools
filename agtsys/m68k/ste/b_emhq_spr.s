@@ -1,12 +1,14 @@
 *=======================================================*
 *	[A]tari [G]ame [T]ools / dml 2016
 *=======================================================*
-* 	EMHQSPR blitter shared-codegen sprite implementation
+*	blitter shared-codegen sprite implementation
+* 	paths: EMHQSPR 
 *-------------------------------------------------------*
 *	max source xsize: -
 *	max source ysize: viewport clipper ysize
 *	x-clipping: guardband reject only
 *	y-clipping: guardband reject only
+*	clearing: yes/automatic
 *	occlusionmaps: no
 *-------------------------------------------------------*
 	
@@ -36,7 +38,8 @@
 *-------------------------------------------------------*
 
 	move.l		.sp_guardwin(sp),a2
-	sprite_guard	a2,d1,d2,d3,d4,d0,d6,.BLiT_EMHSpr_4BPL_end
+	guard_reject	a2,d1,d3,d0,d6,.BLiT_EMHSpr_4BPL_end
+	guard_reject	a2,d2,d4,d0,d6,.BLiT_EMHSpr_4BPL_end
 
 *-------------------------------------------------------*
 .BLiT_EMHSpr_NoClip_4BPL_go:
@@ -87,6 +90,7 @@
 	moveq		#-16,d0
 	and.w		d1,d0
 	asr.w		#1,d0		; guardband allows -ve x!
+	add.w		d0,a1
 
 	.if		(enable_restore&use_sprite_pagerestore)
 
@@ -98,17 +102,12 @@
 
 	.endif		;(enable_restore&use_sprite_pagerestore)
 
-	add.w		d0,a1
-
 	; address yline	
 	move.l		.sp_linetable(sp),a3
 	add.w		d2,d2
 	add.w		d2,d2
 	add.l		(a3,d2.w),a1	; 38c vs 56c for muls (28c excl. linetable fetch)
 
-;	muls.w		_g_linebytes,d2
-;	add.l		d2,a1
-	
 	.if		(enable_restore&use_sprite_pagerestore)
 
 	move.l		a1,(a5)+			; clear addr
@@ -131,16 +130,13 @@
 	lea		BLiTDST.w,a3
 	lea		BLiTEM3.w,a4
 	lea		BLiTCTRL.w,a5
-;.emh_emdata_smc:
-;	lea		$123456,a6
+
 	move.l		.sp_nextcmp(sp),a6
 
-;	move.w		_g_linebytes,d0
 	move.w		.sp_linebytes(sp),d0
 
 	move.l		#$00ffc000,d1
-;.emh_skew_smc:
-;	move.b		#$55,d1	
+
 	move.b		.sp_skew+1(sp),d1
 
 	move.l		#$FF000004,d2

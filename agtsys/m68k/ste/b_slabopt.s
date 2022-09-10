@@ -23,7 +23,7 @@
 
 	move.l		.sp_scissorwin(sp),a4				; scissor window
 	lea		dctx_guardwindow-dctx_scissorwindow(a4),a2	; guard window	
-	sprite_guardxr	a2,d1,d3,d4,d6,.slb_end
+	guard_reject	a2,d1,d3,d4,d6,.slb_end
 
 	; passed L/R guard test
 
@@ -43,6 +43,7 @@
 	moveq		#0,d6
 	tst.w		d1
 	bpl.s		.slb_lxok
+	; TODO: local guardx from stackframe, remove global
 	add.w		#AGT_CONFIG_SYS_GUARDX,d1
 	move.w		#-(AGT_CONFIG_SYS_GUARDX/2),d6
 .slb_lxok:
