@@ -4,7 +4,10 @@
 
 # project-relative location of agtools repo root dir
 # note: can remove this and set $AGTROOT var externally if preferred
-AGTROOT = ../..
+ifeq ($(AGTROOT),)
+AGTROOT := ../..
+endif
+$(info $$AGTROOT is [${AGTROOT}])
 
 # project name - mainly for layout - target binaries can be individually named
 PROJECT := bosscore
@@ -256,15 +259,15 @@ assets: assets_common
 
 
 # rule to transfer common samples to assets dir
-$(ASSETS)/sounds/%.wav: ../../data/sounds/%.wav
+$(ASSETS)/sounds/%.wav: $(AGTROOT)/data/sounds/%.wav
 	cp $< $@
 
 # rule to transfer shared music to assets dir
-$(ASSETS)/music/%.bmu: ../../data/music/%.bmu
+$(ASSETS)/music/%.bmu: $(AGTROOT)/data/music/%.bmu
 	cp $< $@
 
 # rule to pack shared music to assets dir
-$(ASSETS)/music/%.bmz: ../../data/music/%.bmu
+$(ASSETS)/music/%.bmz: $(AGTROOT)/data/music/%.bmu
 	cp $< $@
 	${PACK} $@ pk2e
 
