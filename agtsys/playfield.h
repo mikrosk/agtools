@@ -3035,6 +3035,7 @@ void hybrid_fill()
 				yf, lyf	//yf-dy
 			);	
 			else
+
 			shift_specrow_virtual(
 				vs_fill_x1, y1 - 1,
 				vs_fill_x1, y1 - 1, 
@@ -3213,29 +3214,34 @@ void hybrid_fill()
 #ifdef TIMING_RASTERS_MAIN
 			reg16(ffff8240) = 0x0ff;
 			reg16(00000064) = 0x0ff;
-#endif		
+#endif
 			//if (c_hbufferspeculation_)
 			if (c_ste_)
-			fill_speccolumn_virtual(
-				x2, hs_fill_y1, 
-				x2, hs_fill_y1, hs_fill_y2,
-				lxf, xf//lxf+dx
-			);		
+			{
+				fill_speccolumn_virtual(
+					x2, hs_fill_y1,
+					x2, hs_fill_y1, hs_fill_y2,
+					lxf, xf//lxf+dx
+				);
+			}
 			else
-			shift_speccolumn_virtual(
-				x2, hs_fill_y1, 
-				x2, hs_fill_y1, hs_fill_y2,
-				lxf, xf//lxf+dx
-			);		
+			{
+				shift_speccolumn_virtual(
+					x2, hs_fill_y1,
+					x2, hs_fill_y1, hs_fill_y2,
+					lxf, xf//lxf+dx
+				);
+			}
 		}
 		else
 		{
 
-#ifdef TIMING_RASTERS_MAIN		
+#ifdef TIMING_RASTERS_MAIN
 			reg16(ffff8240) = 0xfff;
 			reg16(00000064) = 0xfff;
 #endif		
-			if (lxf < c_tilesize_)	
+			if (lxf < c_tilesize_)
+			{
 			//if (c_hbufferspeculation_)
 			//shift_speccolumn_virtual(
 			//	x2 - 1, hs_fill_y1, 
@@ -3243,24 +3249,30 @@ void hybrid_fill()
 			//	lxf, c_tilesize_
 			//);		
 			//else
-			if (c_ste_)
-			fill_speccolumn_virtual(
-				x2 - 1, hs_fill_y1, 
-				x2 - 1, hs_fill_y1, hs_fill_y2,
-				lxf, c_tilesize_
-			);		
-			else
-			shift_speccolumn_virtual(
-				x2 - 1, hs_fill_y1, 
-				x2 - 1, hs_fill_y1, hs_fill_y2,
-				lxf, c_tilesize_
-			);		
+				if (c_ste_)
+				{
+					fill_speccolumn_virtual(
+						x2 - 1, hs_fill_y1,
+						x2 - 1, hs_fill_y1, hs_fill_y2,
+						lxf, c_tilesize_
+					);
+				}
+				else
+				{
+					shift_speccolumn_virtual(
+						x2 - 1, hs_fill_y1,
+						x2 - 1, hs_fill_y1, hs_fill_y2,
+						lxf, c_tilesize_
+					);
+				}
+			}
 
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0x444;
 			reg16(00000064) = 0x444;
 #endif		
 			if (xf > 0)	
+			{
 			//if (c_hbufferspeculation_)
 			//shift_speccolumn_virtual(
 			//	x2, hs_fill_y1, 
@@ -3268,18 +3280,23 @@ void hybrid_fill()
 			//	0, xf
 			//);		
 			//else
-			if (c_ste_)
-			fill_speccolumn_virtual(
-				x2, hs_fill_y1, 
-				x2, hs_fill_y1, hs_fill_y2,
-				0, xf
-			);		
-			else
-			shift_speccolumn_virtual(
-				x2, hs_fill_y1, 
-				x2, hs_fill_y1, hs_fill_y2,
-				0, xf
-			);
+				if (c_ste_)
+				{
+					fill_speccolumn_virtual(
+						x2, hs_fill_y1,
+						x2, hs_fill_y1, hs_fill_y2,
+						0, xf
+					);
+				}
+				else
+				{
+					shift_speccolumn_virtual(
+						x2, hs_fill_y1,
+						x2, hs_fill_y1, hs_fill_y2,
+						0, xf
+					);
+				}
+			}
 
 		}			
 	}
@@ -3379,69 +3396,73 @@ void hybrid_fill()
 			//else
 			if (c_ste_)
 			fill_speccolumn_virtual(
-				x1 - 1, hs_fill_y1, 
+				x1 - 1, hs_fill_y1,
 				x1 - 1, hs_fill_y1, hs_fill_y2,
 				xf, lxf	//xf-dx
-			);		
+			);
 			else
 			shift_speccolumn_virtual(
-				x1 - 1, hs_fill_y1, 
+				x1 - 1, hs_fill_y1,
 				x1 - 1, hs_fill_y1, hs_fill_y2,
 				xf, lxf	//xf-dx
-			);		
+			);
 		}
 		else
 		{
-#ifdef TIMING_RASTERS_MAIN		
+#ifdef TIMING_RASTERS_MAIN
 			reg16(ffff8240) = 0xff0;
 			reg16(00000064) = 0xff0;
 #endif		
-			if (lxf > 0)	
-			//if (c_hbufferspeculation_)
-			//shift_speccolumn_virtual(
-			//	x1, hs_fill_y1, 
-			//	x1, hs_fill_y1, hs_fill_y2,
-			//	0, lxf
-			//);		
-			//else
-			if (c_ste_)
-			fill_speccolumn_virtual(
-				x1, hs_fill_y1, 
-				x1, hs_fill_y1, hs_fill_y2,
-				0, lxf
-			);		
-			else
-			shift_speccolumn_virtual(
-				x1, hs_fill_y1, 
-				x1, hs_fill_y1, hs_fill_y2,
-				0, lxf
-			);		
+			if (lxf > 0)
+			{
+				//if (c_hbufferspeculation_)
+				//shift_speccolumn_virtual(
+				//	x1, hs_fill_y1, 
+				//	x1, hs_fill_y1, hs_fill_y2,
+				//	0, lxf
+				//);
+				//else
+				if (c_ste_)
+				fill_speccolumn_virtual(
+					x1, hs_fill_y1,
+					x1, hs_fill_y1, hs_fill_y2,
+					0, lxf
+				);
+				else
+				shift_speccolumn_virtual(
+					x1, hs_fill_y1,
+					x1, hs_fill_y1, hs_fill_y2,
+					0, lxf
+				);
+			}
 
 #ifdef TIMING_RASTERS_MAIN		
 			reg16(ffff8240) = 0x440;
 			reg16(00000064) = 0x440;
 #endif		
 			if (xf < c_tilesize_)
-			//if (c_hbufferspeculation_)
-			//shift_speccolumn_virtual(
-			//	x1 - 1, hs_fill_y1, 
-			//	x1 - 1, hs_fill_y1, hs_fill_y2,
-			//	xf, c_tilesize_
-			//);		
-			//else
-			if (c_ste_)
-			fill_speccolumn_virtual(
-				x1 - 1, hs_fill_y1, 
-				x1 - 1, hs_fill_y1, hs_fill_y2,
-				xf, c_tilesize_
-			);		
-			else
-			shift_speccolumn_virtual(
-				x1 - 1, hs_fill_y1, 
-				x1 - 1, hs_fill_y1, hs_fill_y2,
-				xf, c_tilesize_
-			);		
-		}			
+			{
+				//if (c_hbufferspeculation_)
+				//shift_speccolumn_virtual(
+				//	x1 - 1, hs_fill_y1,
+				//	x1 - 1, hs_fill_y1, hs_fill_y2,
+				//	xf, c_tilesize_
+				//);
+				//else
+				if (c_ste_)
+				fill_speccolumn_virtual(
+					x1 - 1, hs_fill_y1,
+					x1 - 1, hs_fill_y1, hs_fill_y2,
+					xf, c_tilesize_
+				);
+				else
+				shift_speccolumn_virtual(
+					x1 - 1, hs_fill_y1,
+					x1 - 1, hs_fill_y1, hs_fill_y2,
+					xf, c_tilesize_
+				);
+			}
+		}
 	}
 	}
 	else // c_hspecultive_
@@ -3487,7 +3508,7 @@ void hybrid_fill()
 							(txl + vpage_tiles_w), hs_fill_y1, 
 							(txl + vpage_tiles_w), hs_fill_y1, hs_fill_y2,
 									p, n
-						);		
+						);
 					} // (n > p)
 					else
 					{
