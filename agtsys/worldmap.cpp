@@ -272,6 +272,8 @@ s32 worldmap::allocate(MapFormat _format)
 
 	s16 alloc_height = header_.height;
 	padrows_pre_ = 0;
+	padrows_post_ = 0;
+
 
 	// special case for playfields - overrun padding required before/after active window
 	if (_format == MapFormat_PLAYFIELD)
