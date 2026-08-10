@@ -4,7 +4,10 @@
 
 # project-relative location of agtools repo root dir
 # note: can remove this and set $AGTROOT var externally if preferred
-AGTROOT = ../..
+ifeq ($(AGTROOT),)
+AGTROOT := ../..
+endif
+$(info $$AGTROOT is [${AGTROOT}])
 
 # project name - mainly for layout - target binaries can be individually named
 PROJECT := layeranim

@@ -41,8 +41,11 @@ HOST_SYSTEM=rpi			# hmm, equalize this for now. one set of binaries.
 
 # <Linux/RPI-OS-64
 elif [ ${HOST_QUERY:0:5} == "Linux" ]; then
+# If the arch command is not available, then do nothing
+type arch >/dev/null 2>&1 || arch() { :; }
 HOST_NAME=Linux
 HOST_SYSTEM=Linux
+HOST_ARCH=`arch`
 # need binaries for Linux, probably x64 only for now
 # Linux>
 

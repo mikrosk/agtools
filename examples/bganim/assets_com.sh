@@ -4,7 +4,11 @@
 set -e
 #==============================================================================
 
-AGTROOT=../..
+if [ "${AGTROOT}+x" = "x" ]; then
+  AGTROOT=../..
+else
+  echo "AGTROOT is set to ${AGTROOT}"
+fi
 
 # output dir
 OUT=assets
